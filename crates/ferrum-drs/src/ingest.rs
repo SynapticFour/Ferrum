@@ -4,7 +4,7 @@ use crate::error::{DrsError, Result};
 use crate::state::AppState;
 use crate::types::{ChecksumInput, CreateObjectRequest, IngestBatchItem, IngestBatchRequest, IngestUrlRequest};
 use axum::{
-    extract::{Multipart, State},
+    extract::{Extension, Multipart, State},
     Json,
 };
 use sha2::{Digest, Sha256, Sha512};
@@ -20,6 +20,7 @@ use utoipa::ToSchema;
 pub async fn ingest_file(
     State(state): State<Arc<AppState>>,
     mut multipart: Multipart,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<IngestFileResponse>> {
     let storage = state.storage.as_ref().ok_or_else(|| DrsError::Validation("ingest not configured: no storage".into()))?;
     let mut name = None;
@@ -27,10 +28,19 @@ pub async fn ingest_file(
     let mut mime_type = None;
     let mut encrypt = false;
     let mut expected_sha256 = None::<String>;
+    let mut workspace_id = None::<String>;
     let mut data = Vec::new();
     while let Some(field) = multipart.next_field().await.map_err(|e| DrsError::Other(e.into()))? {
         let name_h = field.name().unwrap_or("").to_string();
         match name_h.as_str() {
+            "workspace_id" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        workspace_id = Some(t);
+                    }
+                }
+            }
             "file" => {
                 name = field.file_name().map(str::to_string);
                 if let Some(mime) = field.content_type().map(|c| c.to_string()) {
@@ -76,6 +86,13 @@ pub async fn ingest_file(
             )));
         }
     }
+    if let Some(ref ws_id) = workspace_id {
+        let sub = auth.as_ref().and_then(|c| c.0.sub()).ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+        let ok = ferrum_core::is_workspace_editor_or_owner(state.repo.pool(), ws_id, sub).await.map_err(|e| DrsError::Other(e.into()))?;
+        if !ok {
+            return Err(DrsError::Forbidden("not a workspace editor or owner".into()));
+        }
+    }
     let object_id = ulid::Ulid::new().to_string();
     let storage_key = format!("drs/{}", object_id);
     storage.put_bytes(&storage_key, &data).await.map_err(|e| DrsError::Other(e.into()))?;
@@ -94,6 +111,7 @@ pub async fn ingest_file(
         storage_backend: "local".to_string(),
         storage_key: storage_key.clone(),
         is_encrypted: Some(encrypt),
+        workspace_id,
     };
     state.repo.create_object_with_id(&req, Some(object_id.clone())).await?;
     Ok(Json(IngestFileResponse {
@@ -120,7 +138,16 @@ pub struct IngestFileResponse {
 pub async fn ingest_url(
     State(state): State<Arc<AppState>>,
     Json(req): Json<IngestUrlRequest>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<IngestUrlResponse>> {
+    if let Some(ref ws_id) = req.workspace_id {
+        let claims = auth.ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+        let sub = claims.0.sub().ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+        let ok = ferrum_core::is_workspace_editor_or_owner(state.repo.pool(), ws_id, sub).await.map_err(|e| DrsError::Other(e.into()))?;
+        if !ok {
+            return Err(DrsError::Forbidden("not a workspace editor or owner".into()));
+        }
+    }
     let policy = ferrum_core::SsrfPolicy::default();
     ferrum_core::validate_url_ssrf(&req.url, &policy).map_err(|e| DrsError::Validation(e.to_string()))?;
     if let Some(ref name) = req.name {
@@ -142,6 +169,7 @@ pub async fn ingest_url(
         storage_backend: "url".to_string(),
         storage_key: req.url,
         is_encrypted: Some(false),
+        workspace_id: req.workspace_id,
     };
     state.repo.create_object_with_id(&req_create, Some(object_id.clone())).await?;
     if let Some(ref store) = state.provenance_store {
@@ -173,7 +201,16 @@ pub struct IngestUrlResponse {
 pub async fn ingest_batch(
     State(state): State<Arc<AppState>>,
     Json(req): Json<IngestBatchRequest>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<IngestBatchResponse>> {
+    if let Some(ref ws_id) = req.workspace_id {
+        let claims = auth.ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+        let sub = claims.0.sub().ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+        let ok = ferrum_core::is_workspace_editor_or_owner(state.repo.pool(), ws_id, sub).await.map_err(|e| DrsError::Other(e.into()))?;
+        if !ok {
+            return Err(DrsError::Forbidden("not a workspace editor or owner".into()));
+        }
+    }
     let mut ids = Vec::new();
     let policy = ferrum_core::SsrfPolicy::default();
     for item in req.items {
@@ -193,6 +230,7 @@ pub async fn ingest_batch(
                     storage_backend: "url".to_string(),
                     storage_key: url,
                     is_encrypted: Some(false),
+                    workspace_id: req.workspace_id.clone(),
                 };
                 let id = state.repo.create_object(&create).await?;
                 if let Some(ref store) = state.provenance_store {
@@ -249,6 +287,7 @@ pub async fn ingest_batch(
                     storage_backend: "local".to_string(),
                     storage_key: storage_key.clone(),
                     is_encrypted: Some(false),
+                    workspace_id: req.workspace_id.clone(),
                 };
                 let id = state.repo.create_object_with_id(&create, Some(object_id)).await?;
                 if let Some(ref store) = state.provenance_store {

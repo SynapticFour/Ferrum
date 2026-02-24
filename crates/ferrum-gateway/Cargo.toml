@@ -18,6 +18,7 @@ ferrum-passports = { path = "../ferrum-passports" }
 ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
 ferrum-beacon = { path = "../ferrum-beacon" }
 ferrum-cohorts = { path = "../ferrum-cohorts" }
+ferrum-workspaces = { path = "../ferrum-workspaces" }
 axum = "0.7"
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }

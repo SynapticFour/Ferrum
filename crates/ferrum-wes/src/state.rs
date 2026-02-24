@@ -1,5 +1,6 @@
 //! App state for WES.
 
+use crate::checkpoint::CheckpointStore;
 use crate::log_stream::LogStreamRegistry;
 use crate::metrics::MetricsCollector;
 use crate::multiqc::MultiQCRunner;
@@ -24,4 +25,6 @@ pub struct AppState {
     pub multiqc_runner: Option<Arc<MultiQCRunner>>,
     /// A08: Allowed workflow URL prefixes. Empty = allow all (subject to scheme check).
     pub allowed_workflow_sources: Vec<String>,
+    /// When set, enable checkpoint/resume and cache stats/evict endpoints.
+    pub checkpoint_store: Option<Arc<CheckpointStore>>,
 }

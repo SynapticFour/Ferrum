@@ -15,6 +15,10 @@ impl WesRepo {
         Self { pool }
     }
 
+    pub fn pool(&self) -> &sqlx::PgPool {
+        &self.pool
+    }
+
     pub async fn create_run(
         &self,
         run_id: &str,
@@ -26,11 +30,14 @@ impl WesRepo {
         tags: &Value,
         work_dir: Option<&str>,
         owner_sub: &str,
+        workspace_id: Option<&str>,
+        resumed_from_run_id: Option<&str>,
+        checkpoint_enabled: bool,
     ) -> Result<()> {
         sqlx::query(
             r#"INSERT INTO wes_runs (run_id, workflow_url, workflow_type, workflow_type_version,
-               workflow_params, workflow_engine_params, tags, state, work_dir, owner_sub)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 'QUEUED', $8, $9)"#,
+               workflow_params, workflow_engine_params, tags, state, work_dir, owner_sub, workspace_id, resumed_from_run_id, checkpoint_enabled)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'QUEUED', $8, $9, $10, $11, $12)"#,
         )
         .bind(run_id)
         .bind(workflow_url)
@@ -41,6 +48,9 @@ impl WesRepo {
         .bind(tags)
         .bind(work_dir)
         .bind(owner_sub)
+        .bind(workspace_id)
+        .bind(resumed_from_run_id)
+        .bind(checkpoint_enabled)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -52,14 +62,16 @@ impl WesRepo {
     ) -> Result<Option<(
         String, String, String, String, Value, Value, Value, String,
         Option<DateTime<Utc>>, Option<DateTime<Utc>>, Value, Option<String>, Option<String>,
+        Option<String>, bool,
     )>> {
         let row = sqlx::query_as::<_, (
             String, String, String, String, Value, Value, Value, String,
             Option<DateTime<Utc>>, Option<DateTime<Utc>>, Value, Option<String>, Option<String>,
+            Option<String>, bool,
         )>(
             r#"SELECT run_id, workflow_url, workflow_type, workflow_type_version,
                workflow_params, workflow_engine_params, tags, state,
-               start_time, end_time, outputs, work_dir, owner_sub
+               start_time, end_time, outputs, work_dir, owner_sub, resumed_from_run_id, checkpoint_enabled
                FROM wes_runs WHERE run_id = $1"#,
         )
         .bind(run_id)
@@ -68,29 +80,37 @@ impl WesRepo {
         Ok(row)
     }
 
-    /// Returns true if the run exists and the caller may access it (owner or admin).
+    /// Returns true if the run exists and the caller may access it (owner, admin, or workspace member).
     pub async fn run_visible_to(
         &self,
         run_id: &str,
         caller_sub: Option<&str>,
         is_admin: bool,
     ) -> Result<bool> {
-        let row: Option<(Option<String>,)> = sqlx::query_as(
-            "SELECT owner_sub FROM wes_runs WHERE run_id = $1",
+        let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+            "SELECT owner_sub, workspace_id FROM wes_runs WHERE run_id = $1",
         )
         .bind(run_id)
         .fetch_optional(&self.pool)
         .await?;
-        let Some((run_owner,)) = row else {
+        let Some((run_owner, workspace_id)) = row else {
             return Ok(false);
         };
         if is_admin {
             return Ok(true);
         }
-        match caller_sub {
-            None => Ok(run_owner.is_none() || run_owner.as_deref() == Some("anonymous")),
-            Some(sub) => Ok(run_owner.as_deref() == Some(sub) || run_owner.is_none()),
+        if let Some(sub) = caller_sub {
+            if run_owner.as_deref() == Some(sub) {
+                return Ok(true);
+            }
+            if let Some(ref ws_id) = workspace_id {
+                let role = ferrum_core::get_workspace_member_role(&self.pool, ws_id, sub).await?;
+                if role.is_some() {
+                    return Ok(true);
+                }
+            }
         }
+        Ok(run_owner.is_none() || run_owner.as_deref() == Some("anonymous"))
     }
 
     pub async fn update_state(&self, run_id: &str, state: RunState) -> Result<()> {
@@ -166,27 +186,30 @@ impl WesRepo {
         page_token: Option<&str>,
         state_filter: Option<RunState>,
         owner_sub: Option<&str>,
+        workspace_id: Option<&str>,
     ) -> Result<(Vec<RunSummary>, Option<String>)> {
         let offset: i64 = page_token.and_then(|t| t.parse().ok()).unwrap_or(0);
         let state_str = state_filter.map(|s| s.as_str());
-        let rows: Vec<(String, String, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<Value>)> =
+        let rows: Vec<(String, String, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<Value>, Option<String>)> =
             sqlx::query_as(
-                r#"SELECT run_id, state, start_time, end_time, tags FROM wes_runs
+                r#"SELECT run_id, state, start_time, end_time, tags, resumed_from_run_id FROM wes_runs
                    WHERE ($1::text IS NULL OR state = $1)
                      AND ($4::text IS NULL OR owner_sub = $4)
+                     AND ($5::text IS NULL OR workspace_id = $5)
                    ORDER BY created_at DESC LIMIT $2 OFFSET $3"#,
             )
             .bind(state_str)
             .bind(page_size + 1)
             .bind(offset)
             .bind(owner_sub)
+            .bind(workspace_id)
             .fetch_all(&self.pool)
             .await?;
         let has_more = rows.len() as i64 > page_size;
         let runs: Vec<RunSummary> = rows
             .into_iter()
             .take(page_size as usize)
-            .map(|(run_id, state, start_time, end_time, tags)| {
+            .map(|(run_id, state, start_time, end_time, tags, resumed_from_run_id)| {
                 let tags_map = tags
                     .and_then(|v| v.as_object().cloned())
                     .map(|m| m.into_iter().filter_map(|(k, v)| Some((k, v.as_str()?.to_string()))).collect())
@@ -197,6 +220,7 @@ impl WesRepo {
                     start_time: start_time.map(|t| t.to_rfc3339()),
                     end_time: end_time.map(|t| t.to_rfc3339()),
                     tags: tags_map,
+                    resumed_from_run_id,
                 }
             })
             .collect();

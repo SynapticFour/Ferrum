@@ -1,5 +1,6 @@
 //! GA4GH Workflow Execution Service (WES) 1.1.
 
+pub mod checkpoint;
 pub mod config;
 pub mod error;
 pub mod executor;
@@ -26,9 +27,10 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::handlers::{
-    cancel_run, export_ro_crate, get_cost_summary, get_provenance_graph, get_run_log, get_run_metrics,
-    get_run_metrics_report, get_run_provenance, get_run_status, get_service_info, get_stderr, get_stdout,
-    list_runs, list_tasks, post_cost_estimate, post_runs, stream_logs, ListRunsQuery,
+    cancel_run, export_ro_crate, get_cache_stats, get_cost_summary, get_provenance_graph, get_run_log,
+    get_run_metrics, get_run_metrics_report, get_run_provenance, get_run_status, get_service_info,
+    get_stderr, get_stdout, list_runs, list_tasks, post_cost_estimate, post_runs, resume_run,
+    stream_logs, ListRunsQuery,
 };
 use crate::multiqc::MultiQCRunner;
 use crate::repo::WesRepo;
@@ -97,6 +99,10 @@ pub fn router(
     drs_ingest_base_url: Option<String>,
     allowed_workflow_sources: Vec<String>,
 ) -> Router {
+    let checkpoint_store = Some(Arc::new(crate::checkpoint::CheckpointStore::new(
+        pool.clone(),
+        drs_ingest_base_url.clone(),
+    )));
     let work_dir_base = work_dir_base.unwrap_or_else(|| std::env::temp_dir().join("wes-runs"));
     std::fs::create_dir_all(&work_dir_base).ok();
     let repo = Arc::new(WesRepo::new(pool.clone()));
@@ -129,6 +135,7 @@ pub fn router(
         metrics_sampler_started: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         multiqc_runner,
         allowed_workflow_sources,
+        checkpoint_store,
     };
     let state = Arc::new(state);
 
@@ -138,6 +145,7 @@ pub fn router(
         .route("/runs/{run_id}", get(get_run_log))
         .route("/runs/{run_id}/status", get(get_run_status))
         .route("/runs/{run_id}/cancel", post(cancel_run))
+        .route("/runs/{run_id}/resume", post(resume_run))
         .route("/runs/{run_id}/tasks", get(list_tasks))
         .route("/runs/{run_id}/logs/stream", get(stream_logs))
         .route("/runs/{run_id}/logs/stdout", get(get_stdout))
@@ -149,7 +157,9 @@ pub fn router(
         .route("/runs/{run_id}/metrics", get(get_run_metrics))
         .route("/runs/{run_id}/metrics/report", get(get_run_metrics_report))
         .route("/cost/estimate", axum::routing::post(post_cost_estimate))
-        .route("/cost/summary", get(get_cost_summary));
+        .route("/cost/summary", get(get_cost_summary))
+        .route("/cache/stats", get(get_cache_stats))
+        .route("/cache", axum::routing::delete(handlers::evict_cache));
     r.merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", WesApiDoc::openapi()))
         .with_state(state)
 }

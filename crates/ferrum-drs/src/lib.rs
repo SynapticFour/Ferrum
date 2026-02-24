@@ -10,8 +10,9 @@ pub mod types;
 pub mod uri;
 
 use axum::{
+    extract::{Extension, Multipart, Query, State},
     routing::{get, post},
-    Router,
+    Json, Router,
 };
 use crate::error::{JsonResult, ViewResult};
 pub use state::AppState;
@@ -20,6 +21,7 @@ use handlers::{
     options_object, post_object, put_object,
 };
 use std::sync::Arc;
+use crate::types::{CreateObjectRequest, ListObjectsQuery};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -66,6 +68,46 @@ use utoipa_swagger_ui::SwaggerUi;
 )]
 pub struct DrsApiDoc;
 
+async fn list_objects_json(
+    state: State<Arc<AppState>>,
+    query: Query<ListObjectsQuery>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> impl axum::response::IntoResponse {
+    JsonResult(list_objects(state, query, auth).await)
+}
+
+async fn post_object_json(
+    state: State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    req: Json<CreateObjectRequest>,
+) -> impl axum::response::IntoResponse {
+    JsonResult(post_object(state, req, auth).await)
+}
+
+async fn ingest_file_json(
+    state: State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    m: Multipart,
+) -> impl axum::response::IntoResponse {
+    JsonResult(ingest::ingest_file(state, m, auth).await)
+}
+
+async fn ingest_url_json(
+    state: State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    req: Json<crate::types::IngestUrlRequest>,
+) -> impl axum::response::IntoResponse {
+    JsonResult(ingest::ingest_url(state, req, auth).await)
+}
+
+async fn ingest_batch_json(
+    state: State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    req: Json<crate::types::IngestBatchRequest>,
+) -> impl axum::response::IntoResponse {
+    JsonResult(ingest::ingest_batch(state, req, auth).await)
+}
+
 /// Build the DRS router. Mount at e.g. /ga4gh/drs/v1.
 /// Requires AppState with repo (and optional storage for ingest).
 pub fn router(state: AppState) -> Router {
@@ -74,8 +116,7 @@ pub fn router(state: AppState) -> Router {
         .route("/service-info", get(get_service_info))
         .route(
             "/objects",
-            get(|s, q| async move { JsonResult(list_objects(s, q).await) })
-                .post(|s, j| async move { JsonResult(post_object(s, j).await) }),
+            get(list_objects_json).post(post_object_json),
         )
         .route(
             "/objects/{object_id}",
@@ -96,18 +137,9 @@ pub fn router(state: AppState) -> Router {
             "/objects/{object_id}/view",
             get(|s, p, auth| async move { ViewResult(get_object_view(s, p, auth).await) }),
         )
-        .route(
-            "/ingest/file",
-            post(|s, m| async move { JsonResult(ingest::ingest_file(s, m).await) }),
-        )
-        .route(
-            "/ingest/url",
-            post(|s, j| async move { JsonResult(ingest::ingest_url(s, j).await) }),
-        )
-        .route(
-            "/ingest/batch",
-            post(|s, j| async move { JsonResult(ingest::ingest_batch(s, j).await) }),
-        )
+        .route("/ingest/file", post(ingest_file_json))
+        .route("/ingest/url", post(ingest_url_json))
+        .route("/ingest/batch", post(ingest_batch_json))
         .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", DrsApiDoc::openapi()))
         .with_state(state)
 }

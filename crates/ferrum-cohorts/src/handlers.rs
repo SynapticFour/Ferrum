@@ -34,6 +34,7 @@ pub struct ListCohortsQuery {
     pub limit: Option<i64>,
     pub offset: Option<i64>,
     pub tag: Option<String>,
+    pub workspace_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -48,11 +49,16 @@ pub async fn list_cohorts(
     Query(q): Query<ListCohortsQuery>,
 ) -> Result<Json<ListCohortsResponse>> {
     let caller_sub = auth.as_ref().and_then(|c| c.sub());
+    if q.workspace_id.is_some() {
+        let sub = caller_sub.ok_or_else(|| CohortError::Forbidden("workspace_id requires authentication".into()))?;
+        let ws_id = q.workspace_id.as_deref().unwrap();
+        let _role = ferrum_core::get_workspace_member_role(state.repo.pool(), ws_id, sub).await.map_err(|e| CohortError::Other(e.into()))?.ok_or_else(|| CohortError::Forbidden("not a member of this workspace".into()))?;
+    }
     let limit = q.limit.unwrap_or(50).min(100);
     let offset = q.offset.unwrap_or(0);
     let rows = state
         .repo
-        .list_cohorts(caller_sub, q.tag.as_deref(), limit + 1, offset)
+        .list_cohorts(caller_sub, q.tag.as_deref(), q.workspace_id.as_deref(), limit + 1, offset)
         .await?;
     let has_more = rows.len() as i64 > limit;
     let cohorts: Vec<CohortSummary> = rows
@@ -93,6 +99,13 @@ pub async fn create_cohort(
     Json(req): Json<CreateCohortRequest>,
 ) -> Result<Json<CohortDetail>> {
     let owner = owner_sub_from_request(auth.as_ref(), &headers);
+    if let Some(ref ws_id) = req.workspace_id {
+        let sub = auth.as_ref().and_then(|c| c.sub()).ok_or_else(|| CohortError::Forbidden("workspace_id requires authentication".into()))?;
+        let ok = ferrum_core::is_workspace_editor_or_owner(state.repo.pool(), ws_id, sub).await.map_err(|e| CohortError::Other(e.into()))?;
+        if !ok {
+            return Err(CohortError::Forbidden("not a workspace editor or owner".into()));
+        }
+    }
     let id = Ulid::new().to_string();
     let tags = serde_json::to_value(req.tags).unwrap_or(json!([]));
     let filter_criteria = req.filter_criteria;
@@ -103,7 +116,7 @@ pub async fn create_cohort(
             &req.name,
             req.description.as_deref(),
             &owner,
-            None,
+            req.workspace_id.as_deref(),
             &tags,
             &filter_criteria,
         )

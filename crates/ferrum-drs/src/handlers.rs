@@ -231,7 +231,15 @@ fn parse_range_header(value: Option<&axum::http::HeaderValue>) -> Option<(u64, u
 pub async fn post_object(
     State(state): State<Arc<AppState>>,
     Json(req): Json<CreateObjectRequest>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<CreatedResponse>> {
+    if let Some(ref ws_id) = req.workspace_id {
+        let sub = auth.as_ref().and_then(|c| c.sub()).ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+        let ok = ferrum_core::is_workspace_editor_or_owner(state.repo.pool(), ws_id, sub).await.map_err(|e| DrsError::Other(e.into()))?;
+        if !ok {
+            return Err(DrsError::Forbidden("not a workspace editor or owner".into()));
+        }
+    }
     if let Some(ref name) = req.name {
         ferrum_core::validate_drs_name(name).map_err(|e| DrsError::Validation(e.to_string()))?;
     }
@@ -316,7 +324,18 @@ pub struct DeletedResponse {
 pub async fn list_objects(
     State(state): State<Arc<AppState>>,
     Query(q): Query<ListObjectsQuery>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<Vec<DrsObject>>> {
+    let workspace_id = if let Some(ref ws_id) = q.workspace_id {
+        let sub = auth.as_ref().and_then(|c| c.sub()).ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+        let is_member = ferrum_core::get_workspace_member_role(state.repo.pool(), ws_id, sub).await.map_err(|e| DrsError::Other(e.into()))?.is_some();
+        if !is_member {
+            return Err(DrsError::Forbidden("not a member of this workspace".into()));
+        }
+        q.workspace_id.as_deref()
+    } else {
+        None
+    };
     let limit = q.limit.unwrap_or(100).min(1000);
     let offset = q.offset.unwrap_or(0);
     let list = state
@@ -327,6 +346,7 @@ pub async fn list_objects(
             q.mime_type.as_deref(),
             q.min_size,
             q.max_size,
+            workspace_id,
         )
         .await?;
     Ok(Json(list))

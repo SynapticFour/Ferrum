@@ -64,6 +64,8 @@ impl MultiQCRunner {
             outputs,
             work_dir_opt,
             _owner,
+            _resumed,
+            _checkpoint,
         ) = row;
         let work_dir = match work_dir_opt {
             Some(d) => PathBuf::from(d),

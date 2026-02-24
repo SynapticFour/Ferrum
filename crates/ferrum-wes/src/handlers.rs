@@ -64,9 +64,10 @@ pub struct ListRunsQuery {
     pub page_size: Option<i64>,
     pub page_token: Option<String>,
     pub state: Option<String>,
+    pub workspace_id: Option<String>,
 }
 
-/// GET /runs — lists runs for the authenticated user (or all if no auth / admin).
+/// GET /runs — lists runs for the authenticated user (or all if no auth / admin). If workspace_id set, filter to that workspace (caller must be member).
 #[utoipa::path(get, path = "/runs", params(ListRunsQuery), responses((status = 200, body = RunListResponse)))]
 pub async fn list_runs(
     State(app): State<Arc<AppState>>,
@@ -77,10 +78,21 @@ pub async fn list_runs(
     let state_filter = q.state.as_deref().map(RunState::from_str);
     let owner_sub = auth.as_ref().and_then(|c| c.sub());
     let is_admin = auth.as_ref().map_or(false, |c| c.is_admin());
-    let filter_owner = if is_admin { None } else { owner_sub };
+    let (filter_owner, workspace_id) = if let Some(ref ws_id) = q.workspace_id {
+        let sub = owner_sub.ok_or_else(|| WesError::Forbidden("workspace_id requires authentication".into()))?;
+        let is_member = ferrum_core::get_workspace_member_role(app.repo.pool(), ws_id, sub).await
+            .map_err(|e| WesError::Other(e.into()))?
+            .is_some();
+        if !is_member {
+            return Err(WesError::Forbidden("not a member of this workspace".into()));
+        }
+        (None, q.workspace_id.as_deref())
+    } else {
+        (if is_admin { None } else { owner_sub }, None)
+    };
     let (runs, next_page_token) = app
         .repo
-        .list_runs(page_size, q.page_token.as_deref(), state_filter, filter_owner)
+        .list_runs(page_size, q.page_token.as_deref(), state_filter, filter_owner, workspace_id)
         .await?;
     Ok(Json(RunListResponse { runs, next_page_token }))
 }
@@ -98,10 +110,19 @@ pub async fn post_runs(
     let mut workflow_url = None::<String>;
     let mut workflow_engine_params = serde_json::Value::Object(serde_json::Map::new());
     let mut tags = serde_json::Value::Object(serde_json::Map::new());
+    let mut workspace_id = None::<String>;
 
     while let Some(field) = multipart.next_field().await.map_err(|e| WesError::Other(e.into()))? {
         let name = field.name().unwrap_or("").to_string();
         match name.as_str() {
+            "workspace_id" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        workspace_id = Some(t);
+                    }
+                }
+            }
             "workflow_params" => {
                 if let Ok(text) = field.text().await {
                     workflow_params = serde_json::from_str(&text).unwrap_or(workflow_params);
@@ -147,6 +168,13 @@ pub async fn post_runs(
         }
     }
 
+    if let Some(ref ws_id) = workspace_id {
+        let sub = auth.as_ref().and_then(|c| c.sub()).ok_or_else(|| WesError::Forbidden("workspace_id requires authentication".into()))?;
+        let ok = ferrum_core::is_workspace_editor_or_owner(app.repo.pool(), ws_id, sub).await.map_err(|e| WesError::Other(e.into()))?;
+        if !ok {
+            return Err(WesError::Forbidden("not a workspace editor or owner".into()));
+        }
+    }
     let run_id = ulid::Ulid::new().to_string();
     let owner_sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
     app
@@ -161,6 +189,9 @@ pub async fn post_runs(
             &tags,
             None,
             owner_sub,
+            workspace_id.as_deref(),
+            None,
+            true,
         )
         .await?;
 
@@ -217,7 +248,7 @@ pub async fn get_run_status(
     }
     let state_row = app.run_manager.poll_status(&run_id).await?;
     if state_row == RunState::Unknown {
-        if let Some((_, _, _, _, _, _, _, s, _, _, _, _, _)) = app.repo.get_run(&run_id).await? {
+        if let Some((_, _, _, _, _, _, _, s, _, _, _, _, _, _, _)) = app.repo.get_run(&run_id).await? {
             return Ok(Json(RunStatus {
                 run_id,
                 state: RunState::from_str(&s),
@@ -261,7 +292,7 @@ pub async fn get_run_log(
         .get_run(&run_id)
         .await?
         .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
-    let (run_id_db, workflow_url, workflow_type, workflow_type_version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _owner) = row;
+    let (run_id_db, workflow_url, workflow_type, workflow_type_version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _owner, _resumed, _checkpoint) = row;
     let run_state = RunState::from_str(&state_str);
     let run_log_row: Option<(String, Vec<String>, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<String>, Option<String>, Option<i32>)> =
         app.repo.get_run_log(&run_id).await?;
@@ -377,7 +408,7 @@ pub async fn get_stdout(
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
     let row = app.repo.get_run(&run_id).await?.and_then(|r| {
-        let (_, _, _, _, _, _, _, _, _, _, _, work_dir, _) = r;
+        let (_, _, _, _, _, _, _, _, _, _, _, work_dir, _, _, _) = r;
         work_dir.map(|d| (run_id.clone(), d))
     });
     let (_, work_dir) = row.ok_or_else(|| WesError::NotFound(format!("run or work_dir not found: {}", run_id)))?;
@@ -402,7 +433,7 @@ pub async fn get_stderr(
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
     let row = app.repo.get_run(&run_id).await?.and_then(|r| {
-        let (_, _, _, _, _, _, _, _, _, _, _, work_dir, _) = r;
+        let (_, _, _, _, _, _, _, _, _, _, _, work_dir, _, _, _) = r;
         work_dir.map(|d| (run_id.clone(), d))
     });
     let (_, work_dir) = row.ok_or_else(|| WesError::NotFound(format!("run or work_dir not found: {}", run_id)))?;
@@ -533,7 +564,7 @@ pub async fn export_ro_crate(
         .get_run(&run_id)
         .await?
         .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
-    let (_, workflow_url, workflow_type, _version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _) = row;
+    let (_, workflow_url, workflow_type, _version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _, _, _) = row;
     let date_published = end_time.or(start_time).map(|t| t.to_rfc3339()).unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
     let mut input_parts: Vec<serde_json::Value> = Vec::new();
     let mut output_parts: Vec<serde_json::Value> = Vec::new();
@@ -774,7 +805,7 @@ pub async fn get_run_metrics_report(
         .as_ref()
         .ok_or_else(|| WesError::Other(anyhow::anyhow!("metrics not configured")))?;
     let run_row = app.repo.get_run(&run_id).await?.ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
-    let (_, _url, workflow_type, _ver, _, _, _, state_str, _, _, _, _, _) = run_row;
+    let (_, _url, workflow_type, _ver, _, _, _, state_str, _, _, _, _, _, _, _) = run_row;
     let (wall, cpu_s, peak_mb, read_gb, write_gb, cost_usd, tasks_for_bar) = match metrics.get_run_cost_summary(&run_id).await? {
         Some((w, c, _, p, r, wr, co, _)) => {
             let task_rows = metrics.get_task_metrics_for_run(&run_id).await?;
@@ -995,4 +1026,156 @@ pub async fn get_cost_summary(
         by_workflow_type,
         by_tag,
     }))
+}
+
+// --- Resume and checkpoint ---
+
+#[derive(Debug, serde::Deserialize, ToSchema)]
+pub struct ResumeRunRequest {
+    pub override_params: Option<serde_json::Value>,
+    pub force_rerun_tasks: Option<Vec<String>>,
+    pub checkpoint_strategy: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct ResumeRunResponse {
+    pub run_id: String,
+    pub resumed_from: String,
+    pub cached_tasks: usize,
+    pub tasks_to_rerun: usize,
+    pub estimated_time_saved: String,
+}
+
+/// POST /runs/{run_id}/resume — create a new run that reuses checkpointed outputs from the given run.
+pub async fn resume_run(
+    State(app): State<Arc<AppState>>,
+    Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    body: Option<Json<ResumeRunRequest>>,
+) -> Result<Json<ResumeRunResponse>> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
+    let owner_sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    let row = app
+        .repo
+        .get_run(&run_id)
+        .await?
+        .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
+    let (
+        _,
+        workflow_url,
+        workflow_type,
+        workflow_type_version,
+        workflow_params,
+        workflow_engine_params,
+        tags,
+        _state,
+        _st,
+        _et,
+        _outputs,
+        _work_dir,
+        _owner,
+        _resumed_from,
+        _checkpoint_enabled,
+    ) = row;
+    let mut params = workflow_params.clone();
+    if let Some(Json(req)) = body {
+        if let Some(ref override_params) = req.override_params {
+            if let (Some(params_obj), Some(override_obj)) = (
+                params.as_object_mut(),
+                override_params.as_object(),
+            ) {
+                for (k, v) in override_obj {
+                    params_obj.insert(k.clone(), v.clone());
+                }
+            }
+        }
+    }
+    let new_run_id = ulid::Ulid::new().to_string();
+    let workspace_id: Option<String> = sqlx::query_scalar("SELECT workspace_id FROM wes_runs WHERE run_id = $1")
+        .bind(&run_id)
+        .fetch_optional(app.repo.pool())
+        .await
+        .ok()
+        .flatten();
+    let workspace_id = workspace_id.as_deref();
+    app.repo
+        .create_run(
+            &new_run_id,
+            &workflow_url,
+            &workflow_type,
+            &workflow_type_version,
+            &params,
+            &workflow_engine_params,
+            &tags,
+            None,
+            owner_sub,
+            workspace_id,
+            Some(&run_id),
+            true,
+        )
+        .await?;
+    let cached_tasks = if let Some(ref store) = app.checkpoint_store {
+        store.get_resumable_tasks(&run_id).await.unwrap_or_default().len()
+    } else {
+        0
+    };
+    let tasks_to_rerun = 0usize; // placeholder: would be derived from workflow graph
+    let estimated_time_saved = format!("{}m", cached_tasks * 5);
+    let run = crate::executor::WesRun {
+        run_id: new_run_id.clone(),
+        workflow_url,
+        workflow_type,
+        workflow_type_version,
+        workflow_params: params,
+        workflow_engine_params,
+        work_dir: None,
+    };
+    app.run_manager.submit(&run).await?;
+    Ok(Json(ResumeRunResponse {
+        run_id: new_run_id,
+        resumed_from: run_id,
+        cached_tasks,
+        tasks_to_rerun,
+        estimated_time_saved,
+    }))
+}
+
+/// GET /cache/stats — cache statistics (total entries, hit rate, etc.).
+pub async fn get_cache_stats(
+    State(app): State<Arc<AppState>>,
+) -> Result<Json<crate::checkpoint::CacheStats>> {
+    let store = app
+        .checkpoint_store
+        .as_ref()
+        .ok_or_else(|| WesError::Other(anyhow::anyhow!("cache not configured")))?;
+    let stats = store.cache_stats().await?;
+    Ok(Json(stats))
+}
+
+#[derive(Debug, serde::Deserialize, IntoParams)]
+pub struct EvictCacheQuery {
+    pub older_than_days: Option<u32>,
+    pub task_name: Option<String>,
+    pub run_id: Option<String>,
+}
+
+/// DELETE /cache — evict cache entries. Requires admin.
+pub async fn evict_cache(
+    State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    Query(q): Query<EvictCacheQuery>,
+) -> Result<Json<serde_json::Value>> {
+    let claims = auth.ok_or_else(|| WesError::Forbidden("authentication required".into()))?;
+    if !claims.is_admin() {
+        return Err(WesError::Forbidden("admin role required".into()));
+    }
+    let store = app
+        .checkpoint_store
+        .as_ref()
+        .ok_or_else(|| WesError::Other(anyhow::anyhow!("cache not configured")))?;
+    let max_age_days = q.older_than_days.unwrap_or(30);
+    let deleted = store.evict_stale_entries(max_age_days, None).await?;
+    Ok(Json(serde_json::json!({ "evicted": deleted })))
 }

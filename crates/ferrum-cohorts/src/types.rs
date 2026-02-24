@@ -43,6 +43,7 @@ pub struct CreateCohortRequest {
     pub tags: Vec<String>,
     #[serde(default)]
     pub filter_criteria: serde_json::Value,
+    pub workspace_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]

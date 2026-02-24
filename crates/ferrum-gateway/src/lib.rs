@@ -40,6 +40,9 @@ pub type PassportRouterParams = Option<sqlx::PgPool>;
 /// Cohorts router params: pool. When None, Cohorts routes return 503.
 pub type CohortRouterParams = Option<sqlx::PgPool>;
 
+/// Workspaces router params: pool. When None, Workspaces routes return 503.
+pub type WorkspacesRouterParams = Option<sqlx::PgPool>;
+
 /// Build the unified gateway app with all GA4GH routes.
 /// Config can be used to enable/disable services via `config.services`.
 /// When DRS is enabled, pass Some(drs_state) with DB/storage; None returns 503 for DRS routes.
@@ -54,6 +57,7 @@ pub fn app(
     beacon_params: BeaconRouterParams,
     passport_params: PassportRouterParams,
     cohort_params: CohortRouterParams,
+    workspaces_pool: WorkspacesRouterParams,
     admin_pool: Option<sqlx::PgPool>,
 ) -> Router {
     let cfg = config;
@@ -173,6 +177,9 @@ pub fn app(
     if let Some(pool) = cohort_params {
         app = app.nest("/cohorts/v1", ferrum_cohorts::router(pool));
     }
+    if let Some(pool) = workspaces_pool {
+        app = app.nest("/workspaces/v1", ferrum_workspaces::router(pool));
+    }
     if let Some(pool) = admin_pool {
         app = app.nest("/admin", admin::admin_router(pool));
     }
@@ -209,9 +216,10 @@ pub async fn run(
     beacon_params: BeaconRouterParams,
     passport_params: PassportRouterParams,
     cohort_params: CohortRouterParams,
+    workspaces_pool: WorkspacesRouterParams,
     admin_pool: Option<sqlx::PgPool>,
 ) -> Result<(), std::io::Error> {
-    let app = app(config.as_ref(), drs_state, wes_params, tes_params, trs_params, beacon_params, passport_params, cohort_params, admin_pool);
+    let app = app(config.as_ref(), drs_state, wes_params, tes_params, trs_params, beacon_params, passport_params, cohort_params, workspaces_pool, admin_pool);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!("Gateway listening on {}", bind);
     axum::serve(listener, app).await

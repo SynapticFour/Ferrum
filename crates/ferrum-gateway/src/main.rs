@@ -17,6 +17,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .and_then(|c| c.bind.parse().ok())
         .unwrap_or_else(|| "0.0.0.0:8080".parse().unwrap());
 
-    run(bind, config, None, None, None, None, None, None, None, None).await?;
+    run(bind, config, None, None, None, None, None, None, None, None, None).await?;
     Ok(())
 }

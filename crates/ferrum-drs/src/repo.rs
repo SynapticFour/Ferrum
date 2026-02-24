@@ -20,6 +20,10 @@ impl DrsRepo {
         &self.hostname
     }
 
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
+
     fn self_uri(&self, id: &str) -> String {
         format!("drs://{}/{}", self.hostname, id)
     }
@@ -194,8 +198,8 @@ impl DrsRepo {
         let id = optional_id.unwrap_or_else(|| ulid::Ulid::new().to_string());
         let aliases = req.aliases.as_ref().map(|a| serde_json::to_value(a).unwrap_or(serde_json::Value::Array(vec![])));
         sqlx::query(
-            r#"INSERT INTO drs_objects (id, name, description, version, mime_type, size, is_bundle, aliases)
-               VALUES ($1, $2, $3, NULL, $4, $5, FALSE, COALESCE($6, '[]'::jsonb))"#,
+            r#"INSERT INTO drs_objects (id, name, description, version, mime_type, size, is_bundle, aliases, workspace_id)
+               VALUES ($1, $2, $3, NULL, $4, $5, FALSE, COALESCE($6, '[]'::jsonb), $7)"#,
         )
         .bind(&id)
         .bind(&req.name)
@@ -203,6 +207,7 @@ impl DrsRepo {
         .bind(&req.mime_type)
         .bind(req.size)
         .bind(aliases)
+        .bind(req.workspace_id.as_deref())
         .execute(&self.pool)
         .await?;
         for c in &req.checksums {
@@ -278,6 +283,7 @@ impl DrsRepo {
         mime_type: Option<&str>,
         min_size: Option<i64>,
         max_size: Option<i64>,
+        workspace_id: Option<&str>,
     ) -> Result<Vec<DrsObject>> {
         let limit = limit.min(1000);
         let rows: Vec<DrsObjectRow> = sqlx::query_as(
@@ -286,6 +292,7 @@ impl DrsRepo {
                WHERE ($1::text IS NULL OR mime_type = $1)
                  AND ($2::bigint IS NULL OR size >= $2)
                  AND ($3::bigint IS NULL OR size <= $3)
+                 AND ($6::text IS NULL OR workspace_id = $6)
                ORDER BY created_time DESC LIMIT $4 OFFSET $5"#,
         )
         .bind(mime_type)
@@ -293,6 +300,7 @@ impl DrsRepo {
         .bind(max_size)
         .bind(limit as i64)
         .bind(offset as i64)
+        .bind(workspace_id)
         .fetch_all(&self.pool)
         .await?;
         let mut out = Vec::new();

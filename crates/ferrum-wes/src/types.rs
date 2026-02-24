@@ -76,6 +76,8 @@ pub struct RunSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_time: Option<String>,
     pub tags: std::collections::HashMap<String, String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resumed_from_run_id: Option<String>,
 }
 
 /// GET /runs response.

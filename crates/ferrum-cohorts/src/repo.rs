@@ -55,13 +55,15 @@ impl CohortRepo {
         Ok(row)
     }
 
-    /// Returns true if the caller (sub) may read/write the cohort: owner or in cohort_members. Admin not checked here (gateway/handler).
+    /// Returns true if the caller (sub) may read/write the cohort: owner, in cohort_members, or workspace member when cohort has workspace_id.
     pub async fn cohort_accessible_by(&self, cohort_id: &str, sub: &str) -> Result<bool> {
-        let owner_row: Option<(String,)> = sqlx::query_as("SELECT owner_sub FROM cohorts WHERE id = $1")
-            .bind(cohort_id)
-            .fetch_optional(&self.pool)
-            .await?;
-        let Some((owner_sub,)) = owner_row else {
+        let row: Option<(String, Option<String>)> = sqlx::query_as(
+            "SELECT owner_sub, workspace_id FROM cohorts WHERE id = $1",
+        )
+        .bind(cohort_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some((owner_sub, workspace_id)) = row else {
             return Ok(false);
         };
         if owner_sub == sub {
@@ -74,32 +76,58 @@ impl CohortRepo {
         .bind(sub)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(member.is_some())
+        if member.is_some() {
+            return Ok(true);
+        }
+        if let Some(ref ws_id) = workspace_id {
+            if ferrum_core::get_workspace_member_role(&self.pool, ws_id, sub)
+                .await
+                .map_err(|e| crate::error::CohortError::Other(e.into()))?
+                .is_some()
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
-    /// List cohorts visible to the caller: owned by sub or where (cohort_id, sub) in cohort_members. If sub is None, returns empty (no unauthenticated list).
+    /// List cohorts visible to the caller: owned by sub or where (cohort_id, sub) in cohort_members. If workspace_id is set, only cohorts in that workspace (caller must be workspace member — checked in handler).
     pub async fn list_cohorts(
         &self,
         caller_sub: Option<&str>,
         tag_filter: Option<&str>,
+        workspace_id: Option<&str>,
         limit: i64,
         offset: i64,
     ) -> Result<Vec<(String, String, Option<String>, String, Option<String>, i32, bool, i32, Value, DateTime<Utc>, DateTime<Utc>)>> {
         type Row = (String, String, Option<String>, String, Option<String>, i32, bool, i32, Value, DateTime<Utc>, DateTime<Utc>);
         let rows: Vec<Row> = match caller_sub {
             Some(sub) => {
-                sqlx::query_as(
-                    r#"SELECT c.id, c.name, c.description, c.owner_sub, c.workspace_id, c.version, c.is_frozen, c.sample_count, c.tags, c.created_at, c.updated_at
-                       FROM cohorts c
-                       LEFT JOIN cohort_members m ON c.id = m.cohort_id AND m.sub = $1
-                       WHERE c.owner_sub = $1 OR m.sub IS NOT NULL
-                       ORDER BY c.updated_at DESC LIMIT $2 OFFSET $3"#,
-                )
-                .bind(sub)
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(&self.pool)
-                .await?
+                let q = if let Some(ws_id) = workspace_id {
+                    sqlx::query_as(
+                        r#"SELECT c.id, c.name, c.description, c.owner_sub, c.workspace_id, c.version, c.is_frozen, c.sample_count, c.tags, c.created_at, c.updated_at
+                           FROM cohorts c
+                           LEFT JOIN cohort_members m ON c.id = m.cohort_id AND m.sub = $1
+                           WHERE (c.owner_sub = $1 OR m.sub IS NOT NULL) AND c.workspace_id = $4
+                           ORDER BY c.updated_at DESC LIMIT $2 OFFSET $3"#,
+                    )
+                    .bind(sub)
+                    .bind(limit)
+                    .bind(offset)
+                    .bind(ws_id)
+                } else {
+                    sqlx::query_as(
+                        r#"SELECT c.id, c.name, c.description, c.owner_sub, c.workspace_id, c.version, c.is_frozen, c.sample_count, c.tags, c.created_at, c.updated_at
+                           FROM cohorts c
+                           LEFT JOIN cohort_members m ON c.id = m.cohort_id AND m.sub = $1
+                           WHERE c.owner_sub = $1 OR m.sub IS NOT NULL
+                           ORDER BY c.updated_at DESC LIMIT $2 OFFSET $3"#,
+                    )
+                    .bind(sub)
+                    .bind(limit)
+                    .bind(offset)
+                };
+                q.fetch_all(&self.pool).await?
             }
             None => return Ok(Vec::new()),
         };

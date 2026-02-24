@@ -9,6 +9,8 @@ pub type Result<T> = std::result::Result<T, WesError>;
 pub enum WesError {
     #[error("not found: {0}")]
     NotFound(String),
+    #[error("forbidden: {0}")]
+    Forbidden(String),
     #[error("validation: {0}")]
     Validation(String),
     #[error("database: {0}")]
@@ -31,6 +33,7 @@ impl IntoResponse for WesError {
     fn into_response(self) -> axum::response::Response {
         let (status, msg) = match &self {
             WesError::NotFound(_) => (axum::http::StatusCode::NOT_FOUND, self.to_string()),
+            WesError::Forbidden(_) => (axum::http::StatusCode::FORBIDDEN, self.to_string()),
             WesError::Validation(_) => (axum::http::StatusCode::BAD_REQUEST, self.to_string()),
             WesError::Database(_) | WesError::Executor(_) | WesError::Io(_) | WesError::Other(_) => {
                 (axum::http::StatusCode::INTERNAL_SERVER_ERROR, self.to_string())

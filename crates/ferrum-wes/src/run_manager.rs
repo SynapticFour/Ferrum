@@ -203,7 +203,7 @@ impl RunManager {
                     let _ = metrics.compute_run_summary(run_id).await;
                 }
                 if let Some(row) = self.repo.get_run(run_id).await? {
-                    let (_, _, _, _, _, _, _, _, start_time, end_time, _, _, _) = row;
+                    let (_, _, _, _, _, _, _, _, start_time, end_time, _, _, _, _, _) = row;
                     let stdout_url = Some(format!("/runs/{}/logs/stdout", run_id));
                     let stderr_url = Some(format!("/runs/{}/logs/stderr", run_id));
                     let end = end_time.unwrap_or_else(Utc::now);

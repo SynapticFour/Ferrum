@@ -1615,6 +1615,7 @@ dependencies = [
  "ferrum-tes",
  "ferrum-trs",
  "ferrum-wes",
+ "ferrum-workspaces",
  "serde",
  "serde_json",
  "sqlx",
@@ -1724,10 +1725,12 @@ dependencies = [
  "chrono",
  "ferrum-core",
  "futures-util",
+ "hex",
  "maud",
  "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "sysinfo",
  "thiserror 1.0.69",
@@ -1740,6 +1743,26 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "zip 2.4.2",
+]
+
+[[package]]
+name = "ferrum-workspaces"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "chrono",
+ "ferrum-core",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+ "ulid",
 ]
 
 [[package]]

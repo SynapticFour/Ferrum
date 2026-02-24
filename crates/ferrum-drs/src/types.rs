@@ -46,6 +46,7 @@ pub struct ListObjectsQuery {
     pub mime_type: Option<String>,
     pub min_size: Option<i64>,
     pub max_size: Option<i64>,
+    pub workspace_id: Option<String>,
 }
 
 /// Create object request (admin POST /objects).
@@ -60,6 +61,8 @@ pub struct CreateObjectRequest {
     pub storage_backend: String,
     pub storage_key: String,
     pub is_encrypted: Option<bool>,
+    /// Optional workspace ID (caller must be workspace editor/owner).
+    pub workspace_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]
@@ -86,6 +89,8 @@ pub struct IngestUrlRequest {
     pub name: Option<String>,
     pub mime_type: Option<String>,
     pub aliases: Option<Vec<String>>,
+    /// Optional workspace ID (caller must be workspace editor/owner).
+    pub workspace_id: Option<String>,
     /// Optional DRS URIs (drs://host/id) this object was derived from; records provenance edges.
     pub derived_from: Option<Vec<String>>,
 }
@@ -94,6 +99,8 @@ pub struct IngestUrlRequest {
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 pub struct IngestBatchRequest {
     pub items: Vec<IngestBatchItem>,
+    /// Optional workspace ID for all items (caller must be workspace editor/owner).
+    pub workspace_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, ToSchema)]
