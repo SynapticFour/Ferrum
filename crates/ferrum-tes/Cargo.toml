@@ -21,7 +21,7 @@ ulid = "1"
 thiserror = "1"
 anyhow = "1"
 async-trait = "0.1"
-bollard = { version = "0.18", optional = true }
+bollard = { version = "0.20", optional = true }
 
 [features]
 default = []
