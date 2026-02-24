@@ -9,7 +9,7 @@ ferrum-core = { path = "../ferrum-core" }
 ferrum-drs = { path = "../ferrum-drs" }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
-tower = "0.4"
+tower = "0.5"
 tower-service = "0.3"
 http-body-util = "0.1"
 http = "1"
