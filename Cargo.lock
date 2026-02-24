@@ -1473,7 +1473,7 @@ dependencies = [
  "tower 0.4.13",
  "tracing",
  "tracing-subscriber",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
 ]
 
@@ -1506,7 +1506,7 @@ dependencies = [
  "tower 0.4.13",
  "tracing",
  "ulid",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
 ]
 
@@ -1537,7 +1537,7 @@ dependencies = [
  "tracing-subscriber",
  "ulid",
  "url",
- "utoipa",
+ "utoipa 5.4.0",
 ]
 
 [[package]]
@@ -1567,7 +1567,7 @@ dependencies = [
  "tower-service",
  "tracing",
  "tracing-subscriber",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
 ]
 
@@ -1596,7 +1596,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ulid",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
 ]
 
@@ -1623,7 +1623,7 @@ dependencies = [
  "tower-http 0.5.2",
  "tracing",
  "tracing-subscriber",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
 ]
 
@@ -1650,7 +1650,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "urlencoding",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
  "uuid",
 ]
@@ -1690,7 +1690,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ulid",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
 ]
 
@@ -1710,7 +1710,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ulid",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
 ]
 
@@ -1737,7 +1737,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ulid",
- "utoipa",
+ "utoipa 5.4.0",
  "utoipa-swagger-ui",
  "zip 2.4.2",
 ]
@@ -5006,7 +5006,19 @@ dependencies = [
  "indexmap 2.13.0",
  "serde",
  "serde_json",
- "utoipa-gen",
+ "utoipa-gen 4.3.1",
+]
+
+[[package]]
+name = "utoipa"
+version = "5.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fcc29c80c21c31608227e0912b2d7fddba57ad76b606890627ba8ee7964e993"
+dependencies = [
+ "indexmap 2.13.0",
+ "serde",
+ "serde_json",
+ "utoipa-gen 5.4.0",
 ]
 
 [[package]]
@@ -5016,6 +5028,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20c24e8ab68ff9ee746aad22d39b5535601e6416d1b0feeabf78be986a5c4392"
 dependencies = [
  "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "utoipa-gen"
+version = "5.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d79d08d92ab8af4c5e8a6da20c47ae3f61a0f1dabc1997cdf2d082b757ca08b"
+dependencies = [
  "proc-macro2",
  "quote",
  "regex",
@@ -5034,7 +5057,7 @@ dependencies = [
  "rust-embed",
  "serde",
  "serde_json",
- "utoipa",
+ "utoipa 4.2.3",
  "zip 0.6.6",
 ]
 
