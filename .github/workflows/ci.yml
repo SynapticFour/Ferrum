@@ -44,20 +44,26 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-  deny:
-    name: cargo-deny (${{ matrix.checks }})
+  deny-advisories:
+    name: cargo-deny (advisories)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        checks:
-          - advisories
-          - bans licenses sources
-    continue-on-error: ${{ matrix.checks == 'advisories' }}
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
-          command: check ${{ matrix.checks }}
+          command: check advisories
+          log-level: warn
+
+  deny-bans-licenses-sources:
+    name: cargo-deny (bans licenses sources)
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check bans licenses sources
           log-level: warn
 
   audit:
