@@ -1,59 +1,10 @@
-# A06: OWASP - Security audit (cargo-audit, cargo-deny)
-name: Security
+name: Security (disabled)
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
-  schedule:
-    - cron: "0 0 * * 0"  # weekly
+  workflow_dispatch:
 
 jobs:
-  audit:
+  placeholder:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Run cargo audit
-        run: |
-          cargo install cargo-audit --locked
-          cargo audit
-
-  deny:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
-
-      - name: Run cargo deny
-        run: cargo deny check
-
-  # A08: SBOM for supply chain
-  sbom:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-sbom
-        run: cargo install cargo-sbom --locked
-
-      - name: Generate SBOM
-        run: cargo sbom > sbom.json
-
-      - name: Upload SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: sbom.json
+      - run: echo "Security checks are in ci.yml"
