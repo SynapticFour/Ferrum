@@ -30,6 +30,9 @@ pub type BeaconRouterParams = Option<sqlx::PgPool>;
 /// Passports router params: pool. When None, Passports routes return 503.
 pub type PassportRouterParams = Option<sqlx::PgPool>;
 
+/// Cohorts router params: pool. When None, Cohorts routes return 503.
+pub type CohortRouterParams = Option<sqlx::PgPool>;
+
 /// Build the unified gateway app with all GA4GH routes.
 /// Config can be used to enable/disable services via `config.services`.
 /// When DRS is enabled, pass Some(drs_state) with DB/storage; None returns 503 for DRS routes.
@@ -42,6 +45,7 @@ pub fn app(
     trs_params: Option<TrsRouterParams>,
     beacon_params: BeaconRouterParams,
     passport_params: PassportRouterParams,
+    cohort_params: CohortRouterParams,
 ) -> Router {
     let cfg = config;
 
@@ -98,6 +102,9 @@ pub fn app(
     if cfg.map(|c| c.services.enable_crypt4gh).unwrap_or(true) {
         app = app.nest("/ga4gh/crypt4gh/v1", ferrum_crypt4gh::router());
     }
+    if let Some(pool) = cohort_params {
+        app = app.nest("/cohorts/v1", ferrum_cohorts::router(pool));
+    }
 
     // UI: static files from services/ui (when built/present)
     let ui_path = std::path::Path::new("services/ui");
@@ -130,8 +137,9 @@ pub async fn run(
     trs_params: Option<TrsRouterParams>,
     beacon_params: BeaconRouterParams,
     passport_params: PassportRouterParams,
+    cohort_params: CohortRouterParams,
 ) -> Result<(), std::io::Error> {
-    let app = app(config.as_ref(), drs_state, wes_params, tes_params, trs_params, beacon_params, passport_params);
+    let app = app(config.as_ref(), drs_state, wes_params, tes_params, trs_params, beacon_params, passport_params, cohort_params);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!("Gateway listening on {}", bind);
     axum::serve(listener, app).await

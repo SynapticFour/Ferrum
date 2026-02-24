@@ -9,6 +9,9 @@ import { ToolRegistry } from '@/pages/ToolRegistry';
 import { BeaconExplorer } from '@/pages/BeaconExplorer';
 import { AccessManagement } from '@/pages/AccessManagement';
 import { Settings } from '@/pages/Settings';
+import { CohortListPage } from '@/pages/CohortListPage';
+import { CohortDetailPage } from '@/pages/CohortDetailPage';
+import { NewCohortPage } from '@/pages/NewCohortPage';
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -35,6 +38,13 @@ const toolsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tools'
 const beaconRoute = createRoute({ getParentRoute: () => rootRoute, path: '/beacon', component: BeaconExplorer });
 const accessRoute = createRoute({ getParentRoute: () => rootRoute, path: '/access', component: AccessManagement });
 const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: Settings });
+const cohortsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/cohorts', component: CohortListPage });
+const cohortNewRoute = createRoute({ getParentRoute: () => rootRoute, path: '/cohorts/new', component: NewCohortPage });
+const cohortDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/cohorts/$cohortId',
+  component: CohortDetailPage,
+});
 
 rootRoute.addChildren([
   indexRoute,
@@ -46,6 +56,9 @@ rootRoute.addChildren([
   beaconRoute,
   accessRoute,
   settingsRoute,
+  cohortsRoute,
+  cohortNewRoute,
+  cohortDetailRoute,
 ]);
 
 export const routeTree = rootRoute;

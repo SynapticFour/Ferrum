@@ -34,6 +34,10 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiFetch<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
 }
 
+export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  return apiFetch<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined });
+}
+
 export async function apiDelete(path: string): Promise<void> {
   return apiFetch(path, { method: 'DELETE' });
 }

@@ -9,6 +9,7 @@ members = [
     "crates/ferrum-passports",
     "crates/ferrum-crypt4gh",
     "crates/ferrum-beacon",
+    "crates/ferrum-cohorts",
     "crates/ferrum-gateway",
     "tools/ferrum-cli",
 ]
