@@ -34,5 +34,8 @@ jobs:
       - name: cargo test
         run: cargo test --all
 
+      - name: security tests (A11)
+        run: cargo test -p ferrum-security-tests
+
       - name: cargo clippy
         run: cargo clippy --all-targets --all -- -D warnings

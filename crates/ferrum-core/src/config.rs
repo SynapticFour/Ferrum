@@ -197,11 +197,26 @@ pub struct ServicesConfig {
     pub wes: Option<WesServiceConfig>,
 }
 
-/// WES-specific service options (e.g. [services.wes.multiqc]).
+/// WES-specific service options (e.g. [services.wes.multiqc], A08 allowed_workflow_sources, A04 limits).
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct WesServiceConfig {
     #[serde(default)]
     pub multiqc: Option<MultiQCConfig>,
+    /// A08: Allowed workflow URL prefixes (e.g. https://github.com/, file://). Empty = allow all.
+    #[serde(default)]
+    pub allowed_workflow_sources: Vec<String>,
+    /// A04: Optional limits (max_workflow_url_length, max_concurrent_runs per owner, etc.). Enforcement is service-level.
+    #[serde(default)]
+    pub limits: Option<WesLimitsConfig>,
+}
+
+/// A04: WES rate/limits configuration.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct WesLimitsConfig {
+    /// Max length of workflow_url (default no limit when absent).
+    pub max_workflow_url_length: Option<u32>,
+    /// Max concurrent runs per owner (default no limit when absent).
+    pub max_concurrent_runs_per_owner: Option<u32>,
 }
 
 /// MultiQC auto-report config: [services.wes.multiqc].

@@ -22,4 +22,6 @@ pub struct AppState {
     pub metrics_sampler_started: Arc<std::sync::atomic::AtomicBool>,
     /// When set, run MultiQC after each completed run and ingest report into DRS.
     pub multiqc_runner: Option<Arc<MultiQCRunner>>,
+    /// A08: Allowed workflow URL prefixes. Empty = allow all (subject to scheme check).
+    pub allowed_workflow_sources: Vec<String>,
 }

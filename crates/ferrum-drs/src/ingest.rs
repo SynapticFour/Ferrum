@@ -121,6 +121,16 @@ pub async fn ingest_url(
     State(state): State<Arc<AppState>>,
     Json(req): Json<IngestUrlRequest>,
 ) -> Result<Json<IngestUrlResponse>> {
+    let policy = ferrum_core::SsrfPolicy::default();
+    ferrum_core::validate_url_ssrf(&req.url, &policy).map_err(|e| DrsError::Validation(e.to_string()))?;
+    if let Some(ref name) = req.name {
+        ferrum_core::validate_drs_name(name).map_err(|e| DrsError::Validation(e.to_string()))?;
+    }
+    if let Some(ref aliases) = req.aliases {
+        for a in aliases {
+            ferrum_core::validate_drs_name(a).map_err(|e| DrsError::Validation(e.to_string()))?;
+        }
+    }
     let object_id = ulid::Ulid::new().to_string();
     let req_create = CreateObjectRequest {
         name: req.name.or_else(|| Some(req.url.clone())),
@@ -165,9 +175,14 @@ pub async fn ingest_batch(
     Json(req): Json<IngestBatchRequest>,
 ) -> Result<Json<IngestBatchResponse>> {
     let mut ids = Vec::new();
+    let policy = ferrum_core::SsrfPolicy::default();
     for item in req.items {
         match item {
             IngestBatchItem::Url { url, name, mime_type, derived_from } => {
+                ferrum_core::validate_url_ssrf(&url, &policy).map_err(|e| DrsError::Validation(e.to_string()))?;
+                if let Some(ref n) = name {
+                    ferrum_core::validate_drs_name(n).map_err(|e| DrsError::Validation(e.to_string()))?;
+                }
                 let create = CreateObjectRequest {
                     name: name.or_else(|| Some(url.clone())),
                     description: Some(format!("External: {}", url)),
@@ -194,6 +209,9 @@ pub async fn ingest_batch(
                 ids.push(id);
             }
             IngestBatchItem::Path { path, name, derived_from } => {
+                if let Some(ref n) = name {
+                    ferrum_core::validate_drs_name(n).map_err(|e| DrsError::Validation(e.to_string()))?;
+                }
                 let storage = state
                     .storage
                     .as_ref()

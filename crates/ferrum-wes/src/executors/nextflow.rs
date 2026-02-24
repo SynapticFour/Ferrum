@@ -1,4 +1,4 @@
-//! Nextflow executor (nextflow run).
+//! Nextflow executor (nextflow run). A03: workflow_params via --params-file only (no env/CLI injection).
 
 use crate::executor::{ProcessHandle, WesRun, WorkflowExecutor};
 use crate::error::Result;
@@ -40,17 +40,19 @@ impl WorkflowExecutor for NextflowExecutor {
         let run_id = run.run_id.clone();
         let workflow_url = run.workflow_url.clone();
         let mut cmd = tokio::process::Command::new("nextflow");
-        cmd.args(["run", &workflow_url])
-            .current_dir(work_dir)
+        cmd.current_dir(work_dir)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .kill_on_drop(true);
-        if let Some(obj) = run.workflow_params.as_object() {
-            for (k, v) in obj {
-                if let Some(s) = v.as_str() {
-                    cmd.env(format!("NXF_INPUT_{}", k.to_uppercase().replace('-', "_")), s);
-                }
-            }
+        // A03: Pass params via file only to avoid injection; no user-controlled env/CLI args.
+        if run.workflow_params.is_object() && run.workflow_params.as_object().map(|o| !o.is_empty()).unwrap_or(false) {
+            let params_path = work_dir.join("nextflow_params.json");
+            tokio::fs::write(&params_path, serde_json::to_string(&run.workflow_params).unwrap_or_else(|_| "{}".to_string()))
+                .await
+                .map_err(|e| crate::error::WesError::Executor(format!("write params file: {}", e)))?;
+            cmd.args(["run", &workflow_url, "--params-file", params_path.as_os_str().to_str().unwrap_or("nextflow_params.json")]);
+        } else {
+            cmd.args(["run", &workflow_url]);
         }
         let mut child = cmd.spawn().map_err(|e| crate::error::WesError::Executor(e.to_string()))?;
         if let Some(ref sink) = log_sink {

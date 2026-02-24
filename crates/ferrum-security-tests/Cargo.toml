@@ -1,0 +1,17 @@
+[package]
+name = "ferrum-security-tests"
+version = "0.1.0"
+edition = "2021"
+description = "OWASP security integration tests (A01, A03, A07, A10, etc.)"
+
+[dependencies]
+ferrum-core = { path = "../ferrum-core" }
+ferrum-drs = { path = "../ferrum-drs" }
+ferrum-wes = { path = "../ferrum-wes" }
+ferrum-gateway = { path = "../ferrum-gateway" }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+http-body-util = "0.1"
+hyper = "1"
+hyper-util = { version = "0.1", features = ["client-legacy"] }

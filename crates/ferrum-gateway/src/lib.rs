@@ -1,6 +1,8 @@
 //! API Gateway: merges all GA4GH service routers under standard paths.
 //! A01: Auth middleware on every request. A05: Security headers, CORS from config.
 
+mod admin;
+
 use axum::{routing::get, Router};
 use ferrum_core::health::health_router;
 use std::net::SocketAddr;
@@ -10,7 +12,7 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 use axum::http::header;
 
-/// WES router params: pool, work dir base, optional TES URL, optional TRS register URL, optional provenance store, optional pricing config, optional MultiQC config, optional DRS ingest base URL. When None, WES routes return 503.
+/// WES router params: pool, work dir base, optional TES URL, optional TRS register URL, optional provenance store, optional pricing config, optional MultiQC config, optional DRS ingest base URL, allowed_workflow_sources. When None, WES routes return 503.
 pub type WesRouterParams = (
     sqlx::PgPool,
     Option<std::path::PathBuf>,
@@ -20,6 +22,7 @@ pub type WesRouterParams = (
     Option<ferrum_core::PricingConfig>,
     Option<ferrum_core::MultiQCConfig>,
     Option<String>,
+    Vec<String>,
 );
 
 /// TES router params: pool, backend name ("podman" | "slurm"), optional work dir. When None, TES routes return 503.
@@ -41,6 +44,7 @@ pub type CohortRouterParams = Option<sqlx::PgPool>;
 /// Config can be used to enable/disable services via `config.services`.
 /// When DRS is enabled, pass Some(drs_state) with DB/storage; None returns 503 for DRS routes.
 /// When WES is enabled, pass Some(wes_params); None and enable_wes yields 503 for WES routes.
+/// When admin_pool is Some, mounts /admin (token revoke, security events); requires admin auth.
 pub fn app(
     config: Option<&ferrum_core::AppConfig>,
     drs_state: Option<ferrum_drs::AppState>,
@@ -50,6 +54,7 @@ pub fn app(
     beacon_params: BeaconRouterParams,
     passport_params: PassportRouterParams,
     cohort_params: CohortRouterParams,
+    admin_pool: Option<sqlx::PgPool>,
 ) -> Router {
     let cfg = config;
 
@@ -134,8 +139,8 @@ pub fn app(
     }
     if cfg.map(|c| c.services.enable_wes).unwrap_or(true) {
         let wes_router = match wes_params {
-            Some((pool, work_dir, tes_url, trs_register_url, provenance_store, pricing, multiqc_config, drs_ingest_base_url)) => {
-                ferrum_wes::router(pool, work_dir, tes_url, trs_register_url, provenance_store, pricing, multiqc_config, drs_ingest_base_url)
+            Some((pool, work_dir, tes_url, trs_register_url, provenance_store, pricing, multiqc_config, drs_ingest_base_url, allowed_workflow_sources)) => {
+                ferrum_wes::router(pool, work_dir, tes_url, trs_register_url, provenance_store, pricing, multiqc_config, drs_ingest_base_url, allowed_workflow_sources)
             }
             None => ferrum_wes::router_unconfigured(),
         };
@@ -167,6 +172,9 @@ pub fn app(
     }
     if let Some(pool) = cohort_params {
         app = app.nest("/cohorts/v1", ferrum_cohorts::router(pool));
+    }
+    if let Some(pool) = admin_pool {
+        app = app.nest("/admin", admin::admin_router(pool));
     }
 
     // UI: static files from services/ui (when built/present)
@@ -201,8 +209,9 @@ pub async fn run(
     beacon_params: BeaconRouterParams,
     passport_params: PassportRouterParams,
     cohort_params: CohortRouterParams,
+    admin_pool: Option<sqlx::PgPool>,
 ) -> Result<(), std::io::Error> {
-    let app = app(config.as_ref(), drs_state, wes_params, tes_params, trs_params, beacon_params, passport_params, cohort_params);
+    let app = app(config.as_ref(), drs_state, wes_params, tes_params, trs_params, beacon_params, passport_params, cohort_params, admin_pool);
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!("Gateway listening on {}", bind);
     axum::serve(listener, app).await

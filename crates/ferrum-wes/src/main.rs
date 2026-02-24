@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let work_dir_base = std::env::var("WES_WORK_DIR").ok().map(std::path::PathBuf::from);
     let tes_url = std::env::var("WES_TES_URL").ok();
     let trs_register_url = std::env::var("WES_TRS_REGISTER_URL").ok();
-    let app = ferrum_wes::router(pool, work_dir_base, tes_url, trs_register_url, None, None, None, None);
+    let app = ferrum_wes::router(pool, work_dir_base, tes_url, trs_register_url, None, None, None, None, vec![]);
 
     let bind: SocketAddr = std::env::var("BIND").unwrap_or_else(|_| "0.0.0.0:8083".to_string()).parse()?;
     let listener = tokio::net::TcpListener::bind(bind).await?;

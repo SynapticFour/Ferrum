@@ -1,5 +1,6 @@
-//! Auth middleware: JWT validation (jsonwebtoken), GA4GH Passport extraction, Bearer + cookie.
+//! Auth middleware: JWT validation (jsonwebtoken), GA4GH Passport extraction, Bearer + cookie. A07: revocation check.
 
+use async_trait::async_trait;
 use axum::{
     extract::Request,
     middleware::Next,
@@ -50,7 +51,7 @@ pub struct PassportClaims {
 #[derive(Debug, Clone)]
 pub enum AuthClaims {
     /// Standard JWT claims (e.g. from access token).
-    Jwt { sub: String, iss: Option<String>, exp: i64 },
+    Jwt { sub: String, iss: Option<String>, exp: i64, jti: Option<String> },
     /// GA4GH Passport with decoded passport claims and optional decoded visas.
     Passport {
         claims: PassportClaims,
@@ -87,6 +88,44 @@ impl AuthClaims {
             }),
         }
     }
+
+    /// JWT ID for revocation (A07). None if token has no jti.
+    pub fn jti(&self) -> Option<&str> {
+        match self {
+            AuthClaims::Jwt { jti, .. } => jti.as_deref(),
+            AuthClaims::Passport { claims, .. } => claims.jti.as_deref(),
+        }
+    }
+}
+
+/// A07: Token revocation check (e.g. against revoked_tokens table).
+#[async_trait]
+pub trait RevocationCheck: Send + Sync {
+    async fn is_revoked(&self, jti: &str) -> bool;
+}
+
+/// Revocation check using revoked_tokens table (Postgres).
+pub struct RevokedTokensChecker {
+    pool: sqlx::PgPool,
+}
+
+impl RevokedTokensChecker {
+    pub fn new(pool: sqlx::PgPool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl RevocationCheck for RevokedTokensChecker {
+    async fn is_revoked(&self, jti: &str) -> bool {
+        let row: Option<(bool,)> = sqlx::query_as("SELECT true FROM revoked_tokens WHERE jti = $1")
+            .bind(jti)
+            .fetch_optional(&self.pool)
+            .await
+            .ok()
+            .and_then(|r| r);
+        row.is_some()
+    }
 }
 
 /// Auth config used by the middleware (from FerrumConfig).
@@ -98,6 +137,8 @@ pub struct AuthMiddlewareConfig {
     pub passport_endpoints: Vec<String>,
     /// A07: Max token age in hours (reject if iat too old). 0 = disable.
     pub max_token_age_hours: u32,
+    /// A07: If set, token with matching jti is rejected (revoked).
+    pub revocation_check: Option<Arc<dyn RevocationCheck + Send + Sync>>,
 }
 
 impl AuthMiddlewareConfig {
@@ -108,6 +149,7 @@ impl AuthMiddlewareConfig {
             jwks_url: cfg.jwks_url.clone(),
             passport_endpoints: cfg.passport_endpoints.clone(),
             max_token_age_hours: cfg.max_token_age_hours,
+            revocation_check: None,
         }
     }
 }
@@ -154,7 +196,14 @@ pub async fn auth_middleware(
     if let Some(token) = token {
         if let Some(ref cfg) = config {
             if let Ok(claims) = decode_jwt_or_passport(&token, cfg) {
-                request.extensions_mut().insert(claims);
+                let insert = if let (Some(jti), Some(ref check)) = (claims.jti(), cfg.revocation_check.as_ref()) {
+                    !check.is_revoked(jti).await
+                } else {
+                    true
+                };
+                if insert {
+                    request.extensions_mut().insert(claims);
+                }
             }
         } else {
             // No config: try default HS256 with no issuer check
@@ -209,6 +258,7 @@ fn decode_jwt_or_passport(token: &str, cfg: &AuthMiddlewareConfig) -> Result<Aut
             sub: data.claims.sub.unwrap_or_default(),
             iss: data.claims.iss,
             exp: data.claims.exp.unwrap_or(0),
+            jti: data.claims.jti,
         });
     }
 
@@ -231,6 +281,7 @@ fn decode_jwt_fallback(token: &str) -> Result<AuthClaims, jsonwebtoken::errors::
         sub: claims.claims.sub.unwrap_or_default(),
         iss: claims.claims.iss,
         exp: claims.claims.exp.unwrap_or(0),
+        jti: claims.claims.jti,
     })
 }
 

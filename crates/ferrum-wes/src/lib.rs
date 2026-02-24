@@ -95,6 +95,7 @@ pub fn router(
     pricing: Option<ferrum_core::PricingConfig>,
     multiqc_config: Option<ferrum_core::MultiQCConfig>,
     drs_ingest_base_url: Option<String>,
+    allowed_workflow_sources: Vec<String>,
 ) -> Router {
     let work_dir_base = work_dir_base.unwrap_or_else(|| std::env::temp_dir().join("wes-runs"));
     std::fs::create_dir_all(&work_dir_base).ok();
@@ -127,6 +128,7 @@ pub fn router(
         metrics,
         metrics_sampler_started: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         multiqc_runner,
+        allowed_workflow_sources,
     };
     let state = Arc::new(state);
 

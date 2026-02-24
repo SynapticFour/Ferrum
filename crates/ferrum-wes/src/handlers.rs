@@ -131,6 +131,22 @@ pub async fn post_runs(
     let workflow_type_version = workflow_type_version.ok_or_else(|| WesError::Validation("workflow_type_version required".into()))?;
     let workflow_url = workflow_url.ok_or_else(|| WesError::Validation("workflow_url required".into()))?;
 
+    // A03/A08: Validate workflow_url scheme and allowlist
+    let url_lower = workflow_url.trim().to_lowercase();
+    let allowed_schemes = ["https://", "file://", "drs://"];
+    if !allowed_schemes.iter().any(|s| url_lower.starts_with(s)) {
+        return Err(WesError::Validation("workflow_url must start with https://, file://, or drs://".into()));
+    }
+    if !app.allowed_workflow_sources.is_empty() {
+        let allowed = app
+            .allowed_workflow_sources
+            .iter()
+            .any(|p| workflow_url.trim().starts_with(p.as_str()));
+        if !allowed {
+            return Err(WesError::Validation("workflow_url not in allowed_workflow_sources".into()));
+        }
+    }
+
     let run_id = ulid::Ulid::new().to_string();
     let owner_sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
     app

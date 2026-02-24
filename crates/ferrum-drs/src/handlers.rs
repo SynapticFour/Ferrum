@@ -11,6 +11,7 @@ use axum::{
 };
 use tokio::io::AsyncReadExt;
 use ferrum_core::{ServiceInfo, ServiceType, Organization};
+use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
@@ -194,6 +195,14 @@ pub async fn get_object_view(
     let mut reader = storage.get(&key).await.map_err(|e| DrsError::Other(e.into()))?;
     let mut body = Vec::new();
     reader.read_to_end(&mut body).await.map_err(|e| DrsError::Other(e.into()))?;
+    // A08: Verify stored sha-256 on serve; on mismatch return 500 and log.
+    if let Some(expected) = obj.checksums.iter().find(|c| c.r#type.eq_ignore_ascii_case("sha-256")).map(|c| c.checksum.as_str()) {
+        let actual = format!("{:x}", Sha256::digest(&body));
+        if !expected.eq_ignore_ascii_case(&actual) {
+            tracing::error!(object_id = %canonical, "checksum_mismatch on serve");
+            return Err(DrsError::Other(anyhow::anyhow!("checksum verification failed")));
+        }
+    }
     let _ = state.repo.log_access(&canonical, None, "GET/view", 200, None).await;
     let res = axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -223,6 +232,14 @@ pub async fn post_object(
     State(state): State<Arc<AppState>>,
     Json(req): Json<CreateObjectRequest>,
 ) -> Result<Json<CreatedResponse>> {
+    if let Some(ref name) = req.name {
+        ferrum_core::validate_drs_name(name).map_err(|e| DrsError::Validation(e.to_string()))?;
+    }
+    if let Some(ref aliases) = req.aliases {
+        for a in aliases {
+            ferrum_core::validate_drs_name(a).map_err(|e| DrsError::Validation(e.to_string()))?;
+        }
+    }
     let id = state.repo.create_object(&req).await?;
     Ok(Json(CreatedResponse { id }))
 }
@@ -244,6 +261,14 @@ pub async fn put_object(
     Path(object_id): Path<String>,
     Json(req): Json<UpdateObjectRequest>,
 ) -> Result<Json<UpdatedResponse>> {
+    if let Some(ref name) = req.name {
+        ferrum_core::validate_drs_name(name).map_err(|e| DrsError::Validation(e.to_string()))?;
+    }
+    if let Some(ref aliases) = req.aliases {
+        for a in aliases {
+            ferrum_core::validate_drs_name(a).map_err(|e| DrsError::Validation(e.to_string()))?;
+        }
+    }
     let canonical = state
         .repo
         .resolve_id_or_uri(&object_id)

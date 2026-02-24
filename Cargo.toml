@@ -11,5 +11,6 @@ members = [
     "crates/ferrum-beacon",
     "crates/ferrum-cohorts",
     "crates/ferrum-gateway",
+    "crates/ferrum-security-tests",
     "tools/ferrum-cli",
 ]
