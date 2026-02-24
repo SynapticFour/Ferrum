@@ -15,7 +15,7 @@ tower = "0.4"
 utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "6", features = ["axum"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 chrono = "0.4"
 uuid = { version = "1", features = ["v4", "serde"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
