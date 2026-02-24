@@ -58,7 +58,9 @@ pub fn app(
     }
     if cfg.map(|c| c.services.enable_wes).unwrap_or(true) {
         let wes_router = match wes_params {
-            Some((pool, work_dir, tes_url, trs_register_url)) => ferrum_wes::router(pool, work_dir, tes_url, trs_register_url),
+            Some((pool, work_dir, tes_url, trs_register_url)) => {
+                ferrum_wes::router(pool, work_dir, tes_url, trs_register_url, None)
+            }
             None => ferrum_wes::router_unconfigured(),
         };
         app = app.nest("/ga4gh/wes/v1", wes_router);

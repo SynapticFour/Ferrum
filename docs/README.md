@@ -34,6 +34,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 | Document | Description |
 |----------|-------------|
+| [PROVENANCE.md](PROVENANCE.md) | Data provenance and lineage: DAG model, when edges are recorded, API endpoints, UI, RO-Crate export, configuration. |
 | [WORKFLOWS.md](WORKFLOWS.md) | Submitting Nextflow, CWL, WDL, Snakemake via WES; DRS inputs; HPC execution; live log streaming. |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Development setup, testing, PR process, adding a GA4GH service, Rust style. |
 | [SECURITY.md](../SECURITY.md) | Supported versions, reporting vulnerabilities, security model, operator considerations. |

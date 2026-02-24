@@ -53,7 +53,13 @@ graph TD
   PASS --> KC
 ```
 
-**ferrum-core** is the foundation: all service crates depend on it for config, database, auth, storage, and error types. **ferrum-gateway** composes all service routers and mounts them under `/ga4gh/*` and `/passports/*`.
+**ferrum-core** is the foundation: all service crates depend on it for config, database, auth, storage, error types, and **provenance** (optional lineage store and recursive lineage view).
+
+---
+
+## Provenance and lineage
+
+When enabled (PostgreSQL + optional `ProvenanceStore`), Ferrum records edges between DRS objects and WES runs: **input** (object → run), **output** (run → object), **derived_from** (object → object). Edges are stored in `provenance_edges`; the recursive view `provenance_lineage` supports upstream/downstream traversal. DRS records `derived_from` on ingest; WES records inputs from `drs://` URIs in `workflow_params` and outputs when runs complete. See [PROVENANCE.md](PROVENANCE.md) for API, UI, and RO-Crate export.
 
 ---
 

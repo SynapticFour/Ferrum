@@ -16,7 +16,8 @@ use axum::{
 use crate::error::JsonResult;
 pub use state::AppState;
 use handlers::{
-    delete_object, get_access, get_object, get_service_info, list_objects, options_object, post_object, put_object,
+    delete_object, get_access, get_object, get_object_provenance, get_service_info, list_objects, options_object,
+    post_object, put_object,
 };
 use std::sync::Arc;
 use utoipa::OpenApi;
@@ -27,6 +28,7 @@ use utoipa_swagger_ui::SwaggerUi;
     paths(
         handlers::get_service_info,
         handlers::get_object,
+        handlers::get_object_provenance,
         handlers::options_object,
         handlers::get_access,
         handlers::post_object,
@@ -54,6 +56,9 @@ use utoipa_swagger_ui::SwaggerUi;
         ingest::IngestFileResponse,
         ingest::IngestUrlResponse,
         ingest::IngestBatchResponse,
+        handlers::ProvenanceQuery,
+        handlers::ProvenanceResponse,
+        handlers::ProvenanceGraphResponse,
         ferrum_core::Checksum,
         ferrum_core::AccessMethod,
         ferrum_core::ServiceInfo,
@@ -78,6 +83,10 @@ pub fn router(state: AppState) -> Router {
                 .put(|s, p, j| async move { JsonResult(put_object(s, p, j).await) })
                 .delete(|s, p| async move { JsonResult(delete_object(s, p).await) })
                 .options(options_object),
+        )
+        .route(
+            "/objects/{object_id}/provenance",
+            get(|s, p, q| async move { JsonResult(get_object_provenance(s, p, q).await) }),
         )
         .route(
             "/objects/{object_id}/access/{access_id}",

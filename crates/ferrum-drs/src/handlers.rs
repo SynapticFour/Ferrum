@@ -228,3 +228,72 @@ pub async fn list_objects(
         .await?;
     Ok(Json(list))
 }
+
+/// Query params for GET /objects/{object_id}/provenance
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams, ToSchema)]
+pub struct ProvenanceQuery {
+    /// upstream | downstream | both
+    #[serde(default = "default_direction")]
+    pub direction: String,
+    #[serde(default = "default_depth")]
+    pub depth: Option<u32>,
+}
+
+fn default_direction() -> String {
+    "upstream".to_string()
+}
+fn default_depth() -> Option<u32> {
+    Some(10)
+}
+
+/// GET /objects/{object_id}/provenance — lineage graph (upstream/downstream/both).
+#[utoipa::path(
+    get,
+    path = "/objects/{object_id}/provenance",
+    params(ProvenanceQuery),
+    responses((status = 200, description = "Provenance graph"), (status = 404, description = "Not found"), (status = 503, description = "Provenance not configured"))
+)]
+pub async fn get_object_provenance(
+    State(state): State<Arc<AppState>>,
+    Path(object_id): Path<String>,
+    Query(q): Query<ProvenanceQuery>,
+) -> Result<Json<ProvenanceResponse>> {
+    let store = state
+        .provenance_store
+        .as_ref()
+        .ok_or_else(|| DrsError::Other(anyhow::anyhow!("provenance not configured")))?;
+    let canonical = state
+        .repo
+        .resolve_id_or_uri(&object_id)
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    let depth = q.depth.unwrap_or(10).min(20).max(1);
+    let graph = match q.direction.as_str() {
+        "downstream" => store.downstream(&canonical, depth).await?,
+        "both" => store.both(&canonical, depth).await?,
+        _ => store.upstream(&canonical, depth).await?,
+    };
+    Ok(Json(ProvenanceResponse {
+        object_id: canonical,
+        direction: q.direction.clone(),
+        graph: ProvenanceGraphResponse {
+            nodes: graph.nodes.clone(),
+            edges: graph.edges.clone(),
+            mermaid: graph.to_mermaid(),
+        },
+    }))
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct ProvenanceResponse {
+    pub object_id: String,
+    pub direction: String,
+    pub graph: ProvenanceGraphResponse,
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct ProvenanceGraphResponse {
+    pub nodes: Vec<ferrum_core::ProvenanceNode>,
+    pub edges: Vec<ferrum_core::ProvenanceEdge>,
+    pub mermaid: String,
+}

@@ -79,3 +79,37 @@ export interface HealthStatus {
   status?: string;
   services?: Record<string, { status: string }>;
 }
+
+/** Provenance graph (DRS object or WES run) */
+export interface ProvenanceNodeResponse {
+  type: 'drs_object' | 'wes_run';
+  id: string;
+  name?: string;
+  size?: number;
+  mime_type?: string;
+  created_at?: string;
+  workflow_type?: string;
+  workflow_url?: string;
+  state?: string;
+}
+
+export interface ProvenanceEdgeResponse {
+  id: string;
+  from_type: string;
+  from_id: string;
+  to_type: string;
+  to_id: string;
+  edge_type: string;
+}
+
+export interface ProvenanceGraphResponse {
+  object_id?: string;
+  run_id?: string;
+  direction?: string;
+  graph: {
+    nodes: ProvenanceNodeResponse[];
+    edges: ProvenanceEdgeResponse[];
+    mermaid: string;
+    cytoscape?: { nodes: unknown[]; edges: unknown[] };
+  };
+}

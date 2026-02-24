@@ -86,6 +86,8 @@ pub struct IngestUrlRequest {
     pub name: Option<String>,
     pub mime_type: Option<String>,
     pub aliases: Option<Vec<String>>,
+    /// Optional DRS URIs (drs://host/id) this object was derived from; records provenance edges.
+    pub derived_from: Option<Vec<String>>,
 }
 
 /// Ingest batch request (POST /ingest/batch).
@@ -97,6 +99,17 @@ pub struct IngestBatchRequest {
 #[derive(Debug, Clone, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum IngestBatchItem {
-    Url { url: String, name: Option<String>, mime_type: Option<String> },
-    Path { path: String, name: Option<String> },
+    Url {
+        url: String,
+        name: Option<String>,
+        mime_type: Option<String>,
+        #[serde(default)]
+        derived_from: Option<Vec<String>>,
+    },
+    Path {
+        path: String,
+        name: Option<String>,
+        #[serde(default)]
+        derived_from: Option<Vec<String>>,
+    },
 }

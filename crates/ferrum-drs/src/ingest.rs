@@ -124,6 +124,17 @@ pub async fn ingest_url(
         is_encrypted: Some(false),
     };
     state.repo.create_object_with_id(&req_create, Some(object_id.clone())).await?;
+    if let Some(ref store) = state.provenance_store {
+        if let Some(ref uris) = req.derived_from {
+            for uri in uris {
+                if let Some((_host, from_id)) = crate::uri::parse_drs_uri(uri) {
+                    if let Ok(Some(canonical)) = state.repo.resolve_id_or_uri(&from_id).await {
+                        let _ = store.record_derived_from(&canonical, &object_id).await;
+                    }
+                }
+            }
+        }
+    }
     Ok(Json(IngestUrlResponse { id: object_id }))
 }
 
@@ -146,7 +157,7 @@ pub async fn ingest_batch(
     let mut ids = Vec::new();
     for item in req.items {
         match item {
-            IngestBatchItem::Url { url, name, mime_type } => {
+            IngestBatchItem::Url { url, name, mime_type, derived_from } => {
                 let create = CreateObjectRequest {
                     name: name.or_else(|| Some(url.clone())),
                     description: Some(format!("External: {}", url)),
@@ -159,9 +170,20 @@ pub async fn ingest_batch(
                     is_encrypted: Some(false),
                 };
                 let id = state.repo.create_object(&create).await?;
+                if let Some(ref store) = state.provenance_store {
+                    if let Some(ref uris) = derived_from {
+                        for uri in uris {
+                            if let Some((_host, from_id)) = crate::uri::parse_drs_uri(uri) {
+                                if let Ok(Some(canonical)) = state.repo.resolve_id_or_uri(&from_id).await {
+                                    let _ = store.record_derived_from(&canonical, &id).await;
+                                }
+                            }
+                        }
+                    }
+                }
                 ids.push(id);
             }
-            IngestBatchItem::Path { path, name } => {
+            IngestBatchItem::Path { path, name, derived_from } => {
                 let storage = state
                     .storage
                     .as_ref()
@@ -201,6 +223,17 @@ pub async fn ingest_batch(
                     is_encrypted: Some(false),
                 };
                 let id = state.repo.create_object_with_id(&create, Some(object_id)).await?;
+                if let Some(ref store) = state.provenance_store {
+                    if let Some(ref uris) = derived_from {
+                        for uri in uris {
+                            if let Some((_host, from_id)) = crate::uri::parse_drs_uri(uri) {
+                                if let Ok(Some(canonical)) = state.repo.resolve_id_or_uri(&from_id).await {
+                                    let _ = store.record_derived_from(&canonical, &id).await;
+                                }
+                            }
+                        }
+                    }
+                }
                 ids.push(id);
             }
         }

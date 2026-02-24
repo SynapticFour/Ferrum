@@ -11,6 +11,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use futures_util::stream::StreamExt;
 use std::convert::Infallible;
+use std::io::Write;
 use std::sync::Arc;
 use tokio_stream::wrappers::BroadcastStream;
 use utoipa::{IntoParams, ToSchema};
@@ -136,6 +137,12 @@ pub async fn post_runs(State(app): State<Arc<AppState>>, mut multipart: Multipar
             None,
         )
         .await?;
+
+    if let Some(ref store) = app.provenance_store {
+        for object_id in crate::provenance_helpers::extract_drs_object_ids_from_json(&workflow_params) {
+            let _ = store.record_wes_input(&run_id, &object_id).await;
+        }
+    }
 
     let run = crate::executor::WesRun {
         run_id: run_id.clone(),
@@ -334,4 +341,198 @@ pub async fn get_stderr(
 pub struct TaskListResponse {
     pub task_logs: Vec<TaskLog>,
     pub next_page_token: Option<String>,
+}
+
+/// GET /runs/{run_id}/provenance — lineage subgraph for this run (inputs + outputs).
+#[utoipa::path(
+    get,
+    path = "/runs/{run_id}/provenance",
+    responses((status = 200, description = "Provenance graph"), (status = 404), (status = 503, description = "Provenance not configured"))
+)]
+pub async fn get_run_provenance(
+    State(app): State<Arc<AppState>>,
+    Path(run_id): Path<String>,
+) -> Result<Json<RunProvenanceResponse>> {
+    let store = app
+        .provenance_store
+        .as_ref()
+        .ok_or_else(|| WesError::Other(anyhow::anyhow!("provenance not configured")))?;
+    if app.repo.get_run(&run_id).await?.is_none() {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
+    let graph = store.run_lineage(&run_id).await?;
+    Ok(Json(RunProvenanceResponse {
+        run_id: run_id.clone(),
+        graph: RunProvenanceGraphResponse {
+            nodes: graph.nodes.clone(),
+            edges: graph.edges.clone(),
+            mermaid: graph.to_mermaid(),
+            cytoscape: graph.to_cytoscape_json(),
+        },
+    }))
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct RunProvenanceResponse {
+    pub run_id: String,
+    pub graph: RunProvenanceGraphResponse,
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct RunProvenanceGraphResponse {
+    pub nodes: Vec<ferrum_core::ProvenanceNode>,
+    pub edges: Vec<ferrum_core::ProvenanceEdge>,
+    pub mermaid: String,
+    pub cytoscape: serde_json::Value,
+}
+
+/// Query params for GET /provenance/graph
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams, ToSchema)]
+pub struct ProvenanceGraphQuery {
+    pub root_id: String,
+    #[serde(default = "default_root_type")]
+    pub root_type: String,
+    #[serde(default = "default_direction")]
+    pub direction: String,
+    #[serde(default = "default_depth")]
+    pub depth: Option<u32>,
+}
+
+fn default_root_type() -> String {
+    "drs_object".to_string()
+}
+fn default_direction() -> String {
+    "both".to_string()
+}
+fn default_depth() -> Option<u32> {
+    Some(10)
+}
+
+/// GET /provenance/graph — subgraph by root_id and root_type (drs_object | wes_run).
+#[utoipa::path(
+    get,
+    path = "/provenance/graph",
+    params(ProvenanceGraphQuery),
+    responses((status = 200, description = "Provenance graph"), (status = 503))
+)]
+pub async fn get_provenance_graph(
+    State(app): State<Arc<AppState>>,
+    Query(q): Query<ProvenanceGraphQuery>,
+) -> Result<Json<RunProvenanceGraphResponse>> {
+    let store = app
+        .provenance_store
+        .as_ref()
+        .ok_or_else(|| WesError::Other(anyhow::anyhow!("provenance not configured")))?;
+    let depth = q.depth.unwrap_or(10).min(20).max(1);
+    let graph = store.subgraph(&q.root_id, &q.root_type, &q.direction, depth).await?;
+    Ok(Json(RunProvenanceGraphResponse {
+        nodes: graph.nodes.clone(),
+        edges: graph.edges.clone(),
+        mermaid: graph.to_mermaid(),
+        cytoscape: graph.to_cytoscape_json(),
+    }))
+}
+
+/// GET /runs/{run_id}/export/ro-crate — export run as RO-Crate (ZIP with ro-crate-metadata.json).
+#[utoipa::path(
+    get,
+    path = "/runs/{run_id}/export/ro-crate",
+    responses((status = 200, description = "ZIP file"), (status = 404))
+)]
+pub async fn export_ro_crate(
+    State(app): State<Arc<AppState>>,
+    Path(run_id): Path<String>,
+) -> Result<axum::response::Response> {
+    let row = app
+        .repo
+        .get_run(&run_id)
+        .await?
+        .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
+    let (_, workflow_url, workflow_type, _version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir) = row;
+    let date_published = end_time.or(start_time).map(|t| t.to_rfc3339()).unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
+    let mut input_parts: Vec<serde_json::Value> = Vec::new();
+    let mut output_parts: Vec<serde_json::Value> = Vec::new();
+    if let Some(ref store) = app.provenance_store {
+        let graph = store.run_lineage(&run_id).await?;
+        for e in &graph.edges {
+            if matches!(e.edge_type, ferrum_core::EdgeType::Input) && matches!(e.from_type, ferrum_core::NodeType::DrsObject) {
+                input_parts.push(serde_json::json!({
+                    "@id": format!("drs://ferrum/{}", e.from_id),
+                    "@type": "File",
+                    "identifier": e.from_id
+                }));
+            }
+            if matches!(e.edge_type, ferrum_core::EdgeType::Output) && matches!(e.to_type, ferrum_core::NodeType::DrsObject) {
+                output_parts.push(serde_json::json!({
+                    "@id": format!("drs://ferrum/{}", e.to_id),
+                    "@type": "File",
+                    "identifier": e.to_id
+                }));
+            }
+        }
+    }
+    if output_parts.is_empty() {
+        if let Some(obj) = outputs.get("output_files").and_then(|v| v.as_array()) {
+            for o in obj {
+                if let Some(id) = o.get("file_id").and_then(|v| v.as_str()) {
+                    output_parts.push(serde_json::json!({
+                        "@id": format!("drs://ferrum/{}", id),
+                        "@type": "File",
+                        "identifier": id
+                    }));
+                }
+            }
+        }
+    }
+    let workflow_app = serde_json::json!({
+        "@type": "SoftwareApplication",
+        "@id": "#workflow",
+        "name": workflow_type,
+        "url": workflow_url
+    });
+    let create_action = serde_json::json!({
+        "@type": "CreateAction",
+        "@id": format!("#run-{}", run_id),
+        "name": format!("WES Run {}", run_id),
+        "result": output_parts,
+        "instrument": { "@id": "#workflow" }
+    });
+    let graph_vec = vec![
+        serde_json::json!({
+            "@type": "CreativeWork",
+            "@id": "ro-crate-metadata.json",
+            "conformsTo": { "@id": "https://w3id.org/ro/crate/1.1" }
+        }),
+        serde_json::json!({
+            "@type": "Dataset",
+            "@id": "./",
+            "name": format!("WES Run {}", run_id),
+            "datePublished": date_published,
+            "hasPart": [input_parts, output_parts].into_iter().flatten().collect::<Vec<_>>(),
+            "mainEntity": { "@id": format!("#run-{}", run_id) }
+        }),
+        workflow_app,
+        create_action,
+    ];
+    let ro_crate = serde_json::json!({
+        "@context": "https://w3id.org/ro/crate/1.1/context",
+        "@graph": graph_vec
+    });
+    let json_bytes = serde_json::to_vec_pretty(&ro_crate).map_err(|e| WesError::Other(e.into()))?;
+    let mut zip_buf = Vec::new();
+    {
+        let mut zip_writer = zip::ZipWriter::new(std::io::Cursor::new(&mut zip_buf));
+        let opts = zip::write::FileOptions::default().unix_permissions(0o644);
+        zip_writer.start_file("ro-crate-metadata.json", opts).map_err(|e| WesError::Other(e.into()))?;
+        zip_writer.write_all(&json_bytes).map_err(|e| WesError::Other(e.into()))?;
+        zip_writer.finish().map_err(|e| WesError::Other(e.into()))?;
+    }
+    Ok((
+        [
+            ("content-type", "application/zip"),
+            ("content-disposition", &format!("attachment; filename=\"run-{}.ro-crate.zip\"", run_id)),
+        ],
+        axum::body::Body::from(zip_buf),
+    )
+        .into_response())
 }

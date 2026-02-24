@@ -33,6 +33,7 @@
 | 🔬 | **Workflow engines** — Nextflow, CWL, WDL, Snakemake. |
 | 🖥️ | **HPC scheduling** — SLURM and LSF job scheduling. |
 | 🚀 | **One-command demo** — `ferrum demo start`; Helm charts for production. |
+| 📊 | **Provenance & lineage** — DAG of DRS objects and WES runs; queryable upstream/downstream, visual graph, [RO-Crate](https://w3id.org/ro/crate/1.1) export for citation. |
 
 ---
 
@@ -196,6 +197,12 @@ helm install ferrum ferrum/ferrum -n ferrum --create-namespace -f values-product
 | Snakemake | Python | 8.x | SLURM, LSF |
 
 See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for submission and DRS integration.
+
+---
+
+## Provenance and lineage
+
+Ferrum tracks which WES runs consumed which DRS objects (inputs) and produced which objects (outputs), plus manual `derived_from` links on ingest. You can query **upstream** (what produced this object) or **downstream** (what used or was derived from it), view an interactive DAG in the UI, and export a run as **RO-Crate** for citation (e.g. Zenodo/Figshare). See [docs/PROVENANCE.md](docs/PROVENANCE.md).
 
 ---
 
