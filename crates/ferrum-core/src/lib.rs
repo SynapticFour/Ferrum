@@ -9,7 +9,7 @@ pub mod provenance;
 pub mod storage;
 pub mod types;
 
-pub use config::{FerrumConfig, AppConfig, DatabaseConfig, StorageConfig, AuthConfig, ServicesConfig, EncryptionConfig};
+pub use config::{FerrumConfig, AppConfig, DatabaseConfig, StorageConfig, AuthConfig, ServicesConfig, EncryptionConfig, PricingConfig, PricingTier, WesServiceConfig, MultiQCConfig};
 pub use db::DatabasePool;
 pub use error::{FerrumError, Result};
 pub use auth::{auth_layer, auth_middleware, AuthClaims, AuthMiddlewareConfig, PassportClaims, VisaObject};

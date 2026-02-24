@@ -64,4 +64,9 @@ pub trait WorkflowExecutor: Send + Sync {
 
     /// Current state and, when terminal, the process exit code.
     async fn poll_status(&self, handle: &ProcessHandle) -> Result<(RunState, Option<i32>)>;
+
+    /// Optional: PID of the main process for this run (for metrics sampling). Default None.
+    fn process_id_for_metrics(&self, _run_id: &str) -> Option<u32> {
+        None
+    }
 }

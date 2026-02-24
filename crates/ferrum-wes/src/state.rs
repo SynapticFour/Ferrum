@@ -1,6 +1,8 @@
 //! App state for WES.
 
 use crate::log_stream::LogStreamRegistry;
+use crate::metrics::MetricsCollector;
+use crate::multiqc::MultiQCRunner;
 use crate::repo::WesRepo;
 use crate::run_manager::RunManager;
 use ferrum_core::ProvenanceStore;
@@ -14,4 +16,10 @@ pub struct AppState {
     pub trs_register_url: Option<String>,
     /// When set, record WES input/output provenance and serve GET /runs/{id}/provenance and GET /provenance/graph.
     pub provenance_store: Option<Arc<ProvenanceStore>>,
+    /// When set, collect run metrics and expose cost endpoints.
+    pub metrics: Option<Arc<MetricsCollector>>,
+    /// Set to true when the metrics sampling loop has been started (lazy init).
+    pub metrics_sampler_started: Arc<std::sync::atomic::AtomicBool>,
+    /// When set, run MultiQC after each completed run and ingest report into DRS.
+    pub multiqc_runner: Option<Arc<MultiQCRunner>>,
 }

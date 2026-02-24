@@ -32,6 +32,12 @@ impl From<DrsError> for FerrumError {
     }
 }
 
+impl From<FerrumError> for DrsError {
+    fn from(e: FerrumError) -> Self {
+        DrsError::Other(anyhow::anyhow!("{}", e))
+    }
+}
+
 impl From<DrsError> for axum::response::Response {
     fn from(e: DrsError) -> Self {
         FerrumError::from(e).into_response()
@@ -48,6 +54,18 @@ where
     fn into_response(self) -> axum::response::Response {
         match self.0 {
             Ok(j) => j.into_response(),
+            Err(e) => axum::response::Response::from(e),
+        }
+    }
+}
+
+/// Wrapper for GET /objects/{id}/view which returns a raw Response (HTML body).
+pub struct ViewResult(pub std::result::Result<axum::response::Response, DrsError>);
+
+impl IntoResponse for ViewResult {
+    fn into_response(self) -> axum::response::Response {
+        match self.0 {
+            Ok(r) => r,
             Err(e) => axum::response::Response::from(e),
         }
     }

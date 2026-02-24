@@ -77,4 +77,12 @@ impl WorkflowExecutor for CromwellExecutor {
         }
         Ok((RunState::Unknown, None))
     }
+
+    fn process_id_for_metrics(&self, run_id: &str) -> Option<u32> {
+        self.processes
+            .read()
+            .ok()?
+            .get(run_id)
+            .and_then(|t| t.child.id())
+    }
 }

@@ -29,3 +29,4 @@ aws-config = "1"
 aws-credential-types = "1"
 aws-sdk-s3 = { version = "1.18", features = ["rt-tokio"] }
 bytes = "1"
+ulid = "1"

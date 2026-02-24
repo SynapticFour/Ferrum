@@ -206,6 +206,11 @@ impl ProvenanceStore {
     ) -> impl std::future::Future<Output = Result<()>> + Send {
         let pool = self.pool.clone();
         let id = ulid::Ulid::new().to_string();
+        let from_id = from_id.to_string();
+        let to_id = to_id.to_string();
+        let from_type_str = from_type.as_str().to_string();
+        let to_type_str = to_type.as_str().to_string();
+        let edge_type_str = edge_type.as_str().to_string();
         let meta = metadata.unwrap_or_else(|| serde_json::Value::Object(serde_json::Map::new()));
         async move {
             sqlx::query(
@@ -213,11 +218,11 @@ impl ProvenanceStore {
                    VALUES ($1, $2, $3, $4, $5, $6, $7)"#,
             )
             .bind(&id)
-            .bind(from_type.as_str())
-            .bind(from_id)
-            .bind(to_type.as_str())
-            .bind(to_id)
-            .bind(edge_type.as_str())
+            .bind(&from_type_str)
+            .bind(&from_id)
+            .bind(&to_type_str)
+            .bind(&to_id)
+            .bind(&edge_type_str)
             .bind(&meta)
             .execute(&pool)
             .await?;

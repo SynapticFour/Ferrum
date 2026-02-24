@@ -177,6 +177,14 @@ pub async fn get_run_status(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
 ) -> Result<Json<RunStatus>> {
+    if let (Some(ref metrics), false) = (
+        &app.metrics,
+        app.metrics_sampler_started.load(std::sync::atomic::Ordering::Acquire),
+    ) {
+        if !app.metrics_sampler_started.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            crate::spawn_metrics_sampler(Arc::clone(&app.run_manager), Arc::clone(metrics));
+        }
+    }
     let state_row = app.run_manager.poll_status(&run_id).await?;
     if state_row == RunState::Unknown {
         if let Some((_, _, _, _, _, _, _, s, _, _, _, _)) = app.repo.get_run(&run_id).await? {
@@ -229,6 +237,18 @@ pub async fn get_run_log(
             exit_code: None,
         });
     let task_logs = app.repo.get_task_logs(&run_id, 100, None).await.unwrap_or_default();
+    let extensions: Option<std::collections::HashMap<String, serde_json::Value>> = outputs
+        .as_object()
+        .map(|obj| {
+            let mut ext = std::collections::HashMap::new();
+            for key in ["ferrum:multiqc_status", "ferrum:multiqc_report_drs_id"] {
+                if let Some(v) = obj.get(key) {
+                    ext.insert(key.to_string(), v.clone());
+                }
+            }
+            ext
+        })
+        .filter(|m| !m.is_empty());
     Ok(Json(RunLog {
         run_id: run_id_db,
         request: RunRequestRef {
@@ -241,6 +261,7 @@ pub async fn get_run_log(
         task_logs: Some(task_logs),
         task_logs_url: Some(format!("/runs/{}/tasks", run_id)),
         outputs: Some(outputs),
+        extensions,
     }))
 }
 
@@ -484,6 +505,7 @@ pub async fn export_ro_crate(
             }
         }
     }
+    let has_part: Vec<serde_json::Value> = input_parts.into_iter().chain(output_parts.clone()).collect();
     let workflow_app = serde_json::json!({
         "@type": "SoftwareApplication",
         "@id": "#workflow",
@@ -508,7 +530,7 @@ pub async fn export_ro_crate(
             "@id": "./",
             "name": format!("WES Run {}", run_id),
             "datePublished": date_published,
-            "hasPart": [input_parts, output_parts].into_iter().flatten().collect::<Vec<_>>(),
+            "hasPart": has_part,
             "mainEntity": { "@id": format!("#run-{}", run_id) }
         }),
         workflow_app,
@@ -522,7 +544,7 @@ pub async fn export_ro_crate(
     let mut zip_buf = Vec::new();
     {
         let mut zip_writer = zip::ZipWriter::new(std::io::Cursor::new(&mut zip_buf));
-        let opts = zip::write::FileOptions::default().unix_permissions(0o644);
+        let opts = zip::write::FileOptions::<()>::default().unix_permissions(0o644);
         zip_writer.start_file("ro-crate-metadata.json", opts).map_err(|e| WesError::Other(e.into()))?;
         zip_writer.write_all(&json_bytes).map_err(|e| WesError::Other(e.into()))?;
         zip_writer.finish().map_err(|e| WesError::Other(e.into()))?;
@@ -535,4 +557,376 @@ pub async fn export_ro_crate(
         axum::body::Body::from(zip_buf),
     )
         .into_response())
+}
+
+// ---------- Metrics & cost ----------
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct RunMetricsResponse {
+    pub run_id: String,
+    pub summary: RunMetricsSummary,
+    pub tasks: Vec<RunMetricsTask>,
+    pub timeseries: RunMetricsTimeseries,
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct RunMetricsSummary {
+    pub wall_time: String,
+    pub total_cpu_seconds: f64,
+    pub peak_memory_mb: i64,
+    pub total_read_gb: f64,
+    pub total_write_gb: f64,
+    pub estimated_cost: EstimatedCost,
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct EstimatedCost {
+    pub amount: f64,
+    pub currency: String,
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct RunMetricsTask {
+    pub name: String,
+    pub wall_seconds: i64,
+    pub cpu_peak_pct: f64,
+    pub memory_peak_mb: i64,
+    pub exit_code: Option<i32>,
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct RunMetricsTimeseries {
+    pub timestamps: Vec<String>,
+    pub cpu_pct: Vec<f64>,
+    pub memory_mb: Vec<i64>,
+}
+
+fn format_duration(secs: i64) -> String {
+    let h = secs / 3600;
+    let m = (secs % 3600) / 60;
+    let s = secs % 60;
+    if h > 0 {
+        format!("{}h {}m {}s", h, m, s)
+    } else if m > 0 {
+        format!("{}m {}s", m, s)
+    } else {
+        format!("{}s", s)
+    }
+}
+
+/// GET /runs/{run_id}/metrics
+pub async fn get_run_metrics(
+    State(app): State<Arc<AppState>>,
+    Path(run_id): Path<String>,
+) -> Result<Json<RunMetricsResponse>> {
+    let metrics = app
+        .metrics
+        .as_ref()
+        .ok_or_else(|| WesError::Other(anyhow::anyhow!("metrics not configured")))?;
+    if app.repo.get_run(&run_id).await?.is_none() {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
+    let summary = match metrics.get_run_cost_summary(&run_id).await? {
+        Some((wall, cpu_s, _mem_gb_h, peak, read_gb, write_gb, cost, _snap)) => RunMetricsSummary {
+            wall_time: format_duration(wall),
+            total_cpu_seconds: cpu_s,
+            peak_memory_mb: peak,
+            total_read_gb: read_gb,
+            total_write_gb: write_gb,
+            estimated_cost: EstimatedCost {
+                amount: cost,
+                currency: metrics.pricing_snapshot().currency,
+            },
+        },
+        None => {
+            let computed = metrics.compute_run_summary(&run_id).await?;
+            RunMetricsSummary {
+                wall_time: format_duration(computed.total_wall_seconds),
+                total_cpu_seconds: computed.total_cpu_seconds,
+                peak_memory_mb: computed.peak_memory_mb,
+                total_read_gb: computed.total_read_gb,
+                total_write_gb: computed.total_write_gb,
+                estimated_cost: EstimatedCost {
+                    amount: computed.estimated_cost_usd,
+                    currency: metrics.pricing_snapshot().currency,
+                },
+            }
+        }
+    };
+    let task_rows = metrics.get_task_metrics_for_run(&run_id).await?;
+    let tasks: Vec<RunMetricsTask> = task_rows
+        .into_iter()
+        .map(|(_, name, wall_seconds, cpu_peak_pct, memory_peak_mb, exit_code, _)| RunMetricsTask {
+            name,
+            wall_seconds: wall_seconds.unwrap_or(0) as i64,
+            cpu_peak_pct: cpu_peak_pct.unwrap_or(0.0),
+            memory_peak_mb: memory_peak_mb.unwrap_or(0),
+            exit_code,
+        })
+        .collect();
+    let mut combined: Vec<(String, f64, i64)> = Vec::new();
+    let task_rows2 = metrics.get_task_metrics_for_run(&run_id).await?;
+    for (_, _, _, _, _, _, samples_opt) in task_rows2 {
+        if let Some(serde_json::Value::Array(arr)) = samples_opt {
+            for s in arr {
+                if let (Some(ts), Some(cpu), Some(mem)) = (
+                    s.get("ts").and_then(|v| v.as_str()),
+                    s.get("cpu_pct").and_then(|v| v.as_f64()),
+                    s.get("memory_mb").and_then(|v| v.as_i64()),
+                ) {
+                    combined.push((ts.to_string(), cpu, mem));
+                }
+            }
+        }
+    }
+    combined.sort_by(|a, b| a.0.cmp(&b.0));
+    let timestamps: Vec<String> = combined.iter().map(|(t, _, _)| t.clone()).collect();
+    let cpu_pct: Vec<f64> = combined.iter().map(|(_, c, _)| *c).collect();
+    let memory_mb: Vec<i64> = combined.iter().map(|(_, _, m)| *m).collect();
+    Ok(Json(RunMetricsResponse {
+        run_id: run_id.clone(),
+        summary,
+        tasks,
+        timeseries: RunMetricsTimeseries {
+            timestamps,
+            cpu_pct,
+            memory_mb,
+        },
+    }))
+}
+
+/// GET /runs/{run_id}/metrics/report — standalone HTML report (Chart.js from CDN).
+pub async fn get_run_metrics_report(
+    State(app): State<Arc<AppState>>,
+    Path(run_id): Path<String>,
+) -> Result<axum::response::Response> {
+    let metrics = app
+        .metrics
+        .as_ref()
+        .ok_or_else(|| WesError::Other(anyhow::anyhow!("metrics not configured")))?;
+    if app.repo.get_run(&run_id).await?.is_none() {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
+    let run_row = app.repo.get_run(&run_id).await?.ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
+    let (_, _url, workflow_type, _ver, _, _, _, state_str, _, _, _, _) = run_row;
+    let (wall, cpu_s, peak_mb, read_gb, write_gb, cost_usd, tasks_for_bar) = match metrics.get_run_cost_summary(&run_id).await? {
+        Some((w, c, _, p, r, wr, co, _)) => {
+            let task_rows = metrics.get_task_metrics_for_run(&run_id).await?;
+            let bar: Vec<(String, i64)> = task_rows
+                .into_iter()
+                .map(|(_, name, wall, _, _, _, _)| (name, wall.unwrap_or(0) as i64))
+                .collect();
+            (w, c, p, r, wr, co, bar)
+        }
+        None => {
+            let computed = metrics.compute_run_summary(&run_id).await?;
+            let bar: Vec<(String, i64)> = computed
+                .breakdown
+                .iter()
+                .map(|t| (t.task_name.clone(), t.wall_seconds))
+                .collect();
+            (
+                computed.total_wall_seconds,
+                computed.total_cpu_seconds,
+                computed.peak_memory_mb,
+                computed.total_read_gb,
+                computed.total_write_gb,
+                computed.estimated_cost_usd,
+                bar,
+            )
+        }
+    };
+    let task_rows = metrics.get_task_metrics_for_run(&run_id).await?;
+    let mut combined: Vec<(String, f64, i64)> = Vec::new();
+    for (_, _, _, _, _, _, samples_opt) in &task_rows {
+        if let Some(serde_json::Value::Array(arr)) = samples_opt {
+            for s in arr {
+                if let (Some(ts), Some(cpu), Some(mem)) = (
+                    s.get("ts").and_then(|v| v.as_str()),
+                    s.get("cpu_pct").and_then(|v| v.as_f64()),
+                    s.get("memory_mb").and_then(|v| v.as_i64()),
+                ) {
+                    combined.push((ts.to_string(), cpu, mem));
+                }
+            }
+        }
+    }
+    combined.sort_by(|a, b| a.0.cmp(&b.0));
+    let timestamps_json = serde_json::to_string(&combined.iter().map(|(t, _, _)| t).cloned().collect::<Vec<_>>()).unwrap_or_else(|_| "[]".into());
+    let cpu_json = serde_json::to_string(&combined.iter().map(|(_, c, _)| c).cloned().collect::<Vec<_>>()).unwrap_or_else(|_| "[]".into());
+    let mem_json = serde_json::to_string(&combined.iter().map(|(_, _, m)| m).cloned().collect::<Vec<_>>()).unwrap_or_else(|_| "[]".into());
+    let bar_labels_json = serde_json::to_string(&tasks_for_bar.iter().map(|(n, _)| n).cloned().collect::<Vec<_>>()).unwrap_or_else(|_| "[]".into());
+    let bar_data_json = serde_json::to_string(&tasks_for_bar.iter().map(|(_, s)| s).cloned().collect::<Vec<_>>()).unwrap_or_else(|_| "[]".into());
+    let snapshot = metrics.pricing_snapshot();
+    let pricing_json = serde_json::to_string(&snapshot).unwrap_or_else(|_| "{}".into());
+    let html = metrics_report_html(
+        &run_id,
+        &workflow_type,
+        &state_str,
+        format_duration(wall),
+        cpu_s,
+        peak_mb,
+        read_gb,
+        write_gb,
+        cost_usd,
+        &snapshot.currency,
+        &timestamps_json,
+        &cpu_json,
+        &mem_json,
+        &bar_labels_json,
+        &bar_data_json,
+        &pricing_json,
+    );
+    Ok((
+        [("content-type", "text/html; charset=utf-8")],
+        axum::body::Body::from(html.into_string()),
+    )
+        .into_response())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn metrics_report_html(
+    run_id: &str,
+    workflow_type: &str,
+    state: &str,
+    wall_time: String,
+    _total_cpu_seconds: f64,
+    peak_memory_mb: i64,
+    total_read_gb: f64,
+    total_write_gb: f64,
+    cost_usd: f64,
+    currency: &str,
+    timestamps_json: &str,
+    cpu_json: &str,
+    mem_json: &str,
+    bar_labels_json: &str,
+    bar_data_json: &str,
+    pricing_json: &str,
+) -> maud::Markup {
+    maud::html! {
+        (maud::DOCTYPE)
+        html lang="en" {
+            head {
+                meta charset="utf-8";
+                title { "Run Metrics — " (run_id) }
+                script src="https://cdn.jsdelivr.net/npm/chart.js" {}
+            }
+            body {
+                h1 { "Run Metrics Report" }
+                p { strong { "Run ID: " } (run_id) " | Workflow: " (workflow_type) " | State: " (state) }
+                p { strong { "Total cost: " } (format!("{:.2}", cost_usd)) " " (currency) }
+                h2 { "Wall time per task" }
+                canvas id="barChart" width="400" height="200" {}
+                h2 { "CPU % and Memory (MB) over time" }
+                canvas id="lineChart" width="400" height="200" {}
+                h2 { "Per-task breakdown" }
+                table {
+                    thead { tr { th { "Task" } th { "Duration (s)" } th { "Est. cost" } } }
+                    tbody id="taskTable" {}
+                }
+                footer { pre { "Pricing config: " (pricing_json) } }
+                script {
+                    (maud::PreEscaped(format!(r#"
+var ts = {};
+var cpu = {};
+var mem = {};
+var barLabels = {};
+var barData = {};
+new Chart(document.getElementById('barChart'), {{ type: 'bar', data: {{ labels: barLabels, datasets: [{{ label: 'Wall seconds', data: barData }}] }}, options: {{ indexAxis: 'y' }} }});
+new Chart(document.getElementById('lineChart'), {{ type: 'line', data: {{ labels: ts, datasets: [
+  {{ label: 'CPU %', data: cpu, yAxisID: 'y' }},
+  {{ label: 'Memory MB', data: mem, yAxisID: 'y1' }}
+] }}, options: {{ scales: {{ y: {{ type: 'linear' }}, y1: {{ type: 'linear', position: 'right' }} }} }} }});
+"#, timestamps_json, cpu_json, mem_json, bar_labels_json, bar_data_json)))
+                }
+            }
+        }
+    }
+}
+
+#[derive(serde::Deserialize, ToSchema)]
+pub struct CostEstimateRequest {
+    pub workflow_engine_parameters: Option<serde_json::Value>,
+}
+
+/// POST /cost/estimate — estimate cost from workflow_engine_params (same shape as POST /runs body).
+pub async fn post_cost_estimate(
+    State(app): State<Arc<AppState>>,
+    Json(body): Json<CostEstimateRequest>,
+) -> Result<Json<crate::metrics::CostEstimate>> {
+    let metrics = app
+        .metrics
+        .as_ref()
+        .ok_or_else(|| WesError::Other(anyhow::anyhow!("metrics not configured")))?;
+    let params = body.workflow_engine_parameters.unwrap_or(serde_json::Value::Object(serde_json::Map::new()));
+    let estimate = metrics.estimate_cost(&params)?;
+    Ok(Json(estimate))
+}
+
+#[derive(serde::Deserialize, IntoParams, ToSchema)]
+pub struct CostSummaryQuery {
+    pub from_date: Option<String>,
+    pub to_date: Option<String>,
+    pub tags: Option<String>,
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct CostSummaryResponse {
+    pub period: CostSummaryPeriod,
+    pub total_runs: u64,
+    pub total_estimated_cost: EstimatedCost,
+    pub by_workflow_type: std::collections::HashMap<String, f64>,
+    pub by_tag: std::collections::HashMap<String, f64>,
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct CostSummaryPeriod {
+    pub from: String,
+    pub to: String,
+}
+
+/// GET /cost/summary — aggregate costs for chargeback (from_date, to_date, optional tags filter).
+pub async fn get_cost_summary(
+    State(app): State<Arc<AppState>>,
+    Query(q): Query<CostSummaryQuery>,
+) -> Result<Json<CostSummaryResponse>> {
+    let metrics = app
+        .metrics
+        .as_ref()
+        .ok_or_else(|| WesError::Other(anyhow::anyhow!("metrics not configured")))?;
+    let to_date = q.to_date.as_deref().and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+    let from_date = q.from_date.as_deref().and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok()).map(|dt| dt.with_timezone(&chrono::Utc));
+    let runs = app.repo.list_runs_for_cost(from_date, to_date).await?;
+    let total_runs = runs.len() as u64;
+    let mut total_cost = 0.0;
+    let mut by_workflow_type: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+    let mut by_tag: std::collections::HashMap<String, f64> = std::collections::HashMap::new();
+    for (run_id, workflow_type, _end_time, tags) in runs {
+        if let Some(cost) = metrics.get_run_cost_usd(&run_id).await? {
+            total_cost += cost;
+            *by_workflow_type.entry(workflow_type).or_insert(0.0) += cost;
+            if let Some(obj) = tags.as_object() {
+                for (k, v) in obj {
+                    if let Some(s) = v.as_str() {
+                        let key = format!("{}:{}", k, s);
+                        *by_tag.entry(key).or_insert(0.0) += cost;
+                    }
+                }
+            }
+        }
+    }
+    let period = CostSummaryPeriod {
+        from: q.from_date.clone().unwrap_or_else(|| "".to_string()),
+        to: q.to_date.clone().unwrap_or_else(|| "".to_string()),
+    };
+    Ok(Json(CostSummaryResponse {
+        period,
+        total_runs,
+        total_estimated_cost: EstimatedCost {
+            amount: total_cost,
+            currency: metrics.pricing_snapshot().currency,
+        },
+        by_workflow_type,
+        by_tag,
+    }))
 }

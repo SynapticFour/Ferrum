@@ -17,6 +17,52 @@ pub struct FerrumConfig {
     pub storage: StorageConfig,
     #[serde(default)]
     pub encryption: EncryptionConfig,
+    #[serde(default)]
+    pub pricing: PricingConfig,
+}
+
+/// Pricing configuration for run cost estimation (WES/TES).
+/// No cloud billing API — cost = wall-clock × configured resource price.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PricingConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Display currency label only (e.g. "USD").
+    #[serde(default = "default_currency")]
+    pub currency: String,
+    /// USD per CPU-core-hour (e.g. AWS c6i.large reference).
+    #[serde(default = "default_cpu_core_hour")]
+    pub cpu_core_hour: f64,
+    /// USD per GB-hour (memory).
+    #[serde(default = "default_memory_gb_hour")]
+    pub memory_gb_hour: f64,
+    /// USD per GB-month (for DRS storage estimation).
+    #[serde(default = "default_storage_gb_month")]
+    pub storage_gb_month: f64,
+    /// Named compute tiers (e.g. gpu, highmem) override default rates.
+    #[serde(default)]
+    pub tiers: std::collections::HashMap<String, PricingTier>,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct PricingTier {
+    #[serde(default)]
+    pub cpu_core_hour: Option<f64>,
+    #[serde(default)]
+    pub memory_gb_hour: Option<f64>,
+}
+
+fn default_currency() -> String {
+    "USD".to_string()
+}
+fn default_cpu_core_hour() -> f64 {
+    0.048
+}
+fn default_memory_gb_hour() -> f64 {
+    0.006
+}
+fn default_storage_gb_month() -> f64 {
+    0.023
 }
 
 fn default_bind() -> String {
@@ -127,6 +173,75 @@ pub struct ServicesConfig {
     pub enable_crypt4gh: bool,
     #[serde(default = "default_true")]
     pub enable_beacon: bool,
+    #[serde(default)]
+    pub wes: Option<WesServiceConfig>,
+}
+
+/// WES-specific service options (e.g. [services.wes.multiqc]).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct WesServiceConfig {
+    #[serde(default)]
+    pub multiqc: Option<MultiQCConfig>,
+}
+
+/// MultiQC auto-report config: [services.wes.multiqc].
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct MultiQCConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Workflow types to run MultiQC for, or ["*"] for all.
+    #[serde(default)]
+    pub run_for: Vec<String>,
+    #[serde(default = "default_multiqc_image")]
+    pub image: String,
+    #[serde(default = "default_scan_patterns")]
+    pub scan_patterns: Vec<String>,
+    #[serde(default = "default_report_mime_type")]
+    pub report_mime_type: String,
+    #[serde(default = "default_report_name_template")]
+    pub report_name_template: String,
+    #[serde(default = "default_report_tags")]
+    pub report_tags: Vec<String>,
+}
+
+fn default_multiqc_image() -> String {
+    "multiqc/multiqc:v1.21".to_string()
+}
+fn default_scan_patterns() -> Vec<String> {
+    vec![
+        "*_fastqc.zip".into(),
+        "*.flagstat".into(),
+        "*.idxstats".into(),
+        "*.stats".into(),
+        "*_metrics.txt".into(),
+        "*.log".into(),
+        "qualimap_report/".into(),
+        "dedup_metrics.txt".into(),
+    ]
+}
+fn default_report_mime_type() -> String {
+    "text/html".to_string()
+}
+fn default_report_name_template() -> String {
+    "MultiQC Report — {workflow_type} run {run_id}".to_string()
+}
+fn default_report_tags() -> Vec<String> {
+    vec!["multiqc".into(), "qc-report".into(), "automated".into()]
+}
+
+impl Default for MultiQCConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            run_for: vec![],
+            image: default_multiqc_image(),
+            scan_patterns: default_scan_patterns(),
+            report_mime_type: default_report_mime_type(),
+            report_name_template: default_report_name_template(),
+            report_tags: default_report_tags(),
+        }
+    }
 }
 
 fn default_true() -> bool {
@@ -166,7 +281,12 @@ impl FerrumConfig {
             .set_default("services.enable_tes", true)?
             .set_default("services.enable_passports", true)?
             .set_default("services.enable_crypt4gh", true)?
-            .set_default("services.enable_beacon", true)?;
+            .set_default("services.enable_beacon", true)?
+            .set_default("pricing.enabled", false)?
+            .set_default("pricing.currency", "USD")?
+            .set_default("pricing.cpu_core_hour", 0.048)?
+            .set_default("pricing.memory_gb_hour", 0.006)?
+            .set_default("pricing.storage_gb_month", 0.023)?;
 
         let paths: Vec<PathBuf> = if let Some(p) = explicit_path {
             vec![p.to_path_buf()]

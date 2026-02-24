@@ -21,6 +21,12 @@ pub enum WesError {
     Other(#[from] anyhow::Error),
 }
 
+impl From<ferrum_core::FerrumError> for WesError {
+    fn from(e: ferrum_core::FerrumError) -> Self {
+        WesError::Other(anyhow::anyhow!("{}", e))
+    }
+}
+
 impl IntoResponse for WesError {
     fn into_response(self) -> axum::response::Response {
         let (status, msg) = match &self {

@@ -13,11 +13,11 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use crate::error::JsonResult;
+use crate::error::{JsonResult, ViewResult};
 pub use state::AppState;
 use handlers::{
-    delete_object, get_access, get_object, get_object_provenance, get_service_info, list_objects, options_object,
-    post_object, put_object,
+    delete_object, get_access, get_object, get_object_provenance, get_object_view, get_service_info, list_objects,
+    options_object, post_object, put_object,
 };
 use std::sync::Arc;
 use utoipa::OpenApi;
@@ -93,6 +93,10 @@ pub fn router(state: AppState) -> Router {
             get(|s, p, h| async move { JsonResult(get_access(s, p, h).await) }),
         )
         .route(
+            "/objects/{object_id}/view",
+            get(|s, p| async move { ViewResult(get_object_view(s, p).await) }),
+        )
+        .route(
             "/ingest/file",
             post(|s, m| async move { JsonResult(ingest::ingest_file(s, m).await) }),
         )
@@ -119,6 +123,7 @@ pub fn router_unconfigured() -> Router {
         .route("/objects", get(unconfigured).post(unconfigured))
         .route("/objects/{object_id}", get(unconfigured).put(unconfigured).delete(unconfigured))
         .route("/objects/{object_id}/access/{access_id}", get(unconfigured))
+        .route("/objects/{object_id}/view", get(unconfigured))
         .route("/ingest/file", post(unconfigured))
         .route("/ingest/url", post(unconfigured))
         .route("/ingest/batch", post(unconfigured))

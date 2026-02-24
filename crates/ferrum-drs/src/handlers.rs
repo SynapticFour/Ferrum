@@ -5,10 +5,11 @@ use crate::state::AppState;
 use crate::types::*;
 use axum::{
     extract::{Path, Query, State},
-    http::{HeaderMap, StatusCode},
+    http::{HeaderMap, HeaderValue, StatusCode},
     response::IntoResponse,
     Json,
 };
+use tokio::io::AsyncReadExt;
 use ferrum_core::{ServiceInfo, ServiceType, Organization};
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -123,6 +124,62 @@ pub async fn get_access(
         .map(|s| s.split(',').next().unwrap_or(s).trim().to_string());
     let _ = state.repo.log_access(&canonical, Some(access_id.as_str()), "GET", 200, client_ip.as_deref()).await;
     Ok(Json(url))
+}
+
+/// GET /objects/{object_id}/view — serve object body as HTML for browser viewing. Only for mime_type text/html; same auth as normal access.
+#[utoipa::path(
+    get,
+    path = "/objects/{object_id}/view",
+    responses((status = 200, description = "HTML body"), (status = 400, description = "Not text/html"), (status = 404), (status = 501, description = "View not supported (e.g. encrypted or remote storage)"))
+)]
+pub async fn get_object_view(
+    State(state): State<Arc<AppState>>,
+    Path(object_id): Path<String>,
+) -> crate::error::Result<axum::response::Response> {
+    let canonical = state
+        .repo
+        .resolve_id_or_uri(&object_id)
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    let obj = state
+        .repo
+        .get_object(&canonical, false)
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    let mime = obj.mime_type.as_deref().unwrap_or("").trim().to_lowercase();
+    if mime != "text/html" {
+        return Err(DrsError::Validation("view only allowed for mime_type text/html".into()));
+    }
+    let storage_ref = state
+        .repo
+        .get_storage_ref(&canonical)
+        .await?
+        .ok_or_else(|| DrsError::NotFound("no storage reference".into()))?;
+    let (backend, key, is_encrypted) = storage_ref;
+    if is_encrypted {
+        return Err(DrsError::Other(anyhow::anyhow!(
+            "view not available for encrypted objects; use access URL with Crypt4GH"
+        )));
+    }
+    let storage = state
+        .storage
+        .as_ref()
+        .ok_or_else(|| DrsError::Other(anyhow::anyhow!("storage not configured")))?;
+    if !backend.eq_ignore_ascii_case("local") {
+        return Err(DrsError::Other(anyhow::anyhow!(
+            "view only supported for local storage"
+        )));
+    }
+    let mut reader = storage.get(&key).await.map_err(|e| DrsError::Other(e.into()))?;
+    let mut body = Vec::new();
+    reader.read_to_end(&mut body).await.map_err(|e| DrsError::Other(e.into()))?;
+    let _ = state.repo.log_access(&canonical, None, "GET/view", 200, None).await;
+    let res = axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", HeaderValue::from_static("text/html; charset=utf-8"))
+        .body(axum::body::Body::from(body))
+        .map_err(|e| DrsError::Other(e.into()))?;
+    Ok(res)
 }
 
 /// Parse Range header (e.g. "bytes=0-1023") into (start, end) inclusive. Returns None if missing or invalid.

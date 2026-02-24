@@ -150,6 +150,9 @@ pub struct RunLog {
     pub task_logs_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outputs: Option<serde_json::Value>,
+    /// GA4GH extension: implementation-specific fields (e.g. ferrum:multiqc_status, ferrum:multiqc_report_drs_id).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extensions: Option<std::collections::HashMap<String, serde_json::Value>>,
 }
 
 /// Minimal request reference in RunLog.

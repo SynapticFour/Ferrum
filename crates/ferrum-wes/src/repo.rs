@@ -110,6 +110,29 @@ impl WesRepo {
         Ok(())
     }
 
+    /// Merge additional keys into the run's outputs JSONB (e.g. multiqc_report, multiqc_data).
+    pub async fn merge_run_outputs(&self, run_id: &str, updates: &serde_json::Map<String, Value>) -> Result<()> {
+        let row: Option<Value> = sqlx::query_scalar("SELECT outputs FROM wes_runs WHERE run_id = $1")
+            .bind(run_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        let mut obj: serde_json::Map<String, Value> = row
+            .as_ref()
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        for (k, v) in updates {
+            obj.insert(k.clone(), v.clone());
+        }
+        let merged = Value::Object(obj);
+        sqlx::query("UPDATE wes_runs SET outputs = $1 WHERE run_id = $2")
+            .bind(&merged)
+            .bind(run_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn list_runs(
         &self,
         page_size: i64,
@@ -220,5 +243,25 @@ impl WesRepo {
                 .fetch_all(&self.pool)
                 .await?;
         Ok(rows.into_iter().collect())
+    }
+
+    /// List runs in terminal state for cost summary. Date range on end_time.
+    pub async fn list_runs_for_cost(
+        &self,
+        from_date: Option<DateTime<Utc>>,
+        to_date: Option<DateTime<Utc>>,
+    ) -> Result<Vec<(String, String, Option<DateTime<Utc>>, Value)>> {
+        let rows: Vec<(String, String, Option<DateTime<Utc>>, Value)> = sqlx::query_as(
+            r#"SELECT run_id, workflow_type, end_time, tags FROM wes_runs
+               WHERE state IN ('COMPLETE', 'EXECUTOR_ERROR', 'SYSTEM_ERROR', 'CANCELED')
+                 AND ($1::timestamptz IS NULL OR end_time >= $1)
+                 AND ($2::timestamptz IS NULL OR end_time <= $2)
+               ORDER BY end_time DESC"#,
+        )
+        .bind(from_date)
+        .bind(to_date)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
     }
 }

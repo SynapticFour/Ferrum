@@ -6,8 +6,17 @@ use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
-/// WES router params: pool, work dir base, optional TES URL, optional TRS register URL. When None, WES routes return 503.
-pub type WesRouterParams = (sqlx::PgPool, Option<std::path::PathBuf>, Option<String>, Option<String>);
+/// WES router params: pool, work dir base, optional TES URL, optional TRS register URL, optional provenance store, optional pricing config, optional MultiQC config, optional DRS ingest base URL. When None, WES routes return 503.
+pub type WesRouterParams = (
+    sqlx::PgPool,
+    Option<std::path::PathBuf>,
+    Option<String>,
+    Option<String>,
+    Option<std::sync::Arc<ferrum_core::ProvenanceStore>>,
+    Option<ferrum_core::PricingConfig>,
+    Option<ferrum_core::MultiQCConfig>,
+    Option<String>,
+);
 
 /// TES router params: pool, backend name ("podman" | "slurm"), optional work dir. When None, TES routes return 503.
 pub type TesRouterParams = (sqlx::PgPool, Option<String>, Option<std::path::PathBuf>);
@@ -58,8 +67,8 @@ pub fn app(
     }
     if cfg.map(|c| c.services.enable_wes).unwrap_or(true) {
         let wes_router = match wes_params {
-            Some((pool, work_dir, tes_url, trs_register_url)) => {
-                ferrum_wes::router(pool, work_dir, tes_url, trs_register_url, None)
+            Some((pool, work_dir, tes_url, trs_register_url, provenance_store, pricing, multiqc_config, drs_ingest_base_url)) => {
+                ferrum_wes::router(pool, work_dir, tes_url, trs_register_url, provenance_store, pricing, multiqc_config, drs_ingest_base_url)
             }
             None => ferrum_wes::router_unconfigured(),
         };

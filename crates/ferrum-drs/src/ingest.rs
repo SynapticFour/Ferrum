@@ -23,6 +23,7 @@ pub async fn ingest_file(
 ) -> Result<Json<IngestFileResponse>> {
     let storage = state.storage.as_ref().ok_or_else(|| DrsError::Validation("ingest not configured: no storage".into()))?;
     let mut name = None;
+    let mut explicit_name = None::<String>;
     let mut mime_type = None;
     let mut encrypt = false;
     let mut expected_sha256 = None::<String>;
@@ -38,6 +39,14 @@ pub async fn ingest_file(
                 let buf = field.bytes().await.map_err(|e| DrsError::Other(e.into()))?;
                 data = buf.to_vec();
             }
+            "name" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        explicit_name = Some(t);
+                    }
+                }
+            }
             "encrypt" => {
                 if let Ok(v) = field.text().await {
                     encrypt = v.eq_ignore_ascii_case("true") || v == "1";
@@ -51,6 +60,7 @@ pub async fn ingest_file(
             _ => {}
         }
     }
+    let object_name = explicit_name.or(name);
     if data.is_empty() {
         return Err(DrsError::Validation("no file in multipart".into()));
     }
@@ -75,7 +85,7 @@ pub async fn ingest_file(
         ChecksumInput { r#type: "md5".to_string(), checksum: md5_hex },
     ];
     let req = CreateObjectRequest {
-        name: name.or_else(|| Some(storage_key.clone())),
+        name: object_name.or_else(|| Some(storage_key.clone())),
         description: None,
         mime_type,
         size,

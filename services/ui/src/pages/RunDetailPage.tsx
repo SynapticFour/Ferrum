@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/api/client';
 import { RunLineageTab } from '@/components/RunLineageTab';
+import { RunMetricsTab } from '@/components/RunMetricsTab';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { WorkflowStateBadge } from '@/components/WorkflowStateBadge';
@@ -41,6 +42,7 @@ export function RunDetailPage() {
       <Tabs defaultValue="log">
         <TabsList>
           <TabsTrigger value="log">Log</TabsTrigger>
+          <TabsTrigger value="metrics">Metrics</TabsTrigger>
           <TabsTrigger value="lineage">Lineage</TabsTrigger>
         </TabsList>
         <TabsContent value="log">
@@ -56,6 +58,9 @@ export function RunDetailPage() {
               {!run.run_log?.stdout && <p className="text-muted-foreground">No stdout yet.</p>}
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="metrics">
+          <RunMetricsTab runId={id} />
         </TabsContent>
         <TabsContent value="lineage">
           <RunLineageTab runId={id} />

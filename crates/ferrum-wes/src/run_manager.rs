@@ -2,8 +2,10 @@
 
 use crate::error::Result;
 use crate::executor::{ProcessHandle, WesRun, WorkflowExecutor};
-use crate::executors::{CromwellExecutor, CwltoolExecutor, NextflowExecutor, SnakemakeExecutor, TesExecutorBackend};
+use crate::executors::{CromwellExecutor, CwltoolExecutor, NextflowExecutor, SlurmExecutor, SnakemakeExecutor, TesExecutorBackend};
 use crate::log_stream::LogStreamRegistry;
+use crate::metrics::MetricsCollector;
+use crate::multiqc::MultiQCRunner;
 use crate::repo::WesRepo;
 use crate::types::RunState;
 use chrono::Utc;
@@ -22,6 +24,9 @@ pub struct RunManager {
     log_registry: Arc<LogStreamRegistry>,
     run_to_executor: RwLock<HashMap<String, ExecutorKind>>,
     work_dir_base: PathBuf,
+    metrics: Option<Arc<MetricsCollector>>,
+    slurm: SlurmExecutor,
+    multiqc_runner: Option<Arc<MultiQCRunner>>,
 }
 
 #[derive(Clone, Copy)]
@@ -31,6 +36,7 @@ enum ExecutorKind {
     Cromwell,
     Snakemake,
     Tes,
+    Slurm,
 }
 
 impl RunManager {
@@ -45,6 +51,9 @@ impl RunManager {
             log_registry,
             run_to_executor: RwLock::new(HashMap::new()),
             work_dir_base,
+            metrics: None,
+            slurm: SlurmExecutor::new(),
+            multiqc_runner: None,
         }
     }
 
@@ -54,7 +63,29 @@ impl RunManager {
         self
     }
 
-    fn executor_for_type(&self, workflow_type: &str) -> Option<&dyn WorkflowExecutor> {
+    /// Enable metrics collection (sampling + finalize/compute on run end).
+    pub fn with_metrics(mut self, metrics: Option<Arc<MetricsCollector>>) -> Self {
+        self.slurm = SlurmExecutor::new().with_metrics(metrics.clone());
+        self.metrics = metrics;
+        self
+    }
+
+    /// Enable MultiQC after each completed run (scan QC files, run MultiQC, ingest report into DRS).
+    pub fn with_multiqc(mut self, runner: Option<Arc<MultiQCRunner>>) -> Self {
+        self.multiqc_runner = runner;
+        self
+    }
+
+    fn executor_for_type(&self, workflow_type: &str, workflow_engine_params: &serde_json::Value) -> Option<&dyn WorkflowExecutor> {
+        let use_slurm = workflow_engine_params
+            .get("ferrum_backend")
+            .or(workflow_engine_params.get("ferrum-backend"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.eq_ignore_ascii_case("slurm"))
+            .unwrap_or(false);
+        if use_slurm {
+            return Some(&self.slurm);
+        }
         if let Some(ref tes) = self.tes {
             return Some(tes.as_ref());
         }
@@ -99,13 +130,21 @@ impl RunManager {
         let use_tes = self.tes.is_some();
         let log_sink = if use_tes { None } else { Some(self.log_registry.create(&run.run_id, work_dir.clone()).await) };
         let executor = self
-            .executor_for_type(&run.workflow_type)
+            .executor_for_type(&run.workflow_type, &run.workflow_engine_params)
             .ok_or_else(|| crate::error::WesError::Validation(format!("unsupported workflow type: {}", run.workflow_type)))?;
         let handle = executor.submit(run, &work_dir, log_sink).await?;
         if let Some(work_dir_str) = work_dir.to_str() {
             self.repo.set_work_dir(&handle.run_id, work_dir_str).await?;
         }
-        let kind = if self.tes.is_some() {
+        let kind = if run.workflow_engine_params
+            .get("ferrum_backend")
+            .or(run.workflow_engine_params.get("ferrum-backend"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.eq_ignore_ascii_case("slurm"))
+            .unwrap_or(false)
+        {
+            ExecutorKind::Slurm
+        } else if self.tes.is_some() {
             ExecutorKind::Tes
         } else {
             match run.workflow_type.to_lowercase().as_str() {
@@ -130,6 +169,7 @@ impl RunManager {
             ExecutorKind::Cromwell => &self.cromwell as &dyn WorkflowExecutor,
             ExecutorKind::Snakemake => &self.snakemake as &dyn WorkflowExecutor,
             ExecutorKind::Tes => self.tes.as_deref().unwrap() as &dyn WorkflowExecutor,
+            ExecutorKind::Slurm => &self.slurm as &dyn WorkflowExecutor,
         });
         if let Some(exec) = executor {
             exec.cancel(&handle).await?;
@@ -149,6 +189,7 @@ impl RunManager {
             ExecutorKind::Cromwell => &self.cromwell as &dyn WorkflowExecutor,
             ExecutorKind::Snakemake => &self.snakemake as &dyn WorkflowExecutor,
             ExecutorKind::Tes => self.tes.as_deref().unwrap() as &dyn WorkflowExecutor,
+            ExecutorKind::Slurm => &self.slurm as &dyn WorkflowExecutor,
         });
         if let Some(exec) = executor {
             let (state, exit_code) = exec.poll_status(&handle).await?;
@@ -156,6 +197,11 @@ impl RunManager {
                 self.run_to_executor.write().await.remove(run_id);
                 self.log_registry.remove(run_id).await;
                 self.repo.update_state(run_id, state).await?;
+                if let Some(ref metrics) = self.metrics {
+                    let now = Utc::now();
+                    let _ = metrics.finalize_task(run_id, run_id, now, exit_code).await;
+                    let _ = metrics.compute_run_summary(run_id).await;
+                }
                 if let Some(row) = self.repo.get_run(run_id).await? {
                     let (_, _, _, _, _, _, _, _, start_time, end_time, _, _) = row;
                     let stdout_url = Some(format!("/runs/{}/logs/stdout", run_id));
@@ -172,10 +218,44 @@ impl RunManager {
                         exit_code,
                     ).await;
                 }
+                if state == RunState::Complete {
+                    if let Some(ref runner) = self.multiqc_runner {
+                        let run_id = run_id.to_string();
+                        let runner = Arc::clone(runner);
+                        tokio::spawn(async move {
+                            if let Err(e) = runner.run_for_completed_run(&run_id).await {
+                                tracing::warn!(run_id = %run_id, "multiqc post-run failed: {}", e);
+                            }
+                        });
+                    }
+                }
             }
             return Ok(state);
         }
         Ok(RunState::Unknown)
+    }
+
+    /// Run IDs currently tracked (running). Used by metrics sampling loop.
+    pub async fn active_run_ids(&self) -> Vec<String> {
+        self.run_to_executor
+            .read()
+            .await
+            .keys()
+            .cloned()
+            .collect()
+    }
+
+    /// PID of the main process for this run, if executor supports it and run is still active.
+    pub async fn process_id_for_run(&self, run_id: &str) -> Option<u32> {
+        let kind = self.run_to_executor.read().await.get(run_id).copied()?;
+        let exec: &dyn WorkflowExecutor = match kind {
+            ExecutorKind::Nextflow => &self.nextflow,
+            ExecutorKind::Cwltool => &self.cwltool,
+            ExecutorKind::Cromwell => &self.cromwell,
+            ExecutorKind::Snakemake => &self.snakemake,
+            ExecutorKind::Tes | ExecutorKind::Slurm => return None,
+        };
+        exec.process_id_for_metrics(run_id)
     }
 
     pub fn repo(&self) -> &WesRepo {
