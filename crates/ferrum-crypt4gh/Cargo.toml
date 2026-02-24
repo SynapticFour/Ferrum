@@ -7,7 +7,7 @@ description = "Crypt4GH encryption layer and DRS proxy"
 [dependencies]
 ferrum-core = { path = "../ferrum-core" }
 ferrum-drs = { path = "../ferrum-drs" }
-axum = "0.7"
+axum = "0.8"
 tokio = { version = "1", features = ["full"] }
 tower = "0.4"
 tower-service = "0.3"
