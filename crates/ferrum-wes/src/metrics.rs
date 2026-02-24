@@ -197,6 +197,7 @@ impl MetricsCollector {
     }
 
     /// Insert or replace task_metrics from Slurm sacct (one row per job/task).
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert_task_metrics(
         &self,
         run_id: &str,
@@ -243,16 +244,8 @@ impl MetricsCollector {
 
     /// Called when entire run completes: aggregate task_metrics into run_cost_summary.
     pub async fn compute_run_summary(&self, run_id: &str) -> Result<RunCostSummary> {
-        let rows: Vec<(
-            String,
-            String,
-            Option<i32>,
-            Option<f64>,
-            Option<i64>,
-            Option<i64>,
-            Option<i64>,
-            Option<i32>,
-        )> = sqlx::query_as(
+        type TaskMetricsRow = (String, String, Option<i32>, Option<f64>, Option<i64>, Option<i64>, Option<i64>, Option<i32>);
+        let rows: Vec<TaskMetricsRow> = sqlx::query_as(
             r#"SELECT task_id, task_name, wall_seconds, cpu_requested, memory_peak_mb, read_bytes, write_bytes, exit_code
                FROM task_metrics WHERE run_id = $1"#,
         )

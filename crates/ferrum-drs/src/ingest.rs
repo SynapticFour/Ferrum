@@ -278,7 +278,7 @@ pub async fn ingest_batch(
                     ChecksumInput { r#type: "md5".to_string(), checksum: md5_hex },
                 ];
                 let create = CreateObjectRequest {
-                    name: name.or_else(|| Some(path)),
+                    name: name.or(Some(path)),
                     description: None,
                     mime_type: None,
                     size,

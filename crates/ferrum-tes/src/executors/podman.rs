@@ -70,7 +70,7 @@ impl TaskExecutor for PodmanExecutor {
     async fn poll_state(&self, task_id: &str, _external_id: Option<&str>) -> Result<TaskState> {
         let mut guard = self.running.write().await;
         if let Some(child) = guard.get_mut(task_id) {
-            match child.try_wait().map_err(|e| TesError::Io(e))? {
+            match child.try_wait().map_err(TesError::Io)? {
                 Some(s) => {
                     guard.remove(task_id);
                     return Ok(if s.success() {

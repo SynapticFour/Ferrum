@@ -77,7 +77,7 @@ pub async fn list_runs(
     let page_size = q.page_size.unwrap_or(100).min(1000);
     let state_filter = q.state.as_deref().map(RunState::from_str);
     let owner_sub = auth.as_ref().and_then(|c| c.sub());
-    let is_admin = auth.as_ref().map_or(false, |c| c.is_admin());
+    let is_admin = auth.as_ref().is_some_and(|c| c.is_admin());
     let (filter_owner, workspace_id) = if let Some(ref ws_id) = q.workspace_id {
         let sub = owner_sub.ok_or_else(|| WesError::Forbidden("workspace_id requires authentication".into()))?;
         let is_member = ferrum_core::get_workspace_member_role(app.repo.pool(), ws_id, sub).await
@@ -271,7 +271,7 @@ fn run_visible(
     let repo = Arc::clone(&app.repo);
     let run_id = run_id.to_string();
     let sub = auth.and_then(|c| c.sub().map(String::from));
-    let is_admin = auth.map_or(false, |c| c.is_admin());
+    let is_admin = auth.is_some_and(|c| c.is_admin());
     async move {
         repo.run_visible_to(&run_id, sub.as_deref(), is_admin).await
     }
@@ -294,7 +294,8 @@ pub async fn get_run_log(
         .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
     let (run_id_db, workflow_url, workflow_type, workflow_type_version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _owner, resumed_from_run_id, _checkpoint) = row;
     let run_state = RunState::from_str(&state_str);
-    let run_log_row: Option<(String, Vec<String>, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<String>, Option<String>, Option<i32>)> =
+    type RunLogRow = Option<(String, Vec<String>, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<String>, Option<String>, Option<i32>)>;
+    let run_log_row: RunLogRow =
         app.repo.get_run_log(&run_id).await?;
     let run_log = run_log_row
         .map(|(name, cmd, st, et, stdout, stderr, exit_code)| Log {
@@ -536,7 +537,7 @@ pub async fn get_provenance_graph(
         .provenance_store
         .as_ref()
         .ok_or_else(|| WesError::Other(anyhow::anyhow!("provenance not configured")))?;
-    let depth = q.depth.unwrap_or(10).min(20).max(1);
+    let depth = q.depth.unwrap_or(10).clamp(1, 20);
     let graph = store.subgraph(&q.root_id, &q.root_type, &q.direction, depth).await?;
     Ok(Json(RunProvenanceGraphResponse {
         nodes: graph.nodes.clone(),
@@ -565,7 +566,7 @@ pub async fn export_ro_crate(
         .get_run(&run_id)
         .await?
         .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
-    let (_, workflow_url, workflow_type, _version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _, _, _) = row;
+    let (_, workflow_url, workflow_type, _version, _params, _ep, _tags, _state_str, start_time, end_time, outputs, _work_dir, _, _, _) = row;
     let date_published = end_time.or(start_time).map(|t| t.to_rfc3339()).unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
     let mut input_parts: Vec<serde_json::Value> = Vec::new();
     let mut output_parts: Vec<serde_json::Value> = Vec::new();
@@ -887,11 +888,11 @@ fn metrics_report_html(
     run_id: &str,
     workflow_type: &str,
     state: &str,
-    wall_time: String,
+    _wall_time: String,
     _total_cpu_seconds: f64,
-    peak_memory_mb: i64,
-    total_read_gb: f64,
-    total_write_gb: f64,
+    _peak_memory_mb: i64,
+    _total_read_gb: f64,
+    _total_write_gb: f64,
     cost_usd: f64,
     currency: &str,
     timestamps_json: &str,

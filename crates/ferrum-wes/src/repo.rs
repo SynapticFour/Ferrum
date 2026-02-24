@@ -19,6 +19,7 @@ impl WesRepo {
         &self.pool
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_run(
         &self,
         run_id: &str,
@@ -190,7 +191,8 @@ impl WesRepo {
     ) -> Result<(Vec<RunSummary>, Option<String>)> {
         let offset: i64 = page_token.and_then(|t| t.parse().ok()).unwrap_or(0);
         let state_str = state_filter.map(|s| s.as_str());
-        let rows: Vec<(String, String, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<Value>, Option<String>)> =
+        type RunListRow = (String, String, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<Value>, Option<String>);
+        let rows: Vec<RunListRow> =
             sqlx::query_as(
                 r#"SELECT run_id, state, start_time, end_time, tags, resumed_from_run_id FROM wes_runs
                    WHERE ($1::text IS NULL OR state = $1)
@@ -228,6 +230,7 @@ impl WesRepo {
         Ok((runs, next_token))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn upsert_run_log(
         &self,
         run_id: &str,
@@ -269,7 +272,8 @@ impl WesRepo {
     }
 
     pub async fn get_task_logs(&self, run_id: &str, _page_size: i64, _page_token: Option<&str>) -> Result<Vec<TaskLog>> {
-        let rows: Vec<(String, String, Option<Vec<String>>, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<String>, Option<String>, Option<i32>)> =
+        type TaskLogRow = (String, String, Option<Vec<String>>, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<String>, Option<String>, Option<i32>);
+        let rows: Vec<TaskLogRow> =
             sqlx::query_as(
                 "SELECT task_id, name, cmd, start_time, end_time, stdout_url, stderr_url, exit_code FROM wes_task_logs WHERE run_id = $1 ORDER BY id",
             )

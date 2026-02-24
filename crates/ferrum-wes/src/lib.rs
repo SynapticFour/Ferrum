@@ -88,6 +88,7 @@ pub fn router_unconfigured() -> Router {
 /// If `provenance_store` is Some, WES records input/output provenance and exposes /runs/{id}/provenance and /provenance/graph.
 /// If `pricing` is Some, metrics and cost endpoints are enabled.
 /// If `multiqc_config` and `drs_ingest_base_url` are both Some (and multiqc enabled), MultiQC runs after each completed run and ingests report into DRS.
+#[allow(clippy::too_many_arguments)]
 pub fn router(
     pool: sqlx::PgPool,
     work_dir_base: Option<PathBuf>,

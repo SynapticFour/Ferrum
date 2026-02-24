@@ -1,5 +1,6 @@
 //! A03/A08: workflow_url validation, SSRF URL validation.
 
+#[cfg(test)]
 use ferrum_core::{validate_url_ssrf, SsrfPolicy};
 
 #[test]

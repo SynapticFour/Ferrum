@@ -67,6 +67,7 @@ impl PassportRepo {
     }
 
     /// Create a visa grant (admin).
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_visa_grant(
         &self,
         user_sub: &str,
@@ -152,6 +153,7 @@ impl PassportRepo {
     }
 
     /// Store auth code for OAuth flow.
+    #[allow(clippy::too_many_arguments)]
     pub async fn store_auth_code(
         &self,
         code: &str,

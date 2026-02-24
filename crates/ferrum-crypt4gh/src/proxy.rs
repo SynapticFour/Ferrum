@@ -84,8 +84,7 @@ where
             .uri()
             .path()
             .split('/')
-            .filter(|s| !s.is_empty())
-            .last()
+            .rfind(|s| !s.is_empty())
             .unwrap_or("")
             .to_string();
 

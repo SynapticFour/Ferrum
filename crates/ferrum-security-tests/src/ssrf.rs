@@ -1,6 +1,8 @@
 //! A10: SSRF is_private_ip and SafeHttpClient behavior.
 
+#[cfg(test)]
 use ferrum_core::is_private_ip;
+#[cfg(test)]
 use std::net::IpAddr;
 
 #[test]

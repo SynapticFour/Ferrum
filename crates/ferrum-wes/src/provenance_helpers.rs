@@ -17,7 +17,7 @@ fn collect_drs_ids(v: &Value, out: &mut Vec<String>) {
             if s.starts_with("drs://") {
                 if let Some(rest) = s.strip_prefix("drs://") {
                     if let Some((_host, path)) = rest.split_once('/') {
-                        let object_id = path.split('/').last().unwrap_or(path).to_string();
+                        let object_id = path.split('/').next_back().unwrap_or(path).to_string();
                         if !object_id.is_empty() && !out.contains(&object_id) {
                             out.push(object_id);
                         }

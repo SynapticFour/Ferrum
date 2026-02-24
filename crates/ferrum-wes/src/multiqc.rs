@@ -272,7 +272,7 @@ impl MultiQCRunner {
         &self,
         work_dir: &Path,
         out_dir: &Path,
-        run_id: &str,
+        _run_id: &str,
     ) -> Result<()> {
         let work_str = work_dir
             .canonicalize()
@@ -305,14 +305,14 @@ impl MultiQCRunner {
         let mut cmd = Command::new(runner.as_deref().unwrap());
         cmd.args(&args);
         cmd.current_dir(std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-        let child = cmd.spawn().map_err(|e| WesError::Io(e.into()))?;
+        let child = cmd.spawn().map_err(WesError::Io)?;
         let output = tokio::time::timeout(
             Duration::from_secs(MULTIQC_TIMEOUT_SECS),
             child.wait_with_output(),
         )
         .await
         .map_err(|_| WesError::Other(anyhow::anyhow!("multiqc run timed out")))?
-        .map_err(|e| WesError::Io(e.into()))?;
+        .map_err(WesError::Io)?;
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(WesError::Other(anyhow::anyhow!("multiqc failed: {}", stderr)));
@@ -320,6 +320,7 @@ impl MultiQCRunner {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn ingest_file_multipart(
         &self,
         url: &str,
@@ -328,9 +329,9 @@ impl MultiQCRunner {
         mime_type: &str,
         data: &[u8],
         encrypt: bool,
-        run_id: &str,
-        workflow_type: &str,
-        workflow_url: &str,
+        _run_id: &str,
+        _workflow_type: &str,
+        _workflow_url: &str,
     ) -> Result<String> {
         let part = reqwest::multipart::Part::bytes(data.to_vec())
             .file_name(file_name.to_string())

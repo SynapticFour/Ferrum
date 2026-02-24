@@ -110,7 +110,7 @@ impl CheckpointStore {
                 .file_name()
                 .and_then(|n| n.to_str().map(String::from))
                 .unwrap_or_else(|| "output".to_string());
-            let data = tokio::fs::read(path).await.map_err(|e| crate::error::WesError::Io(e))?;
+            let data = tokio::fs::read(path).await.map_err(crate::error::WesError::Io)?;
             let part = reqwest::multipart::Part::bytes(data)
                 .file_name(name.clone())
                 .mime_str("application/octet-stream")

@@ -15,6 +15,7 @@ impl TesRepo {
         Self { pool }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create(
         &self,
         id: &str,

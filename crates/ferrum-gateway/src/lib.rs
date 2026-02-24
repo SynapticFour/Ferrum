@@ -48,6 +48,7 @@ pub type WorkspacesRouterParams = Option<sqlx::PgPool>;
 /// When DRS is enabled, pass Some(drs_state) with DB/storage; None returns 503 for DRS routes.
 /// When WES is enabled, pass Some(wes_params); None and enable_wes yields 503 for WES routes.
 /// When admin_pool is Some, mounts /admin (token revoke, security events); requires admin auth.
+#[allow(clippy::too_many_arguments)]
 pub fn app(
     config: Option<&ferrum_core::AppConfig>,
     drs_state: Option<ferrum_drs::AppState>,
@@ -78,7 +79,7 @@ pub fn app(
                 .allow_origin(origins)
                 .allow_credentials(s.allow_credentials.unwrap_or(false)),
         )
-    }).unwrap_or_else(|| CorsLayer::permissive());
+    }).unwrap_or_else(CorsLayer::permissive);
 
     let mut app = Router::new()
         .merge(health_router())
@@ -219,6 +220,7 @@ async fn ui_placeholder() -> &'static str {
 
 /// Run the gateway server on the given address.
 /// Pass Some(drs_state) when DRS is enabled; Some(wes_params) when WES is enabled; Some(tes_params) when TES is enabled.
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     bind: SocketAddr,
     config: Option<ferrum_core::AppConfig>,

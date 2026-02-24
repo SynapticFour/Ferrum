@@ -8,7 +8,7 @@ pub mod state;
 pub mod types;
 
 use axum::{
-    routing::{get, post, put, delete},
+    routing::{get, post},
     Router,
 };
 use std::sync::Arc;

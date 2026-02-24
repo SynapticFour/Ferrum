@@ -46,8 +46,9 @@ impl TrsRepo {
     }
 
     pub async fn list_tools(&self, page_size: i64, page_token: Option<&str>) -> Result<(Vec<Tool>, Option<String>)> {
+        type ToolRow = (String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>);
         let offset: i64 = page_token.and_then(|t| t.parse().ok()).unwrap_or(0);
-        let rows: Vec<(String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>)> =
+        let rows: Vec<ToolRow> =
             sqlx::query_as(
                 "SELECT id, name, description, organization, toolclass, meta_version FROM trs_tools ORDER BY id LIMIT $1 OFFSET $2",
             )

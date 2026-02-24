@@ -80,7 +80,7 @@ impl LocalKeyStore {
 }
 
 fn sanitize_key_id(id: &str) -> String {
-    id.replace('/', "_").replace('\\', "_").replace("..", "_")
+    id.replace(['/', '\\'], "_").replace("..", "_")
 }
 
 #[async_trait]

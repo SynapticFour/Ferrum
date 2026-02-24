@@ -351,6 +351,7 @@ struct DrsObjectRow {
     size: i64,
     is_bundle: bool,
     aliases: Option<serde_json::Value>,
+    #[allow(dead_code)]
     dataset_id: Option<String>,
 }
 

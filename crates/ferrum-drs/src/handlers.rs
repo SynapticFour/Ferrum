@@ -390,7 +390,7 @@ pub async fn get_object_provenance(
         .resolve_id_or_uri(&object_id)
         .await?
         .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
-    let depth = q.depth.unwrap_or(10).min(20).max(1);
+    let depth = q.depth.unwrap_or(10).clamp(1, 20);
     let graph = match q.direction.as_str() {
         "downstream" => store.downstream(&canonical, depth).await?,
         "both" => store.both(&canonical, depth).await?,

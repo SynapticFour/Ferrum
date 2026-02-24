@@ -14,11 +14,13 @@ use std::sync::RwLock;
 
 /// sacct output row: JobID, CPUTime, MaxRSS, ElapsedRaw, TotalCPU (--parsable2).
 #[derive(Debug)]
-struct SacctRow {
+pub struct SacctRow {
     job_id: String,
+    #[allow(dead_code)]
     cpu_time: Option<String>,
     max_rss: Option<String>,
     elapsed_raw: Option<i64>,
+    #[allow(dead_code)]
     total_cpu: Option<String>,
 }
 
@@ -77,7 +79,7 @@ pub fn sacct_job(job_id: &str) -> Result<Vec<SacctRow>> {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let rows: Vec<SacctRow> = stdout
         .lines()
-        .filter_map(|l| parse_sacct_line(l))
+        .filter_map(parse_sacct_line)
         .collect();
     Ok(rows)
 }
