@@ -159,8 +159,8 @@ fn extract_token(request: &Request) -> Option<String> {
     let auth = request.headers().get("Authorization")?;
     let s = auth.to_str().ok()?;
     let prefix = "Bearer ";
-    if s.starts_with(prefix) {
-        return Some(s[prefix.len()..].trim().to_string());
+    if let Some(stripped) = s.strip_prefix(prefix) {
+        return Some(stripped.trim().to_string());
     }
     None
 }
@@ -196,7 +196,7 @@ pub async fn auth_middleware(
     if let Some(token) = token {
         if let Some(ref cfg) = config {
             if let Ok(claims) = decode_jwt_or_passport(&token, cfg) {
-                let insert = if let (Some(jti), Some(ref check)) = (claims.jti(), cfg.revocation_check.as_ref()) {
+                let insert = if let (Some(jti), Some(check)) = (claims.jti(), cfg.revocation_check.as_ref()) {
                     !check.is_revoked(jti).await
                 } else {
                     true

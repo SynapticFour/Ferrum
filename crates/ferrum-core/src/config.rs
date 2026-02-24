@@ -364,7 +364,7 @@ impl FerrumConfig {
             Environment::with_prefix("FERRUM").separator("__").try_parsing(true),
         );
 
-        Ok(builder.build()?)
+        builder.build()
     }
 
     /// Load config from layered defaults: /etc/ferrum, ~/.ferrum, FERRUM_CONFIG, then FERRUM_* env.

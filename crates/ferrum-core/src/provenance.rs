@@ -1,6 +1,6 @@
 //! Data provenance and lineage: DRS objects <-> WES runs as a queryable DAG.
 
-use crate::error::{FerrumError, Result};
+use crate::error::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -20,11 +20,15 @@ impl NodeType {
             NodeType::WesRun => "wes_run",
         }
     }
-    pub fn from_str(s: &str) -> Self {
-        match s {
+}
+
+impl std::str::FromStr for NodeType {
+    type Err = std::convert::Infallible;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
             "wes_run" => NodeType::WesRun,
             _ => NodeType::DrsObject,
-        }
+        })
     }
 }
 
@@ -45,12 +49,16 @@ impl EdgeType {
             EdgeType::DerivedFrom => "derived_from",
         }
     }
-    pub fn from_str(s: &str) -> Self {
-        match s {
+}
+
+impl std::str::FromStr for EdgeType {
+    type Err = std::convert::Infallible;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(match s {
             "output" => EdgeType::Output,
             "derived_from" => EdgeType::DerivedFrom,
             _ => EdgeType::Input,
-        }
+        })
     }
 }
 
@@ -154,12 +162,12 @@ impl ProvenanceGraph {
             .iter()
             .map(|n| {
                 let (id, label, node_type) = match n {
-                    ProvenanceNode::DrsObject { id, name, size, mime_type, .. } => (
+                    ProvenanceNode::DrsObject { id, name, size: _, mime_type: _, .. } => (
                         node_id(&NodeType::DrsObject, id),
                         name.as_deref().unwrap_or(id).to_string(),
                         "drs_object",
                     ),
-                    ProvenanceNode::WesRun { id, workflow_type, workflow_url, state, .. } => (
+                    ProvenanceNode::WesRun { id, workflow_type, workflow_url, state: _, .. } => (
                         node_id(&NodeType::WesRun, id),
                         workflow_type.as_deref().or(workflow_url.as_deref()).unwrap_or(id).to_string(),
                         "wes_run",
@@ -275,6 +283,10 @@ impl ProvenanceStore {
         edges: Vec<(String, String, String, String, String)>,
     ) -> Result<ProvenanceGraph> {
         use std::collections::HashSet;
+
+        type DrsObjectRow = Option<(Option<String>, i64, Option<String>, Option<DateTime<Utc>>)>;
+        type WesRunRow = Option<(Option<String>, Option<String>, Option<String>, Option<DateTime<Utc>>)>;
+
         let mut node_ids = HashSet::new();
         for (ft, fid, tt, tid, _) in &edges {
             node_ids.insert((ft.as_str(), fid.as_str()));
@@ -283,7 +295,7 @@ impl ProvenanceStore {
         let mut nodes = Vec::new();
         for (ty, id) in &node_ids {
             if *ty == "drs_object" {
-                let row: Option<(Option<String>, i64, Option<String>, Option<DateTime<Utc>>)> = sqlx::query_as(
+                let row: DrsObjectRow = sqlx::query_as(
                     "SELECT name, size, mime_type, created_time FROM drs_objects WHERE id = $1",
                 )
                 .bind(id)
@@ -307,8 +319,7 @@ impl ProvenanceStore {
                     });
                 }
             } else {
-                let row: Option<(Option<String>, Option<String>, Option<String>, Option<DateTime<Utc>>)> =
-                    sqlx::query_as(
+                let row: WesRunRow = sqlx::query_as(
                         "SELECT workflow_type, workflow_url, state, created_at FROM wes_runs WHERE run_id = $1",
                     )
                     .bind(id)
@@ -338,11 +349,11 @@ impl ProvenanceStore {
             .map(|(from_type, from_id, to_type, to_id, edge_type)| {
                 ProvenanceEdge {
                     id: ulid::Ulid::new().to_string(),
-                    from_type: NodeType::from_str(&from_type),
+                    from_type: from_type.parse().unwrap_or(NodeType::DrsObject),
                     from_id,
-                    to_type: NodeType::from_str(&to_type),
+                    to_type: to_type.parse().unwrap_or(NodeType::DrsObject),
                     to_id,
-                    edge_type: EdgeType::from_str(&edge_type),
+                    edge_type: edge_type.parse().unwrap_or(EdgeType::Input),
                     created_at: None,
                     metadata: serde_json::Value::Object(serde_json::Map::new()),
                 }
@@ -356,7 +367,7 @@ impl ProvenanceStore {
 
     /// Upstream lineage of a DRS object (what produced it, recursively).
     pub async fn upstream(&self, object_id: &str, max_depth: u32) -> Result<ProvenanceGraph> {
-        let depth = max_depth.min(20).max(1);
+        let depth = max_depth.clamp(1, 20);
         let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
             r#"SELECT from_type, from_id, to_type, to_id, edge_type
                FROM provenance_lineage
@@ -372,7 +383,7 @@ impl ProvenanceStore {
 
     /// Downstream lineage (what was derived from this object).
     pub async fn downstream(&self, object_id: &str, max_depth: u32) -> Result<ProvenanceGraph> {
-        let depth = max_depth.min(20).max(1);
+        let depth = max_depth.clamp(1, 20);
         let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
             r#"SELECT from_type, from_id, to_type, to_id, edge_type
                FROM provenance_lineage
@@ -417,7 +428,7 @@ impl ProvenanceStore {
         direction: &str,
         max_depth: u32,
     ) -> Result<ProvenanceGraph> {
-        let depth = max_depth.min(20).max(1);
+        let depth = max_depth.clamp(1, 20);
         let rows = if root_type == "wes_run" {
             self.run_lineage(root_id).await?
         } else {
