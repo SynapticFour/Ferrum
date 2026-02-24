@@ -1,0 +1,16 @@
+---
+ferrum_install_dir: /usr/local/bin
+ferrum_config_dir: /etc/ferrum
+ferrum_data_dir: /var/lib/ferrum
+ferrum_user: ferrum
+ferrum_group: ferrum
+ferrum_install_binary: true
+ferrum_systemd_enabled: true
+ferrum_nginx_enabled: true
+ferrum_bind: "0.0.0.0:8080"
+ferrum_database_url: ""  # set via vault or extra vars
+ferrum_storage_backend: local
+ferrum_storage_base_path: "{{ ferrum_data_dir }}/data"
+ferrum_auth_require_auth: true
+ferrum_auth_jwks_url: ""
+ferrum_encryption_enabled: false

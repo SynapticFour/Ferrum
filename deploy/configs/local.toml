@@ -1,0 +1,22 @@
+# MacBook / single-node local config
+# Use: FERRUM_CONFIG=deploy/configs/local.toml (or copy to config.toml)
+
+bind = "127.0.0.1:8080"
+
+[database]
+driver = "sqlite"
+sqlite_path = "ferrum.db"
+
+[auth]
+# jwt_issuer = "https://local.example.com"
+# jwt_jwks_url = "https://local.example.com/.well-known/jwks.json"
+require_auth = false
+
+[services]
+enable_drs = true
+enable_trs = true
+enable_wes = true
+enable_tes = true
+enable_passports = true
+enable_crypt4gh = true
+enable_beacon = true

@@ -1,0 +1,28 @@
+---
+# Install PostgreSQL with optional replication
+- name: Install PostgreSQL
+  hosts: postgres_nodes
+  become: true
+  vars:
+    postgres_version: "16"
+    postgres_listen_addresses: "*"
+  tasks:
+    - name: Install PostgreSQL
+      ansible.builtin.apt:
+        name: "postgresql-{{ postgres_version }}"
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Ensure Ferrum DB and user
+      community.postgresql.postgresql_db:
+        name: ferrum
+      become_user: postgres
+
+    - name: Ensure Ferrum DB user
+      community.postgresql.postgresql_user:
+        name: ferrum
+        password: "{{ vault_ferrum_db_password | default('ferrum') }}"
+        state: present
+      become_user: postgres
+      no_log: true

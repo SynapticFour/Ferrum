@@ -1,0 +1,26 @@
+# Init container: migrations, MinIO bucket, Keycloak realm, Crypt4GH keys, seed DRS.
+# Run once after postgres/minio/keycloak are healthy.
+FROM alpine:3.19
+RUN apk add --no-cache postgresql16-client curl netcat-openbsd bash wget
+
+# MinIO client for bucket creation (multi-arch)
+ARG TARGETARCH
+RUN case "$TARGETARCH" in \
+    amd64) MC_ARCH=amd64 ;; \
+    arm64) MC_ARCH=arm64 ;; \
+    *) MC_ARCH=amd64 ;; esac \
+    && wget -q -O /usr/local/bin/mc "https://dl.min.io/client/mc/release/linux-${MC_ARCH}/mc" \
+    && chmod +x /usr/local/bin/mc
+
+WORKDIR /app
+COPY deploy/scripts/init-demo.sh /app/init-demo.sh
+RUN chmod +x /app/init-demo.sh
+
+# Copy migrations (build context is repo root)
+COPY crates/ferrum-core/migrations /migrations
+RUN ls -la /migrations
+
+ENV CRYPT4GH_KEY_DIR=/data/ferrum/keys
+VOLUME /data
+
+ENTRYPOINT ["/app/init-demo.sh"]

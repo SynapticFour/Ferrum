@@ -1,0 +1,230 @@
+//! DRS HTTP handlers.
+
+use crate::error::{DrsError, Result};
+use crate::state::AppState;
+use crate::types::*;
+use axum::{
+    extract::{Path, Query, State},
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    Json,
+};
+use ferrum_core::{ServiceInfo, ServiceType, Organization};
+use std::sync::Arc;
+use utoipa::ToSchema;
+
+/// GA4GH service-info (DRS).
+#[utoipa::path(get, path = "/service-info", responses((status = 200, body = ferrum_core::ServiceInfo)))]
+pub async fn get_service_info() -> Json<ServiceInfo> {
+    Json(ServiceInfo {
+        id: "ferrum-drs".to_string(),
+        name: "Ferrum DRS".to_string(),
+        service_type: ServiceType {
+            group: "org.ga4gh".to_string(),
+            artifact: "drs".to_string(),
+            version: "1.4.0".to_string(),
+        },
+        description: Some("GA4GH Data Repository Service 1.4".to_string()),
+        organization: Some(Organization {
+            name: "Ferrum".to_string(),
+            url: None,
+        }),
+        version: env!("CARGO_PKG_VERSION").to_string(),
+    })
+}
+
+/// Get DRS object by id, alias, or drs://hostname/id URI. Use ?expand=true for bundle contents.
+#[utoipa::path(
+    get,
+    path = "/objects/{object_id}",
+    params(ExpandQuery),
+    responses((status = 200, body = DrsObject, description = "Object metadata and access methods"), (status = 404, description = "Not found"))
+)]
+pub async fn get_object(
+    State(state): State<Arc<AppState>>,
+    Path(object_id): Path<String>,
+    Query(params): Query<ExpandQuery>,
+    headers: HeaderMap,
+) -> Result<Json<DrsObject>> {
+    let canonical = state
+        .repo
+        .resolve_id_or_uri(&object_id)
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    let obj = state
+        .repo
+        .get_object(&canonical, params.expand.unwrap_or(false))
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    let client_ip = headers
+        .get("x-forwarded-for")
+        .or_else(|| headers.get("x-real-ip"))
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string());
+    let _ = state.repo.log_access(&canonical, None, "GET", 200, client_ip.as_deref()).await;
+    Ok(Json(obj))
+}
+
+/// Query params for GET /objects/{object_id}. expand=true returns bundle contents recursively.
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams, ToSchema)]
+pub struct ExpandQuery {
+    /// If true, expand bundle contents (and nested bundles).
+    pub expand: Option<bool>,
+}
+
+/// OPTIONS /objects/{object_id}: authorization discovery (DRS 1.4). Returns 204 when not supported.
+#[utoipa::path(
+    get,
+    path = "/objects/{object_id}",
+    responses((status = 204, description = "Authorizations not supported"))
+)]
+pub async fn options_object() -> impl IntoResponse {
+    StatusCode::NO_CONTENT
+}
+
+/// Get access URL for an access_id (e.g. presigned URL).
+#[utoipa::path(
+    get,
+    path = "/objects/{object_id}/access/{access_id}",
+    responses((status = 200, body = AccessUrl), (status = 404, description = "Not found"))
+)]
+pub async fn get_access(
+    State(state): State<Arc<AppState>>,
+    Path((object_id, access_id)): Path<(String, String)>,
+    headers: HeaderMap,
+) -> Result<Json<AccessUrl>> {
+    let canonical = state
+        .repo
+        .resolve_id_or_uri(&object_id)
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    let mut url = state
+        .repo
+        .get_access_url(&canonical, &access_id)
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("access_id not found: {}", access_id)))?;
+
+    let range = parse_range_header(headers.get("range"));
+    let storage_ref = state.repo.get_storage_ref(&canonical).await?;
+    if let (Some((backend, key, _)), Some(presigner)) = (storage_ref, state.s3_presigner.as_ref()) {
+        if backend.eq_ignore_ascii_case("s3") || backend.eq_ignore_ascii_case("minio") {
+            let expires = std::time::Duration::from_secs(3600);
+            match presigner.presign(key.as_str(), range, expires).await {
+                Ok(presigned) => url.url = presigned,
+                Err(e) => tracing::warn!(?e, "presign failed, returning placeholder URL"),
+            }
+        }
+    }
+
+    let client_ip = headers
+        .get("x-forwarded-for")
+        .or_else(|| headers.get("x-real-ip"))
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string());
+    let _ = state.repo.log_access(&canonical, Some(access_id.as_str()), "GET", 200, client_ip.as_deref()).await;
+    Ok(Json(url))
+}
+
+/// Parse Range header (e.g. "bytes=0-1023") into (start, end) inclusive. Returns None if missing or invalid.
+fn parse_range_header(value: Option<&axum::http::HeaderValue>) -> Option<(u64, u64)> {
+    let s = value?.to_str().ok()?.strip_prefix("bytes=")?;
+    let (start, end) = s.split_once('-')?;
+    let start: u64 = start.parse().ok()?;
+    let end: u64 = end.parse().ok()?;
+    if start <= end { Some((start, end)) } else { None }
+}
+
+/// Create object (admin).
+#[utoipa::path(
+    post,
+    path = "/objects",
+    request_body = CreateObjectRequest,
+    responses((status = 200, body = CreatedResponse))
+)]
+pub async fn post_object(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<CreateObjectRequest>,
+) -> Result<Json<CreatedResponse>> {
+    let id = state.repo.create_object(&req).await?;
+    Ok(Json(CreatedResponse { id }))
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct CreatedResponse {
+    pub id: String,
+}
+
+/// Update object (admin).
+#[utoipa::path(
+    put,
+    path = "/objects/{object_id}",
+    request_body = UpdateObjectRequest,
+    responses((status = 200, body = UpdatedResponse), (status = 404, description = "Not found"))
+)]
+pub async fn put_object(
+    State(state): State<Arc<AppState>>,
+    Path(object_id): Path<String>,
+    Json(req): Json<UpdateObjectRequest>,
+) -> Result<Json<UpdatedResponse>> {
+    let canonical = state
+        .repo
+        .resolve_id_or_uri(&object_id)
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    let updated = state.repo.update_object(&canonical, &req).await?;
+    Ok(Json(UpdatedResponse { updated }))
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct UpdatedResponse {
+    pub updated: bool,
+}
+
+/// Delete object (admin).
+#[utoipa::path(
+    delete,
+    path = "/objects/{object_id}",
+    responses((status = 200, body = DeletedResponse), (status = 404, description = "Not found"))
+)]
+pub async fn delete_object(
+    State(state): State<Arc<AppState>>,
+    Path(object_id): Path<String>,
+) -> Result<Json<DeletedResponse>> {
+    let canonical = state
+        .repo
+        .resolve_id_or_uri(&object_id)
+        .await?
+        .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    let deleted = state.repo.delete_object(&canonical).await?;
+    Ok(Json(DeletedResponse { deleted }))
+}
+
+#[derive(serde::Serialize, ToSchema)]
+pub struct DeletedResponse {
+    pub deleted: bool,
+}
+
+/// List objects (admin) with pagination and filters.
+#[utoipa::path(
+    get,
+    path = "/objects",
+    responses((status = 200, body = [DrsObject]))
+)]
+pub async fn list_objects(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<ListObjectsQuery>,
+) -> Result<Json<Vec<DrsObject>>> {
+    let limit = q.limit.unwrap_or(100).min(1000);
+    let offset = q.offset.unwrap_or(0);
+    let list = state
+        .repo
+        .list_objects(
+            limit,
+            offset,
+            q.mime_type.as_deref(),
+            q.min_size,
+            q.max_size,
+        )
+        .await?;
+    Ok(Json(list))
+}

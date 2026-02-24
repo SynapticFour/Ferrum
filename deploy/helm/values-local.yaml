@@ -1,0 +1,38 @@
+# Single-node / k3s / MacBook local K8s
+replicaCount: 1
+image:
+  repository: ferrum-gateway
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: ferrum.local
+      paths:
+        - path: /
+          pathType: Prefix
+
+config:
+  database:
+    url: "postgres://ferrum:ferrum@postgres:5432/ferrum"
+    run_migrations: true
+  storage:
+    backend: s3
+    s3_endpoint: "http://minio:9000"
+    s3_region: us-east-1
+    s3_bucket: ferrum
+  auth:
+    require_auth: false
+
+resources:
+  limits:
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi

@@ -1,0 +1,222 @@
+//! Auth middleware: JWT validation (jsonwebtoken), GA4GH Passport extraction, Bearer + cookie.
+
+use axum::{
+    extract::Request,
+    middleware::Next,
+    response::Response,
+};
+use jsonwebtoken::{decode, DecodingKey, Validation};
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::sync::Arc;
+
+/// GA4GH Visa object (ga4gh_visa_v1 claim value).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VisaObject {
+    pub r#type: String,
+    pub asserted: i64,
+    pub value: String,
+    pub source: String,
+    #[serde(default)]
+    pub conditions: Option<Vec<serde_json::Value>>,
+    #[serde(default)]
+    pub by: Option<String>,
+}
+
+/// Decoded GA4GH Passport JWT claims (includes ga4gh_passport_v1 array of Visa JWTs).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PassportClaims {
+    /// Standard: subject
+    #[serde(default)]
+    pub sub: Option<String>,
+    /// Standard: issuer
+    #[serde(default)]
+    pub iss: Option<String>,
+    /// Standard: expiration (seconds)
+    #[serde(default)]
+    pub exp: Option<i64>,
+    /// Standard: issued at (seconds)
+    #[serde(default)]
+    pub iat: Option<i64>,
+    /// Standard: JWT ID
+    #[serde(default)]
+    pub jti: Option<String>,
+    /// GA4GH: array of Visa JWTs (compact serialization strings)
+    #[serde(rename = "ga4gh_passport_v1", default)]
+    pub ga4gh_passport_v1: Option<Vec<String>>,
+}
+
+/// Claims stored in request extensions (set by auth middleware).
+#[derive(Debug, Clone)]
+pub enum AuthClaims {
+    /// Standard JWT claims (e.g. from access token).
+    Jwt { sub: String, iss: Option<String>, exp: i64 },
+    /// GA4GH Passport with decoded passport claims and optional decoded visas.
+    Passport {
+        claims: PassportClaims,
+        visas: Vec<VisaObject>,
+    },
+}
+
+/// Auth config used by the middleware (from FerrumConfig).
+#[derive(Clone)]
+pub struct AuthMiddlewareConfig {
+    pub jwt_secret: Option<Vec<u8>>,
+    pub issuer: Option<String>,
+    pub jwks_url: Option<String>,
+    pub passport_endpoints: Vec<String>,
+}
+
+impl AuthMiddlewareConfig {
+    pub fn from_crate_config(cfg: &crate::config::AuthConfig) -> Self {
+        Self {
+            jwt_secret: cfg.jwt_secret.as_deref().map(|s| s.as_bytes().to_vec()),
+            issuer: cfg.issuer.clone(),
+            jwks_url: cfg.jwks_url.clone(),
+            passport_endpoints: cfg.passport_endpoints.clone(),
+        }
+    }
+}
+
+/// Extract Bearer token from Authorization header or from cookie (e.g. `ferrum_token`).
+fn extract_token(request: &Request) -> Option<String> {
+    let auth = request.headers().get("Authorization")?;
+    let s = auth.to_str().ok()?;
+    let prefix = "Bearer ";
+    if s.starts_with(prefix) {
+        return Some(s[prefix.len()..].trim().to_string());
+    }
+    None
+}
+
+fn extract_token_from_cookie(request: &Request, cookie_name: &str) -> Option<String> {
+    let cookie_header = request.headers().get("Cookie")?;
+    let s = cookie_header.to_str().ok()?;
+    for part in s.split(';') {
+        let part = part.trim();
+        if part.starts_with(cookie_name) {
+            let rest = part.strip_prefix(cookie_name)?.trim_start_matches('=');
+            return Some(rest.to_string());
+        }
+    }
+    None
+}
+
+/// Validate JWT and optionally GA4GH Passport; put [AuthClaims] in extensions.
+pub async fn auth_middleware(
+    request: Request,
+    next: Next,
+) -> Response {
+    let config = request
+        .extensions()
+        .get::<Arc<AuthMiddlewareConfig>>()
+        .cloned();
+
+    let token = extract_token(&request)
+        .or_else(|| extract_token_from_cookie(&request, "ferrum_token"));
+
+    let mut request = request;
+
+    if let Some(token) = token {
+        if let Some(ref cfg) = config {
+            if let Ok(claims) = decode_jwt_or_passport(&token, cfg) {
+                request.extensions_mut().insert(claims);
+            }
+        } else {
+            // No config: try default HS256 with no issuer check
+            if let Ok(claims) = decode_jwt_fallback(&token) {
+                request.extensions_mut().insert(claims);
+            }
+        }
+    }
+
+    next.run(request).await
+}
+
+/// Decode as standard JWT (HS256) or as GA4GH Passport.
+fn decode_jwt_or_passport(token: &str, cfg: &AuthMiddlewareConfig) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
+    // Try as GA4GH Passport (has ga4gh_passport_v1 claim)
+    if let Ok(claims) = decode_passport_jwt(token, cfg) {
+        return Ok(AuthClaims::Passport {
+            claims: claims.clone(),
+            visas: decode_passport_visas(claims.ga4gh_passport_v1.as_deref().unwrap_or(&[])),
+        });
+    }
+
+    // Try as standard JWT
+    if let Some(ref secret) = cfg.jwt_secret {
+        let key = DecodingKey::from_secret(secret);
+        let mut validation = Validation::default();
+        if let Some(ref iss) = cfg.issuer {
+            validation.iss = Some(HashSet::from([iss.clone()]));
+        }
+        let data = decode::<PassportClaims>(token, &key, &validation)?;
+        return Ok(AuthClaims::Jwt {
+            sub: data.claims.sub.unwrap_or_default(),
+            iss: data.claims.iss,
+            exp: data.claims.exp.unwrap_or(0),
+        });
+    }
+
+    Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into())
+}
+
+fn decode_jwt_fallback(token: &str) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
+    let decoded = jsonwebtoken::decode_header(token)?;
+    let alg = decoded.alg;
+    // Without config we only accept if we can decode; use a dummy secret for HS* (will fail if signed)
+    let claims = jsonwebtoken::decode::<PassportClaims>(
+        token,
+        &DecodingKey::from_secret(b""),
+        &Validation::new(alg),
+    )?;
+    Ok(AuthClaims::Jwt {
+        sub: claims.claims.sub.unwrap_or_default(),
+        iss: claims.claims.iss,
+        exp: claims.claims.exp.unwrap_or(0),
+    })
+}
+
+fn decode_passport_jwt(token: &str, _cfg: &AuthMiddlewareConfig) -> Result<PassportClaims, jsonwebtoken::errors::Error> {
+    let decoded = jsonwebtoken::decode_header(token)?;
+    let alg = decoded.alg;
+    let key = DecodingKey::from_secret(b""); // TODO: use JWKS from cfg.jwks_url for RS256
+    let data = jsonwebtoken::decode::<PassportClaims>(token, &key, &Validation::new(alg))?;
+    Ok(data.claims)
+}
+
+fn decode_passport_visas(visa_jwts: &[String]) -> Vec<VisaObject> {
+    let mut out = Vec::new();
+    for s in visa_jwts {
+        if let Ok(decoded) = jsonwebtoken::decode_header(s) {
+            let key = jsonwebtoken::DecodingKey::from_secret(b"");
+            let val = jsonwebtoken::Validation::new(decoded.alg);
+            if let Ok(data) = jsonwebtoken::decode::<VisaJwtPayload>(s, &key, &val) {
+                if let Some(v) = data.claims.ga4gh_visa_v1 {
+                    out.push(v);
+                }
+            }
+        }
+    }
+    out
+}
+
+#[derive(Debug, Deserialize)]
+struct VisaJwtPayload {
+    #[serde(rename = "ga4gh_visa_v1")]
+    ga4gh_visa_v1: Option<VisaObject>,
+}
+
+/// Tower-compatible auth layer.
+pub fn auth_layer(config: Option<Arc<AuthMiddlewareConfig>>) -> impl Clone {
+    axum::middleware::from_fn::<_, axum::body::Body>(move |req: Request, next: Next| {
+        let config = config.clone();
+        Box::pin(async move {
+            let mut req = req;
+            if let Some(cfg) = config {
+                req.extensions_mut().insert(cfg);
+            }
+            auth_middleware(req, next).await
+        })
+    })
+}
