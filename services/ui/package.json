@@ -22,6 +22,7 @@
     "@tanstack/react-router": "^1.54.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "cytoscape": "^3.30.4",
     "lucide-react": "^0.454.0",
     "monaco-editor": "^0.52.0",
     "react": "^18.3.1",
@@ -31,12 +32,12 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8",
-    "zustand": "^5.0.0",
-    "cytoscape": "^3.30.4"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
     "@tanstack/router-plugin": "^1.54.0",
+    "@types/cytoscape": "^3.21.9",
     "@types/node": "^22.19.11",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

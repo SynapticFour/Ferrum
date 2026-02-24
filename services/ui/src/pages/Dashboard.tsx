@@ -83,8 +83,7 @@ export function Dashboard() {
             {recentRuns.slice(0, 10).map((r) => (
               <li key={r.run_id}>
                 <Link
-                  to="/workflows/runs/$runId"
-                  params={{ runId: r.run_id }}
+                  to={"/workflows/runs/" + r.run_id}
                   className="text-primary hover:underline font-mono text-sm"
                 >
                   {r.run_id}

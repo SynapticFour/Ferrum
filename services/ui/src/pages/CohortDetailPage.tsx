@@ -49,7 +49,8 @@ type CohortStats = {
 };
 
 export function CohortDetailPage() {
-  const { cohortId } = useParams({ from: '/cohorts/$cohortId' });
+  const params = useParams({ strict: false }) as { cohortId?: string };
+  const cohortId = params.cohortId;
   const cohortQuery = useQuery({
     queryKey: ['cohort', cohortId],
     queryFn: () => apiGet<CohortDetail>(`${COHORTS_BASE}/cohorts/${encodeURIComponent(cohortId!)}`),
@@ -86,7 +87,7 @@ export function CohortDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/cohorts">
+          <Link to={"/cohorts" as any}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>

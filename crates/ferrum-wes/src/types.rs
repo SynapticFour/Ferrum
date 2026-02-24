@@ -155,6 +155,9 @@ pub struct RunLog {
     /// GA4GH extension: implementation-specific fields (e.g. ferrum:multiqc_status, ferrum:multiqc_report_drs_id).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extensions: Option<std::collections::HashMap<String, serde_json::Value>>,
+    /// When this run was created by resuming from another run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resumed_from_run_id: Option<String>,
 }
 
 /// Minimal request reference in RunLog.

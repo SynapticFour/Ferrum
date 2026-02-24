@@ -19,7 +19,8 @@ thiserror = "1"
 anyhow = "1"
 async-trait = "0.1"
 rand = "0.8"
+lettre = { version = "0.11", features = ["tokio1-native-tls"], optional = true }
 
 [features]
 default = []
-email = []
+email = ["lettre"]

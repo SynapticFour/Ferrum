@@ -1,11 +1,12 @@
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useThemeStore } from '@/stores/theme';
-import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users } from 'lucide-react';
+import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 const nav = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/workspaces', label: 'Workspaces', icon: FolderOpen },
   { path: '/data', label: 'Data Browser', icon: Database },
   { path: '/cohorts', label: 'Cohorts', icon: Users },
   { path: '/workflows', label: 'Workflows', icon: Workflow },

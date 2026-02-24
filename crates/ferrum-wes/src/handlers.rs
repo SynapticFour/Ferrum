@@ -292,7 +292,7 @@ pub async fn get_run_log(
         .get_run(&run_id)
         .await?
         .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
-    let (run_id_db, workflow_url, workflow_type, workflow_type_version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _owner, _resumed, _checkpoint) = row;
+    let (run_id_db, workflow_url, workflow_type, workflow_type_version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _owner, resumed_from_run_id, _checkpoint) = row;
     let run_state = RunState::from_str(&state_str);
     let run_log_row: Option<(String, Vec<String>, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<String>, Option<String>, Option<i32>)> =
         app.repo.get_run_log(&run_id).await?;
@@ -341,6 +341,7 @@ pub async fn get_run_log(
         task_logs_url: Some(format!("/runs/{}/tasks", run_id)),
         outputs: Some(outputs),
         extensions,
+        resumed_from_run_id,
     }))
 }
 
@@ -1142,10 +1143,14 @@ pub async fn resume_run(
     }))
 }
 
-/// GET /cache/stats — cache statistics (total entries, hit rate, etc.).
+/// GET /cache/stats — cache statistics (total entries, hit rate, etc.). A01: requires authentication.
 pub async fn get_cache_stats(
     State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<crate::checkpoint::CacheStats>> {
+    auth.as_ref()
+        .and_then(|c| c.sub())
+        .ok_or_else(|| WesError::Forbidden("authentication required".into()))?;
     let store = app
         .checkpoint_store
         .as_ref()

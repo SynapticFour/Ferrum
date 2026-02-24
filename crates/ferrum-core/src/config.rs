@@ -22,6 +22,29 @@ pub struct FerrumConfig {
     /// A05: CORS and security options. If absent, CORS is permissive.
     #[serde(default)]
     pub security: Option<SecurityConfig>,
+    /// Workspace invite emails (SMTP). If absent, invites are stored but not emailed.
+    #[serde(default)]
+    pub email: Option<EmailConfig>,
+}
+
+/// SMTP configuration for workspace invite emails.
+#[derive(Debug, Clone, Deserialize)]
+pub struct EmailConfig {
+    pub smtp_host: String,
+    #[serde(default = "default_smtp_port")]
+    pub smtp_port: u16,
+    pub smtp_from: String,
+    #[serde(default)]
+    pub smtp_username: Option<String>,
+    #[serde(default)]
+    pub smtp_password: Option<String>,
+    /// Base URL for invite links (e.g. https://ferrum.institution.edu). Env: FERRUM_EMAIL__BASE_URL
+    #[serde(default)]
+    pub base_url: Option<String>,
+}
+
+fn default_smtp_port() -> u16 {
+    587
 }
 
 /// A05: Security / CORS configuration. Never use wildcard (*) in production.
@@ -376,6 +399,13 @@ impl FerrumConfig {
         if let Some(ref s) = self.storage.s3_secret_access_key {
             if let Some(resolved) = resolve_file_secret(s) {
                 self.storage.s3_secret_access_key = Some(resolved);
+            }
+        }
+        if let Some(ref mut email) = self.email {
+            if let Some(ref s) = email.smtp_password {
+                if let Some(resolved) = resolve_file_secret(s) {
+                    email.smtp_password = Some(resolved);
+                }
             }
         }
     }

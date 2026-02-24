@@ -12,6 +12,9 @@ import { Settings } from '@/pages/Settings';
 import { CohortListPage } from '@/pages/CohortListPage';
 import { CohortDetailPage } from '@/pages/CohortDetailPage';
 import { NewCohortPage } from '@/pages/NewCohortPage';
+import { WorkspaceListPage } from '@/pages/WorkspaceListPage';
+import { WorkspaceDetailPage } from '@/pages/WorkspaceDetailPage';
+import { NewWorkspacePage } from '@/pages/NewWorkspacePage';
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -45,6 +48,13 @@ const cohortDetailRoute = createRoute({
   path: '/cohorts/$cohortId',
   component: CohortDetailPage,
 });
+const workspacesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/workspaces', component: WorkspaceListPage });
+const workspaceDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/workspaces/$workspaceId',
+  component: WorkspaceDetailPage,
+});
+const newWorkspaceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/workspaces/new', component: NewWorkspacePage });
 
 rootRoute.addChildren([
   indexRoute,
@@ -59,6 +69,9 @@ rootRoute.addChildren([
   cohortsRoute,
   cohortNewRoute,
   cohortDetailRoute,
+  workspacesRoute,
+  workspaceDetailRoute,
+  newWorkspaceRoute,
 ]);
 
 export const routeTree = rootRoute;

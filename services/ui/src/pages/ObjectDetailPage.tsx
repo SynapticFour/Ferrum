@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
 export function ObjectDetailPage() {
-  const { objectId } = useParams({ strict: false });
-  const id = objectId ?? '';
+  const params = useParams({ strict: false }) as { objectId?: string };
+  const id = params.objectId ?? '';
 
   const { data: obj, isLoading, error } = useQuery({
     queryKey: ['drs', 'object', id],
@@ -26,7 +26,7 @@ export function ObjectDetailPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/data"><ArrowLeft className="h-4 w-4" /></Link>
+          <Link to={"/data" as any}><ArrowLeft className="h-4 w-4" /></Link>
         </Button>
         <h1 className="text-2xl font-bold">{obj.name ?? obj.id}</h1>
       </div>

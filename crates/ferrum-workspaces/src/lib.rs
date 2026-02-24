@@ -1,8 +1,10 @@
 //! Workspace and collaboration: named project containers grouping DRS, WES, cohorts under shared access control.
 
 pub mod activity;
+pub mod email;
 pub mod error;
 pub mod guard;
+pub mod validation;
 pub mod handlers;
 pub mod repo;
 pub mod state;
@@ -19,10 +21,16 @@ use crate::handlers::{
 use crate::state::AppState;
 
 /// Build the Workspaces router. Mount at /workspaces/v1.
-pub fn router(pool: sqlx::PgPool) -> Router {
+pub fn router(
+    pool: sqlx::PgPool,
+    email_sender: Option<Arc<dyn crate::email::EmailSender>>,
+    invite_base_url: Option<String>,
+) -> Router {
     let state = Arc::new(AppState {
         pool: pool.clone(),
         activity: Arc::new(activity::ActivityLogger::new(pool)),
+        email_sender,
+        invite_base_url,
     });
     Router::new()
         .route("/workspaces", get(list_my_workspaces).post(create_workspace))

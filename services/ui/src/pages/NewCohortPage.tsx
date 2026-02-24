@@ -1,4 +1,3 @@
-import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,6 @@ type CreateResponse = {
 };
 
 export function NewCohortPage() {
-  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -35,7 +33,7 @@ export function NewCohortPage() {
         tags: [],
         filter_criteria: {},
       });
-      navigate({ to: '/cohorts/$cohortId', params: { cohortId: res.id } });
+      window.location.href = '/cohorts/' + res.id;
     } catch (err) {
       setError(String(err));
     } finally {
@@ -47,7 +45,7 @@ export function NewCohortPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link to="/cohorts">
+          <Link to={"/cohorts" as any}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>

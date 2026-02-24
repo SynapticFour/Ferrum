@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import cytoscape, { type Core, type NodeSingular } from 'cytoscape';
+import cytoscape, { type Core, type NodeSingular, type EventObject } from 'cytoscape';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText, Cog, Copy, Download } from 'lucide-react';
@@ -54,7 +54,7 @@ export function ProvenanceGraph({
     if (cyRef.current) cyRef.current.destroy();
     cyRef.current = cytoscape({
       container: containerRef.current,
-      elements: elements as Parameters<typeof cytoscape>[0]['elements'],
+      elements: elements as cytoscape.ElementsDefinition,
       style: [
         {
           selector: 'node',
@@ -94,7 +94,7 @@ export function ProvenanceGraph({
       ],
       layout: { name: 'breadthfirst', directed: true, padding: 20 },
     });
-    cyRef.current.on('tap', 'node', (ev) => {
+    cyRef.current.on('tap', 'node', (ev: EventObject) => {
       const n = ev.target as NodeSingular;
       const data = n.data();
       setSelectedNode({
@@ -117,7 +117,7 @@ export function ProvenanceGraph({
 
   const exportPng = () => {
     if (!cyRef.current) return;
-    const blob = cyRef.current.png({ scale: 2 });
+    const blob = cyRef.current.png({ scale: 2, output: 'blob' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

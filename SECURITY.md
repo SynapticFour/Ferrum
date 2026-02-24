@@ -26,7 +26,20 @@ We take security seriously. Please report vulnerabilities **privately** to avoid
 
 - **Authentication:** JWT and/or GA4GH Passports; JWKS and optional issuer validation. See [INSTALLATION.md](docs/INSTALLATION.md) and [GA4GH.md](docs/GA4GH.md).
 - **Encryption:** All data at rest is encrypted with Crypt4GH; downloads are re-encrypted per requester. See [CRYPT4GH.md](docs/CRYPT4GH.md) for the threat model and invariants.
-- **Authorization:** Passport Visa claims and optional role-based checks before granting access to DRS objects, WES runs, and other resources.
+- **Authorization:** Passport Visa claims and optional role-based checks before granting access to DRS objects, WES runs, workspaces, and other resources.
+
+## OWASP alignment
+
+We apply OWASP Top 10–oriented practices across the stack:
+
+- **A01 Broken Access Control:** Auth middleware on requests; workspace membership and WES run visibility enforced; WES cache stats require authentication.
+- **A02 Cryptographic Failures:** JWT algorithm pinning (RS256/ES256 for Passport; no `none` or algorithm confusion).
+- **A03 Injection:** Input validation for DRS names, workspace names/slugs, and invite emails (length, charset, no control chars); workflow params passed via file in Nextflow (no CLI/env injection); path sanitization (`safe_join`) and SSRF-safe URL validation before fetches.
+- **A07 Identification and Authentication Failures:** Token revocation (optional); optional token age limit.
+- **A09 Security Logging:** Security events (access denied, auth failure, path traversal, SSRF attempts) logged and optionally persisted.
+- **A10 Server-Side Request Forgery (SSRF):** URL validation policy (scheme, blocked hosts, private IPs); safe HTTP client used for outbound requests.
+
+Security-focused tests live in the `ferrum-security-tests` crate (SSRF, validation, etc.).
 
 ---
 

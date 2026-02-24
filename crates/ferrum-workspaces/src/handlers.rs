@@ -1,6 +1,7 @@
 use crate::error::{Result, WorkspaceError};
 use crate::guard;
 use crate::repo::WorkspaceRepo;
+use crate::validation;
 use crate::state::AppState;
 use crate::types::*;
 use axum::{
@@ -45,12 +46,19 @@ pub async fn create_workspace(
     if name.is_empty() {
         return Err(WorkspaceError::Validation("name required".to_string()));
     }
+    ferrum_core::validate_drs_name(name).map_err(|e| WorkspaceError::Validation(e.to_string()))?;
     let slug = req
         .slug
         .as_deref()
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| slug_from_name(name));
+        .filter(|s| !s.is_empty());
+    let slug = match &slug {
+        Some(s) => {
+            validation::validate_workspace_slug(s)?;
+            s.clone()
+        }
+        None => slug_from_name(name),
+    };
     let repo = WorkspaceRepo::new(state.pool.clone());
     if repo.slug_exists(&slug).await? {
         return Err(WorkspaceError::Conflict("slug already in use".to_string()));
@@ -97,13 +105,12 @@ pub async fn update_workspace(
     let sub = auth.sub().ok_or_else(|| WorkspaceError::Forbidden("authentication required".to_string()))?;
     let (_ws, role) = guard::ensure_workspace_member(&state.pool, &id, sub).await?;
     role.require_write()?;
+    let name_opt = req.name.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty());
+    if let Some(n) = name_opt {
+        ferrum_core::validate_drs_name(n).map_err(|e| WorkspaceError::Validation(e.to_string()))?;
+    }
     let repo = WorkspaceRepo::new(state.pool.clone());
-    repo.update(
-        &id,
-        req.name.as_deref(),
-        req.description.as_deref(),
-        req.settings.as_ref(),
-    )
+    repo.update(&id, name_opt, req.description.as_deref(), req.settings.as_ref())
     .await?;
     let workspace = repo.get_by_id(&id).await?.ok_or_else(|| WorkspaceError::NotFound(id))?;
     Ok(Json(workspace))
@@ -213,9 +220,7 @@ pub async fn create_invite(
     let (_ws, role) = guard::ensure_workspace_member(&state.pool, &id, sub).await?;
     role.require_manage_members()?;
     let email = req.email.trim();
-    if email.is_empty() {
-        return Err(WorkspaceError::Validation("email required".to_string()));
-    }
+    validation::validate_invite_email(email)?;
     let role_parsed = WorkspaceRole::from_str(req.role.trim()).unwrap_or(WorkspaceRole::Viewer);
     let token: String = (0..32).map(|_| format!("{:02x}", rand::random::<u8>())).collect();
     let invite_id = ulid::Ulid::new().to_string();
@@ -224,6 +229,13 @@ pub async fn create_invite(
     let invite = repo
         .create_invite(&invite_id, &id, email, role_parsed.as_str(), &token, sub, expires_at)
         .await?;
+    if let (Some(ref sender), Some(ref base_url)) = (&state.email_sender, &state.invite_base_url) {
+        let ws_name = validation::sanitize_for_email_body(&_ws.name, 200);
+        let invite_url = format!("{}/invites/{}", base_url.trim_end_matches('/'), token);
+        if let Err(e) = sender.send_invite(email, &ws_name, &invite_url).await {
+            tracing::warn!(%email, "failed to send invite email: {}", e);
+        }
+    }
     Ok(Json(invite))
 }
 
@@ -246,6 +258,7 @@ pub async fn accept_invite(
     Extension(auth): Extension<AuthClaims>,
 ) -> Result<Json<Workspace>> {
     let sub = auth.sub().ok_or_else(|| WorkspaceError::Forbidden("authentication required".to_string()))?;
+    validation::validate_invite_token(&token)?;
     let repo = WorkspaceRepo::new(state.pool.clone());
     let (invite_id, workspace_id, _role) = repo
         .get_invite_by_token(&token)

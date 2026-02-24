@@ -46,7 +46,7 @@ export function CohortListPage() {
           <p className="text-muted-foreground">Define and manage sample cohorts with phenotype and DRS links.</p>
         </div>
         <Button asChild>
-          <Link to="/cohorts/new">
+          <Link to={"/cohorts/new" as any}>
             <Plus className="mr-2 h-4 w-4" />
             New Cohort
           </Link>
@@ -64,8 +64,7 @@ export function CohortListPage() {
               {cohorts.map((c) => (
                 <Link
                   key={c.id}
-                  to="/cohorts/$cohortId"
-                  params={{ cohortId: c.id }}
+                  to={"/cohorts/" + c.id}
                   className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
                 >
                   <div className="flex items-center gap-3">

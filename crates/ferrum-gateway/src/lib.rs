@@ -178,7 +178,20 @@ pub fn app(
         app = app.nest("/cohorts/v1", ferrum_cohorts::router(pool));
     }
     if let Some(pool) = workspaces_pool {
-        app = app.nest("/workspaces/v1", ferrum_workspaces::router(pool));
+        let (email_sender, invite_base_url) = match cfg.and_then(|c| c.email.as_ref()) {
+            Some(email_cfg) => {
+                let url = email_cfg.base_url.clone();
+                #[cfg(feature = "workspaces_email")]
+                let sender = ferrum_workspaces::SmtpEmailSender::new(email_cfg)
+                    .ok()
+                    .map(|s| Arc::new(s) as Arc<dyn ferrum_workspaces::email::EmailSender>);
+                #[cfg(not(feature = "workspaces_email"))]
+                let sender = None;
+                (sender, url)
+            }
+            None => (None, None),
+        };
+        app = app.nest("/workspaces/v1", ferrum_workspaces::router(pool, email_sender, invite_base_url));
     }
     if let Some(pool) = admin_pool {
         app = app.nest("/admin", admin::admin_router(pool));
