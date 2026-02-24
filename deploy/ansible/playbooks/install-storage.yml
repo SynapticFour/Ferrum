@@ -1,0 +1,28 @@
+---
+# Configure NFS or MinIO cluster for Ferrum storage
+- name: Configure storage (NFS or MinIO)
+  hosts: storage_nodes
+  become: true
+  vars:
+    ferrum_storage_backend: "local"  # or "s3", "nfs"
+    ferrum_storage_nfs_server: ""
+    ferrum_storage_nfs_path: "/export/ferrum"
+    ferrum_storage_local_path: "/var/lib/ferrum/data"
+  tasks:
+    - name: Create local storage path
+      ansible.builtin.file:
+        path: "{{ ferrum_storage_local_path }}"
+        state: directory
+        owner: ferrum
+        group: ferrum
+        mode: "0750"
+      when: ferrum_storage_backend == "local"
+
+    - name: Mount NFS for Ferrum storage
+      ansible.posix.mount:
+        path: "{{ ferrum_storage_local_path }}"
+        src: "{{ ferrum_storage_nfs_server }}:{{ ferrum_storage_nfs_path }}"
+        fstype: nfs
+        state: mounted
+        opts: "defaults"
+      when: ferrum_storage_backend == "nfs" and ferrum_storage_nfs_server | length > 0

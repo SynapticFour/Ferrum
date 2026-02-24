@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ferrum-core",
+    "crates/ferrum-drs",
+    "crates/ferrum-trs",
+    "crates/ferrum-wes",
+    "crates/ferrum-tes",
+    "crates/ferrum-passports",
+    "crates/ferrum-crypt4gh",
+    "crates/ferrum-beacon",
+    "crates/ferrum-cohorts",
+    "crates/ferrum-gateway",
+    "crates/ferrum-workspaces",
+    "crates/ferrum-security-tests",
+    "tools/ferrum-cli",
+]

@@ -1,0 +1,72 @@
+---
+- name: Ensure Ferrum user and dirs
+  ansible.builtin.user:
+    name: "{{ ferrum_user }}"
+    group: "{{ ferrum_group }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create config and data dirs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ferrum_user }}"
+    group: "{{ ferrum_group }}"
+    mode: "0750"
+  loop:
+    - "{{ ferrum_config_dir }}"
+    - "{{ ferrum_data_dir }}"
+
+- name: Deploy Ferrum binary from path
+  ansible.builtin.copy:
+    src: "{{ ferrum_binary_path }}"
+    dest: "{{ ferrum_install_dir }}/ferrum-gateway"
+    mode: "0755"
+    remote_src: true
+  when: ferrum_install_binary | bool and ferrum_binary_path is defined
+
+- name: Deploy config.toml
+  ansible.builtin.template:
+    src: config.toml.j2
+    dest: "{{ ferrum_config_dir }}/config.toml"
+    owner: "{{ ferrum_user }}"
+    group: "{{ ferrum_group }}"
+    mode: "0640"
+  notify: restart ferrum-gateway
+
+- name: Deploy systemd unit
+  ansible.builtin.template:
+    src: ferrum-gateway.service.j2
+    dest: /etc/systemd/system/ferrum-gateway.service
+    mode: "0644"
+  when: ferrum_systemd_enabled | bool
+  notify: restart ferrum-gateway
+
+- name: Enable and start ferrum-gateway
+  ansible.builtin.systemd:
+    name: ferrum-gateway
+    daemon_reload: true
+    enabled: "{{ ferrum_systemd_enabled }}"
+    state: started
+  when: ferrum_systemd_enabled | bool
+
+- name: Deploy nginx reverse proxy with TLS
+  ansible.builtin.template:
+    src: nginx-ferrum.conf.j2
+    dest: /etc/nginx/sites-available/ferrum
+    mode: "0644"
+  when: ferrum_nginx_enabled | bool
+
+- name: Enable nginx site
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/ferrum
+    dest: /etc/nginx/sites-enabled/ferrum
+    state: link
+  when: ferrum_nginx_enabled | bool
+
+- name: Restart nginx
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+  when: ferrum_nginx_enabled | bool

@@ -1,0 +1,26 @@
+# Distributed HPC / production config
+# Override with env: FERRUM_DATABASE__URL, FERRUM_BIND, etc.
+
+bind = "0.0.0.0:8080"
+
+[database]
+driver = "postgres"
+postgres_host = "postgres"
+postgres_port = 5432
+postgres_db = "ferrum"
+postgres_user = "ferrum"
+# postgres_password set via FERRUM_DATABASE__POSTGRES_PASSWORD or FERRUM_DATABASE__URL
+
+[auth]
+# jwt_issuer = "https://auth.example.com"
+# jwt_jwks_url = "https://auth.example.com/.well-known/jwks.json"
+require_auth = true
+
+[services]
+enable_drs = true
+enable_trs = true
+enable_wes = true
+enable_tes = true
+enable_passports = true
+enable_crypt4gh = true
+enable_beacon = true

@@ -1,0 +1,11 @@
+---
+# Install Ferrum binary and systemd service on ferrum_nodes
+- name: Install Ferrum gateway
+  hosts: ferrum_nodes
+  become: true
+  roles:
+    - ferrum
+      vars:
+        ferrum_install_binary: true
+        ferrum_systemd_enabled: true
+        ferrum_nginx_enabled: true
