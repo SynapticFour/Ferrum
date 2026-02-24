@@ -1,0 +1,13 @@
+# A06: OWASP - cargo-deny config for vulnerabilities and licenses
+[advisories]
+vulnerability = "deny"
+unmaintained = "warn"
+yanked = "warn"
+
+[licenses]
+allow = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-DFS-2016"]
+deny = ["GPL-2.0", "GPL-3.0", "AGPL-3.0"]
+default = "warn"
+
+[bans]
+multiple-versions = "warn"

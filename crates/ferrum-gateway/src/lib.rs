@@ -1,10 +1,14 @@
 //! API Gateway: merges all GA4GH service routers under standard paths.
+//! A01: Auth middleware on every request. A05: Security headers, CORS from config.
 
 use axum::{routing::get, Router};
 use ferrum_core::health::health_router;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tower_http::cors::CorsLayer;
+use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
+use axum::http::header;
 
 /// WES router params: pool, work dir base, optional TES URL, optional TRS register URL, optional provenance store, optional pricing config, optional MultiQC config, optional DRS ingest base URL. When None, WES routes return 503.
 pub type WesRouterParams = (
@@ -49,10 +53,69 @@ pub fn app(
 ) -> Router {
     let cfg = config;
 
+    let auth_config = cfg.map(|c| Arc::new(ferrum_core::AuthMiddlewareConfig::from_crate_config(&c.auth)));
+    let cors = cfg.and_then(|c| c.security.as_ref()).and_then(|s| {
+        let origins: Vec<axum::http::HeaderValue> = s
+            .allowed_origins
+            .as_ref()?
+            .iter()
+            .filter_map(|o| axum::http::HeaderValue::try_from(o.as_str()).ok())
+            .collect();
+        if origins.is_empty() {
+            return Some(CorsLayer::permissive());
+        }
+        Some(
+            CorsLayer::new()
+                .allow_origin(origins)
+                .allow_credentials(s.allow_credentials.unwrap_or(false)),
+        )
+    }).unwrap_or_else(|| CorsLayer::permissive());
+
     let mut app = Router::new()
         .merge(health_router())
         .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive());
+        .layer(cors)
+        .layer(SetResponseHeaderLayer::overriding(
+            header::CONTENT_SECURITY_POLICY,
+            axum::http::HeaderValue::from_static("default-src 'self'; script-src 'self'; object-src 'none'"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_FRAME_OPTIONS,
+            axum::http::HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_CONTENT_TYPE_OPTIONS,
+            axum::http::HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::REFERRER_POLICY,
+            axum::http::HeaderValue::from_static("strict-origin-when-cross-origin"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::HeaderName::from_static("permissions-policy"),
+            axum::http::HeaderValue::from_static("geolocation=(), camera=(), microphone=()"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::HeaderName::from_static("x-powered-by"),
+            axum::http::HeaderValue::from_static("Ferrum"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::SERVER,
+            axum::http::HeaderValue::from_static("Ferrum"),
+        ));
+
+    // A01: Auth middleware runs on every request (validates JWT/Passport when config present).
+    let auth_cfg = auth_config.clone();
+    app = app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+        let config = auth_cfg.clone();
+        async move {
+            let mut req = req;
+            if let Some(ref cfg) = config {
+                req.extensions_mut().insert(cfg.clone());
+            }
+            ferrum_core::auth_middleware(req, next).await
+        }
+    }));
 
     // GA4GH standard paths
     if cfg.map(|c| c.services.enable_drs).unwrap_or(true) {

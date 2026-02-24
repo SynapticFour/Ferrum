@@ -65,41 +65,41 @@ pub fn router(pool: sqlx::PgPool) -> Router {
     Router::new()
         .route(
             "/cohorts",
-            get(|s, h, q| async move { CohortJsonResult(list_cohorts(s, h, q).await) })
-                .post(|s, h, j| async move { CohortJsonResult(create_cohort(s, h, j).await) }),
+            get(|s, auth, q| async move { CohortJsonResult(list_cohorts(s, auth, q).await) })
+                .post(|s, auth, h, j| async move { CohortJsonResult(create_cohort(s, auth, h, j).await) }),
         )
         .route(
             "/cohorts/:id",
-            get(|s, p| async move { CohortJsonResult(get_cohort(s, p).await) })
-                .put(|s, p, j| async move { CohortJsonResult(update_cohort(s, p, j).await) })
-                .delete(|s, p| async move { CohortJsonResult(delete_cohort(s, p).await) }),
+            get(|s, p, auth| async move { CohortJsonResult(get_cohort(s, p, auth).await) })
+                .put(|s, p, auth, j| async move { CohortJsonResult(update_cohort(s, p, auth, j).await) })
+                .delete(|s, p, auth| async move { CohortJsonResult(delete_cohort(s, p, auth).await) }),
         )
         .route(
             "/cohorts/:id/freeze",
-            post(|s, p| async move { CohortJsonResult(freeze_cohort(s, p).await) }),
+            post(|s, p, auth| async move { CohortJsonResult(freeze_cohort(s, p, auth).await) }),
         )
         .route(
             "/cohorts/:id/clone",
-            post(|s, p, h, j| async move { CohortJsonResult(clone_cohort(s, p, h, j).await) }),
+            post(|s, p, auth, h, j| async move { CohortJsonResult(clone_cohort(s, p, auth, h, j).await) }),
         )
         .route(
             "/cohorts/:id/export",
-            get(|s, p, q| async move { CohortJsonResult(export_cohort(s, p, q).await) }),
+            get(|s, p, auth, q| async move { CohortJsonResult(export_cohort(s, p, auth, q).await) }),
         )
         .route(
             "/cohorts/:id/samples",
-            get(|s, p, q| async move { CohortJsonResult(list_samples(s, p, q).await) })
-                .post(|s, p, h, j| async move { CohortJsonResult(add_samples(s, p, h, j).await) }),
+            get(|s, p, auth, q| async move { CohortJsonResult(list_samples(s, p, auth, q).await) })
+                .post(|s, p, auth, h, j| async move { CohortJsonResult(add_samples(s, p, auth, h, j).await) }),
         )
         .route(
             "/cohorts/:id/samples/:sid",
-            get(|s, p| async move { CohortJsonResult(get_sample(s, p).await) })
-                .put(|s, p, j| async move { CohortJsonResult(update_sample(s, p, j).await) })
-                .delete(|s, p| async move { CohortJsonResult(remove_sample(s, p).await) }),
+            get(|s, p, auth| async move { CohortJsonResult(get_sample(s, p, auth).await) })
+                .put(|s, p, auth, j| async move { CohortJsonResult(update_sample(s, p, auth, j).await) })
+                .delete(|s, p, auth| async move { CohortJsonResult(remove_sample(s, p, auth).await) }),
         )
         .route(
             "/cohorts/:id/query",
-            post(|s, p, j| async move { CohortJsonResult(query_cohort(s, p, j).await) }),
+            post(|s, p, auth, j| async move { CohortJsonResult(query_cohort(s, p, auth, j).await) }),
         )
         .route(
             "/phenotype-schema",
@@ -107,11 +107,11 @@ pub fn router(pool: sqlx::PgPool) -> Router {
         )
         .route(
             "/cohorts/:id/stats",
-            get(|s, p| async move { CohortJsonResult(cohort_stats(s, p).await) }),
+            get(|s, p, auth| async move { CohortJsonResult(cohort_stats(s, p, auth).await) }),
         )
         .route(
             "/cohorts/:id/versions",
-            get(|s, p| async move { CohortJsonResult(list_versions(s, p).await) }),
+            get(|s, p, auth| async move { CohortJsonResult(list_versions(s, p, auth).await) }),
         )
         .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", CohortApiDoc::openapi()))
         .with_state(state)

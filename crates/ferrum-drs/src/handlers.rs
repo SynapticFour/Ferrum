@@ -4,7 +4,7 @@ use crate::error::{DrsError, Result};
 use crate::state::AppState;
 use crate::types::*;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     http::{HeaderMap, HeaderValue, StatusCode},
     response::IntoResponse,
     Json,
@@ -46,12 +46,19 @@ pub async fn get_object(
     Path(object_id): Path<String>,
     Query(params): Query<ExpandQuery>,
     headers: HeaderMap,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<DrsObject>> {
     let canonical = state
         .repo
         .resolve_id_or_uri(&object_id)
         .await?
         .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    if let Some(dataset_id) = state.repo.get_dataset_id(&canonical).await? {
+        let claims = auth.as_ref().ok_or_else(|| DrsError::Forbidden("authentication required for this dataset".into()))?;
+        if !claims.has_dataset_grant(&dataset_id) && !claims.is_admin() {
+            return Err(DrsError::Forbidden("dataset access not granted".into()));
+        }
+    }
     let obj = state
         .repo
         .get_object(&canonical, params.expand.unwrap_or(false))
@@ -93,12 +100,19 @@ pub async fn get_access(
     State(state): State<Arc<AppState>>,
     Path((object_id, access_id)): Path<(String, String)>,
     headers: HeaderMap,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<AccessUrl>> {
     let canonical = state
         .repo
         .resolve_id_or_uri(&object_id)
         .await?
         .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    if let Some(dataset_id) = state.repo.get_dataset_id(&canonical).await? {
+        let claims = auth.as_ref().ok_or_else(|| DrsError::Forbidden("authentication required for this dataset".into()))?;
+        if !claims.has_dataset_grant(&dataset_id) && !claims.is_admin() {
+            return Err(DrsError::Forbidden("dataset access not granted".into()));
+        }
+    }
     let mut url = state
         .repo
         .get_access_url(&canonical, &access_id)
@@ -135,12 +149,19 @@ pub async fn get_access(
 pub async fn get_object_view(
     State(state): State<Arc<AppState>>,
     Path(object_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> crate::error::Result<axum::response::Response> {
     let canonical = state
         .repo
         .resolve_id_or_uri(&object_id)
         .await?
         .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+    if let Some(dataset_id) = state.repo.get_dataset_id(&canonical).await? {
+        let claims = auth.as_ref().ok_or_else(|| DrsError::Forbidden("authentication required for this dataset".into()))?;
+        if !claims.has_dataset_grant(&dataset_id) && !claims.is_admin() {
+            return Err(DrsError::Forbidden("dataset access not granted".into()));
+        }
+    }
     let obj = state
         .repo
         .get_object(&canonical, false)

@@ -5,7 +5,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use jsonwebtoken::{decode, DecodingKey, Validation};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -58,6 +58,37 @@ pub enum AuthClaims {
     },
 }
 
+impl AuthClaims {
+    /// Subject (user) identifier for access control (e.g. WES owner_sub, cohort membership).
+    pub fn sub(&self) -> Option<&str> {
+        match self {
+            AuthClaims::Jwt { sub, .. } => Some(sub.as_str()),
+            AuthClaims::Passport { claims, .. } => claims.sub.as_deref(),
+        }
+    }
+
+    /// True if the token has the ferrum:admin role (Passport visas; JWT has no roles in core).
+    pub fn is_admin(&self) -> bool {
+        match self {
+            AuthClaims::Jwt { .. } => false,
+            AuthClaims::Passport { visas, .. } => visas
+                .iter()
+                .any(|v| v.value == "ferrum:admin" || v.value.contains("ferrum:admin")),
+        }
+    }
+
+    /// True if the token has ControlledAccessGrants visa for the given dataset (DRS access control).
+    pub fn has_dataset_grant(&self, dataset_id: &str) -> bool {
+        match self {
+            AuthClaims::Jwt { .. } => false,
+            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| {
+                (v.r#type == "ControlledAccessGrants" || v.r#type.contains("ControlledAccessGrants"))
+                    && v.value == dataset_id
+            }),
+        }
+    }
+}
+
 /// Auth config used by the middleware (from FerrumConfig).
 #[derive(Clone)]
 pub struct AuthMiddlewareConfig {
@@ -65,6 +96,8 @@ pub struct AuthMiddlewareConfig {
     pub issuer: Option<String>,
     pub jwks_url: Option<String>,
     pub passport_endpoints: Vec<String>,
+    /// A07: Max token age in hours (reject if iat too old). 0 = disable.
+    pub max_token_age_hours: u32,
 }
 
 impl AuthMiddlewareConfig {
@@ -74,6 +107,7 @@ impl AuthMiddlewareConfig {
             issuer: cfg.issuer.clone(),
             jwks_url: cfg.jwks_url.clone(),
             passport_endpoints: cfg.passport_endpoints.clone(),
+            max_token_age_hours: cfg.max_token_age_hours,
         }
     }
 }
@@ -133,24 +167,44 @@ pub async fn auth_middleware(
     next.run(request).await
 }
 
+/// A07: Reject token if issued more than max_hours ago. 0 = skip check.
+fn reject_token_if_too_old(iat: Option<i64>, max_hours: u32) -> Result<(), jsonwebtoken::errors::Error> {
+    if max_hours == 0 {
+        return Ok(());
+    }
+    let iat = iat.ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    let max_age_secs = u64::from(max_hours) * 3600;
+    if now.as_secs().saturating_sub(iat as u64) > max_age_secs {
+        return Err(jsonwebtoken::errors::ErrorKind::ExpiredSignature.into());
+    }
+    Ok(())
+}
+
 /// Decode as standard JWT (HS256) or as GA4GH Passport.
 fn decode_jwt_or_passport(token: &str, cfg: &AuthMiddlewareConfig) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
     // Try as GA4GH Passport (has ga4gh_passport_v1 claim)
     if let Ok(claims) = decode_passport_jwt(token, cfg) {
+        reject_token_if_too_old(claims.iat, cfg.max_token_age_hours)?;
         return Ok(AuthClaims::Passport {
             claims: claims.clone(),
             visas: decode_passport_visas(claims.ga4gh_passport_v1.as_deref().unwrap_or(&[])),
         });
     }
 
-    // Try as standard JWT
+    // Try as standard JWT — OWASP A02: algorithm pinning, never accept none or HS256 when RS256 expected
     if let Some(ref secret) = cfg.jwt_secret {
         let key = DecodingKey::from_secret(secret);
-        let mut validation = Validation::default();
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.algorithms = vec![Algorithm::HS256];
+        validation.validate_exp = true;
         if let Some(ref iss) = cfg.issuer {
             validation.iss = Some(HashSet::from([iss.clone()]));
         }
         let data = decode::<PassportClaims>(token, &key, &validation)?;
+        reject_token_if_too_old(data.claims.iat, cfg.max_token_age_hours)?;
         return Ok(AuthClaims::Jwt {
             sub: data.claims.sub.unwrap_or_default(),
             iss: data.claims.iss,
@@ -163,13 +217,16 @@ fn decode_jwt_or_passport(token: &str, cfg: &AuthMiddlewareConfig) -> Result<Aut
 
 fn decode_jwt_fallback(token: &str) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
     let decoded = jsonwebtoken::decode_header(token)?;
-    let alg = decoded.alg;
-    // Without config we only accept if we can decode; use a dummy secret for HS* (will fail if signed)
+    // OWASP A02: only allow HS256 in fallback; never accept Algorithm::None or algorithm confusion
+    if decoded.alg != Algorithm::HS256 {
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm.into());
+    }
     let claims = jsonwebtoken::decode::<PassportClaims>(
         token,
         &DecodingKey::from_secret(b""),
-        &Validation::new(alg),
+        &Validation::new(Algorithm::HS256),
     )?;
+    reject_token_if_too_old(claims.claims.iat, 24)?; // A07: default 24h when no config
     Ok(AuthClaims::Jwt {
         sub: claims.claims.sub.unwrap_or_default(),
         iss: claims.claims.iss,
@@ -179,9 +236,16 @@ fn decode_jwt_fallback(token: &str) -> Result<AuthClaims, jsonwebtoken::errors::
 
 fn decode_passport_jwt(token: &str, _cfg: &AuthMiddlewareConfig) -> Result<PassportClaims, jsonwebtoken::errors::Error> {
     let decoded = jsonwebtoken::decode_header(token)?;
+    // OWASP A02: pin to RS256/ES256 for Passport; never HS256 or None
     let alg = decoded.alg;
+    if alg != Algorithm::RS256 && alg != Algorithm::ES256 {
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm.into());
+    }
     let key = DecodingKey::from_secret(b""); // TODO: use JWKS from cfg.jwks_url for RS256
-    let data = jsonwebtoken::decode::<PassportClaims>(token, &key, &Validation::new(alg))?;
+    let mut validation = Validation::new(alg);
+    validation.validate_exp = true;
+    validation.algorithms = vec![Algorithm::RS256, Algorithm::ES256];
+    let data = jsonwebtoken::decode::<PassportClaims>(token, &key, &validation)?;
     Ok(data.claims)
 }
 
@@ -189,8 +253,12 @@ fn decode_passport_visas(visa_jwts: &[String]) -> Vec<VisaObject> {
     let mut out = Vec::new();
     for s in visa_jwts {
         if let Ok(decoded) = jsonwebtoken::decode_header(s) {
+            if decoded.alg != Algorithm::RS256 && decoded.alg != Algorithm::ES256 {
+                continue;
+            }
             let key = jsonwebtoken::DecodingKey::from_secret(b"");
-            let val = jsonwebtoken::Validation::new(decoded.alg);
+            let mut val = jsonwebtoken::Validation::new(decoded.alg);
+            val.algorithms = vec![Algorithm::RS256, Algorithm::ES256];
             if let Ok(data) = jsonwebtoken::decode::<VisaJwtPayload>(s, &key, &val) {
                 if let Some(v) = data.claims.ga4gh_visa_v1 {
                     out.push(v);

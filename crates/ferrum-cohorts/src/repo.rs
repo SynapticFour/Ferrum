@@ -55,33 +55,54 @@ impl CohortRepo {
         Ok(row)
     }
 
+    /// Returns true if the caller (sub) may read/write the cohort: owner or in cohort_members. Admin not checked here (gateway/handler).
+    pub async fn cohort_accessible_by(&self, cohort_id: &str, sub: &str) -> Result<bool> {
+        let owner_row: Option<(String,)> = sqlx::query_as("SELECT owner_sub FROM cohorts WHERE id = $1")
+            .bind(cohort_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        let Some((owner_sub,)) = owner_row else {
+            return Ok(false);
+        };
+        if owner_sub == sub {
+            return Ok(true);
+        }
+        let member: Option<(i32,)> = sqlx::query_as(
+            "SELECT 1 FROM cohort_members WHERE cohort_id = $1 AND sub = $2",
+        )
+        .bind(cohort_id)
+        .bind(sub)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(member.is_some())
+    }
+
+    /// List cohorts visible to the caller: owned by sub or where (cohort_id, sub) in cohort_members. If sub is None, returns empty (no unauthenticated list).
     pub async fn list_cohorts(
         &self,
-        owner_sub: Option<&str>,
+        caller_sub: Option<&str>,
         tag_filter: Option<&str>,
         limit: i64,
         offset: i64,
     ) -> Result<Vec<(String, String, Option<String>, String, Option<String>, i32, bool, i32, Value, DateTime<Utc>, DateTime<Utc>)>> {
         type Row = (String, String, Option<String>, String, Option<String>, i32, bool, i32, Value, DateTime<Utc>, DateTime<Utc>);
-        let rows: Vec<Row> = if let Some(sub) = owner_sub {
-            sqlx::query_as(
-                r#"SELECT id, name, description, owner_sub, workspace_id, version, is_frozen, sample_count, tags, created_at, updated_at
-                   FROM cohorts WHERE owner_sub = $1
-                   ORDER BY updated_at DESC LIMIT $2 OFFSET $3"#,
-            )
-            .bind(sub)
-            .bind(limit)
-            .bind(offset)
-        } else {
-            sqlx::query_as(
-                r#"SELECT id, name, description, owner_sub, workspace_id, version, is_frozen, sample_count, tags, created_at, updated_at
-                   FROM cohorts ORDER BY updated_at DESC LIMIT $1 OFFSET $2"#,
-            )
-            .bind(limit)
-            .bind(offset)
-        }
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<Row> = match caller_sub {
+            Some(sub) => {
+                sqlx::query_as(
+                    r#"SELECT c.id, c.name, c.description, c.owner_sub, c.workspace_id, c.version, c.is_frozen, c.sample_count, c.tags, c.created_at, c.updated_at
+                       FROM cohorts c
+                       LEFT JOIN cohort_members m ON c.id = m.cohort_id AND m.sub = $1
+                       WHERE c.owner_sub = $1 OR m.sub IS NOT NULL
+                       ORDER BY c.updated_at DESC LIMIT $2 OFFSET $3"#,
+                )
+                .bind(sub)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(&self.pool)
+                .await?
+            }
+            None => return Ok(Vec::new()),
+        };
         let filtered: Vec<Row> = if let Some(tag) = tag_filter {
             rows.into_iter()
                 .filter(|r| {

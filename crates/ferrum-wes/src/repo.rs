@@ -25,11 +25,12 @@ impl WesRepo {
         workflow_engine_params: &Value,
         tags: &Value,
         work_dir: Option<&str>,
+        owner_sub: &str,
     ) -> Result<()> {
         sqlx::query(
             r#"INSERT INTO wes_runs (run_id, workflow_url, workflow_type, workflow_type_version,
-               workflow_params, workflow_engine_params, tags, state, work_dir)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, 'QUEUED', $8)"#,
+               workflow_params, workflow_engine_params, tags, state, work_dir, owner_sub)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, 'QUEUED', $8, $9)"#,
         )
         .bind(run_id)
         .bind(workflow_url)
@@ -39,6 +40,7 @@ impl WesRepo {
         .bind(workflow_engine_params)
         .bind(tags)
         .bind(work_dir)
+        .bind(owner_sub)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -49,21 +51,46 @@ impl WesRepo {
         run_id: &str,
     ) -> Result<Option<(
         String, String, String, String, Value, Value, Value, String,
-        Option<DateTime<Utc>>, Option<DateTime<Utc>>, Value, Option<String>,
+        Option<DateTime<Utc>>, Option<DateTime<Utc>>, Value, Option<String>, Option<String>,
     )>> {
         let row = sqlx::query_as::<_, (
             String, String, String, String, Value, Value, Value, String,
-            Option<DateTime<Utc>>, Option<DateTime<Utc>>, Value, Option<String>,
+            Option<DateTime<Utc>>, Option<DateTime<Utc>>, Value, Option<String>, Option<String>,
         )>(
             r#"SELECT run_id, workflow_url, workflow_type, workflow_type_version,
                workflow_params, workflow_engine_params, tags, state,
-               start_time, end_time, outputs, work_dir
+               start_time, end_time, outputs, work_dir, owner_sub
                FROM wes_runs WHERE run_id = $1"#,
         )
         .bind(run_id)
         .fetch_optional(&self.pool)
         .await?;
         Ok(row)
+    }
+
+    /// Returns true if the run exists and the caller may access it (owner or admin).
+    pub async fn run_visible_to(
+        &self,
+        run_id: &str,
+        caller_sub: Option<&str>,
+        is_admin: bool,
+    ) -> Result<bool> {
+        let row: Option<(Option<String>,)> = sqlx::query_as(
+            "SELECT owner_sub FROM wes_runs WHERE run_id = $1",
+        )
+        .bind(run_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some((run_owner,)) = row else {
+            return Ok(false);
+        };
+        if is_admin {
+            return Ok(true);
+        }
+        match caller_sub {
+            None => Ok(run_owner.is_none() || run_owner.as_deref() == Some("anonymous")),
+            Some(sub) => Ok(run_owner.as_deref() == Some(sub) || run_owner.is_none()),
+        }
     }
 
     pub async fn update_state(&self, run_id: &str, state: RunState) -> Result<()> {
@@ -138,6 +165,7 @@ impl WesRepo {
         page_size: i64,
         page_token: Option<&str>,
         state_filter: Option<RunState>,
+        owner_sub: Option<&str>,
     ) -> Result<(Vec<RunSummary>, Option<String>)> {
         let offset: i64 = page_token.and_then(|t| t.parse().ok()).unwrap_or(0);
         let state_str = state_filter.map(|s| s.as_str());
@@ -145,11 +173,13 @@ impl WesRepo {
             sqlx::query_as(
                 r#"SELECT run_id, state, start_time, end_time, tags FROM wes_runs
                    WHERE ($1::text IS NULL OR state = $1)
+                     AND ($4::text IS NULL OR owner_sub = $4)
                    ORDER BY created_at DESC LIMIT $2 OFFSET $3"#,
             )
             .bind(state_str)
             .bind(page_size + 1)
             .bind(offset)
+            .bind(owner_sub)
             .fetch_all(&self.pool)
             .await?;
         let has_more = rows.len() as i64 > page_size;

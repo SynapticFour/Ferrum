@@ -79,7 +79,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/objects/{object_id}",
-            get(|s, p, q, h| async move { JsonResult(get_object(s, p, q, h).await) })
+            get(|s, p, q, h, auth| async move { JsonResult(get_object(s, p, q, h, auth).await) })
                 .put(|s, p, j| async move { JsonResult(put_object(s, p, j).await) })
                 .delete(|s, p| async move { JsonResult(delete_object(s, p).await) })
                 .options(options_object),
@@ -90,11 +90,11 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/objects/{object_id}/access/{access_id}",
-            get(|s, p, h| async move { JsonResult(get_access(s, p, h).await) }),
+            get(|s, p, h, auth| async move { JsonResult(get_access(s, p, h, auth).await) }),
         )
         .route(
             "/objects/{object_id}/view",
-            get(|s, p| async move { ViewResult(get_object_view(s, p).await) }),
+            get(|s, p, auth| async move { ViewResult(get_object_view(s, p, auth).await) }),
         )
         .route(
             "/ingest/file",

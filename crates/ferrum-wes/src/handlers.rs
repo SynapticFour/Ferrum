@@ -4,7 +4,7 @@ use crate::error::{Result, WesError};
 use crate::state::AppState;
 use crate::types::*;
 use axum::{
-    extract::{Multipart, Path, Query, State},
+    extract::{Extension, Multipart, Path, Query, State},
     response::{sse::{Event, KeepAlive, Sse}, IntoResponse},
     Json,
 };
@@ -66,24 +66,32 @@ pub struct ListRunsQuery {
     pub state: Option<String>,
 }
 
-/// GET /runs
+/// GET /runs — lists runs for the authenticated user (or all if no auth / admin).
 #[utoipa::path(get, path = "/runs", params(ListRunsQuery), responses((status = 200, body = RunListResponse)))]
 pub async fn list_runs(
     State(app): State<Arc<AppState>>,
     Query(q): Query<ListRunsQuery>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunListResponse>> {
     let page_size = q.page_size.unwrap_or(100).min(1000);
     let state_filter = q.state.as_deref().map(RunState::from_str);
+    let owner_sub = auth.as_ref().and_then(|c| c.sub());
+    let is_admin = auth.as_ref().map_or(false, |c| c.is_admin());
+    let filter_owner = if is_admin { None } else { owner_sub };
     let (runs, next_page_token) = app
         .repo
-        .list_runs(page_size, q.page_token.as_deref(), state_filter)
+        .list_runs(page_size, q.page_token.as_deref(), state_filter, filter_owner)
         .await?;
     Ok(Json(RunListResponse { runs, next_page_token }))
 }
 
 /// POST /runs (multipart: workflow_params, workflow_type, workflow_type_version, workflow_url, tags, etc.)
 #[utoipa::path(post, path = "/runs", responses((status = 200, body = RunIdResponse)))]
-pub async fn post_runs(State(app): State<Arc<AppState>>, mut multipart: Multipart) -> Result<Json<RunIdResponse>> {
+pub async fn post_runs(
+    State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    mut multipart: Multipart,
+) -> Result<Json<RunIdResponse>> {
     let mut workflow_params = serde_json::Value::Object(serde_json::Map::new());
     let mut workflow_type = None::<String>;
     let mut workflow_type_version = None::<String>;
@@ -124,6 +132,7 @@ pub async fn post_runs(State(app): State<Arc<AppState>>, mut multipart: Multipar
     let workflow_url = workflow_url.ok_or_else(|| WesError::Validation("workflow_url required".into()))?;
 
     let run_id = ulid::Ulid::new().to_string();
+    let owner_sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
     app
         .repo
         .create_run(
@@ -135,6 +144,7 @@ pub async fn post_runs(State(app): State<Arc<AppState>>, mut multipart: Multipar
             &workflow_engine_params,
             &tags,
             None,
+            owner_sub,
         )
         .await?;
 
@@ -176,7 +186,11 @@ pub async fn post_runs(State(app): State<Arc<AppState>>, mut multipart: Multipar
 pub async fn get_run_status(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunStatus>> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
     if let (Some(ref metrics), false) = (
         &app.metrics,
         app.metrics_sampler_started.load(std::sync::atomic::Ordering::Acquire),
@@ -187,7 +201,7 @@ pub async fn get_run_status(
     }
     let state_row = app.run_manager.poll_status(&run_id).await?;
     if state_row == RunState::Unknown {
-        if let Some((_, _, _, _, _, _, _, s, _, _, _, _)) = app.repo.get_run(&run_id).await? {
+        if let Some((_, _, _, _, _, _, _, s, _, _, _, _, _)) = app.repo.get_run(&run_id).await? {
             return Ok(Json(RunStatus {
                 run_id,
                 state: RunState::from_str(&s),
@@ -202,18 +216,36 @@ pub async fn get_run_status(
     }))
 }
 
+fn run_visible(
+    app: &AppState,
+    run_id: &str,
+    auth: Option<&Extension<ferrum_core::AuthClaims>>,
+) -> impl std::future::Future<Output = Result<bool>> + Send {
+    let repo = Arc::clone(&app.repo);
+    let run_id = run_id.to_string();
+    let sub = auth.and_then(|c| c.sub().map(String::from));
+    let is_admin = auth.map_or(false, |c| c.is_admin());
+    async move {
+        repo.run_visible_to(&run_id, sub.as_deref(), is_admin).await
+    }
+}
+
 /// GET /runs/{run_id} (full RunLog)
 #[utoipa::path(get, path = "/runs/{run_id}", responses((status = 200, body = RunLog), (status = 404)))]
 pub async fn get_run_log(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunLog>> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
     let row = app
         .repo
         .get_run(&run_id)
         .await?
         .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
-    let (run_id_db, workflow_url, workflow_type, workflow_type_version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir) = row;
+    let (run_id_db, workflow_url, workflow_type, workflow_type_version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _owner) = row;
     let run_state = RunState::from_str(&state_str);
     let run_log_row: Option<(String, Vec<String>, Option<DateTime<Utc>>, Option<DateTime<Utc>>, Option<String>, Option<String>, Option<i32>)> =
         app.repo.get_run_log(&run_id).await?;
@@ -270,8 +302,9 @@ pub async fn get_run_log(
 pub async fn cancel_run(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunIdResponse>> {
-    if app.repo.get_run(&run_id).await?.is_none() {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
     app.run_manager.cancel(&run_id).await?;
@@ -283,8 +316,9 @@ pub async fn cancel_run(
 pub async fn list_tasks(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<TaskListResponse>> {
-    if app.repo.get_run(&run_id).await?.is_none() {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
     let task_logs = app.repo.get_task_logs(&run_id, 100, None).await?;
@@ -298,8 +332,9 @@ pub async fn list_tasks(
 pub async fn stream_logs(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Sse<impl futures_util::Stream<Item = std::result::Result<Event, Infallible>> + Send + 'static>> {
-    if app.repo.get_run(&run_id).await?.is_none() {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
     let rx = app
@@ -320,9 +355,13 @@ pub async fn stream_logs(
 pub async fn get_stdout(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<axum::response::Response> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
     let row = app.repo.get_run(&run_id).await?.and_then(|r| {
-        let (_, _, _, _, _, _, _, _, _, _, _, work_dir) = r;
+        let (_, _, _, _, _, _, _, _, _, _, _, work_dir, _) = r;
         work_dir.map(|d| (run_id.clone(), d))
     });
     let (_, work_dir) = row.ok_or_else(|| WesError::NotFound(format!("run or work_dir not found: {}", run_id)))?;
@@ -341,9 +380,13 @@ pub async fn get_stdout(
 pub async fn get_stderr(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<axum::response::Response> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
     let row = app.repo.get_run(&run_id).await?.and_then(|r| {
-        let (_, _, _, _, _, _, _, _, _, _, _, work_dir) = r;
+        let (_, _, _, _, _, _, _, _, _, _, _, work_dir, _) = r;
         work_dir.map(|d| (run_id.clone(), d))
     });
     let (_, work_dir) = row.ok_or_else(|| WesError::NotFound(format!("run or work_dir not found: {}", run_id)))?;
@@ -373,14 +416,15 @@ pub struct TaskListResponse {
 pub async fn get_run_provenance(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunProvenanceResponse>> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
     let store = app
         .provenance_store
         .as_ref()
         .ok_or_else(|| WesError::Other(anyhow::anyhow!("provenance not configured")))?;
-    if app.repo.get_run(&run_id).await?.is_none() {
-        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
-    }
     let graph = store.run_lineage(&run_id).await?;
     Ok(Json(RunProvenanceResponse {
         run_id: run_id.clone(),
@@ -463,13 +507,17 @@ pub async fn get_provenance_graph(
 pub async fn export_ro_crate(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<axum::response::Response> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
     let row = app
         .repo
         .get_run(&run_id)
         .await?
         .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
-    let (_, workflow_url, workflow_type, _version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir) = row;
+    let (_, workflow_url, workflow_type, _version, _params, _ep, _tags, state_str, start_time, end_time, outputs, _work_dir, _) = row;
     let date_published = end_time.or(start_time).map(|t| t.to_rfc3339()).unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
     let mut input_parts: Vec<serde_json::Value> = Vec::new();
     let mut output_parts: Vec<serde_json::Value> = Vec::new();
@@ -618,14 +666,15 @@ fn format_duration(secs: i64) -> String {
 pub async fn get_run_metrics(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunMetricsResponse>> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
     let metrics = app
         .metrics
         .as_ref()
         .ok_or_else(|| WesError::Other(anyhow::anyhow!("metrics not configured")))?;
-    if app.repo.get_run(&run_id).await?.is_none() {
-        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
-    }
     let summary = match metrics.get_run_cost_summary(&run_id).await? {
         Some((wall, cpu_s, _mem_gb_h, peak, read_gb, write_gb, cost, _snap)) => RunMetricsSummary {
             wall_time: format_duration(wall),
@@ -699,16 +748,17 @@ pub async fn get_run_metrics(
 pub async fn get_run_metrics_report(
     State(app): State<Arc<AppState>>,
     Path(run_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<axum::response::Response> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
     let metrics = app
         .metrics
         .as_ref()
         .ok_or_else(|| WesError::Other(anyhow::anyhow!("metrics not configured")))?;
-    if app.repo.get_run(&run_id).await?.is_none() {
-        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
-    }
     let run_row = app.repo.get_run(&run_id).await?.ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
-    let (_, _url, workflow_type, _ver, _, _, _, state_str, _, _, _, _) = run_row;
+    let (_, _url, workflow_type, _ver, _, _, _, state_str, _, _, _, _, _) = run_row;
     let (wall, cpu_s, peak_mb, read_gb, write_gb, cost_usd, tasks_for_bar) = match metrics.get_run_cost_summary(&run_id).await? {
         Some((w, c, _, p, r, wr, co, _)) => {
             let task_rows = metrics.get_task_metrics_for_run(&run_id).await?;

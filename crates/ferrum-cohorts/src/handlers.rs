@@ -5,7 +5,7 @@ use crate::query::CohortQuery;
 use crate::state::AppState;
 use crate::types::*;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Extension, Path, Query, State},
     http::HeaderMap,
     Json,
 };
@@ -16,13 +16,17 @@ use std::sync::Arc;
 use utoipa::ToSchema;
 use ulid::Ulid;
 
-fn owner_sub_from_headers(headers: &HeaderMap) -> String {
-    headers
-        .get("x-owner-sub")
-        .or_else(|| headers.get("x-passport-sub"))
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("anonymous")
-        .to_string()
+/// Prefer JWT/Passport sub; fallback to x-owner-sub for backward compat (spoofable — gateway should enforce auth).
+fn owner_sub_from_request(auth: Option<&Extension<ferrum_core::AuthClaims>>, headers: &HeaderMap) -> String {
+    auth.and_then(|c| c.sub().map(String::from))
+        .or_else(|| {
+            headers
+                .get("x-owner-sub")
+                .or_else(|| headers.get("x-passport-sub"))
+                .and_then(|v| v.to_str().ok())
+                .map(String::from)
+        })
+        .unwrap_or_else(|| "anonymous".to_string())
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,15 +44,15 @@ pub struct ListCohortsResponse {
 
 pub async fn list_cohorts(
     State(state): State<Arc<AppState>>,
-    headers: HeaderMap,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Query(q): Query<ListCohortsQuery>,
 ) -> Result<Json<ListCohortsResponse>> {
-    let owner = owner_sub_from_headers(&headers);
+    let caller_sub = auth.as_ref().and_then(|c| c.sub());
     let limit = q.limit.unwrap_or(50).min(100);
     let offset = q.offset.unwrap_or(0);
     let rows = state
         .repo
-        .list_cohorts(Some(&owner), q.tag.as_deref(), limit + 1, offset)
+        .list_cohorts(caller_sub, q.tag.as_deref(), limit + 1, offset)
         .await?;
     let has_more = rows.len() as i64 > limit;
     let cohorts: Vec<CohortSummary> = rows
@@ -84,10 +88,11 @@ pub async fn list_cohorts(
 
 pub async fn create_cohort(
     State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     headers: HeaderMap,
     Json(req): Json<CreateCohortRequest>,
 ) -> Result<Json<CohortDetail>> {
-    let owner = owner_sub_from_headers(&headers);
+    let owner = owner_sub_from_request(auth.as_ref(), &headers);
     let id = Ulid::new().to_string();
     let tags = serde_json::to_value(req.tags).unwrap_or(json!([]));
     let filter_criteria = req.filter_criteria;
@@ -128,7 +133,12 @@ pub async fn create_cohort(
 pub async fn get_cohort(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<CohortDetail>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let row = state
         .repo
         .get_cohort(&id)
@@ -158,8 +168,13 @@ pub async fn get_cohort(
 pub async fn update_cohort(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(req): Json<UpdateCohortRequest>,
 ) -> Result<Json<CohortDetail>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let tags_opt = req.tags.as_ref().map(|t| serde_json::to_value(t).unwrap_or(json!([])));
     state
         .repo
@@ -171,13 +186,18 @@ pub async fn update_cohort(
             req.filter_criteria.as_ref(),
         )
         .await?;
-    get_cohort(State(state), Path(id)).await
+    get_cohort(State(state), Path(id), auth).await
 }
 
 pub async fn delete_cohort(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<serde_json::Value>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     state.repo.delete_cohort(&id).await?;
     Ok(Json(json!({ "deleted": id })))
 }
@@ -185,9 +205,14 @@ pub async fn delete_cohort(
 pub async fn freeze_cohort(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<CohortDetail>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     state.repo.freeze_cohort(&id).await?;
-    get_cohort(State(state), Path(id)).await
+    get_cohort(State(state), Path(id), auth).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -198,10 +223,15 @@ pub struct CloneCohortRequest {
 pub async fn clone_cohort(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     headers: HeaderMap,
     Json(req): Json<CloneCohortRequest>,
 ) -> Result<Json<CohortDetail>> {
-    let owner = owner_sub_from_headers(&headers);
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
+    let owner = owner_sub_from_request(auth.as_ref(), &headers);
     let row = state.repo.get_cohort(&id).await?.ok_or_else(|| CohortError::NotFound(format!("cohort {}", id)))?;
     let (_, name, description, _owner, workspace_id, _v, _frozen, _count, tags, filter_criteria, _, _) = row;
     let new_id = Ulid::new().to_string();
@@ -223,7 +253,7 @@ pub async fn clone_cohort(
         let sid = Ulid::new().to_string();
         state.repo.add_sample(&sid, &new_id, &sample_id, &drs_object_ids, &phenotype, &owner).await?;
     }
-    get_cohort(State(state), Path(new_id)).await
+    get_cohort(State(state), Path(new_id), auth).await
 }
 
 // --- Samples ---
@@ -266,9 +296,13 @@ fn sample_from_row(
 pub async fn list_samples(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Query(q): Query<ListSamplesQuery>,
 ) -> Result<Json<ListSamplesResponse>> {
-    let _ = state.repo.get_cohort(&id).await?.ok_or_else(|| CohortError::NotFound(format!("cohort {}", id)))?;
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let limit = q.limit.unwrap_or(100).min(500);
     let offset = q.offset.unwrap_or(0);
     let rows = state.repo.list_samples(&id, limit + 1, offset).await?;
@@ -289,10 +323,15 @@ pub async fn list_samples(
 pub async fn add_samples(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     headers: HeaderMap,
     Json(req): Json<AddSamplesBatchRequest>,
 ) -> Result<Json<serde_json::Value>> {
-    let owner = owner_sub_from_headers(&headers);
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
+    let owner = owner_sub_from_request(auth.as_ref(), &headers);
     let cohort = state.repo.get_cohort(&id).await?.ok_or_else(|| CohortError::NotFound(format!("cohort {}", id)))?;
     let (_, _, _, _, _, _, frozen, _, _, _, _, _) = cohort;
     if frozen {
@@ -314,7 +353,12 @@ pub async fn add_samples(
 pub async fn get_sample(
     State(state): State<Arc<AppState>>,
     Path((id, sample_id)): Path<(String, String)>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<CohortSample>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let row = state
         .repo
         .get_sample(&id, &sample_id)
@@ -335,20 +379,30 @@ pub struct UpdateSampleRequest {
 pub async fn update_sample(
     State(state): State<Arc<AppState>>,
     Path((id, sample_id)): Path<(String, String)>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(req): Json<UpdateSampleRequest>,
 ) -> Result<Json<CohortSample>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let drs_opt = req.drs_object_ids.map(|v| serde_json::to_value(v).unwrap_or(json!([])));
     state
         .repo
         .update_sample(&id, &sample_id, drs_opt.as_ref(), req.phenotype.as_ref())
         .await?;
-    get_sample(State(state), Path((id, sample_id))).await
+    get_sample(State(state), Path((id, sample_id)), auth).await
 }
 
 pub async fn remove_sample(
     State(state): State<Arc<AppState>>,
     Path((id, sample_id)): Path<(String, String)>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<serde_json::Value>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     state.repo.remove_sample(&id, &sample_id).await?;
     Ok(Json(json!({ "removed": sample_id })))
 }
@@ -377,16 +431,27 @@ pub async fn get_schema(State(state): State<Arc<AppState>>) -> Result<Json<Vec<P
 pub async fn query_cohort(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(q): Json<CohortQuery>,
 ) -> Result<Json<QueryResult>> {
-    let _ = state.repo.get_cohort(&id).await?.ok_or_else(|| CohortError::NotFound(format!("cohort {}", id)))?;
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let result = q.execute(&id, state.repo.pool()).await?;
     Ok(Json(result))
 }
 
 // --- Stats ---
-pub async fn cohort_stats(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Result<Json<CohortStats>> {
-    let _ = state.repo.get_cohort(&id).await?.ok_or_else(|| CohortError::NotFound(format!("cohort {}", id)))?;
+pub async fn cohort_stats(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<Json<CohortStats>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let samples = state.repo.samples_for_cohort(&id).await?;
     let sample_count = samples.len();
     let mut field_filled: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
@@ -427,8 +492,12 @@ pub async fn cohort_stats(State(state): State<Arc<AppState>>, Path(id): Path<Str
 pub async fn list_versions(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<Vec<CohortVersionInfo>>> {
-    let _ = state.repo.get_cohort(&id).await?.ok_or_else(|| CohortError::NotFound(format!("cohort {}", id)))?;
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let rows = state.repo.list_versions(&id).await?;
     let versions: Vec<CohortVersionInfo> = rows
         .into_iter()
@@ -453,8 +522,13 @@ pub struct ExportResponse {
 pub async fn export_cohort(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>> {
+    let sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+    if !state.repo.cohort_accessible_by(&id, sub).await? {
+        return Err(CohortError::NotFound(format!("cohort {}", id)));
+    }
     let _format = q.get("format").map(|s| s.as_str()).unwrap_or("json");
     let cohort = state.repo.get_cohort(&id).await?.ok_or_else(|| CohortError::NotFound(format!("cohort {}", id)))?;
     let (cid, name, description, _, _, version, is_frozen, sample_count, tags, filter_criteria, created_at, updated_at) = cohort;

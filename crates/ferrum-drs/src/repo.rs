@@ -61,10 +61,20 @@ impl DrsRepo {
         Ok(row.map(|r| r.0))
     }
 
+    /// Dataset ID for access control (ControlledAccessGrants visa). None = no restriction.
+    pub async fn get_dataset_id(&self, object_id: &str) -> Result<Option<String>> {
+        let row: Option<(Option<String>,)> =
+            sqlx::query_as("SELECT dataset_id FROM drs_objects WHERE id = $1")
+                .bind(object_id)
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(row.and_then(|r| r.0))
+    }
+
     /// Get object by canonical ID, optionally expand bundle contents.
     pub async fn get_object(&self, id: &str, expand: bool) -> Result<Option<DrsObject>> {
         let row: Option<DrsObjectRow> = sqlx::query_as(
-            r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases
+            r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id
                FROM drs_objects WHERE id = $1"#,
         )
         .bind(id)
@@ -271,7 +281,7 @@ impl DrsRepo {
     ) -> Result<Vec<DrsObject>> {
         let limit = limit.min(1000);
         let rows: Vec<DrsObjectRow> = sqlx::query_as(
-            r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases
+            r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id
                FROM drs_objects
                WHERE ($1::text IS NULL OR mime_type = $1)
                  AND ($2::bigint IS NULL OR size >= $2)
@@ -333,6 +343,7 @@ struct DrsObjectRow {
     size: i64,
     is_bundle: bool,
     aliases: Option<serde_json::Value>,
+    dataset_id: Option<String>,
 }
 
 #[derive(sqlx::FromRow)]

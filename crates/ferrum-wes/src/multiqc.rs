@@ -63,6 +63,7 @@ impl MultiQCRunner {
             _et,
             outputs,
             work_dir_opt,
+            _owner,
         ) = row;
         let work_dir = match work_dir_opt {
             Some(d) => PathBuf::from(d),

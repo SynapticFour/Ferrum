@@ -47,6 +47,12 @@ pub enum FerrumError {
 
     #[error("internal error: {0}")]
     Internal(#[from] anyhow::Error),
+
+    #[error("path traversal blocked")]
+    PathTraversal,
+
+    #[error("SSRF blocked: {0}")]
+    SsrfBlocked(String),
 }
 
 #[derive(Serialize)]
@@ -69,6 +75,8 @@ impl IntoResponse for FerrumError {
             FerrumError::ValidationError(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             FerrumError::Config(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Configuration error".to_string()),
             FerrumError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string()),
+            FerrumError::PathTraversal => (StatusCode::BAD_REQUEST, "Path traversal blocked".to_string()),
+            FerrumError::SsrfBlocked(_) => (StatusCode::BAD_REQUEST, self.to_string()),
         };
         (
             status,

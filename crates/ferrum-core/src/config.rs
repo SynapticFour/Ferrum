@@ -19,6 +19,19 @@ pub struct FerrumConfig {
     pub encryption: EncryptionConfig,
     #[serde(default)]
     pub pricing: PricingConfig,
+    /// A05: CORS and security options. If absent, CORS is permissive.
+    #[serde(default)]
+    pub security: Option<SecurityConfig>,
+}
+
+/// A05: Security / CORS configuration. Never use wildcard (*) in production.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SecurityConfig {
+    /// Allowed origins (e.g. ["https://ferrum.institution.edu"]). Empty = permissive.
+    #[serde(default)]
+    pub allowed_origins: Option<Vec<String>>,
+    #[serde(default)]
+    pub allow_credentials: Option<bool>,
 }
 
 /// Pricing configuration for run cost estimation (WES/TES).
@@ -136,7 +149,7 @@ fn default_storage_backend() -> String {
 /// Auth / JWT configuration.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct AuthConfig {
-    /// HMAC secret for JWT validation (HS256). Env: FERRUM_AUTH__JWT_SECRET
+    /// HMAC secret for JWT validation (HS256). Env: FERRUM_AUTH__JWT_SECRET. May be file:///path for Docker/K8s secrets.
     pub jwt_secret: Option<String>,
     /// Expected JWT issuer. Env: FERRUM_AUTH__ISSUER
     pub issuer: Option<String>,
@@ -147,6 +160,13 @@ pub struct AuthConfig {
     pub passport_endpoints: Vec<String>,
     #[serde(default)]
     pub require_auth: bool,
+    /// A07: Reject tokens older than this many hours (even if not expired). Default 24.
+    #[serde(default = "default_max_token_age_hours")]
+    pub max_token_age_hours: u32,
+}
+
+fn default_max_token_age_hours() -> u32 {
+    24
 }
 
 /// Placeholder for encryption (e.g. Crypt4GH) settings.
@@ -312,15 +332,45 @@ impl FerrumConfig {
     /// Load config from layered defaults: /etc/ferrum, ~/.ferrum, FERRUM_CONFIG, then FERRUM_* env.
     pub fn load() -> Result<Self, config::ConfigError> {
         let c = Self::build_builder(None)?;
-        c.try_deserialize()
+        let mut cfg: Self = c.try_deserialize()?;
+        cfg.resolve_file_secrets();
+        Ok(cfg)
     }
 
     /// Load config from an explicit path (e.g. --config path.toml), then apply env overrides.
     pub fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self, config::ConfigError> {
         let path = path.as_ref();
         let c = Self::build_builder(Some(path))?;
-        c.try_deserialize()
+        let mut cfg: Self = c.try_deserialize()?;
+        cfg.resolve_file_secrets();
+        Ok(cfg)
     }
+
+    /// A02: Resolve file:// references in secret fields (Docker/K8s secrets pattern).
+    pub fn resolve_file_secrets(&mut self) {
+        if let Some(ref s) = self.auth.jwt_secret {
+            if let Some(resolved) = resolve_file_secret(s) {
+                self.auth.jwt_secret = Some(resolved);
+            }
+        }
+        if let Some(ref url) = self.database.url {
+            if let Some(resolved) = resolve_file_secret(url) {
+                self.database.url = Some(resolved);
+            }
+        }
+        if let Some(ref s) = self.storage.s3_secret_access_key {
+            if let Some(resolved) = resolve_file_secret(s) {
+                self.storage.s3_secret_access_key = Some(resolved);
+            }
+        }
+    }
+}
+
+/// If value is file:///path, read file and return contents (trimmed). Otherwise None.
+fn resolve_file_secret(value: &str) -> Option<String> {
+    let path = value.strip_prefix("file://")?.trim();
+    let path = std::path::Path::new(path);
+    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
 }
 
 /// Backward-compatible alias.
