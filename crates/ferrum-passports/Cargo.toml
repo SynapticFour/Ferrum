@@ -25,7 +25,7 @@ base64 = "0.22"
 rand = "0.8"
 urlencoding = "2"
 rsa = { version = "0.9", features = ["pem"] }
-pem = "2"
+pem = "3"
 num-bigint-dig = "0.8"
 
 [[bin]]

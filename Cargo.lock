@@ -1673,7 +1673,7 @@ dependencies = [
  "ferrum-core",
  "jsonwebtoken",
  "num-bigint-dig",
- "pem 2.0.1",
+ "pem",
  "rand 0.8.5",
  "rsa",
  "serde",
@@ -2662,7 +2662,7 @@ checksum = "5a87cc7a48537badeae96744432de36f4be2b4a34a05a5ef32e9dd8a1c169dde"
 dependencies = [
  "base64 0.22.1",
  "js-sys",
- "pem 3.0.6",
+ "pem",
  "ring",
  "serde",
  "serde_json",
@@ -3192,16 +3192,6 @@ checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
 dependencies = [
  "digest",
  "hmac",
-]
-
-[[package]]
-name = "pem"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b13fe415cdf3c8e44518e18a7c95a13431d9bdf6d15367d82b23c377fdd441a"
-dependencies = [
- "base64 0.21.7",
- "serde",
 ]
 
 [[package]]
