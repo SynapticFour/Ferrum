@@ -4,6 +4,14 @@ Thank you for your interest in contributing. This document covers our code of co
 
 ---
 
+## Who builds Ferrum
+
+Ferrum is developed by a small team of individuals on the autism spectrum based in Germany 🇩🇪. We believe that the attention to detail, systematic thinking, and deep focus that characterizes our work makes us particularly well-suited to building infrastructure that researchers can rely on.
+
+We welcome contributors from all backgrounds. We value clear communication, well-documented decisions, and thorough reviews over speed. If you have questions about our process or need accommodations to contribute comfortably, please reach out — we understand.
+
+---
+
 ## Code of conduct
 
 We follow a respectful, inclusive code of conduct. Be kind and professional in issues, PRs, and discussions. Harassment or discriminatory behavior is not tolerated.

@@ -240,6 +240,12 @@ Licensed under the **Apache License, Version 2.0**. See [LICENSE](LICENSE) for d
 
 ---
 
-<p align="center">
-  <strong>GA4GH</strong> · Built with ❤️ for the open science community
-</p>
+<div align="center">
+
+Built with ❤️ for the open science community.
+Implementing [GA4GH](https://ga4gh.org) open standards for sovereign bioinformatics infrastructure.
+
+Proudly developed by individuals on the autism spectrum in Germany 🇩🇪
+*We build tools that are precise, thorough, and designed to work exactly as documented.*
+
+</div>

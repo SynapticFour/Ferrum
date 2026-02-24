@@ -3,6 +3,7 @@ import { useThemeStore } from '@/stores/theme';
 import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Footer } from '@/components/Footer';
 
 const nav = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,7 +23,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const toggleDark = useThemeStore((s) => s.toggle);
 
   return (
-    <div className={cn('min-h-screen bg-background', dark && 'dark')}>
+    <div className={cn('min-h-screen bg-background flex flex-col', dark && 'dark')}>
       <aside className="fixed left-0 top-0 z-40 h-screen w-56 border-r border-border bg-card">
         <div className="flex h-14 items-center gap-2 border-b border-border px-4">
           <span className="font-semibold text-primary">Ferrum</span>
@@ -50,8 +51,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
       </aside>
-      <main className="pl-56">
-        <div className="container max-w-7xl py-6">{children}</div>
+      <main className="pl-56 flex-1 flex flex-col">
+        <div className="container max-w-7xl py-6 flex-1">{children}</div>
+        <Footer />
       </main>
     </div>
   );
