@@ -1,63 +1,72 @@
 #!/usr/bin/env sh
-# Install Ferrum gateway binary.
-# Usage: curl -sSf https://ferrum-bio.sh/install | sh
-# Or: curl -sSf https://raw.githubusercontent.com/OWNER/Ferrum/main/install.sh | sh
-
 set -e
 
-GITHUB_REPO="${GITHUB_REPO:-SynapticFour/Ferrum}"
-INSTALL_DIR="${FERRUM_INSTALL_DIR:-$HOME/.ferrum/bin}"
-VERSION="${FERRUM_VERSION:-latest}"
-
-# Resolve latest tag
-resolve_version() {
-  if [ "$VERSION" = "latest" ]; then
-    curl -sSf "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | sed -n 's/.*"tag_name": "\([^"]*\)".*/\1/p'
-  else
-    echo "$VERSION"
-  fi
-}
+REPO="SynapticFour/Ferrum"
+BIN_NAME="ferrum-gateway"
+INSTALL_DIR="$HOME/.ferrum/bin"
 
 # Detect platform
-detect_platform() {
-  os=$(uname -s)
-  arch=$(uname -m)
-  case "$os" in
-    Darwin)
-      case "$arch" in
-        arm64|aarch64) echo "aarch64-apple-darwin" ;;
-        x86_64|amd64) echo "x86_64-apple-darwin" ;;
-        *) echo "unsupported:$os-$arch" ;;
-      esac ;;
-    Linux)
-      case "$arch" in
-        x86_64|amd64) echo "x86_64-unknown-linux-musl" ;;
-        aarch64|arm64) echo "aarch64-unknown-linux-musl" ;;
-        *) echo "unsupported:$os-$arch" ;;
-      esac ;;
-    *)
-      echo "unsupported:$os-$arch" ;;
-  esac
-}
+OS="$(uname -s)"
+ARCH="$(uname -m)"
 
-tag=$(resolve_version)
-platform=$(detect_platform)
+case "$OS" in
+  Linux)
+    case "$ARCH" in
+      x86_64)  TARGET="ferrum-gateway-x86_64-unknown-linux-musl" ;;
+      aarch64) TARGET="ferrum-gateway-aarch64-unknown-linux-musl" ;;
+      *)
+        echo "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+    esac
+    ;;
+  Darwin)
+    case "$ARCH" in
+      arm64)  TARGET="ferrum-gateway-aarch64-apple-darwin" ;;
+      x86_64) TARGET="ferrum-gateway-x86_64-apple-darwin" ;;
+      *)
+        echo "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+    esac
+    ;;
+  *)
+    echo "Unsupported operating system: $OS"
+    exit 1
+    ;;
+esac
 
-if [ -z "$tag" ]; then
-  echo "Could not resolve release version." >&2
+# Get latest release tag from GitHub API
+echo "Fetching latest Ferrum release..."
+LATEST=$(curl -sSf "https://api.github.com/repos/$REPO/releases/latest" \
+  | grep '"tag_name"' \
+  | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+
+if [ -z "$LATEST" ]; then
+  echo "Error: Could not determine latest release."
+  echo "Check https://github.com/$REPO/releases"
   exit 1
 fi
 
-if [ "${platform#unsupported}" != "$platform" ]; then
-  echo "Unsupported platform: $platform" >&2
-  exit 1
-fi
+echo "Latest release: $LATEST"
 
-asset_name="ferrum-gateway-${platform}"
-url="https://github.com/${GITHUB_REPO}/releases/download/${tag}/${asset_name}.tar.gz"
-echo "Installing Ferrum $tag for $platform to $INSTALL_DIR"
+# Download URL
+URL="https://github.com/$REPO/releases/download/$LATEST/$TARGET.tar.gz"
+
+echo "Downloading $TARGET..."
+curl -sSfL "$URL" -o /tmp/ferrum-download.tar.gz
+
+# Extract
 mkdir -p "$INSTALL_DIR"
-curl -sSfL "$url" | tar -xzf - -C "$INSTALL_DIR" ferrum-gateway
-chmod +x "$INSTALL_DIR/ferrum-gateway"
-echo "Installed to $INSTALL_DIR/ferrum-gateway"
-echo "Add to PATH: export PATH=\"$INSTALL_DIR:\$PATH\""
+tar -xzf /tmp/ferrum-download.tar.gz -C "$INSTALL_DIR"
+chmod +x "$INSTALL_DIR/$BIN_NAME"
+rm /tmp/ferrum-download.tar.gz
+
+echo ""
+echo "Ferrum installed to $INSTALL_DIR/$BIN_NAME"
+echo ""
+echo "Add Ferrum to your PATH by adding this to your ~/.zshrc or ~/.bashrc:"
+echo ""
+echo '  export PATH="$HOME/.ferrum/bin:$PATH"'
+echo ""
+echo "Then run: ferrum-gateway --version"

@@ -42,7 +42,7 @@ After four years from each release, that version becomes Apache-2.0.
 
 ```bash
 # Install ferrum CLI
-curl -sSf https://get.ferrum.bio/install.sh | sh
+curl -sSf https://raw.githubusercontent.com/SynapticFour/Ferrum/main/install.sh | sh
 
 # Start complete demo stack (Docker required)
 ferrum demo start
@@ -214,7 +214,7 @@ Use **vault** for secrets (`vault_ferrum_db_password`, etc.). SLURM integration 
 ## Kubernetes / Helm
 
 ```bash
-helm repo add ferrum https://charts.ferrum.bio
+helm repo add ferrum https://github.com/SynapticFour/Ferrum
 helm repo update
 
 # Install with external PostgreSQL and S3

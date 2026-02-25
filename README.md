@@ -92,7 +92,7 @@ flowchart LR
 ### 1. Install (macOS / Linux)
 
 ```bash
-curl -sSf https://get.ferrum.bio/install.sh | sh
+curl -sSf https://raw.githubusercontent.com/SynapticFour/Ferrum/main/install.sh | sh
 export PATH="$HOME/.ferrum/bin:$PATH"
 ```
 
@@ -181,7 +181,7 @@ Environment="FERRUM_CONFIG=/etc/ferrum/config.toml"
 ### ☸️ Kubernetes
 
 ```bash
-helm repo add ferrum https://charts.ferrum.bio
+helm repo add ferrum https://github.com/SynapticFour/Ferrum
 helm install ferrum ferrum/ferrum -n ferrum --create-namespace -f values-production.yaml
 ```
 
