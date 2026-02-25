@@ -60,6 +60,7 @@ curl -sSfL "$URL" -o /tmp/ferrum-download.tar.gz
 mkdir -p "$INSTALL_DIR"
 tar -xzf /tmp/ferrum-download.tar.gz -C "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/$BIN_NAME"
+ln -sf "$INSTALL_DIR/$BIN_NAME" "$INSTALL_DIR/ferrum"
 rm /tmp/ferrum-download.tar.gz
 
 echo ""
@@ -69,4 +70,4 @@ echo "Add Ferrum to your PATH by adding this to your ~/.zshrc or ~/.bashrc:"
 echo ""
 echo '  export PATH="$HOME/.ferrum/bin:$PATH"'
 echo ""
-echo "Then run: ferrum-gateway --version"
+echo "Then run: ferrum --version"
