@@ -10,6 +10,7 @@ name = "ferrum-gateway"
 path = "src/main.rs"
 
 [dependencies]
+clap = { version = "4", features = ["derive"] }
 ferrum-core = { path = "../ferrum-core" }
 ferrum-drs = { path = "../ferrum-drs" }
 ferrum-trs = { path = "../ferrum-trs" }

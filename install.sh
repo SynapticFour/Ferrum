@@ -61,6 +61,18 @@ mkdir -p "$INSTALL_DIR"
 tar -xzf /tmp/ferrum-download.tar.gz -C "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/$BIN_NAME"
 ln -sf "$INSTALL_DIR/$BIN_NAME" "$INSTALL_DIR/ferrum"
+
+# Copy demo scripts
+DEMO_INSTALL_DIR="$HOME/.ferrum/demo"
+mkdir -p "$DEMO_INSTALL_DIR"
+curl -sSfL "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/docker-compose.demo.yml" \
+  -o "$DEMO_INSTALL_DIR/docker-compose.demo.yml"
+curl -sSfL "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/start.sh" \
+  -o "$DEMO_INSTALL_DIR/start.sh"
+curl -sSfL "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/stop.sh" \
+  -o "$DEMO_INSTALL_DIR/stop.sh"
+chmod +x "$DEMO_INSTALL_DIR/start.sh" "$DEMO_INSTALL_DIR/stop.sh"
+
 rm /tmp/ferrum-download.tar.gz
 
 echo ""
