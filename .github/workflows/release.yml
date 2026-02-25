@@ -17,44 +17,25 @@ jobs:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             asset_name: ferrum-gateway-x86_64-unknown-linux-musl
-            use_cross: false
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
             asset_name: ferrum-gateway-aarch64-unknown-linux-musl
-            use_cross: true
           - target: aarch64-apple-darwin
             os: macos-latest
             asset_name: ferrum-gateway-aarch64-apple-darwin
-            use_cross: false
           - target: x86_64-apple-darwin
             os: macos-latest
             asset_name: ferrum-gateway-x86_64-apple-darwin
-            use_cross: false
 
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      - name: Install musl (Linux x86_64)
-        if: matrix.os == 'ubuntu-latest' && matrix.use_cross == false
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-          rustup target add ${{ matrix.target }}
-
-      - name: Install cross (Linux aarch64)
-        if: matrix.use_cross == true
-        run: cargo install cross
-
-      - name: Add target (macOS)
-        if: matrix.os == 'macos-latest'
-        run: rustup target add ${{ matrix.target }}
-
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -64,15 +45,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.target }}-
 
-      - name: Build (cargo)
-        if: matrix.use_cross == false
-        run: cargo build --release -p ferrum-gateway --target ${{ matrix.target }}
+      - name: Install cross (Linux musl targets)
+        if: contains(matrix.target, 'musl')
+        run: cargo install cross --locked
 
-      - name: Build (cross)
-        if: matrix.use_cross == true
+      - name: Build (musl via cross)
+        if: contains(matrix.target, 'musl')
         run: cross build --release -p ferrum-gateway --target ${{ matrix.target }}
 
-      - name: Prepare archive
+      - name: Build (macOS native)
+        if: ${{ !contains(matrix.target, 'musl') }}
+        run: cargo build --release -p ferrum-gateway --target ${{ matrix.target }}
+
+      - name: Package binary
         run: |
           mkdir -p release
           cp target/${{ matrix.target }}/release/ferrum-gateway release/

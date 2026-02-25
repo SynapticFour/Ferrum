@@ -31,6 +31,6 @@ aws-credential-types = "1"
 aws-sdk-s3 = { version = "1.18", features = ["rt-tokio"] }
 bytes = "1"
 ulid = "1"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 url = "2"
 regex = "1"
