@@ -10,7 +10,16 @@ CREATE TABLE IF NOT EXISTS drs_objects (
     storage_key TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_drs_objects_storage_key ON drs_objects(storage_key);
+-- Index only if storage_key exists (00002 replaces drs_objects and drops this column)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'drs_objects' AND column_name = 'storage_key'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_drs_objects_storage_key ON drs_objects(storage_key);
+  END IF;
+END $$;
 
 -- DRS checksums (one row per checksum per object)
 CREATE TABLE IF NOT EXISTS drs_checksums (

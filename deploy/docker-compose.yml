@@ -30,21 +30,24 @@ services:
     restart: unless-stopped
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23
+    image: keycloak/keycloak:26.0
     command: start-dev
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
     volumes:
       - keycloak-data:/opt/keycloak/data
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      # Keycloak 26 exposes health on port 9000, not 8080
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 15
+      start_period: 60s
     restart: unless-stopped
 
   ferrum-init:
@@ -76,6 +79,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.gateway
     image: ferrum-gateway:latest
+    pull_policy: build
     environment:
       FERRUM_BIND: "0.0.0.0:8080"
       FERRUM_DATABASE__URL: "postgres://${POSTGRES_USER:-ferrum}:${POSTGRES_PASSWORD:-ferrum}@postgres:5432/${POSTGRES_DB:-ferrum}"
@@ -103,9 +107,10 @@ services:
 
   ferrum-ui:
     build:
-      context: ..
-      dockerfile: services/ui/Dockerfile
+      context: ../services/ui
+      dockerfile: Dockerfile
     image: ferrum-ui:latest
+    pull_policy: build
     depends_on:
       ferrum-gateway: { condition: service_healthy }
     restart: unless-stopped
@@ -117,8 +122,8 @@ services:
     volumes:
       - ./nginx-demo.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - ferrum-gateway
-      - ferrum-ui
+      ferrum-gateway: { condition: service_healthy }
+      ferrum-ui: { condition: service_started }
     restart: unless-stopped
 
 volumes:

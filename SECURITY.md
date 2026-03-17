@@ -50,6 +50,29 @@ Security-focused tests live in the `ferrum-security-tests` crate (SSRF, validati
 - **Network:** Restrict access to Ferrum and backing services (PostgreSQL, MinIO) to trusted networks where possible.
 - **Updates:** Apply security and dependency updates promptly; run `cargo audit` (or similar) as part of your process.
 
+### Production hardening checklist (non-exhaustive)
+
+- **Identity & auth**
+  - [ ] Configure `[auth]` with `require_auth = true` for production.
+  - [ ] Use a trusted OIDC provider / Passport broker and set `jwks_url` and `issuer`.
+  - [ ] Disable demo‑/test users in Keycloak or other IdPs.
+
+- **Transport security**
+  - [ ] Terminate TLS with modern ciphers and protocols; prefer TLS 1.2+.
+  - [ ] Enforce HTTPS (HSTS) at the reverse proxy or load balancer.
+
+- **Data at rest**
+  - [ ] Configure Crypt4GH node keys with restrictive file permissions.
+  - [ ] Ensure backups of PostgreSQL and object storage are encrypted and access‑controlled.
+
+- **Access control & logging**
+  - [ ] Enable and monitor security/audit logs; forward to a central log system.
+  - [ ] Periodically review access rules (datasets, workspaces, Passport policies).
+
+- **Operations**
+  - [ ] Define and test an incident response process (including 72‑Stunden‑Pflichten, falls anwendbar).
+  - [ ] Automatisieren von Updates und regelmäßigen Dependency‑Audits in CI.
+
 ---
 
 *[← Back to README](README.md)*

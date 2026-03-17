@@ -1,13 +1,16 @@
 # Compliance & Regulatory Framework
 
 Ferrum is designed from the ground up for deployment in regulated research
-environments. This document describes how Ferrum addresses applicable legal
-and technical frameworks for institutions in Germany, the EU, and worldwide.
+environments. This document describes how Ferrum can technically support
+institutions that need to comply with legal and regulatory frameworks in
+Germany, the EU, and worldwide.
 
-> **Note:** Ferrum is infrastructure software. Regulatory obligations
-> (GDPR controller role, NIS2, ethics approvals) rest with the institution
-> operating Ferrum, not with Synaptic Four as the software vendor.
-> This document helps operators understand how Ferrum supports compliance.
+> **Important:** This document is for technical orientation only and is not
+> legal advice. Ferrum is infrastructure software. Regulatory obligations
+> (e.g. GDPR controller/processor roles, NIS2 categorisation, EHDS duties,
+> ethics approvals) rest with the institution operating Ferrum and its
+> partners, not with Synaptic Four as the software vendor. Operators must
+> obtain their own legal assessment for any concrete deployment.
 
 ---
 
@@ -30,21 +33,22 @@ and technical frameworks for institutions in Germany, the EU, and worldwide.
 **Regulation (EU) 2016/679 — General Data Protection Regulation**
 
 Genomic and health data are **special category data** under Article 9 GDPR
-and require the highest level of protection. Ferrum implements technical
-measures to support GDPR compliance for operating institutions.
+and require the highest level of protection. Ferrum provides technical
+features that can support GDPR‑aligned deployments by operating institutions,
+but it does not, by itself, make any deployment GDPR‑compliant.
 
 ### How Ferrum supports GDPR compliance
 
 | GDPR Requirement | Ferrum Feature |
 |---|---|
 | Art. 5 — Data minimisation | DRS stores only what is explicitly ingested; no implicit data collection |
-| Art. 5 — Integrity & confidentiality | Crypt4GH end-to-end encryption for all stored genomic data |
+| Art. 5 — Integrity & confidentiality | Crypt4GH‑based encryption for stored genomic data when configured |
 | Art. 5 — Accountability | Full provenance graph: every processing step is recorded |
 | Art. 9 — Special category data | GA4GH Passport ControlledAccessGrants Visa for genomic data access |
 | Art. 13/14 — Transparency | Beacon v2 provides structured, queryable data descriptions |
 | Art. 17 — Right to erasure | DRS supports object deletion; operators must implement retention policies |
 | Art. 20 — Data portability | DRS export via standard GA4GH APIs; RO-Crate export |
-| Art. 25 — Privacy by design | Encryption at rest and in transit by default; no plaintext storage |
+| Art. 25 — Privacy by design | Encryption at rest and in transit when configured; no plaintext storage is intended in normal operation |
 | Art. 30 — Records of processing | Security event log and audit trail built into all services |
 | Art. 32 — Security of processing | OWASP Top 10 hardened; AES-256-GCM encryption; TLS enforced |
 | Art. 33 — Breach notification | Security event log with 72h-aligned alerting infrastructure |
@@ -65,10 +69,9 @@ access control that aligns with GDPR requirements.
 ### International data transfers (Art. 46/47 GDPR)
 
 When genomic data is transferred across borders:
-- **Within EU/EEA**: Freely permitted when Ferrum is deployed on-premises
-- **To third countries**: Requires adequacy decision, SCCs, or BCRs
-- Ferrum's on-premises deployment model keeps data under institutional
-  control and avoids cloud transfer issues entirely
+- **Within EU/EEA**: Subject to GDPR, but typically simpler when Ferrum is deployed on‑premises under the institution’s control.
+- **To third countries**: Requires adequacy decision, SCCs, or BCRs as determined by the controller.
+- Ferrum's on‑premises deployment model can help institutions keep data under their own control and reduce the need for cross‑border transfers, but architectural choices remain the operator’s responsibility.
 
 ### DPIA Template
 
@@ -140,9 +143,10 @@ this obligation.
 
 **European Federated Data Infrastructure**
 
-Ferrum is designed to operate as a Gaia-X compatible service offering.
-Gaia-X promotes data sovereignty, interoperability, and portability —
-exactly what Ferrum delivers.
+Ferrum is designed to operate in a way that is compatible with core Gaia‑X
+principles (data sovereignty, interoperability, portability), but formal
+Gaia‑X registration or labelling requires a separate assessment and
+self‑description by the operator.
 
 ### Gaia-X alignment
 
@@ -153,21 +157,24 @@ exactly what Ferrum delivers.
 | **Portability** | GA4GH standard APIs; no vendor lock-in |
 | **Interoperability** | DRS, WES, TES, TRS, Beacon v2, Passports |
 | **Security** | OWASP hardened; Crypt4GH encryption; TLS enforced |
-| **European Values** | Developed in Germany 🇩🇪; GDPR-compliant by design |
+| **European Values** | Developed in Germany 🇩🇪; designed with GDPR principles in mind. Actual legal compliance depends on the operator and its processes. |
 
 ### Gaia-X Label Levels
 
-- **Standard Compliance / Label Level 1**: Achievable by self-declaration.
-  Ferrum's architecture supports all criteria.
+- **Standard Compliance / Label Level 1**: Achievable by self‑declaration
+  of the operator. Ferrum's architecture is intended to support typical
+  criteria, but any Gaia‑X label depends on the operator’s self‑description
+  and, where applicable, third‑party assessment.
 - **Label Level 2/3**: Requires third-party audit by a Conformity Assessment
   Body (CAB). Ferrum deployments may pursue this for regulated clinical use.
 
 ### Gaia-X Self-Description
 
-Operators wishing to register their Ferrum deployment in the Gaia-X
-Federated Catalogue should create a self-description using the Gaia-X
-ontology. Contact the Gaia-X Hub Germany (https://gaia-x-hub.de) for
-onboarding support.
+Operators wishing to register a Ferrum‑based deployment in the Gaia‑X
+Federated Catalogue should create a self‑description using the Gaia‑X
+ontology and follow the Gaia‑X onboarding process (e.g. via Gaia‑X
+Hub Germany). Ferrum does not, by itself, confer Gaia‑X membership
+or labelling.
 
 ---
 
@@ -201,7 +208,9 @@ obligations (threshold: 50+ employees or €10M+ turnover).
 | Vulnerability management | Automated dependency auditing via cargo-deny |
 
 NIS2 fines: up to **€10 million or 2% of global turnover** for essential
-entities. Ferrum's security architecture significantly reduces operator risk.
+entities. Ferrum's security features can help reduce certain technical risks
+when correctly configured, but overall NIS2 risk depends on the operator’s
+organisational and technical controls.
 
 ---
 
@@ -238,7 +247,10 @@ scientific research and development are outside the Act's scope.
 *(Adopted January 2025; secondary use provisions applicable ~2029)*
 
 The EHDS will transform how health data is shared across Europe.
-Ferrum is positioned as ideal infrastructure for EHDS compliance.
+Ferrum provides building blocks (GA4GH APIs, access control, provenance)
+that can support EHDS‑related requirements. Whether a deployment is EHDS
+compliant depends on future delegated acts and on the operator’s legal and
+organisational measures.
 
 ### EHDS Primary Use (patient access to own data)
 
@@ -274,8 +286,10 @@ Institutions deploying Ferrum today are building EHDS-ready infrastructure.
 
 **Global Alliance for Genomics and Health**
 
-Ferrum implements the complete GA4GH technical stack and aligns with
-the GA4GH Framework for Responsible Sharing of Genomic and Health-Related Data.
+Ferrum implements a broad GA4GH technical stack and is designed to align
+with the GA4GH Framework for Responsible Sharing of Genomic and Health‑
+Related Data at a technical level. This is not a legal endorsement; policy
+implementation remains the operator’s responsibility.
 
 ### GA4GH standards implemented
 
@@ -308,13 +322,15 @@ German Research Foundation/DFG) as a valid access control mechanism.
 
 | Framework | Relevance | Ferrum |
 |---|---|---|
-| **HIPAA** | Health data protection | On-premises deployment; BAA available from Synaptic Four |
+| **HIPAA** | Health data protection | On‑premises deployment; any Business Associate Agreement (BAA) must be agreed separately with Synaptic Four. |
 | **NIH Data Sharing Policy** | NIH-funded research | GA4GH APIs align with NIH requirements |
 | **dbGaP** | Genomic data repository | DRS compatible with dbGaP access patterns |
 
 ### United Kingdom (post-Brexit)
 
-UK GDPR (retained EU law) applies. Ferrum's GDPR compliance applies equally.
+UK GDPR (retained EU law) applies. The GDPR considerations described in this
+document apply in the same way, but operators must assess their own legal
+position under UK law.
 UK Biobank, Genomics England, and HDR UK use GA4GH standards that Ferrum implements.
 
 ### Canada

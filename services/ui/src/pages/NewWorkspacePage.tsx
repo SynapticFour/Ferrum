@@ -24,9 +24,20 @@ export function NewWorkspacePage() {
         description: description.trim() || undefined,
         slug: slug.trim() || undefined,
       });
-      window.location.href = '/workspaces/' + ws.id;
+      if (ws?.id) {
+        window.location.href = '/workspaces/' + ws.id;
+      } else {
+        setError('Invalid response: missing workspace id');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create workspace');
+      let msg = err instanceof Error ? err.message : 'Failed to create workspace';
+      try {
+        const parsed = JSON.parse(msg);
+        if (parsed.message) msg = parsed.message;
+      } catch {
+        // keep msg as-is
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -41,7 +52,10 @@ export function NewWorkspacePage() {
         <h1 className="text-2xl font-bold">New Workspace</h1>
       </div>
       <Card className="max-w-md">
-        <CardHeader><CardTitle>Create workspace</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Create workspace</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">Name and optional description only; no file upload required.</p>
+        </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

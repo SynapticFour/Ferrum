@@ -135,6 +135,8 @@ pub struct AuthMiddlewareConfig {
     pub issuer: Option<String>,
     pub jwks_url: Option<String>,
     pub passport_endpoints: Vec<String>,
+    /// When false, requests without a token get synthetic "demo-user" claims (for demo mode).
+    pub require_auth: bool,
     /// A07: Max token age in hours (reject if iat too old). 0 = disable.
     pub max_token_age_hours: u32,
     /// A07: If set, token with matching jti is rejected (revoked).
@@ -148,7 +150,21 @@ impl AuthMiddlewareConfig {
             issuer: cfg.issuer.clone(),
             jwks_url: cfg.jwks_url.clone(),
             passport_endpoints: cfg.passport_endpoints.clone(),
+            require_auth: cfg.require_auth,
             max_token_age_hours: cfg.max_token_age_hours,
+            revocation_check: None,
+        }
+    }
+
+    /// Config for demo/unauthenticated mode: no JWT required, inject "demo-user" when no token present.
+    pub fn demo() -> Self {
+        Self {
+            jwt_secret: None,
+            issuer: None,
+            jwks_url: None,
+            passport_endpoints: Vec::new(),
+            require_auth: false,
+            max_token_age_hours: 24,
             revocation_check: None,
         }
     }
@@ -179,6 +195,7 @@ fn extract_token_from_cookie(request: &Request, cookie_name: &str) -> Option<Str
 }
 
 /// Validate JWT and optionally GA4GH Passport; put [AuthClaims] in extensions.
+/// Prefer [auth_middleware_with_config] when the caller can pass config directly (avoids relying on request extensions).
 pub async fn auth_middleware(
     request: Request,
     next: Next,
@@ -187,7 +204,15 @@ pub async fn auth_middleware(
         .extensions()
         .get::<Arc<AuthMiddlewareConfig>>()
         .cloned();
+    auth_middleware_with_config(config, request, next).await
+}
 
+/// Same as [auth_middleware] but takes config explicitly. Use this when the gateway passes config in so it is always available.
+pub async fn auth_middleware_with_config(
+    config: Option<Arc<AuthMiddlewareConfig>>,
+    request: Request,
+    next: Next,
+) -> Response {
     let token = extract_token(&request)
         .or_else(|| extract_token_from_cookie(&request, "ferrum_token"));
 
@@ -210,6 +235,23 @@ pub async fn auth_middleware(
             if let Ok(claims) = decode_jwt_fallback(&token) {
                 request.extensions_mut().insert(claims);
             }
+        }
+    }
+
+    // Demo mode: when no claims were set, inject demo-user if auth is not required (config absent = treat as demo; config.require_auth false = demo).
+    if request.extensions().get::<AuthClaims>().is_none() {
+        let inject = config.as_ref().map_or(true, |cfg| !cfg.require_auth);
+        if inject {
+            let exp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs() as i64 + 86400 * 365)
+                .unwrap_or(0);
+            request.extensions_mut().insert(AuthClaims::Jwt {
+                sub: "demo-user".to_string(),
+                iss: Some("ferrum-demo".to_string()),
+                exp,
+                jti: None,
+            });
         }
     }
 

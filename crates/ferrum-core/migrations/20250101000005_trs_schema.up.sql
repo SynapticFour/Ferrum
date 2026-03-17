@@ -1,4 +1,9 @@
 -- GA4GH TRS 2.0.1: tools, tool_versions, descriptor/test/container files.
+-- Replace minimal trs_tools from 00001_initial with full schema.
+
+DROP TABLE IF EXISTS trs_files CASCADE;
+DROP TABLE IF EXISTS trs_tool_versions CASCADE;
+DROP TABLE IF EXISTS trs_tools CASCADE;
 
 CREATE TABLE trs_tools (
     id              TEXT PRIMARY KEY,

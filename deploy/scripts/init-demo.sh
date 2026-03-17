@@ -27,7 +27,7 @@ MIGRATIONS_DIR="${MIGRATIONS_DIR:-/migrations}"
 for f in $(ls -1 "$MIGRATIONS_DIR"/*.up.sql 2>/dev/null | sort); do
   [ -f "$f" ] || continue
   echo "  Applying $(basename "$f")"
-  PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -f "$f" || true
+  PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 -f "$f" || { echo "Migration failed: $f" >&2; exit 1; }
 done
 
 # --- 2. Create MinIO bucket ---
@@ -90,30 +90,76 @@ else
   echo "  (crypt4gh not in PATH; keys can be generated later)"
 fi
 
-# --- 5. Seed example DRS objects (public genomic test data URLs) ---
-echo "Seeding example DRS objects..."
+# --- 5. Seed example DRS objects (public genomic test data URLs), workspace ---
+echo "Seeding demo data (DRS, workspace)..."
 PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<'SEED'
+-- DRS: existing + BAM/VCF-style examples (URLs to public test data)
 INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
 VALUES
   ('demo-1000genomes-chr22', '1000 Genomes chr22 example', 'Public 1000 Genomes test data (URL)', 0, 'text/plain', false, '[]'::jsonb),
   ('demo-ena-run', 'ENA run XML example', 'European Nucleotide Archive run XML (URL)', 0, 'application/xml', false, '[]'::jsonb),
-  ('demo-ga4gh-sample', 'GA4GH sample metadata example', 'Public sample metadata (URL)', 0, 'application/yaml', false, '[]'::jsonb)
+  ('demo-ga4gh-sample', 'GA4GH sample metadata example', 'Public sample metadata (URL)', 0, 'application/yaml', false, '[]'::jsonb),
+  ('demo-sample-bam', 'Demo BAM file', 'Example aligned reads (BAM) for demo', 0, 'application/octet-stream', false, '["demo.bam"]'::jsonb),
+  ('demo-sample-vcf', 'Demo VCF file', 'Example variants (VCF) for demo', 0, 'text/vcf', false, '["demo.vcf"]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO storage_references (object_id, storage_backend, storage_key, is_encrypted)
 VALUES
   ('demo-1000genomes-chr22', 'url', 'https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/README_chr22.20130502.README', false),
   ('demo-ena-run', 'url', 'https://ftp.ebi.ac.uk/pub/databases/ena/doc/example_run.xml', false),
-  ('demo-ga4gh-sample', 'url', 'https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-search/master/openapi.yaml', false)
+  ('demo-ga4gh-sample', 'url', 'https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-search/master/openapi.yaml', false),
+  ('demo-sample-bam', 'url', 'https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/CEU/NA12878/alignment/README', false),
+  ('demo-sample-vcf', 'url', 'https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/README.vcf.gz', false)
 ON CONFLICT (object_id) DO NOTHING;
 
 INSERT INTO drs_access_methods (object_id, type, access_id, access_url, headers)
 VALUES
   ('demo-1000genomes-chr22', 'https', 'access-demo-1000genomes-chr22', '{"url":"https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/README_chr22.20130502.README"}'::jsonb, '[]'::jsonb),
   ('demo-ena-run', 'https', 'access-demo-ena-run', '{"url":"https://ftp.ebi.ac.uk/pub/databases/ena/doc/example_run.xml"}'::jsonb, '[]'::jsonb),
-  ('demo-ga4gh-sample', 'https', 'access-demo-ga4gh-sample', '{"url":"https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-search/master/openapi.yaml"}'::jsonb, '[]'::jsonb)
+  ('demo-ga4gh-sample', 'https', 'access-demo-ga4gh-sample', '{"url":"https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-search/master/openapi.yaml"}'::jsonb, '[]'::jsonb),
+  ('demo-sample-bam', 'https', 'access-demo-bam', '{"url":"https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/data/CEU/NA12878/alignment/README"}'::jsonb, '[]'::jsonb),
+  ('demo-sample-vcf', 'https', 'access-demo-vcf', '{"url":"https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/README.vcf.gz"}'::jsonb, '[]'::jsonb)
 ON CONFLICT (object_id, type) DO NOTHING;
+
+-- Workspace for demo-user (so "make demo" shows a pre-created workspace)
+INSERT INTO workspaces (id, name, description, owner_sub, slug, is_archived, settings)
+VALUES ('demo-workspace-01', 'Demo Workspace', 'Pre-populated workspace for testing. Add data, cohorts, and run workflows.', 'demo-user', 'demo-workspace', false, '{}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO workspace_members (workspace_id, sub, role, invited_by)
+VALUES ('demo-workspace-01', 'demo-user', 'owner', 'demo-user')
+ON CONFLICT (workspace_id, sub) DO NOTHING;
 SEED
+
+# --- 6. Seed TRS tool (optional; tables may not exist if migrations differ) ---
+echo "Seeding TRS demo tool (optional)..."
+PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" <<'TRSSEED' || true
+INSERT INTO trs_tools (id, name, description, organization, toolclass, meta_version)
+VALUES ('demo-bam-to-vcf', 'BAM to VCF', 'Example tool: call variants from BAM (demo).', 'Ferrum Demo', 'Workflow', '2.0')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO trs_tool_versions (id, tool_id, name, created_at, updated_at)
+VALUES ('demo-bam-to-vcf-1.0', 'demo-bam-to-vcf', '1.0', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO trs_files (tool_id, version_id, file_type, descriptor_type, content, url, created_at)
+SELECT 'demo-bam-to-vcf', 'demo-bam-to-vcf-1.0', 'DESCRIPTOR', 'CWL', 'cwlVersion: v1.0\nclass: Workflow\ninputs:\n  bam: File\noutputs:\n  vcf: File\nsteps: []', NULL, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM trs_files WHERE tool_id = 'demo-bam-to-vcf' AND version_id = 'demo-bam-to-vcf-1.0' AND file_type = 'DESCRIPTOR');
+TRSSEED
+
+# --- 7. Verify demo data ---
+echo "Verifying demo data..."
+VERIFY=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -t -A -c "
+  SELECT (SELECT COUNT(*) FROM workspaces)::text || ' workspaces, ' ||
+         (SELECT COUNT(*) FROM drs_objects)::text || ' DRS objects, ' ||
+         (SELECT COUNT(*) FROM trs_tools)::text || ' TRS tools'
+  FROM (SELECT 1) x;
+" 2>/dev/null || echo "0 workspaces, 0 DRS objects, 0 TRS tools")
+echo "  $VERIFY"
+WS_COUNT=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -t -A -c "SELECT COUNT(*) FROM workspaces;" 2>/dev/null || echo "0")
+if [ "${WS_COUNT:-0}" -lt 1 ]; then
+  echo "WARNING: No workspaces found after seed. Demo workspace may not be visible." >&2
+fi
 
 echo "Init complete."
 exit 0

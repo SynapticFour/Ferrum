@@ -1,4 +1,4 @@
-//! A07/A09: Admin routes — token revocation, security events. Require admin auth.
+//! A07/A09: Admin routes — token revocation, security events, config. Config is public (sanitized).
 
 use axum::{
     extract::{Extension, State},
@@ -12,6 +12,45 @@ use std::sync::Arc;
 
 pub struct AdminState {
     pub pool: sqlx::PgPool,
+    /// Sanitized config for GET /admin/config (no secrets).
+    pub config: Option<SanitizedConfig>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SanitizedConfig {
+    pub bind: String,
+    pub database: SanitizedDatabase,
+    pub storage: SanitizedStorage,
+    pub services: SanitizedServices,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SanitizedDatabase {
+    pub driver: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url_set: Option<bool>,
+    pub run_migrations: bool,
+    pub max_connections: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SanitizedStorage {
+    pub backend: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub s3_endpoint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub s3_bucket: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SanitizedServices {
+    pub enable_drs: bool,
+    pub enable_wes: bool,
+    pub enable_tes: bool,
+    pub enable_trs: bool,
+    pub enable_beacon: bool,
+    pub enable_passports: bool,
+    pub enable_crypt4gh: bool,
 }
 
 /// POST /admin/tokens/revoke — revoke a token by jti (A07).
@@ -132,10 +171,47 @@ async fn list_security_events(
     }
 }
 
-/// Admin router: requires admin auth. Mount at /admin.
-pub fn admin_router(pool: sqlx::PgPool) -> Router {
-    let state = Arc::new(AdminState { pool });
+async fn get_config(State(state): State<Arc<AdminState>>) -> impl IntoResponse {
+    match &state.config {
+        Some(c) => (StatusCode::OK, Json(serde_json::to_value(c).unwrap_or(serde_json::Value::Null))),
+        None => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "message": "Configuration not loaded (no config file or env)." })),
+        ),
+    }
+}
+
+/// Admin router: mount at /admin. GET /config is public (sanitized); revoke and security/events require admin auth.
+pub fn admin_router(pool: sqlx::PgPool, config: Option<&ferrum_core::FerrumConfig>) -> Router {
+    let sanitized = config.map(|c| SanitizedConfig {
+        bind: c.bind.clone(),
+        database: SanitizedDatabase {
+            driver: c.database.driver.clone(),
+            url_set: c.database.url.as_ref().map(|_| true),
+            run_migrations: c.database.run_migrations,
+            max_connections: c.database.max_connections,
+        },
+        storage: SanitizedStorage {
+            backend: c.storage.backend.clone(),
+            s3_endpoint: c.storage.s3_endpoint.clone(),
+            s3_bucket: c.storage.s3_bucket.clone(),
+        },
+        services: SanitizedServices {
+            enable_drs: c.services.enable_drs,
+            enable_wes: c.services.enable_wes,
+            enable_tes: c.services.enable_tes,
+            enable_trs: c.services.enable_trs,
+            enable_beacon: c.services.enable_beacon,
+            enable_passports: c.services.enable_passports,
+            enable_crypt4gh: c.services.enable_crypt4gh,
+        },
+    });
+    let state = Arc::new(AdminState {
+        pool,
+        config: sanitized,
+    });
     Router::new()
+        .route("/config", get(get_config))
         .route("/tokens/revoke", post(revoke_token))
         .route("/security/events", get(list_security_events))
         .with_state(state)

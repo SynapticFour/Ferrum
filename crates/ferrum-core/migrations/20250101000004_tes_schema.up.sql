@@ -1,5 +1,8 @@
 -- GA4GH TES 1.1: task execution tasks.
 -- state: UNKNOWN, QUEUED, INITIALIZING, RUNNING, PAUSED, COMPLETE, EXECUTOR_ERROR, SYSTEM_ERROR, CANCELED, CANCELING
+-- Replace minimal tes_tasks from 00001_initial with full schema.
+
+DROP TABLE IF EXISTS tes_tasks CASCADE;
 
 CREATE TABLE tes_tasks (
     id              TEXT PRIMARY KEY,

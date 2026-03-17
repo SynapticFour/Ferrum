@@ -1,4 +1,10 @@
 -- GA4GH Beacon v2: datasets, genomic variants, individuals, biosamples.
+-- Drop first so migration is idempotent when re-run (e.g. same volume, new container).
+
+DROP TABLE IF EXISTS beacon_biosamples;
+DROP TABLE IF EXISTS beacon_individuals;
+DROP TABLE IF EXISTS beacon_variants;
+DROP TABLE IF EXISTS beacon_datasets;
 
 CREATE TABLE beacon_datasets (
     id              TEXT PRIMARY KEY,

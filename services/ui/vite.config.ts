@@ -16,6 +16,7 @@ export default defineConfig({
     proxy: {
       '/ga4gh': { target: 'http://localhost:8080', changeOrigin: true },
       '/workspaces': { target: 'http://localhost:8080', changeOrigin: true },
+      '/cohorts': { target: 'http://localhost:8080', changeOrigin: true },
       '/passports': { target: 'http://localhost:8080', changeOrigin: true },
       '/health': { target: 'http://localhost:8080', changeOrigin: true },
       '/admin': { target: 'http://localhost:8080', changeOrigin: true },

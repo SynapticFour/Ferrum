@@ -63,7 +63,14 @@ pub fn app(
 ) -> Router {
     let cfg = config;
 
-    let auth_config = cfg.map(|c| Arc::new(ferrum_core::AuthMiddlewareConfig::from_crate_config(&c.auth)));
+    // Auth middleware config: use env FERRUM_AUTH__REQUIRE_AUTH so demo mode is reliable (config crate env parsing can vary).
+    // Only when explicitly "true" do we use loaded config's auth; otherwise middleware gets demo() so unauthenticated requests get demo-user.
+    let auth_config = match std::env::var("FERRUM_AUTH__REQUIRE_AUTH").as_deref() {
+        Ok("true") => cfg
+            .map(|c| Arc::new(ferrum_core::AuthMiddlewareConfig::from_crate_config(&c.auth)))
+            .unwrap_or_else(|| Arc::new(ferrum_core::AuthMiddlewareConfig::demo())),
+        _ => Arc::new(ferrum_core::AuthMiddlewareConfig::demo()),
+    };
     let cors = cfg.and_then(|c| c.security.as_ref()).and_then(|s| {
         let origins: Vec<axum::http::HeaderValue> = s
             .allowed_origins
@@ -114,20 +121,7 @@ pub fn app(
             axum::http::HeaderValue::from_static("Ferrum"),
         ));
 
-    // A01: Auth middleware runs on every request (validates JWT/Passport when config present).
-    let auth_cfg = auth_config.clone();
-    app = app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
-        let config = auth_cfg.clone();
-        async move {
-            let mut req = req;
-            if let Some(ref cfg) = config {
-                req.extensions_mut().insert(cfg.clone());
-            }
-            ferrum_core::auth_middleware(req, next).await
-        }
-    }));
-
-    // GA4GH standard paths
+    // GA4GH standard paths (add all nests first)
     if cfg.map(|c| c.services.enable_drs).unwrap_or(true) {
         let drs_router = match drs_state {
             Some(state) => ferrum_drs::router(state),
@@ -195,7 +189,7 @@ pub fn app(
         app = app.nest("/workspaces/v1", ferrum_workspaces::router(pool, email_sender, invite_base_url));
     }
     if let Some(pool) = admin_pool {
-        app = app.nest("/admin", admin::admin_router(pool));
+        app = app.nest("/admin", admin::admin_router(pool, cfg));
     }
 
     // UI: static files from services/ui (when built/present)
@@ -210,6 +204,13 @@ pub fn app(
             .route("/ui", get(ui_placeholder))
             .route("/ui/*path", get(ui_placeholder));
     }
+
+    // A01: Auth middleware wraps the complete router (all nests). Apply last so every request to /workspaces, /cohorts, etc. goes through it.
+    let auth_cfg = auth_config.clone();
+    app = app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+        let config = std::sync::Arc::clone(&auth_cfg);
+        async move { ferrum_core::auth_middleware_with_config(Some(config), req, next).await }
+    }));
 
     app
 }

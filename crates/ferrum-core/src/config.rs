@@ -328,6 +328,7 @@ impl FerrumConfig {
 
         let mut builder = config::Config::builder()
             .set_default("bind", "0.0.0.0:8080")?
+            .set_default("auth.require_auth", false)?
             .set_default("database.max_connections", 10i64)?
             .set_default("database.run_migrations", true)?
             .set_default("database.driver", "sqlite")?

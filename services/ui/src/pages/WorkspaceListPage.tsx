@@ -21,7 +21,15 @@ export function WorkspaceListPage() {
   });
 
   if (isLoading) return <p className="text-muted-foreground">Loading workspaces…</p>;
-  if (error) return <p className="text-destructive">Failed to load workspaces.</p>;
+  if (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return (
+      <div className="space-y-2">
+        <p className="text-destructive font-medium">Failed to load workspaces.</p>
+        <p className="text-sm text-muted-foreground font-mono break-all">Error: {msg}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -15,7 +15,7 @@ pub mod types;
 pub use config::{FerrumConfig, AppConfig, DatabaseConfig, StorageConfig, AuthConfig, SecurityConfig, ServicesConfig, EncryptionConfig, PricingConfig, PricingTier, WesServiceConfig, MultiQCConfig};
 pub use db::DatabasePool;
 pub use error::{FerrumError, Result};
-pub use auth::{auth_layer, auth_middleware, AuthClaims, AuthMiddlewareConfig, PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject};
+pub use auth::{auth_layer, auth_middleware, auth_middleware_with_config, AuthClaims, AuthMiddlewareConfig, PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject};
 pub use security::{safe_join, validate_drs_name, ResourceAuthorizer, SecurityEvent, SecurityEventLogger};
 pub use ssrf::{is_private_ip, SafeHttpClient, SsrfPolicy, validate_url_ssrf};
 pub use workspace::{get_workspace_member_role, is_workspace_editor_or_owner};

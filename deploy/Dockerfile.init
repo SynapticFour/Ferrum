@@ -18,6 +18,10 @@ RUN chmod +x /app/init-demo.sh
 
 # Copy migrations (build context is repo root)
 COPY crates/ferrum-core/migrations /migrations
+# Ensure migration files include required DROP statements (fail build if stale)
+RUN grep -q "DROP TABLE IF EXISTS wes_runs" /migrations/20250101000003_wes_schema.up.sql && \
+    grep -q "DROP TABLE IF EXISTS tes_tasks" /migrations/20250101000004_tes_schema.up.sql && \
+    grep -q "DROP TABLE IF EXISTS trs_tools" /migrations/20250101000005_trs_schema.up.sql
 RUN ls -la /migrations
 
 ENV CRYPT4GH_KEY_DIR=/data/ferrum/keys

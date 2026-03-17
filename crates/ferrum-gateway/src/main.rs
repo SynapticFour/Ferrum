@@ -5,6 +5,7 @@ use ferrum_gateway::run;
 use std::path::PathBuf;
 use std::process::Command;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[derive(Parser)]
@@ -82,6 +83,73 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .and_then(|c| c.bind.parse().ok())
         .unwrap_or_else(|| "0.0.0.0:8080".parse().unwrap());
 
-    run(bind, config, None, None, None, None, None, None, None, None, None).await?;
+    // When database is configured (from config or FERRUM_DATABASE__URL), create a pool for Cohorts, Workspaces, Beacon, Passports, and Admin.
+    let pg_pool: Option<sqlx::PgPool> = if let Some(ref cfg) = config {
+        match ferrum_core::DatabasePool::from_config(&cfg.database).await {
+            Ok(ferrum_core::DatabasePool::Postgres(p)) => Some(p),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    let pg_pool: Option<sqlx::PgPool> = if pg_pool.is_some() {
+        pg_pool
+    } else if let Ok(url) = std::env::var("FERRUM_DATABASE__URL") {
+        match ferrum_core::DatabasePool::from_url(&url).await {
+            Ok(ferrum_core::DatabasePool::Postgres(p)) => Some(p),
+            _ => None,
+        }
+    } else {
+        None
+    };
+
+    // DRS: when we have a pool, build state so list/get (and ingest when storage is configured) work.
+    let drs_state: Option<ferrum_drs::AppState> = if let Some(ref pool) = pg_pool {
+        let hostname = std::env::var("FERRUM_DRS_HOSTNAME").unwrap_or_else(|_| "localhost".to_string());
+        let repo = Arc::new(ferrum_drs::repo::DrsRepo::new(pool.clone(), hostname));
+        let storage: Option<Arc<dyn ferrum_core::ObjectStorage>> = if let Some(ref cfg) = config {
+            if cfg.storage.backend == "s3" {
+                match ferrum_core::S3Storage::from_config(&cfg.storage).await {
+                    Ok(s) => Some(Arc::new(s) as Arc<dyn ferrum_core::ObjectStorage>),
+                    Err(_) => None,
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        Some(ferrum_drs::AppState {
+            repo,
+            storage,
+            s3_presigner: None,
+            provenance_store: None,
+        })
+    } else {
+        None
+    };
+
+    // WES: when we have a pool, enable list/submit with a work dir (demo: /tmp/wes-runs or FERRUM_WES_WORK_DIR).
+    let wes_params = pg_pool.clone().map(|pool| {
+        let work_dir = std::env::var("FERRUM_WES_WORK_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| std::env::temp_dir().join("wes-runs"));
+        (pool, Some(work_dir), None, None, None, None, None, None, vec![])
+    });
+
+    run(
+        bind,
+        config,
+        drs_state,
+        wes_params,
+        None,              // tes_params
+        pg_pool.clone(),   // trs_params
+        pg_pool.clone(),   // beacon_params
+        pg_pool.clone(),   // passport_params
+        pg_pool.clone(),   // cohort_params
+        pg_pool.clone(),   // workspaces_pool
+        pg_pool,           // admin_pool
+    )
+    .await?;
     Ok(())
 }

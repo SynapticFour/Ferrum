@@ -5,13 +5,13 @@
 
 [![CI](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
-[![GA4GH compliant](https://img.shields.io/badge/GA4GH-compliant-green.svg)](https://www.ga4gh.org/)
 [![Rust 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![Docker](https://img.shields.io/docker/pulls/ferrum/gateway?label=docker%20pulls)](https://hub.docker.com/r/ferrum/gateway)
-[![GDPR](https://img.shields.io/badge/GDPR-compliant_by_design-blue?style=flat-square)](docs/COMPLIANCE.md)
-[![Gaia-X](https://img.shields.io/badge/Gaia--X-compatible-blue?style=flat-square)](docs/COMPLIANCE.md)
 
 **Sovereign bioinformatics infrastructure. GA4GH-native. On-premises first. Built in Rust.**
+
+> **Legal notice:** This README is an overview of technical capabilities, not legal advice.  
+> Whether a specific deployment complies with GDPR/DSGVO, NIS2, EHDS, HIPAA or other frameworks depends on the operator’s legal basis, contracts, configuration and organisational measures. Always consult qualified legal counsel for compliance questions.
 
 ---
 
@@ -29,17 +29,17 @@
 
 | | Feature |
 |---|--------|
-| 🔐 | **Transparent Crypt4GH encryption** — Header re-wrapping; file bodies never re-encrypted (O(1) per download). |
+| 🔐 | **Transparent Crypt4GH encryption** — Header re-wrapping; file bodies are designed to avoid re-encryption (O(1) per download). |
 | 📦 | **GA4GH stack** — DRS, TRS, WES, TES, Beacon v2, Passports. |
 | ⚡ | **Rust performance** — No GC, predictable latency, minimal footprint. |
 | 🔬 | **Workflow engines** — Nextflow, CWL, WDL, Snakemake. |
 | 🖥️ | **HPC scheduling** — SLURM and LSF job scheduling. |
 | 🚀 | **One-command demo** — `ferrum demo start`; Helm charts for production. |
 | 📊 | **Provenance & lineage** — DAG of DRS objects and WES runs; queryable upstream/downstream, visual graph, [RO-Crate](https://w3id.org/ro/crate/1.1) export for citation. |
-| GDPR/DSGVO | Art. 9 genomic data protection, provenance audit trail, encryption by default |
-| Gaia-X | Data sovereignty, no vendor lock-in, European values |
-| EHDS-ready | GA4GH APIs align with European Health Data Space requirements |
-| NIS2-supporting | Security event log, breach alerting, supply chain SBOM |
+| GDPR/DSGVO support | Technical features (encryption, provenance, access control) that operators can combine with their own legal and organisational measures. See [COMPLIANCE.md](docs/COMPLIANCE.md). |
+| Gaia-X principles | On-premises deployment and GA4GH APIs that can support Gaia-X-style data sovereignty; formal Gaia-X labelling requires separate assessment. |
+| EHDS alignment | Uses GA4GH APIs referenced in EHDS discussions; actual EHDS compliance depends on future delegated acts and operator processes. |
+| NIS2-related features | Security event log, breach alerting and SBOM tooling that can support NIS2 programmes when properly configured. |
 
 ---
 
