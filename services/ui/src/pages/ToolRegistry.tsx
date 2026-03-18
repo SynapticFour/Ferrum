@@ -12,10 +12,8 @@ interface Tool {
   meta_version?: string;
 }
 
-interface ToolListResponse {
-  tools: Tool[];
-  next_page_token?: string;
-}
+/** API returns root-level array (GA4GH/HelixTest) or legacy { tools } object. */
+type ToolListResponse = Tool[] | { tools: Tool[]; next_page_token?: string };
 
 export function ToolRegistry() {
   const { data, isLoading, error } = useQuery({
@@ -24,7 +22,7 @@ export function ToolRegistry() {
     retry: false,
   });
 
-  const tools = data?.tools ?? [];
+  const tools = Array.isArray(data) ? data : (data?.tools ?? []);
 
   return (
     <div className="space-y-6">

@@ -96,6 +96,7 @@ PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POS
 -- DRS: existing + BAM/VCF-style examples (URLs to public test data)
 INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
 VALUES
+  ('test-object-1', 'HelixTest object 1', 'Seed object for HelixTest conformance suite.', 0, 'text/plain', false, '[]'::jsonb),
   ('demo-1000genomes-chr22', '1000 Genomes chr22 example', 'Public 1000 Genomes test data (URL)', 0, 'text/plain', false, '[]'::jsonb),
   ('demo-ena-run', 'ENA run XML example', 'European Nucleotide Archive run XML (URL)', 0, 'application/xml', false, '[]'::jsonb),
   ('demo-ga4gh-sample', 'GA4GH sample metadata example', 'Public sample metadata (URL)', 0, 'application/yaml', false, '[]'::jsonb),
@@ -105,6 +106,7 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO storage_references (object_id, storage_backend, storage_key, is_encrypted)
 VALUES
+  ('test-object-1', 'url', 'https://raw.githubusercontent.com/ga4gh/data-repository-service-schemas/master/README.md', false),
   ('demo-1000genomes-chr22', 'url', 'https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/README_chr22.20130502.README', false),
   ('demo-ena-run', 'url', 'https://ftp.ebi.ac.uk/pub/databases/ena/doc/example_run.xml', false),
   ('demo-ga4gh-sample', 'url', 'https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-search/master/openapi.yaml', false),
@@ -114,6 +116,7 @@ ON CONFLICT (object_id) DO NOTHING;
 
 INSERT INTO drs_access_methods (object_id, type, access_id, access_url, headers)
 VALUES
+  ('test-object-1', 'https', 'access-test-object-1', '{"url":"https://raw.githubusercontent.com/ga4gh/data-repository-service-schemas/master/README.md"}'::jsonb, '[]'::jsonb),
   ('demo-1000genomes-chr22', 'https', 'access-demo-1000genomes-chr22', '{"url":"https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/README_chr22.20130502.README"}'::jsonb, '[]'::jsonb),
   ('demo-ena-run', 'https', 'access-demo-ena-run', '{"url":"https://ftp.ebi.ac.uk/pub/databases/ena/doc/example_run.xml"}'::jsonb, '[]'::jsonb),
   ('demo-ga4gh-sample', 'https', 'access-demo-ga4gh-sample', '{"url":"https://raw.githubusercontent.com/ga4gh-discovery/ga4gh-search/master/openapi.yaml"}'::jsonb, '[]'::jsonb),

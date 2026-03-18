@@ -47,6 +47,8 @@ pub fn router(pool: sqlx::PgPool) -> Router {
         .route("/service-info", get(get_service_info))
         .route("/info", get(get_info))
         .route("/map", get(get_map))
+        // Compatibility alias: some clients (incl. HelixTest) use POST /query for variants.
+        .route("/query", post(query_variants))
         .route("/g_variants/query", post(query_variants))
         .route("/individuals/query", post(query_individuals))
         .route("/biosamples/query", post(query_biosamples))

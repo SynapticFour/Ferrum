@@ -4,7 +4,7 @@ use crate::error::{Result, WesError};
 use crate::state::AppState;
 use crate::types::*;
 use axum::{
-    extract::{Extension, Multipart, Path, Query, State},
+    extract::{Extension, Path, Query, State},
     response::{sse::{Event, KeepAlive, Sse}, IntoResponse},
     Json,
 };
@@ -45,11 +45,11 @@ pub async fn get_service_info(State(app): State<Arc<AppState>>) -> Json<WesServi
         description: Some("GA4GH Workflow Execution Service 1.1".to_string()),
         organization: Organization {
             name: "Ferrum".to_string(),
-            url: None,
+            url: Some("https://synapticfour.com".to_string()),
         },
         version: env!("CARGO_PKG_VERSION").to_string(),
         workflow_type_versions,
-        supported_wes_versions: vec!["1.1.0".to_string()],
+        supported_wes_versions: vec!["1.0".to_string(), "1.1".to_string()],
         supported_filesystem_protocols: vec!["file".to_string(), "http".to_string(), "https".to_string()],
         workflow_engine_versions,
         default_workflow_engine_parameters: vec![],
@@ -102,8 +102,12 @@ pub async fn list_runs(
 pub async fn post_runs(
     State(app): State<Arc<AppState>>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
-    mut multipart: Multipart,
+    req: axum::extract::Request,
 ) -> Result<Json<RunIdResponse>> {
+    let boundary = extract_multipart_boundary(req.headers())
+        .ok_or_else(|| WesError::Validation("Expected multipart/form-data with a valid boundary".into()))?;
+    let mut multipart = multer::Multipart::new(req.into_body().into_data_stream(), boundary);
+
     let mut workflow_params = serde_json::Value::Object(serde_json::Map::new());
     let mut workflow_type = None::<String>;
     let mut workflow_type_version = None::<String>;
@@ -226,6 +230,30 @@ pub async fn post_runs(
     }
 
     Ok(Json(RunIdResponse { run_id }))
+}
+
+fn extract_multipart_boundary(headers: &axum::http::HeaderMap) -> Option<String> {
+    let ct = headers.get(axum::http::header::CONTENT_TYPE)?.to_str().ok()?;
+    // First try the canonical parser (strict).
+    if let Ok(b) = multer::parse_boundary(ct) {
+        return Some(b);
+    }
+    // Fallback: tolerate quoted boundary values like boundary="abc".
+    let lower = ct.to_ascii_lowercase();
+    if !lower.starts_with("multipart/form-data") {
+        return None;
+    }
+    let idx = lower.find("boundary=")?;
+    let mut b = ct[idx + "boundary=".len()..].trim();
+    if let Some(semi) = b.find(';') {
+        b = b[..semi].trim();
+    }
+    let b = b.trim_matches('"').trim();
+    if b.is_empty() {
+        None
+    } else {
+        Some(b.to_string())
+    }
 }
 
 /// GET /runs/{run_id}/status

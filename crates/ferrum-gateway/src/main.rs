@@ -137,12 +137,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         (pool, Some(work_dir), None, None, None, None, None, None, vec![])
     });
 
+    // TES: enable when we have a pool (backend defaults to "podman"; work_dir defaults under /tmp).
+    let tes_params = pg_pool.clone().map(|pool| (pool, None, None));
+
     run(
         bind,
         config,
         drs_state,
         wes_params,
-        None,              // tes_params
+        tes_params,
         pg_pool.clone(),   // trs_params
         pg_pool.clone(),   // beacon_params
         pg_pool.clone(),   // passport_params

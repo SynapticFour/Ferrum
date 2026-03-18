@@ -26,17 +26,15 @@ pub async fn get_service_info() -> Json<TrsServiceInfo> {
     })
 }
 
-#[utoipa::path(get, path = "/tools", params(ListToolsQuery), responses((status = 200, body = ToolListResponse)))]
+/// GET /tools returns a root-level JSON array for GA4GH/HelixTest compatibility ("TRS /tools must return array").
+#[utoipa::path(get, path = "/tools", params(ListToolsQuery), responses((status = 200, body = Vec<Tool>)))]
 pub async fn list_tools(
     State(state): State<Arc<AppState>>,
     Query(q): Query<ListToolsQuery>,
-) -> Result<Json<ToolListResponse>> {
+) -> Result<Json<Vec<Tool>>> {
     let page_size = q.page_size.unwrap_or(100).min(1000);
-    let (tools, next_page_token) = state.repo.list_tools(page_size, q.page_token.as_deref()).await?;
-    Ok(Json(ToolListResponse {
-        tools,
-        next_page_token,
-    }))
+    let (tools, _next_page_token) = state.repo.list_tools(page_size, q.page_token.as_deref()).await?;
+    Ok(Json(tools))
 }
 
 #[utoipa::path(get, path = "/tools/{id}", responses((status = 200, body = Tool), (status = 404)))]
