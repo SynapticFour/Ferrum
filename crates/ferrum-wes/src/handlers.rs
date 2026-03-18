@@ -10,6 +10,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use futures_util::stream::StreamExt;
+use http_body_util::BodyExt;
 use std::convert::Infallible;
 use std::io::Write;
 use std::sync::Arc;
