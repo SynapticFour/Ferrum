@@ -4,6 +4,7 @@
 <p align="center"><strong>Ferrum</strong></p>
 
 [![CI](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml)
+[![Conformance](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
 [![Rust 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![Docker](https://img.shields.io/docker/pulls/ferrum/gateway?label=docker%20pulls)](https://hub.docker.com/r/ferrum/gateway)
@@ -125,6 +126,12 @@ Open **http://localhost:3000**. The demo includes pre-seeded DRS objects and tes
 | [Beacon](https://github.com/ga4gh-beacon/beacon-v2) | 2.0 | ✅ Implemented | `/ga4gh/beacon/v2` |
 | [Passports](https://github.com/ga4gh-duri/ga4gh-passport-v1) | 1.0 | ✅ Implemented | `/passports/v1` |
 | Crypt4GH | 1.0 | ✅ Implemented | `/ga4gh/crypt4gh/v1` |
+
+---
+
+## Conformance (HelixTest)
+
+Every push and pull request runs the [HelixTest](https://github.com/SynapticFour/HelixTest) GA4GH conformance suite against the Ferrum demo stack: a **full run** (all services, E2E, auth, Crypt4GH) and a **per-service run** (WES, TES, DRS, TRS, Beacon in separate steps so failures are easy to spot). See [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md) for URL mapping, local runs, and CI details.
 
 ---
 

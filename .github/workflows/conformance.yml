@@ -1,0 +1,122 @@
+# Run HelixTest GA4GH conformance suite against the Ferrum demo stack.
+# - helixtest-full: one full run (--all); report uploaded as artifact.
+# - helixtest-services: per-service steps (WES, TES, DRS, TRS, Beacon) for clear pass/fail in the Actions UI.
+# Pin HelixTest by setting HELIXTEST_REF (branch or tag) in the workflow or repo env.
+# See docs/HELIXTEST-INTEGRATION.md for URL mapping and strategy.
+
+name: Conformance (HelixTest)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  # Pin HelixTest to a branch or tag; change to e.g. v0.1.0 when HelixTest tags releases
+  HELIXTEST_REF: main
+  GATEWAY_BASE: http://localhost:8080
+
+jobs:
+  helixtest-full:
+    name: HelixTest (full)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Ferrum
+        uses: actions/checkout@v4
+
+      - name: Clone HelixTest
+        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Start Ferrum stack
+        run: |
+          docker compose -f deploy/docker-compose.yml up -d --build
+          echo "Waiting for gateway /health (up to 120s)..."
+          for i in $(seq 1 24); do
+            if curl -sf ${{ env.GATEWAY_BASE }}/health >/dev/null; then
+              echo "Gateway ready."
+              break
+            fi
+            if [ "$i" -eq 24 ]; then
+              echo "Gateway did not become healthy."
+              docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -80
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Run HelixTest (full, Ferrum mode)
+        env:
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          TES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/tes/v1
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          TRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          AUTH_URL: ${{ env.GATEWAY_BASE }}/passports/v1
+        run: |
+          cd helixtest-repo
+          cargo run --bin helixtest --release -- --all --mode ferrum --report json --fail-level 1 2>&1 | tee ../helixtest-report.txt
+          exit_code=${PIPESTATUS[0]}
+          if [ "$exit_code" -ne 0 ]; then
+            echo "HelixTest exit code: $exit_code"
+            exit $exit_code
+          fi
+
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helixtest-report
+          path: helixtest-report.txt
+
+      - name: Stop Ferrum stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans || true
+
+  helixtest-services:
+    name: HelixTest (core services)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Ferrum
+        uses: actions/checkout@v4
+
+      - name: Clone HelixTest
+        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Start Ferrum stack
+        run: |
+          docker compose -f deploy/docker-compose.yml up -d --build
+          echo "Waiting for gateway /health (up to 120s)..."
+          for i in $(seq 1 24); do
+            if curl -sf ${{ env.GATEWAY_BASE }}/health >/dev/null; then
+              echo "Gateway ready."
+              break
+            fi
+            if [ "$i" -eq 24 ]; then
+              echo "Gateway did not become healthy."
+              docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -80
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Run HelixTest (WES, TES, DRS, TRS, Beacon)
+        env:
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          TES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/tes/v1
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          TRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          AUTH_URL: ${{ env.GATEWAY_BASE }}/passports/v1
+        run: |
+          cd helixtest-repo && cargo run --bin helixtest --release -- --all --mode ferrum --only wes --only tes --only drs --only trs --only beacon --report table --fail-level 1
+
+      - name: Stop Ferrum stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans || true
