@@ -1,0 +1,29 @@
+# Example HPC inventory: head node + compute nodes
+# Use: ansible-playbook -i deploy/ansible/inventory/hpc.yml deploy/ansible/playbooks/install-ferrum.yml
+
+all:
+  children:
+    head:
+      hosts:
+        headnode:
+          ansible_host: 192.168.1.10
+          # ferrum_gateway_bind: "0.0.0.0:8080"
+    compute:
+      hosts:
+        compute01:
+          ansible_host: 192.168.1.11
+        compute02:
+          ansible_host: 192.168.1.12
+    ferrum_nodes:
+      hosts:
+        headnode:
+    postgres_nodes:
+      hosts:
+        headnode:
+    storage_nodes:
+      hosts:
+        headnode:
+
+  vars:
+    ansible_user: ubuntu
+    ansible_ssh_private_key_file: ~/.ssh/id_rsa

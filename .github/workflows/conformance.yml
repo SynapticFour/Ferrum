@@ -1,0 +1,268 @@
+# Run HelixTest GA4GH conformance suite against the Ferrum demo stack.
+# - helixtest-full: one full run (--all); report uploaded as artifact.
+# - helixtest-services: per-service steps (WES, TES, DRS, TRS, Beacon) for clear pass/fail in the Actions UI.
+# Pin HelixTest by setting HELIXTEST_REF (branch or tag) in the workflow or repo env.
+# See docs/HELIXTEST-INTEGRATION.md ("What is tested in Ferrum CI") for coverage matrix and URL mapping.
+
+name: Conformance (HelixTest)
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  # Pin HelixTest to a branch or tag; change to e.g. v0.1.0 when HelixTest tags releases
+  HELIXTEST_REF: main
+  GATEWAY_BASE: http://localhost:8080
+  # Tickets from htsget must point at a URL the runner can use; gateway default is https://{FERRUM_DRS_HOSTNAME}
+  FERRUM_PUBLIC_BASE_URL: http://localhost:8080
+  # Official library mirror on AWS Public ECR — avoids Docker Hub 504/timeouts in CI
+  RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1-bookworm
+  DEBIAN_RUNTIME_IMAGE: public.ecr.aws/docker/library/debian:bookworm-slim
+
+jobs:
+  helixtest-full:
+    name: HelixTest (full)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Ferrum
+        uses: actions/checkout@v4
+
+      - name: Clone HelixTest
+        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+
+      - name: Align HelixTest TES checksum with committed tes_echo_out.txt (noop backend)
+        run: |
+          SHA=$(sha256sum helixtest-repo/helixtest/test-data/workflows/outputs/tes_echo_out.txt | awk '{print $1}')
+          printf '%s' "$SHA" > helixtest-repo/helixtest/test-data/expected/workflows/tes_echo_out.txt.sha256
+          echo "TES expected SHA256 -> $SHA"
+
+      - name: Align HelixTest E2E DRS output checksum (demo-sample-vcf seed URL)
+        run: sh deploy/scripts/align-helixtest-e2e-checksum.sh
+
+      - name: Patch HelixTest (skip Auth in Ferrum CI)
+        run: sh deploy/scripts/patch-helixtest-skip-auth.sh
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Start Ferrum stack
+        env:
+          RUST_BUILDER_IMAGE: ${{ env.RUST_BUILDER_IMAGE }}
+          DEBIAN_RUNTIME_IMAGE: ${{ env.DEBIAN_RUNTIME_IMAGE }}
+        run: |
+          set -e
+          chmod +x deploy/scripts/docker-compose-build-retry.sh
+          deploy/scripts/docker-compose-build-retry.sh -f deploy/docker-compose.yml build --no-cache ferrum-init ferrum-gateway
+          if ! docker compose -f deploy/docker-compose.yml up -d --build; then
+            echo "docker compose up failed; gateway logs:"
+            docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -120 || true
+            exit 1
+          fi
+          echo "Waiting for gateway /health (up to 120s)..."
+          for i in $(seq 1 24); do
+            if curl -sf ${{ env.GATEWAY_BASE }}/health >/dev/null; then
+              echo "Gateway ready."
+              break
+            fi
+            if [ "$i" -eq 24 ]; then
+              echo "Gateway did not become healthy."
+              docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -80
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Verify init and seed data
+        run: |
+          echo "=== ferrum-init logs ==="
+          docker compose -f deploy/docker-compose.yml logs ferrum-init 2>&1 || true
+          echo "=== Check DRS endpoint + seeds ==="
+          for i in $(seq 1 12); do
+            code_demo=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-1000genomes-chr22 || echo "000")
+            code_test=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1 || echo "000")
+            if [ "$code_demo" = "200" ] && [ "$code_test" = "200" ]; then
+              echo "DRS OK: demo-1000genomes-chr22=200, test-object-1=200"
+              break
+            fi
+            if [ "$i" -eq 12 ]; then
+              echo "DRS check failed after 60s: demo-1000genomes-chr22=$code_demo, test-object-1=$code_test"
+              echo "=== curl -sv demo-1000genomes-chr22 ==="
+              curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-1000genomes-chr22 2>&1 | tail -120 || true
+              echo "=== curl -sv test-object-1 ==="
+              curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1 2>&1 | tail -120 || true
+              docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -40
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "=== TRS descriptor (GA4GH: .../{type}/descriptor, HelixTest uses this) ==="
+          code_trs=$(curl -s -o /tmp/trs-descriptor.txt -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2/tools/demo-bam-to-vcf/versions/demo-bam-to-vcf-1.0/CWL/descriptor || echo "000")
+          echo "GET .../versions/demo-bam-to-vcf-1.0/CWL/descriptor -> $code_trs"
+          if [ "$code_trs" != "200" ]; then
+            echo "TRS descriptor response body:"
+            cat /tmp/trs-descriptor.txt 2>/dev/null || true
+            echo ""
+            if grep -q '"msg"' /tmp/trs-descriptor.txt 2>/dev/null; then
+              echo "=> 404 from TRS handler (descriptor not found in DB or wrong tool/version/type)"
+            else
+              echo "=> 404 likely from gateway/router (route did not match); check path and method"
+            fi
+            echo "Trying alternative URLs to see which route matches:"
+            echo -n "  .../versions/1.0/CWL/descriptor -> "
+            curl -s -o /dev/null -w "%{http_code}\n" ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2/tools/demo-bam-to-vcf/versions/1.0/CWL/descriptor || echo "000"
+            echo -n "  .../descriptor/CWL (non-standard alias) -> "
+            curl -s -o /dev/null -w "%{http_code}\n" ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2/tools/demo-bam-to-vcf/versions/demo-bam-to-vcf-1.0/descriptor/CWL || echo "000"
+            echo -n "  .../descriptor?type=CWL -> "
+            curl -s -o /dev/null -w "%{http_code}\n" ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2/tools/demo-bam-to-vcf/versions/demo-bam-to-vcf-1.0/descriptor?type=CWL || echo "000"
+            echo "=== E2E DRS object ==="
+            curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-bam-to-vcf-demo-bam-to-vcf-1.0-input 2>&1 | tail -30 || true
+            exit 1
+          fi
+          echo "=== E2E DRS object ==="
+          code_e2e=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-bam-to-vcf-demo-bam-to-vcf-1.0-input || echo "000")
+          echo "GET .../objects/demo-bam-to-vcf-demo-bam-to-vcf-1.0-input -> $code_e2e"
+          if [ "$code_e2e" != "200" ]; then
+            curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-bam-to-vcf-demo-bam-to-vcf-1.0-input 2>&1 | tail -30 || true
+            exit 1
+          fi
+
+      - name: Run HelixTest (full, Ferrum mode)
+        env:
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          TES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/tes/v1
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          TRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          AUTH_URL: ${{ env.GATEWAY_BASE }}/passports/v1
+        run: |
+          cd helixtest-repo
+          cargo run --bin helixtest --release -- --all --mode ferrum --report json --fail-level 1 2>&1 | tee ../helixtest-report.txt
+          exit_code=${PIPESTATUS[0]}
+          if [ "$exit_code" -ne 0 ]; then
+            echo "HelixTest exit code: $exit_code"
+            exit $exit_code
+          fi
+
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helixtest-report
+          path: helixtest-report.txt
+
+      - name: Stop Ferrum stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans || true
+
+  helixtest-services:
+    name: HelixTest (core services)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Ferrum
+        uses: actions/checkout@v4
+
+      - name: Clone HelixTest
+        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+
+      - name: Align HelixTest TES checksum with committed tes_echo_out.txt (noop backend)
+        run: |
+          SHA=$(sha256sum helixtest-repo/helixtest/test-data/workflows/outputs/tes_echo_out.txt | awk '{print $1}')
+          printf '%s' "$SHA" > helixtest-repo/helixtest/test-data/expected/workflows/tes_echo_out.txt.sha256
+          echo "TES expected SHA256 -> $SHA"
+
+      - name: Align HelixTest E2E DRS output checksum (demo-sample-vcf seed URL)
+        run: sh deploy/scripts/align-helixtest-e2e-checksum.sh
+
+      - name: Patch HelixTest (skip Auth in Ferrum CI)
+        run: sh deploy/scripts/patch-helixtest-skip-auth.sh
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Start Ferrum stack
+        env:
+          RUST_BUILDER_IMAGE: ${{ env.RUST_BUILDER_IMAGE }}
+          DEBIAN_RUNTIME_IMAGE: ${{ env.DEBIAN_RUNTIME_IMAGE }}
+        run: |
+          set -e
+          chmod +x deploy/scripts/docker-compose-build-retry.sh
+          deploy/scripts/docker-compose-build-retry.sh -f deploy/docker-compose.yml build --no-cache ferrum-init ferrum-gateway
+          if ! docker compose -f deploy/docker-compose.yml up -d --build; then
+            echo "docker compose up failed; gateway logs:"
+            docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -120 || true
+            exit 1
+          fi
+          echo "Waiting for gateway /health (up to 120s)..."
+          for i in $(seq 1 24); do
+            if curl -sf ${{ env.GATEWAY_BASE }}/health >/dev/null; then
+              echo "Gateway ready."
+              break
+            fi
+            if [ "$i" -eq 24 ]; then
+              echo "Gateway did not become healthy."
+              docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -80
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Verify init and seed data
+        run: |
+          echo "=== ferrum-init logs ==="
+          docker compose -f deploy/docker-compose.yml logs ferrum-init 2>&1 || true
+          for i in $(seq 1 12); do
+            code_demo=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-1000genomes-chr22 || echo "000")
+            code_test=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1 || echo "000")
+            if [ "$code_demo" = "200" ] && [ "$code_test" = "200" ]; then echo "DRS OK"; break; fi
+            if [ "$i" -eq 12 ]; then
+              echo "DRS check failed: demo-1000genomes-chr22=$code_demo, test-object-1=$code_test"
+              echo "=== curl -sv demo-1000genomes-chr22 ==="
+              curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-1000genomes-chr22 2>&1 | tail -120 || true
+              echo "=== curl -sv test-object-1 ==="
+              curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1 2>&1 | tail -120 || true
+              docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -40
+              exit 1
+            fi
+            sleep 5
+          done
+          code_trs=$(curl -s -o /tmp/trs-body.txt -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2/tools/demo-bam-to-vcf/versions/demo-bam-to-vcf-1.0/CWL/descriptor || echo "000")
+          code_e2e=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-bam-to-vcf-demo-bam-to-vcf-1.0-input || echo "000")
+          if [ "$code_trs" != "200" ] || [ "$code_e2e" != "200" ]; then
+            echo "Seed verification failed: TRS descriptor=$code_trs, E2E DRS=$code_e2e"
+            if [ "$code_trs" != "200" ]; then
+              echo "TRS 404 response body:"; cat /tmp/trs-body.txt 2>/dev/null || true
+              if grep -q '"msg"' /tmp/trs-body.txt 2>/dev/null; then echo "=> 404 from TRS handler"; else echo "=> 404 likely from router (route not matched)"; fi
+            fi
+            exit 1
+          fi
+          echo "TRS descriptor=200, E2E DRS=200"
+
+      - name: Run HelixTest (WES, TES, DRS, TRS, Beacon)
+        env:
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          TES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/tes/v1
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          TRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          AUTH_URL: ${{ env.GATEWAY_BASE }}/passports/v1
+        run: |
+          cd helixtest-repo && cargo run --bin helixtest --release -- --all --mode ferrum --only wes --only tes --only drs --only trs --only beacon --report table --fail-level 2
+
+      - name: Run HelixTest (htsget only)
+        env:
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          TES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/tes/v1
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          TRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          AUTH_URL: ${{ env.GATEWAY_BASE }}/passports/v1
+          HTSGET_URL: ${{ env.GATEWAY_BASE }}/ga4gh/htsget/v1
+        run: |
+          cd helixtest-repo && cargo run --bin helixtest --release -- --all --mode ferrum --only htsget --report table --fail-level 2
+
+      - name: Stop Ferrum stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans || true

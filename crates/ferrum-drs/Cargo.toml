@@ -1,0 +1,50 @@
+[package]
+name = "ferrum-drs"
+version = "0.1.0"
+edition = "2021"
+description = "GA4GH Data Repository Service 1.4"
+license = "BUSL-1.1"
+
+[dependencies]
+ferrum-core = { path = "../ferrum-core", features = ["openapi"] }
+ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
+axum = { version = "0.7", features = ["json", "multipart"] }
+tokio = { version = "1", features = ["full"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono"] }
+chrono = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tower = "0.4"
+utoipa = { version = "4", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "6", features = ["axum"] }
+ulid = "1"
+thiserror = "1"
+anyhow = "1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+bytes = "1"
+futures-util = "0.3"
+tokio-util = { version = "0.7", features = ["io"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"], optional = true }
+sha2 = "0.10"
+md5 = "0.7"
+async-trait = "0.1"
+
+[features]
+default = []
+standalone = ["tracing-subscriber"]
+s3_signed = ["dep:aws-config", "dep:aws-sdk-s3"]
+
+[dependencies.aws-config]
+version = "1"
+optional = true
+
+[dependencies.aws-sdk-s3]
+version = "1.18"
+optional = true
+
+[[bin]]
+name = "ferrum-drs"
+path = "src/main.rs"
+required-features = ["standalone"]

@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ferrum.fullname" . }}
+  labels:
+    {{- include "ferrum.labels" . | nindent 4 }}
+data:
+  FERRUM_BIND: "0.0.0.0:{{ .Values.service.port }}"
+  FERRUM_DATABASE__RUN_MIGRATIONS: {{ .Values.config.database.run_migrations | default true | quote }}
+  FERRUM_STORAGE__BACKEND: {{ .Values.config.storage.backend | default "local" | quote }}
+  {{- if .Values.config.storage.s3_endpoint }}
+  FERRUM_STORAGE__S3_ENDPOINT: {{ .Values.config.storage.s3_endpoint | quote }}
+  FERRUM_STORAGE__S3_REGION: {{ .Values.config.storage.s3_region | default "us-east-1" | quote }}
+  FERRUM_STORAGE__S3_BUCKET: {{ .Values.config.storage.s3_bucket | quote }}
+  {{- end }}
+  FERRUM_AUTH__REQUIRE_AUTH: {{ .Values.config.auth.require_auth | default false | quote }}
+  {{- if .Values.config.auth.jwks_url }}
+  FERRUM_AUTH__JWKS_URL: {{ .Values.config.auth.jwks_url | quote }}
+  {{- end }}

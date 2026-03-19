@@ -1,0 +1,46 @@
+# Multi-node / HPC Kubernetes – resource limits and external DB/S3
+replicaCount: 2
+image:
+  repository: your-registry/ferrum-gateway
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: ferrum.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - ferrum.example.com
+      secretName: ferrum-tls
+
+# Prefer external secret for DB and S3
+existingSecret: ferrum-secrets
+
+config:
+  database:
+    run_migrations: true
+  storage:
+    backend: s3
+    s3_region: us-east-1
+  auth:
+    require_auth: true
+    jwks_url: "https://auth.example.com/realms/ferrum/protocol/openid-connect/certs"
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi

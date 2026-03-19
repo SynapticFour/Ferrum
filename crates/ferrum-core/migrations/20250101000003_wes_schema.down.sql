@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS wes_task_logs;
+DROP TABLE IF EXISTS wes_run_log;
+DROP TABLE IF EXISTS wes_runs;

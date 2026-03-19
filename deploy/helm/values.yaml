@@ -1,0 +1,42 @@
+# Ferrum Helm default values (Kubernetes / HPC)
+replicaCount: 1
+image:
+  repository: ferrum-gateway
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: ferrum.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Use existing K8s secret for DB URL / S3 keys instead of generating from values
+existingSecret: ""
+
+config:
+  bind: "0.0.0.0:8080"
+  database:
+    url: ""  # set via values (then stored in generated Secret) or existingSecret
+    run_migrations: true
+  storage:
+    backend: local
+    s3_endpoint: ""
+    s3_region: us-east-1
+    s3_bucket: ""
+    s3_access_key_id: ""
+    s3_secret_access_key: ""
+  auth:
+    require_auth: true
+    jwks_url: ""
+
+resources: {}

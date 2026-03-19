@@ -1,0 +1,35 @@
+# Ferrum config (Ansible-managed; use vault for secrets)
+bind = "{{ ferrum_bind }}"
+
+[database]
+url = "{{ ferrum_database_url }}"
+run_migrations = true
+
+[auth]
+require_auth = {{ ferrum_auth_require_auth | lower }}
+{% if ferrum_auth_jwks_url %}
+jwks_url = "{{ ferrum_auth_jwks_url }}"
+{% endif %}
+
+[storage]
+backend = "{{ ferrum_storage_backend }}"
+{% if ferrum_storage_backend == 'local' %}
+base_path = "{{ ferrum_storage_base_path }}"
+{% endif %}
+{% if ferrum_storage_backend == 's3' %}
+s3_endpoint = "{{ ferrum_storage_s3_endpoint | default('') }}"
+s3_region = "{{ ferrum_storage_s3_region | default('us-east-1') }}"
+s3_bucket = "{{ ferrum_storage_s3_bucket | default('') }}"
+{% endif %}
+
+[encryption]
+enabled = {{ ferrum_encryption_enabled | lower }}
+
+[services]
+enable_drs = true
+enable_trs = true
+enable_wes = true
+enable_tes = true
+enable_passports = true
+enable_crypt4gh = true
+enable_beacon = true

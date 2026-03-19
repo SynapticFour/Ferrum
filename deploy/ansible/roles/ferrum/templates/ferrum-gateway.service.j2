@@ -1,0 +1,16 @@
+[Unit]
+Description=Ferrum GA4GH Gateway
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User={{ ferrum_user }}
+Group={{ ferrum_group }}
+ExecStart={{ ferrum_install_dir }}/ferrum-gateway
+Environment="FERRUM_CONFIG={{ ferrum_config_dir }}/config.toml"
+WorkingDirectory={{ ferrum_data_dir }}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
