@@ -75,7 +75,11 @@ Not `.../descriptor/CWL` — that order is a non-standard alias Ferrum also supp
 
 ### Auth (Level 4)
 
-HelixTest’s auth tests call DRS **without** attaching the JWT to every request, while also expecting strict 401/403 when `FERRUM_AUTH__REQUIRE_AUTH=true`. Those goals conflict on a single gateway profile. Ferrum keeps **demo auth off** in the default conformance workflow so DRS/WES/TES tests pass; tightening auth for Level 4 needs either a HelixTest change (send `Bearer` on DRS) or path-specific gateway middleware.
+HelixTest’s auth tests call DRS **without** attaching the JWT to every request, while also expecting strict 401/403 when `FERRUM_AUTH__REQUIRE_AUTH=true`. Those goals conflict on a single gateway profile.
+
+To keep CI stable, Ferrum’s conformance workflow sets `HELIXTEST_SKIP_AUTH=true`, which makes HelixTest skip the Auth (Level 4) suite in `--mode ferrum`. This avoids false failures while still running the other (non-auth) conformance suites.
+
+If you want to validate strict Auth Level 4 end-to-end, unset `HELIXTEST_SKIP_AUTH` and ensure all relevant requests include `Authorization: Bearer ...` (or implement path-specific gateway auth gating).
 
 ---
 
