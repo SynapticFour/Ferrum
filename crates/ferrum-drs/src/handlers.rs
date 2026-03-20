@@ -57,7 +57,7 @@ pub async fn get_object(
     Query(params): Query<ExpandQuery>,
     headers: HeaderMap,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
-) -> Result<Json<DrsObject>> {
+) -> Result<Response> {
     tracing::info!(object_id = %object_id, "DRS get_object");
     let resolved = state.repo.resolve_id_or_uri(&object_id).await?;
     tracing::info!(object_id = %object_id, resolved = ?resolved, "DRS resolve_id_or_uri");
@@ -76,6 +76,26 @@ pub async fn get_object(
         .get_object(&canonical, params.expand.unwrap_or(false))
         .await?
         .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+
+    // Async checksum model: when metadata is `pending`, DRS must not leak partially computed checksums.
+    // Learned from Broad Terra production behavior (DRS scaling issues).
+    let mut obj = obj;
+    if state
+        .repo
+        .get_checksum_status(&canonical)
+        .await?
+        .as_deref()
+        == Some("pending")
+    {
+        obj.checksums = vec![];
+        let mut res = Json(obj).into_response();
+        res.headers_mut().insert(
+            "X-Ferrum-Checksum-Status",
+            HeaderValue::from_static("pending"),
+        );
+        return Ok(res);
+    }
+
     let client_ip = headers
         .get("x-forwarded-for")
         .or_else(|| headers.get("x-real-ip"))
@@ -85,7 +105,7 @@ pub async fn get_object(
         .repo
         .log_access(&canonical, None, "GET", 200, client_ip.as_deref())
         .await;
-    Ok(Json(obj))
+    Ok(Json(obj).into_response())
 }
 
 /// Query params for GET /objects/{object_id}. expand=true returns bundle contents recursively.
@@ -93,6 +113,23 @@ pub async fn get_object(
 pub struct ExpandQuery {
     /// If true, expand bundle contents (and nested bundles).
     pub expand: Option<bool>,
+}
+
+/// Query params for GET /objects/{object_id}/contents.
+/// Returns direct bundle members with cursor pagination.
+#[derive(Debug, serde::Deserialize, utoipa::IntoParams, ToSchema)]
+pub struct BundleContentsQuery {
+    /// Opaque cursor (base64) for pagination.
+    pub page_token: Option<String>,
+    /// Max items per page.
+    pub page_size: Option<u32>,
+}
+
+/// Paginated list of direct bundle members.
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct BundleContentsPage {
+    pub contents: Vec<ContentsObject>,
+    pub next_page_token: Option<String>,
 }
 
 /// OPTIONS /objects/{object_id}: authorization discovery (DRS 1.4). Returns 204 when not supported.
@@ -103,6 +140,56 @@ pub struct ExpandQuery {
 )]
 pub async fn options_object() -> impl IntoResponse {
     StatusCode::NO_CONTENT
+}
+
+/// GET /objects/{object_id}/contents — list direct bundle contents with cursor pagination.
+#[utoipa::path(
+    get,
+    path = "/objects/{object_id}/contents",
+    params(BundleContentsQuery),
+    responses((status = 200, body = BundleContentsPage, description = "Bundle contents page"), (status = 404, description = "Not found"))
+)]
+pub async fn list_bundle_contents(
+    State(state): State<Arc<AppState>>,
+    Path(object_id): Path<String>,
+    Query(params): Query<BundleContentsQuery>,
+    headers: HeaderMap,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<Json<BundleContentsPage>> {
+    tracing::info!(object_id = %object_id, "DRS list_bundle_contents");
+    let resolved = state.repo.resolve_id_or_uri(&object_id).await?;
+    let canonical =
+        resolved.ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
+
+    if let Some(dataset_id) = state.repo.get_dataset_id(&canonical).await? {
+        let claims = auth.as_ref().ok_or_else(|| {
+            DrsError::Forbidden("authentication required for this dataset".into())
+        })?;
+        if !claims.has_dataset_grant(&dataset_id) && !claims.is_admin() {
+            return Err(DrsError::Forbidden("dataset access not granted".into()));
+        }
+    }
+
+    let page_size = params.page_size.unwrap_or(100);
+    let (contents, next_page_token) = state
+        .repo
+        .list_bundle_contents_page(&canonical, params.page_token.as_deref(), page_size)
+        .await?;
+
+    let client_ip = headers
+        .get("x-forwarded-for")
+        .or_else(|| headers.get("x-real-ip"))
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string());
+    let _ = state
+        .repo
+        .log_access(&canonical, None, "GET/contents", 200, client_ip.as_deref())
+        .await;
+
+    Ok(Json(BundleContentsPage {
+        contents,
+        next_page_token,
+    }))
 }
 
 /// Get access URL for an access_id (e.g. presigned URL).
@@ -140,7 +227,11 @@ pub async fn get_access(
     let storage_ref = state.repo.get_storage_ref(&canonical).await?;
     if let (Some((backend, key, _)), Some(presigner)) = (storage_ref, state.s3_presigner.as_ref()) {
         if backend.eq_ignore_ascii_case("s3") || backend.eq_ignore_ascii_case("minio") {
-            let expires = std::time::Duration::from_secs(3600);
+            let expires_secs: i64 = 3600;
+            url.expires_at = Some(
+                (chrono::Utc::now() + chrono::Duration::seconds(expires_secs)).to_rfc3339(),
+            );
+            let expires = std::time::Duration::from_secs(expires_secs as u64);
             match presigner.presign(key.as_str(), range, expires).await {
                 Ok(presigned) => url.url = presigned,
                 Err(e) => tracing::warn!(?e, "presign failed, returning placeholder URL"),

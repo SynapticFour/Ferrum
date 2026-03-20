@@ -14,9 +14,14 @@ pub type C4ghKeys = crypt4gh::Keys;
 
 /// Build recipient Keys from raw public key bytes (e.g. from age or Crypt4GH format).
 pub fn recipient_keys_from_pubkey(pubkey: &[u8]) -> C4ghKeys {
+    // Learned from neicnordic/crypt4gh reference behavior:
+    // the encrypt path requires a non-empty ephemeral sender private key for
+    // per-recipient X25519+ChaCha20-Poly1305 header packets. An empty privkey
+    // panics in crypt4gh internals for chunk/header encryption.
+    let ephemeral = crypt4gh::keys::generate_private_key();
     crypt4gh::Keys {
         method: 0,
-        privkey: Vec::new(),
+        privkey: ephemeral[..32].to_vec(),
         recipient_pubkey: pubkey.to_vec(),
     }
 }
@@ -174,8 +179,10 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(32);
-    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(32);
+    // Progress guarantee: unbounded channels prevent deadlocks caused by
+    // bounded-capacity backpressure between async pumps and spawn_blocking.
+    let (tx_in, rx_in) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (tx_out, rx_out) = std::sync::mpsc::channel::<Vec<u8>>();
     let keys = keys.to_vec();
     let sender = sender_pubkey.map(Vec::from);
 
@@ -202,8 +209,19 @@ where
     });
 
     let write_task = tokio::spawn(async move {
-        while let Ok(chunk) = rx_out.recv() {
-            write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+        use std::sync::mpsc::TryRecvError;
+        loop {
+            match rx_out.try_recv() {
+                Ok(chunk) => {
+                    write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+                }
+                Err(TryRecvError::Empty) => {
+                    // Avoid blocking a Tokio worker thread. We are in an async task,
+                    // so use cooperative yielding while waiting for more ciphertext.
+                    tokio::task::yield_now().await;
+                }
+                Err(TryRecvError::Disconnected) => break,
+            }
         }
         write.flush().await.map_err(Crypt4GHError::Io)?;
         Ok::<_, Crypt4GHError>(())
@@ -229,8 +247,10 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(32);
-    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(32);
+    // Progress guarantee: unbounded channels prevent deadlocks caused by
+    // bounded-capacity backpressure between async pumps and spawn_blocking.
+    let (tx_in, rx_in) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (tx_out, rx_out) = std::sync::mpsc::channel::<Vec<u8>>();
     let keys = recipient_keys.clone();
 
     let mut reader = ChannelReader::new(rx_in);
@@ -255,8 +275,17 @@ where
     });
 
     let write_task = tokio::spawn(async move {
-        while let Ok(chunk) = rx_out.recv() {
-            write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+        use std::sync::mpsc::TryRecvError;
+        loop {
+            match rx_out.try_recv() {
+                Ok(chunk) => {
+                    write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+                }
+                Err(TryRecvError::Empty) => {
+                    tokio::task::yield_now().await;
+                }
+                Err(TryRecvError::Disconnected) => break,
+            }
         }
         write.flush().await.map_err(Crypt4GHError::Io)?;
         Ok::<_, Crypt4GHError>(())
@@ -284,8 +313,10 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(32);
-    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(32);
+    // Progress guarantee: unbounded channels prevent deadlocks caused by
+    // bounded-capacity backpressure between async pumps and spawn_blocking.
+    let (tx_in, rx_in) = std::sync::mpsc::channel::<Vec<u8>>();
+    let (tx_out, rx_out) = std::sync::mpsc::channel::<Vec<u8>>();
     let keys = keys.to_vec();
     let recipients = recipient_keys.clone();
 
@@ -312,8 +343,17 @@ where
     });
 
     let write_task = tokio::spawn(async move {
-        while let Ok(chunk) = rx_out.recv() {
-            write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+        use std::sync::mpsc::TryRecvError;
+        loop {
+            match rx_out.try_recv() {
+                Ok(chunk) => {
+                    write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+                }
+                Err(TryRecvError::Empty) => {
+                    tokio::task::yield_now().await;
+                }
+                Err(TryRecvError::Disconnected) => break,
+            }
         }
         write.flush().await.map_err(Crypt4GHError::Io)?;
         Ok::<_, Crypt4GHError>(())
@@ -358,12 +398,24 @@ impl std::io::Read for ChannelReader {
 
 /// Sync Write that sends to a channel. Exported for proxy pipeline.
 pub(crate) struct ChannelWriter {
-    sender: std::sync::mpsc::SyncSender<Vec<u8>>,
+    sender: std::sync::mpsc::Sender<Vec<u8>>,
     buffer: Vec<u8>,
 }
 
+impl Drop for ChannelWriter {
+    fn drop(&mut self) {
+        // crypt4gh's encrypt/decrypt implementations may not call `flush()` on the
+        // provided Write. To avoid truncating the final header/segment bytes,
+        // push any remaining buffered data when the writer is dropped.
+        if !self.buffer.is_empty() {
+            let chunk = std::mem::take(&mut self.buffer);
+            let _ = self.sender.send(chunk);
+        }
+    }
+}
+
 impl ChannelWriter {
-    pub(crate) fn new(sender: std::sync::mpsc::SyncSender<Vec<u8>>) -> Self {
+    pub(crate) fn new(sender: std::sync::mpsc::Sender<Vec<u8>>) -> Self {
         Self {
             sender,
             buffer: Vec::with_capacity(STREAM_CHUNK),
@@ -373,24 +425,20 @@ impl ChannelWriter {
 
 impl std::io::Write for ChannelWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        // Correctness first: the `crypt4gh` crate may not call `flush()` at the end of
+        // `encrypt`/`decrypt`. If we only buffer until `STREAM_CHUNK`, we risk producing
+        // truncated ciphertext and then deadlocking in the decrypt reader.
+        //
+        // We therefore forward each `write()` call immediately as a channel message.
         self.buffer.extend_from_slice(buf);
-        if self.buffer.len() >= STREAM_CHUNK {
-            let chunk = std::mem::take(&mut self.buffer);
-            self.buffer.reserve(STREAM_CHUNK);
-            self.sender
-                .send(chunk)
-                .map_err(|_| std::io::ErrorKind::BrokenPipe)?;
-        }
+        let chunk = std::mem::take(&mut self.buffer);
+        self.sender
+            .send(chunk)
+            .map_err(|_| std::io::ErrorKind::BrokenPipe)?;
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        if !self.buffer.is_empty() {
-            let chunk = std::mem::take(&mut self.buffer);
-            self.sender
-                .send(chunk)
-                .map_err(|_| std::io::ErrorKind::BrokenPipe)?;
-        }
         Ok(())
     }
 }

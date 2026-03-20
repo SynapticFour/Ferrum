@@ -149,8 +149,10 @@ where
                 }
             };
 
-            let (tx_in, rx_in) = mpsc::sync_channel(32);
-            let (tx_out, rx_out) = mpsc::sync_channel(32);
+            // Progress guarantee: use unbounded channels so the re-encryption
+            // blocking thread cannot deadlock on bounded backpressure.
+            let (tx_in, rx_in) = mpsc::channel();
+            let (tx_out, rx_out) = mpsc::channel();
             let mut reader = ChannelReader::new(rx_in);
             let mut writer = ChannelWriter::new(tx_out);
             let keys = master_keys.clone();
@@ -182,7 +184,8 @@ fn body_to_stream<B>(body: B) -> impl Stream<Item = Result<Frame<Bytes>, std::io
 where
     B: http_body::Body<Data = Bytes, Error = std::io::Error> + Send + Unpin + 'static,
 {
-    let (tx, rx) = mpsc::sync_channel(32);
+    // Unbounded to avoid deadlocks between HTTP body pumping and downstream re-encryption streaming.
+    let (tx, rx) = mpsc::channel();
     tokio::spawn(async move {
         let mut stream = BodyStream::new(body);
         while let Some(Ok(frame)) = stream.next().await {

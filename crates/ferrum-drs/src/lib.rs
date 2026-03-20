@@ -18,7 +18,7 @@ use axum::{
 };
 use handlers::{
     delete_object, get_access, get_object, get_object_provenance, get_object_stream, get_object_view,
-    get_service_info, list_objects, options_object, post_object, put_object,
+    get_service_info, list_bundle_contents, list_objects, options_object, post_object, put_object,
 };
 pub use state::AppState;
 use std::sync::Arc;
@@ -31,6 +31,7 @@ use utoipa_swagger_ui::SwaggerUi;
         handlers::get_service_info,
         handlers::get_object,
         handlers::get_object_provenance,
+        handlers::list_bundle_contents,
         handlers::options_object,
         handlers::get_access,
         handlers::get_object_stream,
@@ -44,6 +45,8 @@ use utoipa_swagger_ui::SwaggerUi;
     ),
     components(schemas(
         handlers::ExpandQuery,
+        handlers::BundleContentsQuery,
+        handlers::BundleContentsPage,
         types::DrsObject,
         types::AccessUrl,
         types::ContentsObject,
@@ -118,10 +121,14 @@ pub fn router(state: AppState) -> Router {
         .route("/objects", get(list_objects_json).post(post_object_json))
         .route(
             "/objects/:object_id",
-            get(|s, p, q, h, auth| async move { JsonResult(get_object(s, p, q, h, auth).await) })
+            get(get_object)
                 .put(|s, p, j| async move { JsonResult(put_object(s, p, j).await) })
                 .delete(|s, p| async move { JsonResult(delete_object(s, p).await) })
                 .options(options_object),
+        )
+        .route(
+            "/objects/:object_id/contents",
+            get(|s, p, q, h, auth| async move { JsonResult(list_bundle_contents(s, p, q, h, auth).await) }),
         )
         .route(
             "/objects/:object_id/provenance",

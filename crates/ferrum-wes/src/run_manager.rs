@@ -285,7 +285,61 @@ impl RunManager {
                     let _ = metrics.compute_run_summary(run_id).await;
                 }
                 if let Some(row) = self.repo.get_run(run_id).await? {
-                    let (_, _, _, _, _, _, _, _, start_time, end_time, _, _, _, _, _) = row;
+                    let (
+                        _,
+                        _,
+                        _,
+                        _,
+                        _,
+                        _,
+                        _,
+                        _,
+                        start_time,
+                        end_time,
+                        outputs,
+                        work_dir,
+                        _,
+                        _,
+                        _,
+                    ) = row;
+
+                    if state == RunState::Complete {
+                        if let Some(ref work_dir) = work_dir {
+                            if outputs.get("output_files").is_none() {
+                                let ignore_globs = crate::output_sampling::default_ignore_globs(
+                                    self.multiqc_runner
+                                        .as_ref()
+                                        .map(|r| r.config.scan_patterns.as_slice()),
+                                );
+                                let repo = Arc::clone(&self.repo);
+                                let run_id_s = run_id.to_string();
+                                let work_dir_path = std::path::PathBuf::from(work_dir);
+
+                                // Filesystem traversal can block; isolate it.
+                                let files = tokio::task::spawn_blocking(move || {
+                                    crate::output_sampling::collect_output_files(
+                                        &work_dir_path,
+                                        &ignore_globs,
+                                    )
+                                })
+                                .await;
+
+                                if let Ok(files) = files {
+                                    // Merge even an empty list to signal that output sampling ran.
+                                    let mut updates = serde_json::Map::new();
+                                    updates.insert(
+                                        "output_files".to_string(),
+                                        serde_json::Value::Array(files),
+                                    );
+                                    // Best-effort: ignore merge failures.
+                                    let _ = repo
+                                        .merge_run_outputs(&run_id_s, &updates)
+                                        .await;
+                                }
+                            }
+                        }
+                    }
+
                     let stdout_url = Some(format!("/runs/{}/logs/stdout", run_id));
                     let stderr_url = Some(format!("/runs/{}/logs/stderr", run_id));
                     let end = end_time.unwrap_or_else(Utc::now);

@@ -2,6 +2,7 @@
 
 pub mod error;
 pub mod handlers;
+pub mod query;
 pub mod repo;
 
 use axum::routing::{get, post};

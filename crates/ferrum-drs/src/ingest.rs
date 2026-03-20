@@ -3,7 +3,7 @@
 use crate::error::{DrsError, Result};
 use crate::state::AppState;
 use crate::types::{
-    ChecksumInput, CreateObjectRequest, IngestBatchItem, IngestBatchRequest, IngestUrlRequest,
+    CreateObjectRequest, IngestBatchItem, IngestBatchRequest, IngestUrlRequest,
 };
 use axum::{
     extract::{Extension, Multipart, State},
@@ -12,6 +12,7 @@ use axum::{
 use sha2::{Digest, Sha256, Sha512};
 use std::sync::Arc;
 use utoipa::ToSchema;
+use tokio::io::AsyncReadExt;
 
 /// Multipart file upload; computes checksums, stores file, creates DRS object. Optional encrypt=true.
 #[utoipa::path(
@@ -26,7 +27,7 @@ pub async fn ingest_file(
 ) -> Result<Json<IngestFileResponse>> {
     let storage = state
         .storage
-        .as_ref()
+        .clone()
         .ok_or_else(|| DrsError::Validation("ingest not configured: no storage".into()))?;
     let mut name = None;
     let mut explicit_name = None::<String>;
@@ -84,10 +85,9 @@ pub async fn ingest_file(
         return Err(DrsError::Validation("no file in multipart".into()));
     }
     let size = data.len() as i64;
-    let sha256 = format!("{:x}", Sha256::digest(&data));
-    let sha512 = format!("{:x}", Sha512::digest(&data));
-    let md5_hex = format!("{:x}", md5::compute(&data));
     if let Some(ref expected) = expected_sha256 {
+        // Validate expected sha-256 immediately to keep request semantics intact.
+        let sha256 = format!("{:x}", Sha256::digest(&data));
         if expected.to_lowercase() != sha256 {
             return Err(DrsError::Validation(format!(
                 "checksum mismatch: expected sha-256 {}",
@@ -115,26 +115,14 @@ pub async fn ingest_file(
         .put_bytes(&storage_key, &data)
         .await
         .map_err(|e| DrsError::Other(e.into()))?;
-    let checksums = vec![
-        ChecksumInput {
-            r#type: "sha-256".to_string(),
-            checksum: sha256.clone(),
-        },
-        ChecksumInput {
-            r#type: "sha-512".to_string(),
-            checksum: sha512,
-        },
-        ChecksumInput {
-            r#type: "md5".to_string(),
-            checksum: md5_hex,
-        },
-    ];
     let req = CreateObjectRequest {
         name: object_name.or_else(|| Some(storage_key.clone())),
         description: None,
         mime_type,
         size,
-        checksums: checksums.clone(),
+        // Learned from production lessons: checksum computation can be done
+        // asynchronously after ingest for large objects.
+        checksums: vec![],
         aliases: None,
         storage_backend: "local".to_string(),
         storage_key: storage_key.clone(),
@@ -145,16 +133,85 @@ pub async fn ingest_file(
         .repo
         .create_object_with_id(&req, Some(object_id.clone()))
         .await?;
+
+    // Mark checksums as pending and compute in the background.
+    state
+        .repo
+        .set_checksum_status(&object_id, "pending")
+        .await?;
+
+    let repo = Arc::clone(&state.repo);
+    let storage_key_bg = storage_key.clone();
+    let object_id_bg = object_id.clone();
+    let storage_bg = Arc::clone(&storage);
+    tokio::spawn(async move {
+        // Compute checksums by streaming the stored bytes (no full buffering).
+        let mut reader = match storage_bg.get(&storage_key_bg).await {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::error!(object_id = %object_id_bg, error = %e, "checksum compute: failed to open storage object");
+                let _ = repo
+                    .set_checksum_status(&object_id_bg, &format!("failed:{e}"))
+                    .await;
+                return;
+            }
+        };
+
+        let mut buf = vec![0u8; 64 * 1024];
+        let mut sha256 = Sha256::new();
+        let mut sha512 = Sha512::new();
+        let mut md5_hasher = md5::Context::new();
+
+        loop {
+            let n = match reader.read(&mut buf).await {
+                Ok(n) => n,
+                Err(e) => {
+                    tracing::error!(object_id = %object_id_bg, error = %e, "checksum compute: read failed");
+                    let _ = repo
+                        .set_checksum_status(&object_id_bg, &format!("failed:{e}"))
+                        .await;
+                    return;
+                }
+            };
+            if n == 0 {
+                break;
+            }
+            sha256.update(&buf[..n]);
+            sha512.update(&buf[..n]);
+            md5_hasher.consume(&buf[..n]);
+        }
+
+        let sha256_hex = format!("{:x}", sha256.finalize());
+        let sha512_hex = format!("{:x}", sha512.finalize());
+        let md5_hex = format!("{:x}", md5_hasher.compute());
+
+        let checksum_pairs = vec![
+            ("sha-256", sha256_hex.as_str()),
+            ("sha-512", sha512_hex.as_str()),
+            ("md5", md5_hex.as_str()),
+        ];
+
+        if let Err(e) = repo
+            .upsert_checksums(&object_id_bg, &checksum_pairs)
+            .await
+        {
+            tracing::error!(object_id = %object_id_bg, error = %e, "checksum compute: db upsert failed");
+            let _ = repo
+                .set_checksum_status(&object_id_bg, &format!("failed:{e}"))
+                .await;
+            return;
+        }
+
+        let _ = repo
+            .set_checksum_status(&object_id_bg, "computed")
+            .await;
+    });
+
     Ok(Json(IngestFileResponse {
         id: object_id,
         size,
-        checksums: checksums
-            .iter()
-            .map(|c| ferrum_core::Checksum {
-                r#type: c.r#type.clone(),
-                checksum: c.checksum.clone(),
-            })
-            .collect(),
+        // Checksums are computed asynchronously; return empty until GET observes completion.
+        checksums: vec![],
     }))
 }
 
@@ -340,35 +397,19 @@ pub async fn ingest_batch(
                     )));
                 }
                 let size = data.len() as i64;
-                let sha256 = format!("{:x}", Sha256::digest(&data));
-                let sha512 = format!("{:x}", Sha512::digest(&data));
-                let md5_hex = format!("{:x}", md5::compute(&data));
                 let object_id = ulid::Ulid::new().to_string();
                 let storage_key = format!("drs/{}", object_id);
                 storage
                     .put_bytes(&storage_key, &data)
                     .await
                     .map_err(|e| DrsError::Other(e.into()))?;
-                let checksums = vec![
-                    ChecksumInput {
-                        r#type: "sha-256".to_string(),
-                        checksum: sha256,
-                    },
-                    ChecksumInput {
-                        r#type: "sha-512".to_string(),
-                        checksum: sha512,
-                    },
-                    ChecksumInput {
-                        r#type: "md5".to_string(),
-                        checksum: md5_hex,
-                    },
-                ];
                 let create = CreateObjectRequest {
                     name: name.or(Some(path)),
                     description: None,
                     mime_type: None,
                     size,
-                    checksums: checksums.clone(),
+                    // Async checksum computation (see ingest_file for details).
+                    checksums: vec![],
                     aliases: None,
                     storage_backend: "local".to_string(),
                     storage_key: storage_key.clone(),
@@ -379,6 +420,78 @@ pub async fn ingest_batch(
                     .repo
                     .create_object_with_id(&create, Some(object_id))
                     .await?;
+
+                state
+                    .repo
+                    .set_checksum_status(&id, "pending")
+                    .await?;
+
+                // Background task to compute checksums by streaming from storage.
+                let repo = Arc::clone(&state.repo);
+                let storage_key_bg = storage_key.clone();
+                let object_id_bg = id.clone();
+                let storage_bg = Arc::clone(&storage);
+                tokio::spawn(async move {
+                    let mut reader = match storage_bg.get(&storage_key_bg).await {
+                        Ok(r) => r,
+                        Err(e) => {
+                            tracing::error!(object_id = %object_id_bg, error = %e, "batch checksum compute: failed to open storage object");
+                            let _ = repo
+                                .set_checksum_status(&object_id_bg, &format!("failed:{e}"))
+                                .await;
+                            return;
+                        }
+                    };
+
+                    let mut buf = vec![0u8; 64 * 1024];
+                    let mut sha256 = Sha256::new();
+                    let mut sha512 = Sha512::new();
+                    let mut md5_hasher = md5::Context::new();
+
+                    loop {
+                        let n = match reader.read(&mut buf).await {
+                            Ok(n) => n,
+                            Err(e) => {
+                                tracing::error!(object_id = %object_id_bg, error = %e, "batch checksum compute: read failed");
+                                let _ = repo
+                                    .set_checksum_status(&object_id_bg, &format!("failed:{e}"))
+                                    .await;
+                                return;
+                            }
+                        };
+                        if n == 0 {
+                            break;
+                        }
+                        sha256.update(&buf[..n]);
+                        sha512.update(&buf[..n]);
+                        md5_hasher.consume(&buf[..n]);
+                    }
+
+                    let sha256_hex = format!("{:x}", sha256.finalize());
+                    let sha512_hex = format!("{:x}", sha512.finalize());
+                    let md5_hex = format!("{:x}", md5_hasher.compute());
+
+                    let checksum_pairs = vec![
+                        ("sha-256", sha256_hex.as_str()),
+                        ("sha-512", sha512_hex.as_str()),
+                        ("md5", md5_hex.as_str()),
+                    ];
+
+                    if let Err(e) = repo
+                        .upsert_checksums(&object_id_bg, &checksum_pairs)
+                        .await
+                    {
+                        tracing::error!(object_id = %object_id_bg, error = %e, "batch checksum compute: db upsert failed");
+                        let _ = repo
+                            .set_checksum_status(&object_id_bg, &format!("failed:{e}"))
+                            .await;
+                        return;
+                    }
+
+                    let _ = repo
+                        .set_checksum_status(&object_id_bg, "computed")
+                        .await;
+                });
                 if let Some(ref store) = state.provenance_store {
                     if let Some(ref uris) = derived_from {
                         for uri in uris {

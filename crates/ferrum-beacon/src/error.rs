@@ -9,12 +9,15 @@ pub enum BeaconError {
     NotFound(String),
     #[error("database: {0}")]
     Database(#[from] sqlx::Error),
+    #[error("validation: {0}")]
+    Validation(String),
 }
 
 impl IntoResponse for BeaconError {
     fn into_response(self) -> axum::response::Response {
         let status = match &self {
             BeaconError::NotFound(_) => axum::http::StatusCode::NOT_FOUND,
+            BeaconError::Validation(_) => axum::http::StatusCode::BAD_REQUEST,
             _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,
         };
         (

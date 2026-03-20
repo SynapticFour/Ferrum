@@ -48,6 +48,17 @@ impl BeaconRepo {
         Ok(row.0)
     }
 
+    /// Resolve dataset id for a given assembly_id.
+    pub async fn dataset_id_for_assembly(&self, assembly_id: &str) -> Result<Option<String>> {
+        let row: Option<(String,)> = sqlx::query_as(
+            "SELECT id FROM beacon_datasets WHERE assembly_id = $1 LIMIT 1",
+        )
+        .bind(assembly_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| r.0))
+    }
+
     pub async fn list_datasets(&self) -> Result<Vec<(String, Option<String>, Option<String>)>> {
         let rows = sqlx::query_as::<_, (String, Option<String>, Option<String>)>(
             "SELECT id, name, assembly_id FROM beacon_datasets ORDER BY id",

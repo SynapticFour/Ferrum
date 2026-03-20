@@ -44,6 +44,12 @@ impl From<DrsError> for axum::response::Response {
     }
 }
 
+impl IntoResponse for DrsError {
+    fn into_response(self) -> axum::response::Response {
+        axum::response::Response::from(self)
+    }
+}
+
 /// Wrapper so that `Result<Json<T>, DrsError>` can implement `IntoResponse` (orphan rule).
 pub struct JsonResult<T>(pub std::result::Result<axum::Json<T>, DrsError>);
 

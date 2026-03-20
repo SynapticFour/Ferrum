@@ -12,6 +12,7 @@ pub mod metrics;
 pub mod multiqc;
 pub mod process_sampler;
 pub mod provenance_helpers;
+pub mod output_sampling;
 pub mod repo;
 pub mod run_manager;
 pub mod state;
@@ -107,7 +108,9 @@ pub fn router(
     )));
     let work_dir_base = work_dir_base.unwrap_or_else(|| std::env::temp_dir().join("wes-runs"));
     std::fs::create_dir_all(&work_dir_base).ok();
+    let work_dir_base_for_restore = work_dir_base.clone();
     let repo = Arc::new(WesRepo::new(pool.clone()));
+    let repo_restore = Arc::clone(&repo);
     let log_registry = Arc::new(log_stream::LogStreamRegistry::new(256));
     let metrics = pricing.map(|p| Arc::new(crate::metrics::MetricsCollector::new(pool.clone(), p)));
     let multiqc_runner = multiqc_config
@@ -140,6 +143,50 @@ pub fn router(
         checkpoint_store,
     };
     let state = Arc::new(state);
+
+    // Learned from Sapporo: on restart, recover runs that were persisted as RUNNING
+    // but no longer have a live process. This is best-effort and must not block startup.
+    tokio::spawn(async move {
+        let Ok(entries) = std::fs::read_dir(&work_dir_base_for_restore) else {
+            return;
+        };
+        let mut sys = sysinfo::System::new_all();
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let run_id = match path.file_name().and_then(|n| n.to_str()) {
+                Some(r) => r.to_string(),
+                None => continue,
+            };
+            let state_path = path.join("state.json");
+            let Ok(bytes) = std::fs::read(&state_path) else {
+                continue;
+            };
+            let Ok(v) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+                continue;
+            };
+            if v.get("state").and_then(|s| s.as_str()) != Some("RUNNING") {
+                continue;
+            }
+            let Some(pid) = v.get("engine_pid").and_then(|p| p.as_u64()).and_then(|p| u32::try_from(p).ok()) else {
+                // No PID stored -> skip (e.g. TES-backed runs).
+                continue;
+            };
+
+            sys.refresh_processes(sysinfo::ProcessesToUpdate::All);
+            let exists = sys
+                .process(sysinfo::Pid::from_u32(pid))
+                .is_some();
+
+            if !exists {
+                let _ = repo_restore
+                    .update_state(&run_id, crate::types::RunState::SystemError)
+                    .await;
+            }
+        }
+    });
 
     let mut r = Router::new()
         .route("/service-info", get(get_service_info))

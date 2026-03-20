@@ -4,6 +4,7 @@ use crate::error::{DrsError, Result};
 use crate::types::{
     AccessUrl, ContentsObject, CreateObjectRequest, DrsObject, UpdateObjectRequest,
 };
+use base64::Engine;
 use ferrum_core::{AccessMethod, AccessType, Checksum};
 use sqlx::PgPool;
 
@@ -13,6 +14,8 @@ pub struct DrsRepo {
 }
 
 impl DrsRepo {
+    const CHECKSUM_STATUS_META_KEY: &'static str = "checksum_status";
+
     pub fn new(pool: PgPool, hostname: String) -> Self {
         Self { pool, hostname }
     }
@@ -196,7 +199,11 @@ impl DrsRepo {
         let url = access_url.and_then(|v| v.as_str().map(String::from));
         let url = url.ok_or_else(|| DrsError::Validation("access_url missing".into()))?;
         let headers: Option<Vec<String>> = headers.and_then(|h| serde_json::from_value(h).ok());
-        Ok(Some(AccessUrl { url, headers }))
+        Ok(Some(AccessUrl {
+            url,
+            headers,
+            expires_at: None,
+        }))
     }
 
     /// Create object (admin). If optional_id is Some, use it (e.g. from ingest).
@@ -405,6 +412,7 @@ struct AccessMethodRow {
 impl DrsRepo {
     /// Get bundle contents with recursive expansion of nested bundles (iterative to avoid async recursion).
     async fn get_bundle_contents_expanded(&self, bundle_id: &str) -> Result<Vec<ContentsObject>> {
+        const MAX_BUNDLE_DEPTH: usize = 5;
         #[derive(Clone)]
         struct Item {
             object_id: String,
@@ -412,10 +420,10 @@ impl DrsRepo {
             drs_uri: Option<String>,
             is_bundle: bool,
         }
-        let mut to_expand: Vec<String> = vec![bundle_id.to_string()];
+        let mut to_expand: Vec<(String, usize)> = vec![(bundle_id.to_string(), 1)];
         let mut by_bundle: std::collections::HashMap<String, Vec<Item>> =
             std::collections::HashMap::new();
-        while let Some(bid) = to_expand.pop() {
+        while let Some((bid, depth)) = to_expand.pop() {
             let rows: Vec<(String, String, Option<String>, bool)> = sqlx::query_as(
                 r#"SELECT c.object_id, c.name, c.drs_uri, o.is_bundle
                    FROM drs_bundle_contents c
@@ -436,7 +444,14 @@ impl DrsRepo {
                 .collect();
             for item in &items {
                 if item.is_bundle {
-                    to_expand.push(item.object_id.clone());
+                    let child_depth = depth + 1;
+                    if child_depth > MAX_BUNDLE_DEPTH {
+                        return Err(DrsError::Validation(format!(
+                            "Bundle nesting exceeds maximum depth of {}",
+                            MAX_BUNDLE_DEPTH
+                        )));
+                    }
+                    to_expand.push((item.object_id.clone(), child_depth));
                 }
             }
             by_bundle.insert(bid, items);
@@ -477,6 +492,101 @@ impl DrsRepo {
         Ok(build_contents(bundle_id, &by_bundle, &hostname))
     }
 
+    /// List direct bundle members with cursor-based pagination.
+    /// Cursor is an opaque base64 string encoding (bundle_id, last_seen_child_id).
+    pub async fn list_bundle_contents_page(
+        &self,
+        bundle_id: &str,
+        page_token: Option<&str>,
+        page_size: u32,
+    ) -> Result<(Vec<ContentsObject>, Option<String>)> {
+        const DEFAULT_PAGE_SIZE: u32 = 100;
+        const MAX_PAGE_SIZE: u32 = 1000;
+
+        let page_size = if page_size == 0 {
+            DEFAULT_PAGE_SIZE
+        } else {
+            page_size
+        };
+        if page_size > MAX_PAGE_SIZE {
+            return Err(DrsError::Validation(format!(
+                "page_size exceeds maximum of {}",
+                MAX_PAGE_SIZE
+            )));
+        }
+
+        #[derive(serde::Deserialize, serde::Serialize)]
+        struct Cursor {
+            bundle_id: String,
+            last_seen_child_id: String,
+        }
+
+        let last_seen: Option<String> = if let Some(token) = page_token {
+            let decoded = base64::engine::general_purpose::STANDARD
+                .decode(token)
+                .map_err(|e| DrsError::Validation(format!("invalid page_token: {e}")))?;
+            let cursor: Cursor = serde_json::from_slice(&decoded)
+                .map_err(|e| DrsError::Validation(format!("invalid page_token payload: {e}")))?;
+            if cursor.bundle_id != bundle_id {
+                return Err(DrsError::Validation(
+                    "page_token does not match requested bundle_id".into(),
+                ));
+            }
+            Some(cursor.last_seen_child_id)
+        } else {
+            None
+        };
+
+        // Fetch page_size + 1 to decide whether a next token exists.
+        let limit = (page_size as i64) + 1;
+
+        let mut rows: Vec<(String, String, Option<String>)> = sqlx::query_as(
+            r#"
+            SELECT c.object_id, c.name, c.drs_uri
+            FROM drs_bundle_contents c
+            WHERE c.bundle_id = $1
+              AND ($2::text IS NULL OR c.object_id > $2::text)
+            ORDER BY c.object_id
+            LIMIT $3
+            "#,
+        )
+        .bind(bundle_id)
+        .bind(last_seen.as_deref())
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let next_page_token = if rows.len() as u32 > page_size {
+            let last_in_page = rows[page_size as usize - 1].clone();
+            // Drop the extra element; `contents` should contain exactly `page_size` rows.
+            let _extra = rows.pop();
+            let cursor = Cursor {
+                bundle_id: bundle_id.to_string(),
+                last_seen_child_id: last_in_page.0,
+            };
+            let payload = serde_json::to_vec(&cursor)
+                .map_err(|e| DrsError::Other(anyhow::anyhow!(e.to_string())))?;
+            Some(base64::engine::general_purpose::STANDARD.encode(payload))
+        } else {
+            None
+        };
+
+        let contents = rows
+            .into_iter()
+            .map(|(object_id, name, drs_uri)| {
+                let uri = drs_uri.or_else(|| Some(format!("drs://{}/{}", self.hostname(), object_id)));
+                ContentsObject {
+                    name,
+                    id: Some(object_id.clone()),
+                    drs_uri: uri.map(|u| vec![u]),
+                    contents: None,
+                }
+            })
+            .collect();
+
+        Ok((contents, next_page_token))
+    }
+
     /// Get metadata key-value pairs for an object.
     pub async fn get_metadata(&self, object_id: &str) -> Result<Vec<(String, String)>> {
         let rows: Vec<(String, Option<String>)> =
@@ -501,6 +611,51 @@ impl DrsRepo {
         .bind(value)
         .execute(&self.pool)
         .await?;
+        Ok(())
+    }
+
+    /// Returns checksum compute status stored in `drs_object_metadata`.
+    ///
+    /// Values follow Ferrum's async checksum model:
+    /// - `pending`
+    /// - `computed`
+    /// - `failed:<reason>` (best-effort)
+    pub async fn get_checksum_status(&self, object_id: &str) -> Result<Option<String>> {
+        let row: Option<(String,)> = sqlx::query_as(
+            "SELECT value FROM drs_object_metadata WHERE object_id = $1 AND key = $2",
+        )
+        .bind(object_id)
+        .bind(Self::CHECKSUM_STATUS_META_KEY)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| r.0))
+    }
+
+    /// Set checksum status for an object.
+    pub async fn set_checksum_status(&self, object_id: &str, status: &str) -> Result<()> {
+        self.set_metadata(object_id, Self::CHECKSUM_STATUS_META_KEY, status)
+            .await
+    }
+
+    /// Upsert checksums in `drs_checksums`.
+    pub async fn upsert_checksums(
+        &self,
+        object_id: &str,
+        checksums: &[(&str, &str)],
+    ) -> Result<()> {
+        for (typ, checksum) in checksums {
+            sqlx::query(
+                "INSERT INTO drs_checksums (object_id, type, checksum)
+                 VALUES ($1, $2, $3)
+                 ON CONFLICT (object_id, type)
+                 DO UPDATE SET checksum = EXCLUDED.checksum",
+            )
+            .bind(object_id)
+            .bind(typ)
+            .bind(checksum)
+            .execute(&self.pool)
+            .await?;
+        }
         Ok(())
     }
 }

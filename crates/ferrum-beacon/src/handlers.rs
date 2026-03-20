@@ -12,6 +12,29 @@ pub struct AppState {
     pub repo: Arc<BeaconRepo>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VariantGranularity {
+    Boolean,
+    Count,
+}
+
+fn parse_granularity(granularity: Option<&str>) -> Result<VariantGranularity> {
+    let g = granularity
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_else(|| "boolean".to_string());
+
+    match g.as_str() {
+        "boolean" => Ok(VariantGranularity::Boolean),
+        "count" => Ok(VariantGranularity::Count),
+        "record" => Err(crate::error::BeaconError::Validation(
+            "record granularity is not supported".into(),
+        )),
+        other => Err(crate::error::BeaconError::Validation(format!(
+            "invalid granularity '{other}' (expected boolean|count|record)"
+        ))),
+    }
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct BeaconInfoResponse {
     pub id: String,
@@ -25,6 +48,10 @@ pub struct VariantQueryRequest {
     pub reference_name: Option<String>,
     pub start: Option<i64>,
     pub end: Option<i64>,
+    /// Beacon v2 granularity selector.
+    /// Supported here: `boolean` and `count`.
+    /// `record` is rejected (Ferrum Beacon currently does not serve records).
+    pub granularity: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -75,21 +102,78 @@ pub async fn query_variants(
     State(state): State<Arc<AppState>>,
     Json(body): Json<VariantQueryRequest>,
 ) -> Result<Json<VariantQueryResponse>> {
-    let dataset_id = "default";
-    let chromosome = body.reference_name.as_deref().unwrap_or("1");
-    let start = body.start.unwrap_or(0);
-    let end = body.end.unwrap_or(999999999);
-    let exists = state
-        .repo
-        .variant_exists(dataset_id, chromosome, start, end)
-        .await?;
-    Ok(Json(VariantQueryResponse {
-        meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
-        response: VariantQueryResult {
-            exists: Some(exists),
-            count: None,
-        },
-    }))
+    let sanitized = crate::query::sanitize::sanitize_query_params(
+        body.assembly_id.as_deref(),
+        body.reference_name.as_deref(),
+        body.start,
+        body.end,
+    )?;
+
+    let dataset_id = match sanitized.assembly_id.as_deref() {
+        Some(aid) => state
+            .repo
+            .dataset_id_for_assembly(aid)
+            .await?
+            .ok_or_else(|| {
+                crate::error::BeaconError::NotFound(format!(
+                    "no dataset for assembly_id '{aid}'"
+                ))
+            })?,
+        None => "default".to_string(),
+    };
+
+    let chromosome = sanitized.reference_name;
+    let start = sanitized.start;
+    let end = sanitized.end;
+
+    match parse_granularity(body.granularity.as_deref())? {
+        VariantGranularity::Boolean => {
+            let exists = state
+                .repo
+                .variant_exists(&dataset_id, &chromosome, start, end)
+                .await?;
+            Ok(Json(VariantQueryResponse {
+                meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
+                response: VariantQueryResult {
+                    exists: Some(exists),
+                    count: None,
+                },
+            }))
+        }
+        VariantGranularity::Count => {
+            let count = state
+                .repo
+                .variant_count(&dataset_id, &chromosome, start, end)
+                .await?;
+            Ok(Json(VariantQueryResponse {
+                meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
+                response: VariantQueryResult { exists: None, count: Some(count) },
+            }))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_granularity_defaults_to_boolean() {
+        assert_eq!(parse_granularity(None).unwrap(), VariantGranularity::Boolean);
+    }
+
+    #[test]
+    fn test_parse_granularity_count() {
+        assert_eq!(
+            parse_granularity(Some("count")).unwrap(),
+            VariantGranularity::Count
+        );
+    }
+
+    #[test]
+    fn test_parse_granularity_record_rejected() {
+        assert!(parse_granularity(Some("record")).is_err());
+    }
 }
 
 #[utoipa::path(post, path = "/individuals/query", responses((status = 200)))]

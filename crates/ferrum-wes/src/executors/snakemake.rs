@@ -59,13 +59,20 @@ impl WorkflowExecutor for SnakemakeExecutor {
     }
 
     async fn cancel(&self, handle: &ProcessHandle) -> Result<()> {
-        if let Some(mut t) = self
+        let child = if let Some(t) = self
             .processes
             .write()
             .map_err(|e| crate::error::WesError::Executor(format!("lock poisoned: {}", e)))?
             .remove(&handle.run_id)
         {
-            let _ = t.child.start_kill();
+            Some(t.child)
+        } else {
+            None
+        };
+
+        if let Some(child) = child {
+            // Learned from Sapporo: SIGTERM -> wait -> SIGKILL.
+            super::common::cancel_child_gracefully(child).await;
         }
         Ok(())
     }

@@ -22,6 +22,17 @@ pub struct DrsObject {
     pub aliases: Option<Vec<String>>,
 }
 
+impl DrsObject {
+    /// Returns `self_uri` in canonical `drs://` form.
+    ///
+    /// Learned from Broad Terra / DRS production behavior: some implementations
+    /// accidentally emit `http(s)://...` URLs. Ferrum canonicalizes by rebuilding
+    /// from the object id and the local DRS hostname.
+    pub fn canonical_self_uri(&self, host: &str) -> String {
+        format!("drs://{}/{}", host, self.id)
+    }
+}
+
 /// Contents of a bundle (nested or top-level).
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ContentsObject {
@@ -36,6 +47,9 @@ pub struct ContentsObject {
 pub struct AccessUrl {
     pub url: String,
     pub headers: Option<Vec<String>>,
+    /// Optional expiry timestamp (ISO 8601) for signed URLs.
+    /// Not part of the base GA4GH schema, but useful for clients.
+    pub expires_at: Option<String>,
 }
 
 /// List objects query (admin).

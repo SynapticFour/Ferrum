@@ -55,6 +55,46 @@ jobs:
           curl -sf -H "Content-Type: application/json" -d "$body" http://localhost:8080/ga4gh/wes/v1/runs > run.json
           jq -e '.run_id' run.json >/dev/null
 
+      - name: WES output sampling (output_files + RO-Crate)
+        run: |
+          set -e
+          run_id="$(jq -r '.run_id' run.json)"
+          if [ -z "$run_id" ] || [ "$run_id" = "null" ]; then
+            echo "Missing run_id"
+            exit 1
+          fi
+
+          # Poll until terminal state (best-effort; demo stacks should complete quickly).
+          state=""
+          for _ in $(seq 1 60); do
+            state="$(curl -sf http://localhost:8080/ga4gh/wes/v1/runs/"$run_id"/status | jq -r '.state' || true)"
+            case "$state" in
+              COMPLETE|CANCELED|EXECUTOR_ERROR|SYSTEM_ERROR)
+                break
+                ;;
+            esac
+            sleep 2
+          done
+
+          if [ -z "$state" ] || [ "$state" = "null" ]; then
+            echo "Run did not reach a terminal state in time"
+            exit 1
+          fi
+
+          # Validate our output sampling extension is present.
+          run_log="$(curl -sf http://localhost:8080/ga4gh/wes/v1/runs/"$run_id")"
+          echo "$run_log" | jq -e '.outputs.output_files != null' >/dev/null
+
+          # Validate RO-Crate export endpoint still works (zip and metadata json parseable).
+          curl -sf http://localhost:8080/ga4gh/wes/v1/runs/"$run_id"/export/ro-crate -o rocrate.zip
+          python - <<'PY'
+          import json, zipfile
+          z = zipfile.ZipFile("rocrate.zip")
+          with z.open("ro-crate-metadata.json") as f:
+              json.load(f)
+          print("ro-crate-metadata.json OK")
+          PY
+
       - name: Stop Ferrum stack
         if: always()
         run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans || true
