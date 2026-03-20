@@ -48,6 +48,12 @@ pub struct VariantQueryRequest {
     pub reference_name: Option<String>,
     pub start: Option<i64>,
     pub end: Option<i64>,
+    /// Beacon v2 query: referenceBases for exact match (HelixTest uses it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference_bases: Option<String>,
+    /// Beacon v2 query: alternateBases for exact match (HelixTest uses it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alternate_bases: Option<String>,
     /// Beacon v2 granularity selector.
     /// Supported here: `boolean` and `count`.
     /// `record` is rejected (Ferrum Beacon currently does not serve records).
@@ -64,6 +70,55 @@ pub struct VariantQueryResponse {
 pub struct VariantQueryResult {
     pub exists: Option<bool>,
     pub count: Option<i64>,
+}
+
+// Learned from HelixTest: Beacon v2 `/query` payload is wrapped.
+// HelixTest sends:
+// { "meta": { "apiVersion": "v2.0.0" }, "query": { "requestParameters": {...} } }
+#[derive(Debug, Deserialize)]
+pub struct BeaconQueryEnvelope {
+    pub meta: serde_json::Value,
+    pub query: BeaconQuery,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BeaconQuery {
+    #[serde(rename = "requestParameters")]
+    pub request_parameters: BeaconRequestParameters,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BeaconRequestParameters {
+    #[serde(rename = "assemblyId")]
+    pub assembly_id: Option<String>,
+    #[serde(rename = "referenceName")]
+    pub reference_name: Option<String>,
+    #[serde(rename = "start")]
+    pub start: Option<i64>,
+    // HelixTest v2 currently only sends `start` for SNV-style existence checks.
+    // For our minimal support, we treat missing `end` as `end = start`.
+    #[serde(rename = "end")]
+    pub end: Option<i64>,
+    #[serde(rename = "referenceBases")]
+    pub reference_bases: Option<String>,
+    #[serde(rename = "alternateBases")]
+    pub alternate_bases: Option<String>,
+    /// Beacon v2 requested granularity (e.g. "count"). For completeness.
+    #[serde(rename = "requestedGranularity")]
+    pub requested_granularity: Option<String>,
+}
+
+fn envelope_to_variant_query(envelope: BeaconQueryEnvelope) -> VariantQueryRequest {
+    let p = envelope.query.request_parameters;
+    VariantQueryRequest {
+        assembly_id: p.assembly_id,
+        reference_name: p.reference_name,
+        start: p.start,
+        end: p.end,
+        reference_bases: p.reference_bases,
+        alternate_bases: p.alternate_bases,
+        granularity: p.requested_granularity,
+    }
 }
 
 #[utoipa::path(get, path = "/service-info", responses((status = 200)))]
@@ -100,13 +155,17 @@ pub async fn get_map(State(_state): State<Arc<AppState>>) -> Result<Json<serde_j
 #[utoipa::path(post, path = "/g_variants/query", request_body = VariantQueryRequest, responses((status = 200, body = VariantQueryResponse)))]
 pub async fn query_variants(
     State(state): State<Arc<AppState>>,
-    Json(body): Json<VariantQueryRequest>,
+    Json(envelope): Json<BeaconQueryEnvelope>,
 ) -> Result<Json<VariantQueryResponse>> {
+    // `meta` is currently informational only; HelixTest validates shape, not usage.
+    let _ = &envelope.meta;
+    let body = envelope_to_variant_query(envelope);
+    let end = body.end.or(body.start);
     let sanitized = crate::query::sanitize::sanitize_query_params(
         body.assembly_id.as_deref(),
         body.reference_name.as_deref(),
         body.start,
-        body.end,
+        end,
     )?;
 
     let dataset_id = match sanitized.assembly_id.as_deref() {
@@ -126,11 +185,16 @@ pub async fn query_variants(
     let start = sanitized.start;
     let end = sanitized.end;
 
+    // HelixTest v2 supplies referenceBases/alternateBases. Our DB supports exact matching,
+    // but we also allow missing values (e.g. Level0/Level1 reachability tests).
+    let reference = body.reference_bases.as_deref();
+    let alternate = body.alternate_bases.as_deref();
+
     match parse_granularity(body.granularity.as_deref())? {
         VariantGranularity::Boolean => {
             let exists = state
                 .repo
-                .variant_exists(&dataset_id, &chromosome, start, end)
+                .variant_exists(&dataset_id, &chromosome, start, end, reference, alternate)
                 .await?;
             Ok(Json(VariantQueryResponse {
                 meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
@@ -143,7 +207,7 @@ pub async fn query_variants(
         VariantGranularity::Count => {
             let count = state
                 .repo
-                .variant_count(&dataset_id, &chromosome, start, end)
+                .variant_count(&dataset_id, &chromosome, start, end, reference, alternate)
                 .await?;
             Ok(Json(VariantQueryResponse {
                 meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),

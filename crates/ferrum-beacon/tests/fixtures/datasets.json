@@ -1,0 +1,15 @@
+[
+  {
+    "id": "fixture-public",
+    "name": "Ferrum Beacon Fixture (Public)",
+    "description": "Minimal seeded dataset for integration tests.",
+    "assembly_id": "GRCh38"
+  },
+  {
+    "id": "fixture-registered",
+    "name": "Ferrum Beacon Fixture (Registered)",
+    "description": "Minimal seeded dataset for integration tests.",
+    "assembly_id": "GRCh37"
+  }
+]
+

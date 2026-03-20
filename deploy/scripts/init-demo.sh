@@ -92,6 +92,11 @@ fi
 
 # --- 5. Seed example DRS objects (public genomic test data URLs), workspace ---
 echo "Seeding demo data (DRS, workspace)..."
+
+# HelixTest strict DRS checksum validation expects `test-object-1` to expose a
+# sha256 checksum matching the bytes downloaded from its `access_url.url`.
+TEST_OBJECT_1_ACCESS_URL="https://raw.githubusercontent.com/ga4gh/data-repository-service-schemas/master/README.md"
+TEST_OBJECT_1_SHA256="$(curl -fsSL "$TEST_OBJECT_1_ACCESS_URL" | sha256sum | awk '{print $1}')"
 PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<'SEED'
 -- DRS: existing + BAM/VCF-style examples (URLs to public test data)
 INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
@@ -133,6 +138,26 @@ UPDATE drs_objects SET
   description = 'Seed object for HelixTest (DRS + htsget reads/BAM class).'
 WHERE id = 'test-object-1';
 
+-- --- Beacon v2 demo data (HelixTest expects a known variant exists and a negative coordinate does not) ---
+INSERT INTO beacon_datasets (id, name, description, assembly_id)
+VALUES ('default', 'Ferrum demo Beacon dataset', 'Seeded for HelixTest integration', 'GRCh38')
+ON CONFLICT (id) DO NOTHING;
+
+-- Positive: referenceName=1, start=1000, referenceBases=A, alternateBases=T
+INSERT INTO beacon_variants (dataset_id, chromosome, start, "end", reference, alternate, variant_type)
+SELECT 'default', 'chr1', 1000, 1000, 'A', 'T', 'SNV'
+WHERE NOT EXISTS (
+  SELECT 1 FROM beacon_variants
+  WHERE dataset_id = 'default'
+    AND chromosome = 'chr1'
+    AND start = 1000
+    AND "end" = 1000
+    AND reference = 'A'
+    AND alternate = 'T'
+);
+
+-- Negative is validated by absence: referenceName=1, start=999999999, referenceBases=C, alternateBases=G.
+
 -- Workspace for demo-user (so "make demo" shows a pre-created workspace)
 INSERT INTO workspaces (id, name, description, owner_sub, slug, is_archived, settings)
 VALUES ('demo-workspace-01', 'Demo Workspace', 'Pre-populated workspace for testing. Add data, cohorts, and run workflows.', 'demo-user', 'demo-workspace', false, '{}'::jsonb)
@@ -142,6 +167,14 @@ INSERT INTO workspace_members (workspace_id, sub, role, invited_by)
 VALUES ('demo-workspace-01', 'demo-user', 'owner', 'demo-user')
 ON CONFLICT (workspace_id, sub) DO NOTHING;
 SEED
+
+# Insert sha256 checksum metadata for HelixTest conformance.
+PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 -c "
+  INSERT INTO drs_checksums (object_id, type, checksum)
+  VALUES ('test-object-1', 'sha256', '${TEST_OBJECT_1_SHA256}')
+  ON CONFLICT (object_id, type)
+  DO UPDATE SET checksum = EXCLUDED.checksum;
+"
 
 # --- 6. Seed TRS tool (required for HelixTest /tools/{id}/versions) ---
 echo "Seeding TRS demo tool..."

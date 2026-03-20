@@ -3,6 +3,8 @@
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+pub mod watch;
+
 /// Root Ferrum configuration.
 #[derive(Debug, Clone, Deserialize)]
 pub struct FerrumConfig {
