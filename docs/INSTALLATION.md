@@ -262,6 +262,7 @@ helm install ferrum ferrum/ferrum \
 | | `enable_beacon` | bool | true | Enable Beacon |
 | | `enable_passports` | bool | true | Enable Passports |
 | | `enable_crypt4gh` | bool | true | Enable Crypt4GH layer |
+| | `enable_htsget` | bool | true | Enable htsget tickets and streams |
 | `[encryption]` | `enabled` | bool | false | High-level encryption flag |
 | `[logging]` | `level` | string | `info` | Log level |
 

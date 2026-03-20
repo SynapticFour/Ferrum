@@ -12,6 +12,7 @@ graph TD
     GW[ferrum-gateway]
     CORE[ferrum-core]
     DRS[ferrum-drs]
+    HTSGET[ferrum-htsget]
     TRS[ferrum-trs]
     WES[ferrum-wes]
     TES[ferrum-tes]
@@ -27,6 +28,7 @@ graph TD
   end
 
   GW --> DRS
+  GW --> HTSGET
   GW --> TRS
   GW --> WES
   GW --> TES
@@ -34,6 +36,7 @@ graph TD
   GW --> PASS
   GW --> C4
   DRS --> CORE
+  HTSGET --> CORE
   TRS --> CORE
   WES --> CORE
   TES --> CORE
@@ -41,6 +44,8 @@ graph TD
   PASS --> CORE
   C4 --> CORE
   GW --> CORE
+
+  HTSGET --> DRS
 
   DRS --> PG
   WES --> PG
@@ -105,6 +110,7 @@ pub fn router(state: AppState) -> Router {
 // Gateway composes all
 let app = Router::new()
     .nest("/ga4gh/drs/v1", ferrum_drs::router(drs_state))
+    .nest("/ga4gh/htsget/v1", ferrum_htsget::router(htsget_state))
     .nest("/ga4gh/trs/v2", ferrum_trs::router(trs_state))
     .nest("/ga4gh/wes/v1", ferrum_wes::router(wes_state))
     .nest("/ga4gh/tes/v1", ferrum_tes::router(tes_state))
@@ -196,6 +202,21 @@ sequenceDiagram
   Ferrum->>Ferrum: Validate Passport, check Visa
   Ferrum->>Ferrum: Resolve object, apply Crypt4GH re-wrap
   Ferrum-->>Client: 200 stream
+```
+
+### e) htsget ticket -> DRS stream flow
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Htsget as htsget (/ga4gh/htsget/v1)
+  participant DRS
+
+  Client->>Htsget: GET /reads/:id or POST /reads/:id (JSON ticket)
+  Htsget->>DRS: Resolve object id + access/stream classification
+  Htsget-->>Client: 200 ticket (urls: GET /ga4gh/drs/v1/objects/{id}/stream)
+  Client->>DRS: GET /ga4gh/drs/v1/objects/{id}/stream (+ optional auth)
+  DRS-->>Client: 200 stream (plaintext or Crypt4GH-enabled path)
 ```
 
 ---

@@ -66,6 +66,7 @@ flowchart LR
     TRS[TRS]
     B[Beacon]
     P[Passports]
+    HTSGET[htsget]
     C4[Crypt4GH]
   end
 
@@ -77,11 +78,13 @@ flowchart LR
   UI --> G
   CLI --> G
   G --> DRS
+  G --> HTSGET
   G --> WES
   G --> TES
   G --> TRS
   G --> B
   G --> P
+  HTSGET --> DRS
   G --> C4
   DRS --> C4
   C4 --> PG
