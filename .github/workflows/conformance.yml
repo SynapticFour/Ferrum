@@ -15,6 +15,9 @@ on:
 env:
   # Pin HelixTest to a branch or tag; change to e.g. v0.1.0 when HelixTest tags releases
   HELIXTEST_REF: main
+  # HelixTest can skip the Auth (Level 4) suite in Ferrum mode to avoid conflicts where
+  # Ferrum keeps some non-auth conformance endpoints intentionally open.
+  HELIXTEST_SKIP_AUTH: "true"
   GATEWAY_BASE: http://localhost:8080
   # Tickets from htsget must point at a URL the runner can use; gateway default is https://{FERRUM_DRS_HOSTNAME}
   FERRUM_PUBLIC_BASE_URL: http://localhost:8080
@@ -41,9 +44,6 @@ jobs:
 
       - name: Align HelixTest E2E DRS output checksum (demo-sample-vcf seed URL)
         run: sh deploy/scripts/align-helixtest-e2e-checksum.sh
-
-      - name: Patch HelixTest (skip Auth in Ferrum CI)
-        run: sh deploy/scripts/patch-helixtest-skip-auth.sh
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -175,9 +175,6 @@ jobs:
 
       - name: Align HelixTest E2E DRS output checksum (demo-sample-vcf seed URL)
         run: sh deploy/scripts/align-helixtest-e2e-checksum.sh
-
-      - name: Patch HelixTest (skip Auth in Ferrum CI)
-        run: sh deploy/scripts/patch-helixtest-skip-auth.sh
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
