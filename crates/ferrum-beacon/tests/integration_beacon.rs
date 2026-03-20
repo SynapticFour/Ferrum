@@ -183,7 +183,7 @@ async fn beacon_rejects_invalid_inputs() {
 
     let app = router(pool.clone());
 
-    // invalid assemblyId -> 404 (dataset not found)
+    // invalid assemblyId -> 400
     let params = serde_json::json!({
         "assemblyId": "BAD_ASSEMBLY",
         "referenceName": "1",
@@ -192,7 +192,7 @@ async fn beacon_rejects_invalid_inputs() {
         "alternateBases": "T"
     });
     let (status, _) = post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 
     // start > end -> 400
     let params = serde_json::json!({
@@ -396,6 +396,304 @@ async fn beacon_fixture_bulk_positive_and_negative_queries() {
             "expected exists=false for start={start}"
         );
     }
+}
+
+#[tokio::test]
+async fn beacon_integration_matrix_min_20_checks() {
+    let database_url = match std::env::var("DATABASE_URL") {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let pool = PgPool::connect(&database_url).await.expect("connect pool");
+    seed_fixtures(&pool).await;
+    let app = router(pool.clone());
+
+    // 1) Known variant exists (chr1 + allele match).
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "chr1",
+            "start": 1000,
+            "end": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(true)
+    );
+
+    // 2) Same coordinate but wrong allele -> exists=false.
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "chr1",
+            "start": 1000,
+            "end": 1000,
+            "referenceBases": "C",
+            "alternateBases": "G"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(false)
+    );
+
+    // 3) end omitted -> end defaults to start.
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(true)
+    );
+
+    // 4) Coordinate-only match: omit referenceBases/alternateBases -> exists=true.
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 1000
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(true)
+    );
+
+    // 5) Coordinate-only miss: missing coordinate -> exists=false.
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 999999999
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(false)
+    );
+
+    // 6) Count granularity: missing coordinate -> count=0.
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 999999999,
+            "end": 999999999,
+            "requestedGranularity": "count"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json.pointer("/response/count").and_then(|x| x.as_i64()), Some(0));
+
+    // 7) referenceBases injection -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 1000,
+            "referenceBases": "A$",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 8) alternateBases injection -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T;"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 9) assemblyId injection -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38;DROP",
+            "referenceName": "1",
+            "start": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 10) negative start -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": -1,
+            "end": 0,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 11) end out of bounds -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 1000,
+            "end": 4_000_000_000i64,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 12) start > end -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 2000,
+            "end": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 13) invalid referenceName (injection chars) -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1$",
+            "start": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 14) requestedGranularity=record -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T",
+            "requestedGranularity": "record"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 15) unknown assemblyId -> 400.
+    let (status, _) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "BAD_ASSEMBLY",
+            "referenceName": "1",
+            "start": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+
+    // 16) alias route works.
+    let (status, json) = post_json(
+        &app,
+        "/g_variants/query",
+        beacon_variant_query_envelope(serde_json::json!({
+            "assemblyId": "GRCh38",
+            "referenceName": "1",
+            "start": 1000,
+            "referenceBases": "A",
+            "alternateBases": "T"
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(true)
+    );
+
+    // 17) /info shape.
+    let (status, json) = get_json(&app, "/info").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(json.get("id").and_then(|v| v.as_str()), Some("ferrum-beacon"));
+
+    // 18) /map includes entryTypes.
+    let (status, json) = get_json(&app, "/map").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(json.get("entryTypes").is_some());
+
+    // 19) /individuals/query returns individuals array.
+    let (status, json) = post_json(&app, "/individuals/query", serde_json::json!({})).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(json.get("response").and_then(|r| r.get("individuals")).is_some());
+
+    // 20) /biosamples/query returns biosamples array.
+    let (status, json) = post_json(&app, "/biosamples/query", serde_json::json!({})).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(json.get("response").and_then(|r| r.get("biosamples")).is_some());
 }
 
 

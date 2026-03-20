@@ -174,8 +174,10 @@ pub async fn query_variants(
             .dataset_id_for_assembly(aid)
             .await?
             .ok_or_else(|| {
-                crate::error::BeaconError::NotFound(format!(
-                    "no dataset for assembly_id '{aid}'"
+                // Beacon conformance: invalid/unknown `assemblyId` must be treated as
+                // a client error (400), not as a missing resource (404).
+                crate::error::BeaconError::Validation(format!(
+                    "invalid assembly_id '{aid}'"
                 ))
             })?,
         None => "default".to_string(),
@@ -185,16 +187,25 @@ pub async fn query_variants(
     let start = sanitized.start;
     let end = sanitized.end;
 
-    // HelixTest v2 supplies referenceBases/alternateBases. Our DB supports exact matching,
-    // but we also allow missing values (e.g. Level0/Level1 reachability tests).
-    let reference = body.reference_bases.as_deref();
-    let alternate = body.alternate_bases.as_deref();
+    // HelixTest v2 supplies referenceBases/alternateBases. We sanitize them before any DB
+    // interaction (EGA lesson: reject injection vectors early).
+    let reference = crate::query::sanitize::sanitize_bases(body.reference_bases.as_deref())?;
+    let alternate = crate::query::sanitize::sanitize_bases(body.alternate_bases.as_deref())?;
+    let reference_ref = reference.as_deref();
+    let alternate_ref = alternate.as_deref();
 
     match parse_granularity(body.granularity.as_deref())? {
         VariantGranularity::Boolean => {
             let exists = state
                 .repo
-                .variant_exists(&dataset_id, &chromosome, start, end, reference, alternate)
+                .variant_exists(
+                    &dataset_id,
+                    &chromosome,
+                    start,
+                    end,
+                    reference_ref,
+                    alternate_ref,
+                )
                 .await?;
             Ok(Json(VariantQueryResponse {
                 meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
@@ -207,7 +218,14 @@ pub async fn query_variants(
         VariantGranularity::Count => {
             let count = state
                 .repo
-                .variant_count(&dataset_id, &chromosome, start, end, reference, alternate)
+                .variant_count(
+                    &dataset_id,
+                    &chromosome,
+                    start,
+                    end,
+                    reference_ref,
+                    alternate_ref,
+                )
                 .await?;
             Ok(Json(VariantQueryResponse {
                 meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),

@@ -31,6 +31,18 @@ fn reject_for_injection(s: &str) -> Result<(), BeaconError> {
     Ok(())
 }
 
+pub fn sanitize_bases(bases: Option<&str>) -> Result<Option<String>, BeaconError> {
+    // For Beacon v2, bases are modelled as strings (e.g. "A", "T", "ACGT").
+    // Learned from production hardening: reject obvious query-injection characters
+    // before any DB interaction. We intentionally do *not* over-restrict allowed
+    // alphabet here to avoid rejecting legitimate IUPAC/extended base encodings.
+    let Some(raw) = bases.map(|s| s.trim()).filter(|s| !s.is_empty()) else {
+        return Ok(None);
+    };
+    reject_for_injection(raw)?;
+    Ok(Some(raw.to_string()))
+}
+
 pub fn sanitize_reference_name(reference_name: Option<&str>) -> Result<String, BeaconError> {
     let raw = reference_name.unwrap_or("1").trim();
     if raw.is_empty() {
@@ -174,6 +186,14 @@ mod tests {
     fn test_start_end_bounds() {
         assert!(sanitize_range(Some(10), Some(20)).is_ok());
         assert!(sanitize_range(Some(20), Some(10)).is_err());
+    }
+
+    #[test]
+    fn test_bases_injection_rejected() {
+        assert!(sanitize_bases(Some("$")).is_err());
+        assert!(sanitize_bases(Some("{")).is_err());
+        assert!(sanitize_bases(Some("A")).unwrap().as_deref() == Some("A"));
+        assert!(sanitize_bases(None).unwrap().is_none());
     }
 }
 
