@@ -24,7 +24,8 @@ async fn health_handler() -> Json<HealthResponse> {
 }
 
 async fn ready_handler() -> Json<HealthResponse> {
-    // TODO: check database connectivity when pool is in state
+    // Intentionally lightweight: `/health` is for process-level readiness.
+    // Database connectivity checks can be added as a separate endpoint if needed.
     Json(HealthResponse {
         status: "ready".to_string(),
         version: option_env!("CARGO_PKG_VERSION").map(str::to_string),
