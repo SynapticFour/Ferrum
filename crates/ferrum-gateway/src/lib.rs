@@ -6,8 +6,10 @@ mod admin;
 use axum::http::header;
 use axum::{routing::get, Router};
 use ferrum_core::health::health_router;
+use ferrum_core::config::watch::ConfigWatcher;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::path::PathBuf;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
@@ -280,6 +282,34 @@ pub async fn run(
     workspaces_pool: WorkspacesRouterParams,
     admin_pool: Option<sqlx::PgPool>,
 ) -> Result<(), std::io::Error> {
+    // Minimal "hot reload" wiring: spawn ConfigWatcher when a concrete config path is
+    // provided via `FERRUM_CONFIG`. The server does not rebuild routers on changes yet,
+    // but services can subscribe to the updated `watch::Receiver` via their own wiring.
+    if let Ok(p) = std::env::var("FERRUM_CONFIG") {
+        let path = PathBuf::from(p);
+        if path.exists() {
+            let (mut rx, _handle) = ConfigWatcher::spawn(path);
+            tokio::spawn(async move {
+                loop {
+                    if rx.changed().await.is_err() {
+                        break;
+                    }
+                    let cfg = rx.borrow();
+                    tracing::info!(
+                        bind = %cfg.bind,
+                        enable_beacon = cfg.services.enable_beacon,
+                        enable_drs = cfg.services.enable_drs,
+                        enable_tes = cfg.services.enable_tes,
+                        enable_wes = cfg.services.enable_wes,
+                        "config reloaded (hot reload listener)"
+                    );
+                }
+            });
+        } else {
+            tracing::warn!(path = ?path, "FERRUM_CONFIG configured but file does not exist");
+        }
+    }
+
     let app = app(
         config.as_ref(),
         drs_state,
