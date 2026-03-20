@@ -135,6 +135,45 @@ impl BeaconRepo {
         Ok(row.0)
     }
 
+    /// Return matching variant row IDs for additional in-Rust filter evaluation.
+    ///
+    /// This enables correct OR semantics (union + dedup) when Beacon `query.filters`
+    /// contains OR groups represented as nested arrays.
+    pub async fn variant_match_ids(
+        &self,
+        dataset_id: &str,
+        chromosome: &str,
+        start: i64,
+        end: i64,
+        reference: Option<&str>,
+        alternate: Option<&str>,
+        variant_type: Option<&str>,
+    ) -> Result<Vec<i64>> {
+        let candidates = Self::chromosome_candidates(chromosome);
+
+        let rows: Vec<(i64,)> = sqlx::query_as(
+            "SELECT id::bigint FROM beacon_variants
+             WHERE dataset_id = $1
+               AND chromosome = ANY($2)
+               AND start <= $3
+               AND \"end\" >= $4
+               AND ($5::text IS NULL OR reference = $5)
+               AND ($6::text IS NULL OR alternate = $6)
+               AND ($7::text IS NULL OR variant_type = $7)",
+        )
+        .bind(dataset_id)
+        .bind(&candidates)
+        .bind(end)
+        .bind(start)
+        .bind(reference)
+        .bind(alternate)
+        .bind(variant_type)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|(id,)| id).collect())
+    }
+
     /// Resolve dataset id for a given assembly_id.
     pub async fn dataset_id_for_assembly(&self, assembly_id: &str) -> Result<Option<String>> {
         let row: Option<(String,)> = sqlx::query_as(

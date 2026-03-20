@@ -100,6 +100,21 @@ fn beacon_variant_query_envelope(request_parameters: serde_json::Value) -> serde
     })
 }
 
+fn beacon_variant_query_envelope_with_filters(
+    request_parameters: serde_json::Value,
+    filters: serde_json::Value,
+) -> serde_json::Value {
+    // Same wrapper as HelixTest, but includes Beacon `query.filters`.
+    // Learned from beacon2-pi-api: OR-groups are represented by nested arrays.
+    serde_json::json!({
+        "meta": { "apiVersion": "v2.0.0" },
+        "query": {
+            "filters": filters,
+            "requestParameters": request_parameters
+        }
+    })
+}
+
 async fn post_json(app: &axum::Router, uri: &str, body: serde_json::Value) -> (StatusCode, serde_json::Value) {
     let req = Request::builder()
         .method(Method::POST)
@@ -694,6 +709,115 @@ async fn beacon_integration_matrix_min_20_checks() {
     let (status, json) = post_json(&app, "/biosamples/query", serde_json::json!({})).await;
     assert_eq!(status, StatusCode::OK);
     assert!(json.get("response").and_then(|r| r.get("biosamples")).is_some());
+}
+
+#[tokio::test]
+async fn beacon_or_filter_boolean_and_count_semantics_minimal() {
+    let database_url = match std::env::var("DATABASE_URL") {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let pool = PgPool::connect(&database_url).await.expect("connect pool");
+    seed_fixtures(&pool).await;
+    let app = router(pool.clone());
+
+    let request_parameters = serde_json::json!({
+        "assemblyId": "GRCh38",
+        "referenceName": "1",
+        "start": 1000,
+        "end": 1000,
+        "referenceBases": "A",
+        "alternateBases": "T"
+    });
+
+    // OR group (nested array): match SNV even if UNKNOWN is also present.
+    let filters_or_snv_unknown = serde_json::json!([
+        [
+            { "id": "UNKNOWN" },
+            { "id": "SNV" }
+        ]
+    ]);
+
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope_with_filters(
+            request_parameters.clone(),
+            filters_or_snv_unknown.clone(),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(true)
+    );
+
+    // OR group: only UNKNOWN -> no match.
+    let filters_or_only_unknown = serde_json::json!([
+        [
+            { "id": "UNKNOWN" }
+        ]
+    ]);
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope_with_filters(
+            request_parameters.clone(),
+            filters_or_only_unknown,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(false)
+    );
+
+    // AND across top-level items: SNV AND UNKNOWN -> empty intersection.
+    let filters_and_snv_unknown = serde_json::json!([
+        { "id": "SNV" },
+        { "id": "UNKNOWN" }
+    ]);
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope_with_filters(
+            request_parameters.clone(),
+            filters_and_snv_unknown,
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(false)
+    );
+
+    // Count under OR group: expected exactly 1 (chr1:1000 A>T is seeded once).
+    let request_parameters_count = serde_json::json!({
+        "assemblyId": "GRCh38",
+        "referenceName": "1",
+        "start": 1000,
+        "end": 1000,
+        "referenceBases": "A",
+        "alternateBases": "T",
+        "requestedGranularity": "count"
+    });
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope_with_filters(
+            request_parameters_count,
+            filters_or_snv_unknown.clone(),
+        ),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        json.pointer("/response/count").and_then(|x| x.as_i64()),
+        Some(1)
+    );
 }
 
 

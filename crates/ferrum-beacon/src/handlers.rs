@@ -12,6 +12,23 @@ pub struct AppState {
     pub repo: Arc<BeaconRepo>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct BeaconFilter {
+    pub id: String,
+}
+
+/// Beacon v2 encodes OR in `query.filters` as nested arrays.
+///
+/// A filter item can be either:
+/// - `{ "id": "..." }` (single filter)
+/// - `[{ "id": "..." }, { "id": "..." }]` (OR group; any of the nested filters)
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum BeaconFilterExpr {
+    Single(BeaconFilter),
+    OrGroup(Vec<BeaconFilter>),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum VariantGranularity {
     Boolean,
@@ -83,6 +100,8 @@ pub struct BeaconQueryEnvelope {
 
 #[derive(Debug, Deserialize)]
 pub struct BeaconQuery {
+    #[serde(rename = "filters")]
+    pub filters: Option<Vec<BeaconFilterExpr>>,
     #[serde(rename = "requestParameters")]
     pub request_parameters: BeaconRequestParameters,
 }
@@ -108,17 +127,25 @@ pub struct BeaconRequestParameters {
     pub requested_granularity: Option<String>,
 }
 
-fn envelope_to_variant_query(envelope: BeaconQueryEnvelope) -> VariantQueryRequest {
-    let p = envelope.query.request_parameters;
-    VariantQueryRequest {
-        assembly_id: p.assembly_id,
-        reference_name: p.reference_name,
-        start: p.start,
-        end: p.end,
-        reference_bases: p.reference_bases,
-        alternate_bases: p.alternate_bases,
-        granularity: p.requested_granularity,
-    }
+fn envelope_to_variant_query_with_filters(
+    envelope: BeaconQueryEnvelope,
+) -> (VariantQueryRequest, Vec<BeaconFilterExpr>) {
+    // Destructure to avoid partially-moved `envelope.query.filters`.
+    let BeaconQueryEnvelope { query, .. } = envelope;
+    let filters = query.filters.unwrap_or_default();
+    let p = query.request_parameters;
+    (
+        VariantQueryRequest {
+            assembly_id: p.assembly_id,
+            reference_name: p.reference_name,
+            start: p.start,
+            end: p.end,
+            reference_bases: p.reference_bases,
+            alternate_bases: p.alternate_bases,
+            granularity: p.requested_granularity,
+        },
+        filters,
+    )
 }
 
 #[utoipa::path(get, path = "/service-info", responses((status = 200)))]
@@ -159,7 +186,7 @@ pub async fn query_variants(
 ) -> Result<Json<VariantQueryResponse>> {
     // `meta` is currently informational only; HelixTest validates shape, not usage.
     let _ = &envelope.meta;
-    let body = envelope_to_variant_query(envelope);
+    let (body, filters_exprs) = envelope_to_variant_query_with_filters(envelope);
     let end = body.end.or(body.start);
     let sanitized = crate::query::sanitize::sanitize_query_params(
         body.assembly_id.as_deref(),
@@ -196,17 +223,137 @@ pub async fn query_variants(
 
     match parse_granularity(body.granularity.as_deref())? {
         VariantGranularity::Boolean => {
-            let exists = state
-                .repo
-                .variant_exists(
-                    &dataset_id,
-                    &chromosome,
-                    start,
-                    end,
-                    reference_ref,
-                    alternate_ref,
-                )
-                .await?;
+            let exists = if filters_exprs.is_empty() {
+                state
+                    .repo
+                    .variant_exists(
+                        &dataset_id,
+                        &chromosome,
+                        start,
+                        end,
+                        reference_ref,
+                        alternate_ref,
+                    )
+                    .await?
+            } else {
+                // OR semantics from Beacon:
+                // - top-level filter items are AND-ed
+                // - nested arrays inside `filters` represent OR alternatives
+                use std::collections::HashSet;
+
+                let mut current: Option<HashSet<i64>> = None;
+                for expr in filters_exprs {
+                    let expr_ids: Vec<i64> = match expr {
+                        BeaconFilterExpr::Single(f) => {
+                            let fid = crate::query::sanitize::sanitize_filter_id(&f.id)?;
+                            let fid_up = fid.to_ascii_uppercase();
+
+                            if matches!(fid_up.as_str(), "A" | "C" | "G" | "T" | "N") {
+                                // Approximation: nucleotide filters match either reference or alternate.
+                                let ids_ref = state
+                                    .repo
+                                    .variant_match_ids(
+                                        &dataset_id,
+                                        &chromosome,
+                                        start,
+                                        end,
+                                        Some(fid_up.as_str()),
+                                        alternate_ref,
+                                        None,
+                                    )
+                                    .await?;
+                                let ids_alt = state
+                                    .repo
+                                    .variant_match_ids(
+                                        &dataset_id,
+                                        &chromosome,
+                                        start,
+                                        end,
+                                        reference_ref,
+                                        Some(fid_up.as_str()),
+                                        None,
+                                    )
+                                    .await?;
+                                ids_ref.into_iter().chain(ids_alt).collect()
+                            } else {
+                                // Default mapping: treat filter id as variant_type selector.
+                                state
+                                    .repo
+                                    .variant_match_ids(
+                                        &dataset_id,
+                                        &chromosome,
+                                        start,
+                                        end,
+                                        reference_ref,
+                                        alternate_ref,
+                                        Some(fid_up.as_str()),
+                                    )
+                                    .await?
+                            }
+                        }
+                        BeaconFilterExpr::OrGroup(group) => {
+                            // OR within group: union of alternatives.
+                            let mut out: Vec<i64> = Vec::new();
+                            for f in group {
+                                let fid = crate::query::sanitize::sanitize_filter_id(&f.id)?;
+                                let fid_up = fid.to_ascii_uppercase();
+
+                                if matches!(fid_up.as_str(), "A" | "C" | "G" | "T" | "N") {
+                                    let ids_ref = state
+                                        .repo
+                                        .variant_match_ids(
+                                            &dataset_id,
+                                            &chromosome,
+                                            start,
+                                            end,
+                                            Some(fid_up.as_str()),
+                                            alternate_ref,
+                                            None,
+                                        )
+                                        .await?;
+                                    let ids_alt = state
+                                        .repo
+                                        .variant_match_ids(
+                                            &dataset_id,
+                                            &chromosome,
+                                            start,
+                                            end,
+                                            reference_ref,
+                                            Some(fid_up.as_str()),
+                                            None,
+                                        )
+                                        .await?;
+                                    out.extend(ids_ref);
+                                    out.extend(ids_alt);
+                                } else {
+                                    let ids = state
+                                        .repo
+                                        .variant_match_ids(
+                                            &dataset_id,
+                                            &chromosome,
+                                            start,
+                                            end,
+                                            reference_ref,
+                                            alternate_ref,
+                                            Some(fid_up.as_str()),
+                                        )
+                                        .await?;
+                                    out.extend(ids);
+                                }
+                            }
+                            out
+                        }
+                    };
+
+                    let set: HashSet<i64> = expr_ids.into_iter().collect();
+                    current = Some(match current {
+                        None => set,
+                        Some(prev) => prev.intersection(&set).copied().collect(),
+                    });
+                }
+
+                current.map(|s| !s.is_empty()).unwrap_or(false)
+            };
             Ok(Json(VariantQueryResponse {
                 meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
                 response: VariantQueryResult {
@@ -216,17 +363,131 @@ pub async fn query_variants(
             }))
         }
         VariantGranularity::Count => {
-            let count = state
-                .repo
-                .variant_count(
-                    &dataset_id,
-                    &chromosome,
-                    start,
-                    end,
-                    reference_ref,
-                    alternate_ref,
-                )
-                .await?;
+            let count = if filters_exprs.is_empty() {
+                state
+                    .repo
+                    .variant_count(
+                        &dataset_id,
+                        &chromosome,
+                        start,
+                        end,
+                        reference_ref,
+                        alternate_ref,
+                    )
+                    .await?
+            } else {
+                use std::collections::HashSet;
+                let mut current: Option<HashSet<i64>> = None;
+
+                for expr in filters_exprs {
+                    let expr_ids: Vec<i64> = match expr {
+                        BeaconFilterExpr::Single(f) => {
+                            let fid = crate::query::sanitize::sanitize_filter_id(&f.id)?;
+                            let fid_up = fid.to_ascii_uppercase();
+
+                            if matches!(fid_up.as_str(), "A" | "C" | "G" | "T" | "N") {
+                                let ids_ref = state
+                                    .repo
+                                    .variant_match_ids(
+                                        &dataset_id,
+                                        &chromosome,
+                                        start,
+                                        end,
+                                        Some(fid_up.as_str()),
+                                        alternate_ref,
+                                        None,
+                                    )
+                                    .await?;
+                                let ids_alt = state
+                                    .repo
+                                    .variant_match_ids(
+                                        &dataset_id,
+                                        &chromosome,
+                                        start,
+                                        end,
+                                        reference_ref,
+                                        Some(fid_up.as_str()),
+                                        None,
+                                    )
+                                    .await?;
+                                ids_ref.into_iter().chain(ids_alt).collect()
+                            } else {
+                                state
+                                    .repo
+                                    .variant_match_ids(
+                                        &dataset_id,
+                                        &chromosome,
+                                        start,
+                                        end,
+                                        reference_ref,
+                                        alternate_ref,
+                                        Some(fid_up.as_str()),
+                                    )
+                                    .await?
+                            }
+                        }
+                        BeaconFilterExpr::OrGroup(group) => {
+                            let mut out: Vec<i64> = Vec::new();
+                            for f in group {
+                                let fid = crate::query::sanitize::sanitize_filter_id(&f.id)?;
+                                let fid_up = fid.to_ascii_uppercase();
+
+                                if matches!(fid_up.as_str(), "A" | "C" | "G" | "T" | "N") {
+                                    let ids_ref = state
+                                        .repo
+                                        .variant_match_ids(
+                                            &dataset_id,
+                                            &chromosome,
+                                            start,
+                                            end,
+                                            Some(fid_up.as_str()),
+                                            alternate_ref,
+                                            None,
+                                        )
+                                        .await?;
+                                    let ids_alt = state
+                                        .repo
+                                        .variant_match_ids(
+                                            &dataset_id,
+                                            &chromosome,
+                                            start,
+                                            end,
+                                            reference_ref,
+                                            Some(fid_up.as_str()),
+                                            None,
+                                        )
+                                        .await?;
+                                    out.extend(ids_ref);
+                                    out.extend(ids_alt);
+                                } else {
+                                    let ids = state
+                                        .repo
+                                        .variant_match_ids(
+                                            &dataset_id,
+                                            &chromosome,
+                                            start,
+                                            end,
+                                            reference_ref,
+                                            alternate_ref,
+                                            Some(fid_up.as_str()),
+                                        )
+                                        .await?;
+                                    out.extend(ids);
+                                }
+                            }
+                            out
+                        }
+                    };
+
+                    let set: HashSet<i64> = expr_ids.into_iter().collect();
+                    current = Some(match current {
+                        None => set,
+                        Some(prev) => prev.intersection(&set).copied().collect(),
+                    });
+                }
+
+                current.map(|s| s.len() as i64).unwrap_or(0)
+            };
             Ok(Json(VariantQueryResponse {
                 meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
                 response: VariantQueryResult { exists: None, count: Some(count) },

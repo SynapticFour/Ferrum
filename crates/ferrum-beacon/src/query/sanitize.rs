@@ -43,6 +43,17 @@ pub fn sanitize_bases(bases: Option<&str>) -> Result<Option<String>, BeaconError
     Ok(Some(raw.to_string()))
 }
 
+pub fn sanitize_filter_id(filter_id: &str) -> Result<String, BeaconError> {
+    // Learned from EGA production hardening: never allow control characters / injection
+    // patterns in any query-builder path, including Beacon `filters[].id`.
+    let raw = filter_id.trim();
+    if raw.is_empty() {
+        return Err(BeaconError::Validation("filter id must not be empty".into()));
+    }
+    reject_for_injection(raw)?;
+    Ok(raw.to_string())
+}
+
 pub fn sanitize_reference_name(reference_name: Option<&str>) -> Result<String, BeaconError> {
     let raw = reference_name.unwrap_or("1").trim();
     if raw.is_empty() {
@@ -194,6 +205,13 @@ mod tests {
         assert!(sanitize_bases(Some("{")).is_err());
         assert!(sanitize_bases(Some("A")).unwrap().as_deref() == Some("A"));
         assert!(sanitize_bases(None).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_filter_id_injection_rejected() {
+        assert!(sanitize_filter_id("$").is_err());
+        assert!(sanitize_filter_id("HP:{bad}").is_err());
+        assert_eq!(sanitize_filter_id("SNV").unwrap(), "SNV");
     }
 }
 

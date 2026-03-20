@@ -5,11 +5,14 @@ mod admin;
 
 use axum::http::header;
 use axum::{routing::get, Router};
+use axum::response::IntoResponse;
 use ferrum_core::health::health_router;
 use ferrum_core::config::watch::ConfigWatcher;
+use ferrum_core::config::FerrumConfig;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::path::PathBuf;
+use tokio::sync::watch;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
@@ -64,8 +67,10 @@ pub fn app(
     cohort_params: CohortRouterParams,
     workspaces_pool: WorkspacesRouterParams,
     admin_pool: Option<sqlx::PgPool>,
+    config_watch_rx: Option<watch::Receiver<Arc<FerrumConfig>>>,
 ) -> Router {
     let cfg = config;
+    let hot_reload = config_watch_rx.is_some();
 
     // Auth middleware config: use env FERRUM_AUTH__REQUIRE_AUTH so demo mode is reliable (config crate env parsing can vary).
     // Only when explicitly "true" do we use loaded config's auth; otherwise middleware gets demo() so unauthenticated requests get demo-user.
@@ -141,21 +146,21 @@ pub fn app(
         ));
 
     // GA4GH standard paths (add all nests first)
-    if cfg.map(|c| c.services.enable_drs).unwrap_or(true) {
+    if hot_reload || cfg.map(|c| c.services.enable_drs).unwrap_or(true) {
         let drs_router = match drs_state {
             Some(state) => ferrum_drs::router(state),
             None => ferrum_drs::router_unconfigured(),
         };
         app = app.nest("/ga4gh/drs/v1", drs_router);
     }
-    if cfg.map(|c| c.services.enable_trs).unwrap_or(true) {
+    if hot_reload || cfg.map(|c| c.services.enable_trs).unwrap_or(true) {
         let trs_router = match trs_params {
             Some(pool) => ferrum_trs::router(pool),
             None => ferrum_trs::router_unconfigured(),
         };
         app = app.nest("/ga4gh/trs/v2", trs_router);
     }
-    if cfg.map(|c| c.services.enable_wes).unwrap_or(true) {
+    if hot_reload || cfg.map(|c| c.services.enable_wes).unwrap_or(true) {
         let wes_router = match wes_params {
             Some((
                 pool,
@@ -182,31 +187,31 @@ pub fn app(
         };
         app = app.nest("/ga4gh/wes/v1", wes_router);
     }
-    if cfg.map(|c| c.services.enable_tes).unwrap_or(true) {
+    if hot_reload || cfg.map(|c| c.services.enable_tes).unwrap_or(true) {
         let tes_router = match tes_params {
             Some((pool, backend, work_dir)) => ferrum_tes::router(pool, backend, work_dir),
             None => ferrum_tes::router_unconfigured(),
         };
         app = app.nest("/ga4gh/tes/v1", tes_router);
     }
-    if cfg.map(|c| c.services.enable_beacon).unwrap_or(true) {
+    if hot_reload || cfg.map(|c| c.services.enable_beacon).unwrap_or(true) {
         let beacon_router = match beacon_params {
             Some(pool) => ferrum_beacon::router(pool),
             None => ferrum_beacon::router_unconfigured(),
         };
         app = app.nest("/ga4gh/beacon/v2", beacon_router);
     }
-    if cfg.map(|c| c.services.enable_passports).unwrap_or(true) {
+    if hot_reload || cfg.map(|c| c.services.enable_passports).unwrap_or(true) {
         let passport_router = match passport_params {
             Some(pool) => ferrum_passports::router(pool),
             None => ferrum_passports::router_unconfigured(),
         };
         app = app.nest("/passports/v1", passport_router);
     }
-    if cfg.map(|c| c.services.enable_crypt4gh).unwrap_or(true) {
+    if hot_reload || cfg.map(|c| c.services.enable_crypt4gh).unwrap_or(true) {
         app = app.nest("/ga4gh/crypt4gh/v1", ferrum_crypt4gh::router());
     }
-    if cfg.map(|c| c.services.enable_htsget).unwrap_or(true) {
+    if hot_reload || cfg.map(|c| c.services.enable_htsget).unwrap_or(true) {
         let hts_router = match htsget_state {
             Some(state) => ferrum_htsget::router(state),
             None => ferrum_htsget::router_unconfigured(),
@@ -258,6 +263,53 @@ pub fn app(
         },
     ));
 
+    // Config hot-reload gating:
+    // Learned from production hot-reload patterns: when config changes, return `503 Service Unavailable`
+    // for disabled services without restarting the HTTP server or rebuilding routers.
+    if let Some(config_rx) = config_watch_rx {
+        app = app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+            let rx = config_rx.clone();
+            async move {
+                // `tokio::sync::watch::Ref` is not `Send`, so keep it in a tight scope and
+                // compute a plain `bool` before awaiting `next.run(req)`.
+                let enabled = {
+                    let cfg = rx.borrow();
+                    let path = req.uri().path();
+
+                    if path.starts_with("/ga4gh/drs/v1") || path.starts_with("/objects") {
+                        cfg.services.enable_drs
+                    } else if path.starts_with("/ga4gh/wes/v1") {
+                        cfg.services.enable_wes
+                    } else if path.starts_with("/ga4gh/tes/v1") {
+                        cfg.services.enable_tes
+                    } else if path.starts_with("/ga4gh/trs/v2") {
+                        cfg.services.enable_trs
+                    } else if path.starts_with("/ga4gh/beacon/v2") {
+                        cfg.services.enable_beacon
+                    } else if path.starts_with("/passports/v1") {
+                        cfg.services.enable_passports
+                    } else if path.starts_with("/ga4gh/crypt4gh/v1") {
+                        cfg.services.enable_crypt4gh
+                    } else if path.starts_with("/ga4gh/htsget/v1") {
+                        cfg.services.enable_htsget
+                    } else {
+                        true
+                    }
+                };
+
+                if enabled {
+                    next.run(req).await
+                } else {
+                    (
+                        axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                        "service disabled via hot-reload config",
+                    )
+                        .into_response()
+                }
+            }
+        }));
+    }
+
     app
 }
 
@@ -282,19 +334,22 @@ pub async fn run(
     workspaces_pool: WorkspacesRouterParams,
     admin_pool: Option<sqlx::PgPool>,
 ) -> Result<(), std::io::Error> {
-    // Minimal "hot reload" wiring: spawn ConfigWatcher when a concrete config path is
-    // provided via `FERRUM_CONFIG`. The server does not rebuild routers on changes yet,
-    // but services can subscribe to the updated `watch::Receiver` via their own wiring.
+    // Config hot-reload wiring: spawn ConfigWatcher when a concrete config path is
+    // provided via `FERRUM_CONFIG`, and pass the `watch::Receiver` into app-level
+    // middleware so it can gate GA4GH routes without a restart.
+    let mut config_watch_rx: Option<watch::Receiver<Arc<FerrumConfig>>> = None;
     if let Ok(p) = std::env::var("FERRUM_CONFIG") {
         let path = PathBuf::from(p);
         if path.exists() {
-            let (mut rx, _handle) = ConfigWatcher::spawn(path);
+            let (rx, _handle) = ConfigWatcher::spawn(path);
+            let mut log_rx = rx.clone();
+            config_watch_rx = Some(rx);
             tokio::spawn(async move {
                 loop {
-                    if rx.changed().await.is_err() {
+                    if log_rx.changed().await.is_err() {
                         break;
                     }
-                    let cfg = rx.borrow();
+                    let cfg = log_rx.borrow();
                     tracing::info!(
                         bind = %cfg.bind,
                         enable_beacon = cfg.services.enable_beacon,
@@ -322,6 +377,7 @@ pub async fn run(
         cohort_params,
         workspaces_pool,
         admin_pool,
+        config_watch_rx,
     );
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!("Gateway listening on {}", bind);
