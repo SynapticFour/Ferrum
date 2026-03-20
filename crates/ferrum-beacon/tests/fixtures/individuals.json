@@ -1,2 +1,23 @@
-[]
+[
+  { "id": "ind-1", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-2", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-3", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-4", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-5", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-6", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-7", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-8", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-9", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-10", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-11", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-12", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-13", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-14", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-15", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-16", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-17", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-18", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] },
+  { "id": "ind-19", "dataset_id": "fixture-public", "sex": "male", "phenotypic_features": [] },
+  { "id": "ind-20", "dataset_id": "fixture-public", "sex": "female", "phenotypic_features": [] }
+]
 

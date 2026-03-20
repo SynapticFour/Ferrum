@@ -343,4 +343,59 @@ async fn beacon_routes_and_shapes() {
     assert!(json.get("response").and_then(|r| r.get("biosamples")).is_some());
 }
 
+#[tokio::test]
+async fn beacon_fixture_bulk_positive_and_negative_queries() {
+    let database_url = match std::env::var("DATABASE_URL") {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let pool = PgPool::connect(&database_url).await.expect("connect pool");
+    seed_fixtures(&pool).await;
+    let app = router(pool.clone());
+
+    // Best-effort: validate that seeded fixtures cover multiple positive coords
+    // and that missing coords report exists=false.
+    //
+    // Learned from HelixTest: we must speak the wrapped Beacon v2 `/query` payload.
+    let reference_bases = "A";
+    let alternate_bases = "T";
+    let assembly_id = "GRCh38";
+
+    for start in 1000i64..1020i64 {
+        let params = serde_json::json!({
+            "assemblyId": assembly_id,
+            "referenceName": "1",
+            "start": start,
+            "referenceBases": reference_bases,
+            "alternateBases": alternate_bases
+        });
+        let (status, json) =
+            post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            json.pointer("/response/exists").and_then(|x| x.as_bool()),
+            Some(true),
+            "expected exists=true for start={start}"
+        );
+    }
+
+    for start in [2000i64, 2001, 2002, 999999998, 999999999] {
+        let params = serde_json::json!({
+            "assemblyId": assembly_id,
+            "referenceName": "1",
+            "start": start,
+            "referenceBases": reference_bases,
+            "alternateBases": alternate_bases
+        });
+        let (status, json) =
+            post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            json.pointer("/response/exists").and_then(|x| x.as_bool()),
+            Some(false),
+            "expected exists=false for start={start}"
+        );
+    }
+}
+
 
