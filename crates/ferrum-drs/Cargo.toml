@@ -7,6 +7,7 @@ license = "BUSL-1.1"
 
 [dependencies]
 ferrum-core = { path = "../ferrum-core", features = ["openapi"] }
+ferrum-storage = { path = "../ferrum-storage" }
 ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
 axum = { version = "0.7", features = ["json", "multipart"] }
 tokio = { version = "1", features = ["full"] }

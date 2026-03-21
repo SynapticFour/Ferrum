@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/ferrum-core",
+    "crates/ferrum-storage",
     "crates/ferrum-drs",
     "crates/ferrum-trs",
     "crates/ferrum-wes",

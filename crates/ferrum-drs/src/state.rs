@@ -7,7 +7,8 @@
 
 use crate::presign::S3Presigner;
 use crate::repo::DrsRepo;
-use ferrum_core::{ObjectStorage, ProvenanceStore};
+use ferrum_core::ProvenanceStore;
+use ferrum_storage::ObjectStorage;
 use std::path::PathBuf;
 use std::sync::Arc;
 

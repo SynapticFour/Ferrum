@@ -156,10 +156,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             pool.clone(),
             drs_hostname.clone(),
         ));
-        let storage: Option<Arc<dyn ferrum_core::ObjectStorage>> = if let Some(ref cfg) = config {
+        let storage: Option<Arc<dyn ferrum_storage::ObjectStorage>> = if let Some(ref cfg) = config {
             if cfg.storage.backend == "s3" {
-                match ferrum_core::S3Storage::from_config(&cfg.storage).await {
-                    Ok(s) => Some(Arc::new(s) as Arc<dyn ferrum_core::ObjectStorage>),
+                match ferrum_storage::S3Storage::from_config(&cfg.storage).await {
+                    Ok(s) => Some(Arc::new(s) as Arc<dyn ferrum_storage::ObjectStorage>),
                     Err(_) => None,
                 }
             } else {

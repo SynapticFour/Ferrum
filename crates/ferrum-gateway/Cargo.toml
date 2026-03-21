@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 ferrum-core = { path = "../ferrum-core" }
+ferrum-storage = { path = "../ferrum-storage" }
 ferrum-drs = { path = "../ferrum-drs" }
 ferrum-htsget = { path = "../ferrum-htsget" }
 ferrum-trs = { path = "../ferrum-trs" }

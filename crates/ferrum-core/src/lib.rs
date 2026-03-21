@@ -1,4 +1,4 @@
-//! Ferrum core: config, database, errors, auth, storage, GA4GH types, provenance.
+//! Ferrum core: config, database, errors, auth, GA4GH types, provenance.
 
 pub mod auth;
 pub mod config;
@@ -9,7 +9,6 @@ pub mod io;
 pub mod provenance;
 pub mod security;
 pub mod ssrf;
-pub mod storage;
 pub mod types;
 pub mod workspace;
 
@@ -31,7 +30,6 @@ pub use security::{
     safe_join, validate_drs_name, ResourceAuthorizer, SecurityEvent, SecurityEventLogger,
 };
 pub use ssrf::{is_private_ip, validate_url_ssrf, SafeHttpClient, SsrfPolicy};
-pub use storage::{LocalStorage, ObjectStorage, S3Storage};
 pub use types::{
     AccessMethod, AccessType, AccessUrl, Checksum, DrsObject, Organization, ServiceInfo,
     ServiceType,

@@ -1636,11 +1636,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "aws-config",
- "aws-credential-types",
- "aws-sdk-s3",
  "axum",
- "bytes",
  "chrono",
  "config",
  "jsonwebtoken",
@@ -1707,6 +1703,7 @@ dependencies = [
  "chrono",
  "ferrum-core",
  "ferrum-crypt4gh",
+ "ferrum-storage",
  "futures-util",
  "md5",
  "reqwest",
@@ -1740,6 +1737,7 @@ dependencies = [
  "ferrum-drs",
  "ferrum-htsget",
  "ferrum-passports",
+ "ferrum-storage",
  "ferrum-tes",
  "ferrum-trs",
  "ferrum-wes",
@@ -1815,6 +1813,20 @@ dependencies = [
  "hyper-util",
  "tokio",
  "tower 0.4.13",
+]
+
+[[package]]
+name = "ferrum-storage"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "aws-config",
+ "aws-credential-types",
+ "aws-sdk-s3",
+ "bytes",
+ "ferrum-core",
+ "tokio",
 ]
 
 [[package]]
