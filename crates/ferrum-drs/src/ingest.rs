@@ -516,3 +516,29 @@ pub async fn ingest_batch(
 pub struct IngestBatchResponse {
     pub ids: Vec<String>,
 }
+
+/// BAM helpers using noodles `lazy_records()` (feature `bam-lazy-ingest`).
+#[cfg(feature = "bam-lazy-ingest")]
+pub mod bam {
+    //! Lesson 6: `lazy_records()` avoids full CIGAR / sequence / quality deserialization when only
+    //! positions (or other header fields) are needed — typically ~1.5× faster for index-style scans.
+    //! Source: noodles documentation and community benchmarks.
+    //!
+    //! **Caveat:** This path does **not** validate every field of each record; use full `records()`
+    //! when you need complete structural validation.
+
+    use std::io::{self, Read};
+
+    /// Returns 1-based alignment start positions for records that are aligned.
+    pub fn scan_alignment_start_positions<R: Read>(reader: R) -> io::Result<Vec<usize>> {
+        let mut reader = noodles_bam::Reader::new(reader);
+        let mut positions = Vec::new();
+        for result in reader.lazy_records() {
+            let record = result?;
+            if let Some(pos) = record.alignment_start()? {
+                positions.push(usize::from(pos));
+            }
+        }
+        Ok(positions)
+    }
+}

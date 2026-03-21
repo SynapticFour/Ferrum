@@ -112,8 +112,22 @@ fn default_bind() -> String {
 pub struct DatabaseConfig {
     /// Database URL (overrides driver/params). Env: FERRUM_DATABASE__URL
     pub url: Option<String>,
+    /// Max pool size for PostgreSQL (SQLite uses a smaller effective cap).
+    /// Default: `max(10, min(100, 2 * available_parallelism))` — production pattern for SSD-backed APIs.
     #[serde(default = "default_max_connections")]
     pub max_connections: u32,
+    /// Minimum idle connections to keep open (PostgreSQL). Env: FERRUM_DATABASE__MIN_CONNECTIONS
+    #[serde(default = "default_min_connections")]
+    pub min_connections: u32,
+    /// Seconds to wait for a pool connection before error (PostgreSQL). Env: FERRUM_DATABASE__ACQUIRE_TIMEOUT_SECS
+    #[serde(default = "default_acquire_timeout_secs")]
+    pub acquire_timeout_secs: u64,
+    /// Close idle connections after this many seconds (PostgreSQL). Env: FERRUM_DATABASE__IDLE_TIMEOUT_SECS
+    #[serde(default = "default_idle_timeout_secs")]
+    pub idle_timeout_secs: u64,
+    /// Max lifetime of a connection in seconds (PostgreSQL). Env: FERRUM_DATABASE__MAX_LIFETIME_SECS
+    #[serde(default = "default_max_lifetime_secs")]
+    pub max_lifetime_secs: u64,
     #[serde(default = "default_true")]
     pub run_migrations: bool,
     /// Driver when url not set: "sqlite" | "postgres"
@@ -134,7 +148,28 @@ pub struct DatabaseConfig {
 }
 
 fn default_max_connections() -> u32 {
+    std::thread::available_parallelism()
+        .map(|n| {
+            let doubled = (n.get() as u32).saturating_mul(2);
+            doubled.max(10).min(100)
+        })
+        .unwrap_or(10)
+}
+
+fn default_min_connections() -> u32 {
+    2
+}
+
+fn default_acquire_timeout_secs() -> u64 {
     10
+}
+
+fn default_idle_timeout_secs() -> u64 {
+    600
+}
+
+fn default_max_lifetime_secs() -> u64 {
+    1800
 }
 fn default_driver() -> String {
     "sqlite".to_string()
@@ -358,7 +393,11 @@ impl FerrumConfig {
         let mut builder = config::Config::builder()
             .set_default("bind", "0.0.0.0:8080")?
             .set_default("auth.require_auth", false)?
-            .set_default("database.max_connections", 10i64)?
+            .set_default("database.max_connections", default_max_connections() as i64)?
+            .set_default("database.min_connections", default_min_connections() as i64)?
+            .set_default("database.acquire_timeout_secs", default_acquire_timeout_secs() as i64)?
+            .set_default("database.idle_timeout_secs", default_idle_timeout_secs() as i64)?
+            .set_default("database.max_lifetime_secs", default_max_lifetime_secs() as i64)?
             .set_default("database.run_migrations", true)?
             .set_default("database.driver", "sqlite")?
             .set_default("database.sqlite_path", "ferrum.db")?

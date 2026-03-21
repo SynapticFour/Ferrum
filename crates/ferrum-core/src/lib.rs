@@ -6,6 +6,8 @@ pub mod db;
 pub mod error;
 pub mod health;
 pub mod io;
+#[cfg(feature = "libdeflate")]
+pub use noodles_bgzf;
 pub mod provenance;
 pub mod security;
 pub mod ssrf;

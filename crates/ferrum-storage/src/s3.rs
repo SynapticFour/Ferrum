@@ -7,10 +7,12 @@ use aws_credential_types::Credentials;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
 use aws_sdk_s3::Client as S3Client;
+use aws_smithy_types::byte_stream::Length;
 use bytes::Bytes;
 use ferrum_core::config::StorageConfig;
 use ferrum_core::error::{FerrumError, Result};
 
+use std::path::Path;
 use std::sync::Arc;
 use tokio::io::AsyncRead;
 use tokio::sync::Semaphore;
@@ -22,6 +24,15 @@ const MIN_MULTIPART_BYTES: usize = 5 * 1024 * 1024;
 const PART_SIZE: usize = 5 * 1024 * 1024;
 const MAX_IN_FLIGHT_PARTS: usize = 16;
 const UPLOAD_CONCURRENCY: usize = 4;
+
+/// Path-based upload: below this size use a single ranged `put_object` read (no full-file RAM buffer).
+/// Lesson 2: community threshold ~8 MiB before multipart; avoids `EntityTooSmall` on naive splits.
+/// Source: aws-sdk-rust discussions + S3 multipart minimum part rules.
+const FILE_PUT_THRESHOLD: u64 = 8 * 1024 * 1024;
+/// 64 MiB parts balance throughput vs part count for TB objects.
+const FILE_PART_SIZE: u64 = 64 * 1024 * 1024;
+const FILE_UPLOAD_CONCURRENCY: usize = 8;
+const FILE_MAX_IN_FLIGHT: usize = 16;
 
 /// S3-compatible storage (AWS S3, MinIO, etc.).
 pub struct S3Storage {
@@ -81,6 +92,183 @@ impl S3Storage {
             )
             .await
         }
+    }
+
+    /// Upload a local file using ranged reads — suitable for TB-scale objects (no `Vec` of full file).
+    pub async fn put_file(&self, key: &str, path: &Path) -> Result<()> {
+        let meta = tokio::fs::metadata(path)
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        let size = meta.len();
+
+        if size == 0 {
+            let body = ByteStream::from(Bytes::new());
+            self.client
+                .put_object()
+                .bucket(&self.bucket)
+                .key(key)
+                .body(body)
+                .send()
+                .await
+                .map_err(|e| FerrumError::StorageError(e.into()))?;
+            return Ok(());
+        }
+
+        if size < FILE_PUT_THRESHOLD {
+            let body = ByteStream::read_from()
+                .path(path)
+                .offset(0)
+                .length(Length::Exact(size))
+                .build()
+                .await
+                .map_err(|e| FerrumError::StorageError(e.into()))?;
+            self.client
+                .put_object()
+                .bucket(&self.bucket)
+                .key(key)
+                .body(body)
+                .send()
+                .await
+                .map_err(|e| FerrumError::StorageError(e.into()))?;
+            return Ok(());
+        }
+
+        self.put_file_multipart(key, path, size).await
+    }
+
+    async fn put_file_multipart(&self, key: &str, path: &Path, size: u64) -> Result<()> {
+        let ranges = crate::parts::split_file_part_ranges(size, FILE_PART_SIZE);
+        let create = self
+            .client
+            .create_multipart_upload()
+            .bucket(&self.bucket)
+            .key(key)
+            .send()
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        let upload_id = create
+            .upload_id()
+            .ok_or_else(|| {
+                FerrumError::StorageError(anyhow::anyhow!(
+                    "create_multipart_upload: missing upload_id"
+                ))
+            })?
+            .to_string();
+
+        let path_buf = path.to_path_buf();
+        let sem_if = Arc::new(Semaphore::new(FILE_MAX_IN_FLIGHT));
+        let sem_up = Arc::new(Semaphore::new(FILE_UPLOAD_CONCURRENCY));
+        let mut join_set: JoinSet<std::result::Result<(i32, String), FerrumError>> = JoinSet::new();
+
+        for (idx, (start, end)) in ranges.iter().enumerate() {
+            let part_number = (idx + 1) as i32;
+            let len = end - start;
+            if len == 0 {
+                continue;
+            }
+            let permit_if = sem_if
+                .clone()
+                .acquire_owned()
+                .await
+                .map_err(|e| FerrumError::StorageError(e.into()))?;
+            let part_path = path_buf.clone();
+            let client = self.client.clone();
+            let bucket = self.bucket.clone();
+            let key_owned = key.to_string();
+            let upload_id_owned = upload_id.clone();
+            let sem_up = sem_up.clone();
+            let off = *start;
+            join_set.spawn(async move {
+                let _up = sem_up
+                    .acquire_owned()
+                    .await
+                    .map_err(|e| FerrumError::StorageError(e.into()))?;
+                let body = ByteStream::read_from()
+                    .path(part_path.as_path())
+                    .offset(off)
+                    .length(Length::Exact(len))
+                    .build()
+                    .await
+                    .map_err(|e| FerrumError::StorageError(e.into()))?;
+                let out = client
+                    .upload_part()
+                    .bucket(&bucket)
+                    .key(&key_owned)
+                    .upload_id(&upload_id_owned)
+                    .part_number(part_number)
+                    .body(body)
+                    .send()
+                    .await
+                    .map_err(|e| FerrumError::StorageError(e.into()))?;
+                let etag = out
+                    .e_tag()
+                    .ok_or_else(|| {
+                        FerrumError::StorageError(anyhow::anyhow!("upload_part: missing e_tag"))
+                    })?
+                    .to_string();
+                drop(_up);
+                drop(permit_if);
+                Ok((part_number, etag))
+            });
+        }
+
+        let mut completed: Vec<(i32, String)> = Vec::with_capacity(ranges.len());
+        let mut first_err: Option<FerrumError> = None;
+
+        while let Some(join_res) = join_set.join_next().await {
+            match join_res {
+                Ok(Ok(pair)) => completed.push(pair),
+                Ok(Err(e)) => {
+                    first_err = Some(e);
+                    break;
+                }
+                Err(e) => {
+                    first_err = Some(FerrumError::StorageError(e.into()));
+                    break;
+                }
+            }
+        }
+
+        if let Some(e) = first_err {
+            join_set.abort_all();
+            while join_set.join_next().await.is_some() {}
+            let _ = self
+                .client
+                .abort_multipart_upload()
+                .bucket(&self.bucket)
+                .key(key)
+                .upload_id(&upload_id)
+                .send()
+                .await;
+            return Err(e);
+        }
+
+        completed.sort_by_key(|(n, _)| *n);
+        let parts: Vec<CompletedPart> = completed
+            .into_iter()
+            .map(|(n, etag)| {
+                CompletedPart::builder()
+                    .e_tag(etag)
+                    .part_number(n)
+                    .build()
+            })
+            .collect();
+
+        let completed_upload = CompletedMultipartUpload::builder()
+            .set_parts(Some(parts))
+            .build();
+
+        self.client
+            .complete_multipart_upload()
+            .bucket(&self.bucket)
+            .key(key)
+            .upload_id(&upload_id)
+            .multipart_upload(completed_upload)
+            .send()
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+
+        Ok(())
     }
 
     async fn put_object_single(&self, key: &str, data: &[u8]) -> Result<()> {

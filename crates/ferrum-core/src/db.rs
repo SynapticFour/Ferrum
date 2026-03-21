@@ -4,6 +4,7 @@ use crate::config::DatabaseConfig;
 use crate::error::{FerrumError, Result};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::sqlite::SqlitePoolOptions;
+use std::time::Duration;
 
 /// Database pool: SQLite (local) or PostgreSQL (production).
 #[derive(Clone)]
@@ -26,8 +27,14 @@ impl DatabasePool {
     ) -> Result<Self> {
         let url_lower = url.split('?').next().unwrap_or(url).to_lowercase();
         if url_lower.starts_with("postgres://") || url_lower.starts_with("postgresql://") {
+            // Lesson 10: pool sizing + timeouts — avoid unbounded waits when the pool is exhausted.
+            // Source: sqlx production guidance + high-concurrency GA4GH API patterns.
             let pool = PgPoolOptions::new()
-                .max_connections(postgres_max)
+                .max_connections(postgres_max.max(1))
+                .min_connections(2.min(postgres_max.max(1)))
+                .acquire_timeout(Duration::from_secs(10))
+                .idle_timeout(Some(Duration::from_secs(600)))
+                .max_lifetime(Some(Duration::from_secs(1800)))
                 .connect(url)
                 .await?;
             return Ok(DatabasePool::Postgres(pool));
@@ -37,7 +44,8 @@ impl DatabasePool {
                 .trim_start_matches("sqlite://")
                 .trim_start_matches("sqlite:");
             let pool = SqlitePoolOptions::new()
-                .max_connections(sqlite_max)
+                .max_connections(sqlite_max.max(1))
+                .acquire_timeout(Duration::from_secs(10))
                 .connect(&format!("sqlite:{}", path))
                 .await?;
             return Ok(DatabasePool::Sqlite(pool));
@@ -70,8 +78,38 @@ impl DatabasePool {
             )));
         };
 
-        let max_conn = cfg.max_connections;
-        let mut pool = Self::from_url_with_options(&url, max_conn, max_conn.min(5)).await?;
+        let url_lower = url.split('?').next().unwrap_or(&url).to_lowercase();
+        let mut pool = if url_lower.starts_with("postgres://")
+            || url_lower.starts_with("postgresql://")
+        {
+            let max_c = cfg.max_connections.max(1);
+            let min_c = cfg.min_connections.min(max_c).max(1).min(max_c);
+            let pool = PgPoolOptions::new()
+                .max_connections(max_c)
+                .min_connections(min_c)
+                .acquire_timeout(Duration::from_secs(cfg.acquire_timeout_secs.max(1)))
+                .idle_timeout(Some(Duration::from_secs(cfg.idle_timeout_secs.max(1))))
+                .max_lifetime(Some(Duration::from_secs(cfg.max_lifetime_secs.max(60))))
+                .connect(&url)
+                .await?;
+            DatabasePool::Postgres(pool)
+        } else if url_lower.starts_with("sqlite://") || url_lower.starts_with("sqlite:") {
+            let path = url
+                .trim_start_matches("sqlite://")
+                .trim_start_matches("sqlite:");
+            let sqlite_max = cfg.max_connections.max(1).min(5);
+            let pool = SqlitePoolOptions::new()
+                .max_connections(sqlite_max)
+                .acquire_timeout(Duration::from_secs(cfg.acquire_timeout_secs.max(1)))
+                .connect(&format!("sqlite:{}", path))
+                .await?;
+            DatabasePool::Sqlite(pool)
+        } else {
+            return Err(FerrumError::ValidationError(format!(
+                "Unsupported database URL scheme: {}",
+                url
+            )));
+        };
 
         // Env override so demo/CI can force skip (init already ran migrations + seeds)
         let run_migrations = match std::env::var("FERRUM_DATABASE__RUN_MIGRATIONS").as_deref() {

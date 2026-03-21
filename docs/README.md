@@ -17,7 +17,9 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System diagram, monorepo design, ferrum-core, service isolation, data flows, DB schema, async streaming, config system, deployment topologies. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System diagram, monorepo design, ferrum-core, **ferrum-storage**, service isolation, data flows, DB schema, async streaming, config system, deployment topologies. |
+| [STORAGE-BACKENDS.md](STORAGE-BACKENDS.md) | Object storage: `LocalStorage`, `S3Storage`, `put_file`, optional OpenDAL. |
+| [PERFORMANCE.md](../PERFORMANCE.md) | TB-scale options: libdeflate, benchmarks, BAM lazy ingest feature, cross-links. |
 
 ---
 

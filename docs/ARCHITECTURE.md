@@ -11,6 +11,7 @@ graph TD
   subgraph Crates["Ferrum Crates"]
     GW[ferrum-gateway]
     CORE[ferrum-core]
+    STOR[ferrum-storage]
     DRS[ferrum-drs]
     HTSGET[ferrum-htsget]
     TRS[ferrum-trs]
@@ -36,6 +37,7 @@ graph TD
   GW --> PASS
   GW --> C4
   DRS --> CORE
+  DRS --> STOR
   HTSGET --> CORE
   TRS --> CORE
   WES --> CORE
@@ -54,11 +56,13 @@ graph TD
   BEACON --> PG
   PASS --> PG
   DRS --> C4
+  STOR --> MINIO
+  DRS --> STOR
   C4 --> MINIO
   PASS --> KC
 ```
 
-**ferrum-core** is the foundation: all service crates depend on it for config, database, auth, storage, error types, and **provenance** (optional lineage store and recursive lineage view).
+**ferrum-core** is the foundation: config, database, auth, shared errors/types, and **provenance** (optional lineage store and recursive lineage view). **Object storage** (`LocalStorage`, `S3Storage`, optional OpenDAL) lives in **`ferrum-storage`**; DRS and the gateway depend on it for ingest and streaming. See [STORAGE-BACKENDS.md](STORAGE-BACKENDS.md) and [PERFORMANCE.md](../PERFORMANCE.md).
 
 ---
 
@@ -86,10 +90,19 @@ Ferrum uses a single Cargo workspace so that:
 | `config.rs` | Layered config (defaults → file → env), `FerrumConfig` | serde, config |
 | `db.rs` | SQLite/PostgreSQL pool, migrations | sqlx |
 | `auth.rs` | JWT validation, JWKS, optional auth | jsonwebtoken, reqwest |
-| `storage.rs` | Local and S3 backends, streaming reads | tokio, aws-sdk-s3 / object_store |
+| `io/posix.rs` | Dedicated Rayon pool for blocking POSIX I/O (used by `ferrum-storage` local backend and Crypt4GH keystore) | rayon, tokio |
 | `error.rs` | `FerrumError`, result type | thiserror |
 | `types.rs` | Shared GA4GH types (checksums, access methods) | serde |
 | `health.rs` | Health check endpoint | axum |
+
+### ferrum-storage (object backends)
+
+| Type | Responsibility |
+|------|----------------|
+| `ObjectStorage` trait | `put_bytes`, `get` (async read), `delete`, `exists`, `size` — used as `Arc<dyn ObjectStorage>` in DRS |
+| `LocalStorage` | POSIX files under a base path; blocking I/O via `ferrum_core::io::posix` |
+| `S3Storage` | S3-compatible API; multipart `put_bytes` from 5 MiB; **`put_file`** for path-based streaming uploads (8 MiB / 64 MiB parts) |
+| `OpenDalStorage` (feature `opendal`) | Apache OpenDAL `Operator` wrapper for many backends |
 
 ---
 
@@ -299,15 +312,17 @@ erDiagram
 
 ## Async streaming architecture
 
-Crypt4GH download uses a **zero-copy async stream chain**:
+**Plaintext DRS `GET …/stream`** (unencrypted objects): storage `AsyncRead` → bounded `mpsc` channel (backpressure for slow clients) → HTTP body; read timeout on storage I/O avoids hung tasks.
 
-1. **Storage::get()** — Returns an `AsyncRead` of the encrypted object (e.g. from S3 or local disk).
+**Crypt4GH** download uses a **streaming chain**:
+
+1. **`ObjectStorage::get()`** (`ferrum-storage`) — `AsyncRead` of the encrypted object (S3 or local).
 2. **Crypt4GHDecryptHeader** — Reads and decrypts the header with the node’s secret key; exposes the same body stream.
 3. **Crypt4GHReEncryptHeader** — Re-encrypts only the header for the client’s public key; body is passed through.
-4. **ByteRangeFilter** — Applies optional range requests.
+4. **Bounded channel** — Decrypted chunks go through a **bounded** Tokio `mpsc` into the HTTP body, with a **client send timeout** so slow/dead clients cannot grow unbounded buffers.
 5. **axum::Body** — Stream is sent to the client over TLS.
 
-**Peak memory** is on the order of the header size (~64 KB), regardless of file size. The file body is never fully loaded into memory.
+**Peak memory** for Crypt4GH is bounded by channel capacity × chunk size plus header work (~64 KB order), not whole-file buffering for the body pipeline.
 
 ---
 
@@ -329,6 +344,8 @@ bind = "0.0.0.0:8080"
 [database]
 url = "postgres://user:pass@host:5432/ferrum"
 run_migrations = true
+# Optional pool tuning (see INSTALLATION.md reference):
+# max_connections, min_connections, acquire_timeout_secs, idle_timeout_secs, max_lifetime_secs
 
 [storage]
 backend = "s3"

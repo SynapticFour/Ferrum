@@ -1,0 +1,18 @@
+[package]
+name = "ferrum-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Criterion benchmarks for Ferrum hot paths (compile with cargo bench -p ferrum-bench)"
+
+[dependencies]
+criterion = "0.5"
+ferrum-storage = { path = "../ferrum-storage" }
+
+[[bench]]
+name = "crypt4gh_throughput"
+harness = false
+
+[[bench]]
+name = "drs_multipart_plan"
+harness = false

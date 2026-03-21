@@ -244,7 +244,11 @@ helm install ferrum ferrum/ferrum \
 | (root) | `bind` | string | `0.0.0.0:8080` | Listen address |
 | `[database]` | `url` | string | — | PostgreSQL URL (overrides driver/params) |
 | | `run_migrations` | bool | true | Run migrations on startup |
-| | `max_connections` | u32 | 10 | Pool size |
+| | `max_connections` | u32 | see below | PostgreSQL pool max size; default ≈ `min(100, max(10, 2 × CPU cores))` |
+| | `min_connections` | u32 | 2 | Minimum idle connections (PostgreSQL) |
+| | `acquire_timeout_secs` | u64 | 10 | Max wait for a pool connection |
+| | `idle_timeout_secs` | u64 | 600 | Recycle idle connections after this many seconds |
+| | `max_lifetime_secs` | u64 | 1800 | Max lifetime of a pooled connection |
 | `[storage]` | `backend` | string | `local` | `local` or `s3` |
 | | `base_path` | string | — | For local backend |
 | | `s3_endpoint` | string | — | S3/MinIO endpoint |
@@ -270,7 +274,13 @@ helm install ferrum ferrum/ferrum \
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FERRUM_POSIX_IO_THREADS` | `32` | Size of the dedicated Rayon pool for blocking POSIX filesystem work (local DRS storage: put/delete/exists/size) and Crypt4GH on-disk key reads. Increase on HPC nodes with many concurrent local-object or decrypt workloads. |
+| `FERRUM_POSIX_IO_THREADS` | `32` | Size of the dedicated Rayon pool for blocking POSIX filesystem work (`ferrum-storage` local backend: put/delete/exists/size) and Crypt4GH on-disk key reads. Increase on HPC nodes with many concurrent local-object or decrypt workloads. |
+| `FERRUM_DRAIN_TIMEOUT_SECS` | `300` | Gateway graceful shutdown: max seconds to wait for in-flight DRS stream responses after SIGTERM/Ctrl+C before the process exits. |
+
+### Performance / TB-scale (optional builds)
+
+- **[PERFORMANCE.md](../PERFORMANCE.md)** — `libdeflate` (BGZF), OpenDAL, BAM lazy ingest feature, benchmarks.
+- **[STORAGE-BACKENDS.md](STORAGE-BACKENDS.md)** — `ferrum-storage` backends, `put_file` vs `put_bytes`, OpenDAL caveats.
 
 ---
 

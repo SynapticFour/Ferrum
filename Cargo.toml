@@ -16,6 +16,7 @@ members = [
     "crates/ferrum-security-tests",
     "crates/ferrum-htsget",
     "tools/ferrum-cli",
+    "crates/ferrum-bench",
 ]
 
 [workspace.dependencies]

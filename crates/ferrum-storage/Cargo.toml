@@ -5,6 +5,10 @@ edition = "2021"
 description = "Object storage backends (local POSIX, S3) for Ferrum"
 license = "BUSL-1.1"
 
+[features]
+default = []
+opendal = ["dep:opendal"]
+
 [dependencies]
 anyhow = "1"
 ferrum-core = { path = "../ferrum-core" }
@@ -12,5 +16,11 @@ async-trait = "0.1"
 aws-config = "1"
 aws-credential-types = "1"
 aws-sdk-s3 = { version = "1.18", features = ["rt-tokio"] }
+aws-smithy-types = "1"
 bytes = "1"
 tokio = { version = "1", features = ["full"] }
+opendal = { version = "0.54", optional = true, default-features = false, features = [
+    "services-s3",
+    "services-fs",
+    "services-memory",
+] }

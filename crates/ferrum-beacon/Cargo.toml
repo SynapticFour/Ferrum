@@ -6,7 +6,7 @@ description = "GA4GH Beacon v2 API"
 license = "BUSL-1.1"
 
 [dependencies]
-ferrum-core = { path = "../ferrum-core" }
+ferrum-core = { path = "../ferrum-core", default-features = false }
 axum = { version = "0.7", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
@@ -33,4 +33,6 @@ required-features = ["standalone"]
 
 [features]
 default = []
+# Enable with `ferrum-core` libdeflate (faster BGZF when you add noodles-based readers here).
+libdeflate = ["ferrum-core/libdeflate"]
 standalone = ["tracing-subscriber"]

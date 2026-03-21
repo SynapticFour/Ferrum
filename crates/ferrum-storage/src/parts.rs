@@ -19,6 +19,22 @@ pub fn split_into_part_ranges(total_len: usize, part_size: usize) -> Vec<(usize,
     ranges
 }
 
+/// Same as [`split_into_part_ranges`] for `u64` lengths (TB-scale file sizes).
+pub fn split_file_part_ranges(total_len: u64, part_size: u64) -> Vec<(u64, u64)> {
+    assert!(part_size > 0, "part_size must be positive");
+    if total_len == 0 {
+        return vec![(0, 0)];
+    }
+    let mut ranges = Vec::new();
+    let mut start = 0u64;
+    while start < total_len {
+        let end = (start + part_size).min(total_len);
+        ranges.push((start, end));
+        start = end;
+    }
+    ranges
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,6 +71,16 @@ mod tests {
         assert_eq!(
             ranges,
             vec![(0, 3), (3, 6), (6, 9), (9, 10)]
+        );
+    }
+
+    #[test]
+    fn file_ranges_64mb_parts() {
+        let ps = 64 * 1024 * 1024u64;
+        let total = ps + 100;
+        assert_eq!(
+            split_file_part_ranges(total, ps),
+            vec![(0, ps), (ps, total)]
         );
     }
 }

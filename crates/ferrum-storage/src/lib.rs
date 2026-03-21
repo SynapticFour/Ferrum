@@ -1,11 +1,15 @@
 //! Object storage backends: [`ObjectStorage`], [`LocalStorage`], [`S3Storage`].
 
 mod local;
+#[cfg(feature = "opendal")]
+mod opendal_store;
 mod parts;
 mod s3;
 
 pub use local::LocalStorage;
-pub use parts::split_into_part_ranges;
+#[cfg(feature = "opendal")]
+pub use opendal_store::OpenDalStorage;
+pub use parts::{split_file_part_ranges, split_into_part_ranges};
 pub use s3::S3Storage;
 
 use async_trait::async_trait;

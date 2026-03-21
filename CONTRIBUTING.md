@@ -71,7 +71,7 @@ Checklist for adding a new service crate (e.g. a new GA4GH API):
 
 1. **Crate** — Add `crates/ferrum-<name>/` with `Cargo.toml` and dependency on `ferrum-core`.
 2. **Router** — Expose a `router(state) -> Router` (or equivalent) that mounts routes under the standard path (e.g. `/ga4gh/<svc>/v1`).
-3. **State** — Define an `AppState` (or use shared state) with DB pool, storage, and any service-specific handles.
+3. **State** — Define an `AppState` (or use shared state) with DB pool, optional `Arc<dyn ferrum_storage::ObjectStorage>`, and any service-specific handles.
 4. **Gateway** — In `ferrum-gateway`, add a config flag (e.g. `enable_<svc>`), construct state when enabled, and `app.nest("/ga4gh/<svc>/v1", ferrum_<svc>::router(state))`.
 5. **Migrations** — Add SQL migrations in `ferrum-core/migrations/` (or a dedicated crate if needed) for any new tables.
 6. **Docs** — Update [ARCHITECTURE.md](docs/ARCHITECTURE.md), [GA4GH.md](docs/GA4GH.md), and [README.md](README.md) with the new service and endpoints.

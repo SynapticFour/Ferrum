@@ -11,3 +11,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --workspace
+
+  # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
+  bench-and-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install libdeflate (for ferrum-core --features libdeflate)
+        run: sudo apt-get update && sudo apt-get install -y libdeflate-dev
+      - run: cargo bench -p ferrum-bench --no-run
+      - run: cargo check -p ferrum-storage --features opendal
+      - run: cargo check -p ferrum-core --features libdeflate
+      - run: cargo check -p ferrum-drs --features bam-lazy-ingest

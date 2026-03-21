@@ -23,7 +23,6 @@ use std::future::Future;
 use tokio::io::{AsyncReadExt, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
-use tokio_util::io::ReaderStream;
 use utoipa::ToSchema;
 
 /// GA4GH service-info (DRS).
@@ -519,7 +518,41 @@ pub async fn get_object_stream(
         .await;
 
     if !is_encrypted {
-        let stream = ReaderStream::new(reader);
+        // Lesson 4: bounded channel between storage read and HTTP body — backpressure on slow clients.
+        // Source: Zellij/OneUptime postmortems; unbounded buffering can OOM on TB-scale streams.
+        const STORAGE_TO_HTTP_CAP: usize = 8;
+        const READ_CHUNK: usize = 64 * 1024;
+        const STORAGE_READ_TIMEOUT: Duration = Duration::from_secs(120);
+
+        let (tx, rx) = mpsc::channel::<Bytes>(STORAGE_TO_HTTP_CAP);
+        tokio::spawn(async move {
+            let mut reader = reader;
+            let mut buf = vec![0u8; READ_CHUNK];
+            loop {
+                let read_fut = reader.read(&mut buf);
+                let n = match tokio::time::timeout(STORAGE_READ_TIMEOUT, read_fut).await {
+                    Ok(Ok(0)) => break,
+                    Ok(Ok(n)) => n,
+                    Ok(Err(e)) => {
+                        tracing::error!(error = %e, "plaintext stream read from storage failed");
+                        break;
+                    }
+                    Err(_) => {
+                        tracing::error!("plaintext stream read from storage timed out");
+                        break;
+                    }
+                };
+                if tx
+                    .send(Bytes::copy_from_slice(&buf[..n]))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        });
+
+        let stream = ReceiverStream::new(rx).map(|b| Ok::<_, std::io::Error>(b));
         let body = Body::from_stream(stream);
         return Response::builder()
             .status(StatusCode::OK)

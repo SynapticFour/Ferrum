@@ -31,6 +31,10 @@ pub struct SanitizedDatabase {
     pub url_set: Option<bool>,
     pub run_migrations: bool,
     pub max_connections: u32,
+    pub min_connections: u32,
+    pub acquire_timeout_secs: u64,
+    pub idle_timeout_secs: u64,
+    pub max_lifetime_secs: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -237,6 +241,10 @@ pub fn admin_router(pool: sqlx::PgPool, config: Option<&ferrum_core::FerrumConfi
             url_set: c.database.url.as_ref().map(|_| true),
             run_migrations: c.database.run_migrations,
             max_connections: c.database.max_connections,
+            min_connections: c.database.min_connections,
+            acquire_timeout_secs: c.database.acquire_timeout_secs,
+            idle_timeout_secs: c.database.idle_timeout_secs,
+            max_lifetime_secs: c.database.max_lifetime_secs,
         },
         storage: SanitizedStorage {
             backend: c.storage.backend.clone(),

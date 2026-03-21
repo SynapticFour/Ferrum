@@ -34,7 +34,7 @@ For product scope versus a future **GA4GH compliance starter kit** (orchestratio
 |---|--------|
 | 🔐 | **Transparent Crypt4GH encryption** — Header re-wrapping; file bodies are designed to avoid re-encryption (O(1) per download). |
 | 📦 | **GA4GH stack** — DRS, TRS, WES, TES, Beacon v2, htsget, Passports. |
-| ⚡ | **Rust performance** — No GC, predictable latency, minimal footprint. |
+| ⚡ | **Rust performance** — No GC, predictable latency, minimal footprint. TB-oriented options: [PERFORMANCE.md](PERFORMANCE.md), [docs/STORAGE-BACKENDS.md](docs/STORAGE-BACKENDS.md) (S3 multipart, bounded streaming, optional libdeflate / OpenDAL). |
 | 🔬 | **Workflow engines** — Nextflow, CWL, WDL, Snakemake. |
 | 🖥️ | **HPC scheduling** — SLURM and LSF job scheduling. |
 | 🚀 | **One-command demo** — `ferrum demo start`; Helm charts for production. |
@@ -239,7 +239,8 @@ Ferrum tracks which WES runs consumed which DRS objects (inputs) and produced wh
 
 ```
 crates/
-├── ferrum-core/       # Config, DB, auth, storage, error, types, health
+├── ferrum-core/       # Config, DB, auth, errors, types, health, provenance (no object storage impl.)
+├── ferrum-storage/    # ObjectStorage: LocalStorage, S3Storage; optional OpenDAL
 ├── ferrum-drs/        # DRS 1.4 (objects, access, ingest)
 ├── ferrum-trs/        # Tool Registry Service 2.0
 ├── ferrum-wes/        # Workflow Execution Service 1.1
@@ -247,6 +248,7 @@ crates/
 ├── ferrum-beacon/     # Beacon v2
 ├── ferrum-passports/  # GA4GH Passports & Visas
 ├── ferrum-crypt4gh/   # Crypt4GH encryption layer
+├── ferrum-bench/      # Criterion benchmarks (optional compile)
 └── ferrum-gateway/    # API gateway composing all services
 ```
 
