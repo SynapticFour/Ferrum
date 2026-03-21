@@ -2,6 +2,7 @@
 //! A01: Auth middleware on every request. A05: Security headers, CORS from config.
 
 mod admin;
+mod shutdown;
 
 use axum::http::header;
 use axum::{routing::get, Router};
@@ -12,6 +13,7 @@ use ferrum_core::config::FerrumConfig;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::path::PathBuf;
+use std::time::Duration;
 use tokio::sync::watch;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
@@ -67,6 +69,7 @@ pub fn app(
     cohort_params: CohortRouterParams,
     workspaces_pool: WorkspacesRouterParams,
     admin_pool: Option<sqlx::PgPool>,
+    shutdown_coordinator: Arc<shutdown::ShutdownCoordinator>,
     config_watch_rx: Option<watch::Receiver<Arc<FerrumConfig>>>,
 ) -> Router {
     let cfg = config;
@@ -254,6 +257,40 @@ pub fn app(
             .route("/ui/*path", get(ui_placeholder));
     }
 
+    // Lesson 9: graceful shutdown for long-running transfers.
+    // We reject new DRS stream requests with 503 and track in-flight streams until body drain ends.
+    let shutdown_for_mw = Arc::clone(&shutdown_coordinator);
+    app = app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
+        let shutdown = Arc::clone(&shutdown_for_mw);
+        async move {
+            let path = req.uri().path().to_string();
+            let is_drs_stream = req.method() == axum::http::Method::GET && is_drs_stream_path(&path);
+            if !is_drs_stream {
+                return next.run(req).await;
+            }
+
+            if shutdown.is_shutting_down() {
+                let mut res = (
+                    axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                    "Service shutting down",
+                )
+                    .into_response();
+                res.headers_mut().insert(
+                    axum::http::header::RETRY_AFTER,
+                    axum::http::HeaderValue::from_static("60"),
+                );
+                return res;
+            }
+
+            // Keep the guard alive until the response (including its streaming body) is dropped.
+            // http::Extensions are dropped when the Response is dropped by the server runtime.
+            let guard = shutdown.register_transfer();
+            let mut response = next.run(req).await;
+            response.extensions_mut().insert(guard);
+            response
+        }
+    }));
+
     // A01: Auth middleware wraps the complete router (all nests). Apply last so every request to /workspaces, /cohorts, etc. goes through it.
     let auth_cfg = auth_config.clone();
     app = app.layer(axum::middleware::from_fn(
@@ -317,6 +354,11 @@ async fn ui_placeholder() -> &'static str {
     "UI not built. Add frontend to services/ui and rebuild."
 }
 
+fn is_drs_stream_path(path: &str) -> bool {
+    (path.starts_with("/ga4gh/drs/v1/objects/") && path.ends_with("/stream"))
+        || (path.starts_with("/objects/") && path.ends_with("/stream"))
+}
+
 /// Run the gateway server on the given address.
 /// Pass Some(drs_state) when DRS is enabled; Some(wes_params) when WES is enabled; Some(tes_params) when TES is enabled.
 #[allow(clippy::too_many_arguments)]
@@ -334,6 +376,13 @@ pub async fn run(
     workspaces_pool: WorkspacesRouterParams,
     admin_pool: Option<sqlx::PgPool>,
 ) -> Result<(), std::io::Error> {
+    let shutdown_coordinator = Arc::new(shutdown::ShutdownCoordinator::new());
+    let drain_timeout_secs: u64 = std::env::var("FERRUM_DRAIN_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(300);
+    let drain_timeout = Duration::from_secs(drain_timeout_secs);
+
     // Config hot-reload wiring: spawn ConfigWatcher when a concrete config path is
     // provided via `FERRUM_CONFIG`, and pass the `watch::Receiver` into app-level
     // middleware so it can gate GA4GH routes without a restart.
@@ -377,9 +426,35 @@ pub async fn run(
         cohort_params,
         workspaces_pool,
         admin_pool,
+        Arc::clone(&shutdown_coordinator),
         config_watch_rx,
     );
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!("Gateway listening on {}", bind);
-    axum::serve(listener, app).await
+
+    let shutdown_for_server = Arc::clone(&shutdown_coordinator);
+    let server_shutdown = async move {
+        // Prefer SIGTERM in production, but fall back to Ctrl+C.
+        #[cfg(unix)]
+        {
+            use tokio::signal::unix::{signal, SignalKind};
+            if let Ok(mut term) = signal(SignalKind::terminate()) {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {}
+                    _ = term.recv() => {}
+                }
+            } else {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = tokio::signal::ctrl_c().await;
+        }
+        shutdown_for_server.shutdown(drain_timeout).await;
+    };
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(server_shutdown)
+        .await
 }
