@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- TB-scale hardening (Lesson 3): dedicated Rayon pool for blocking POSIX filesystem I/O (`ferrum_core::io::posix`, tunable via `FERRUM_POSIX_IO_THREADS`); `LocalStorage` put/delete/exists/size and Crypt4GH `LocalKeyStore` key file reads use it instead of Tokio’s default blocking pool. TES SLURM backend logs a one-time warning when GNU libc &lt; 2.24 (slow `fork`-based process spawn on some clusters).
 - Initial implementation of all GA4GH services (DRS, WES, TES, TRS, Beacon v2, Passports).
 - Transparent Crypt4GH encryption layer with header re-wrapping (O(1) per download).
 - WES support for Nextflow, CWL, WDL, Snakemake.

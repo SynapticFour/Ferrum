@@ -266,6 +266,12 @@ helm install ferrum ferrum/ferrum \
 | `[encryption]` | `enabled` | bool | false | High-level encryption flag |
 | `[logging]` | `level` | string | `info` | Log level |
 
+### Environment-only tuning
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FERRUM_POSIX_IO_THREADS` | `32` | Size of the dedicated Rayon pool for blocking POSIX filesystem work (local DRS storage: put/delete/exists/size) and Crypt4GH on-disk key reads. Increase on HPC nodes with many concurrent local-object or decrypt workloads. |
+
 ---
 
 ## Upgrading

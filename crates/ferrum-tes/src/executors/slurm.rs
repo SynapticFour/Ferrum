@@ -1,5 +1,6 @@
 //! Slurm executor: generate job script and submit via sbatch.
 
+use super::slurm_compat;
 use crate::error::{Result, TesError};
 use crate::executor::TaskExecutor;
 use crate::types::{CreateTaskRequest, TaskState};
@@ -133,6 +134,7 @@ impl TaskExecutor for SlurmExecutor {
     }
 
     async fn run(&self, task_id: &str, request: &CreateTaskRequest) -> Result<Option<String>> {
+        slurm_compat::warn_old_glibc_process_spawn_if_needed();
         if request.executors.is_empty() {
             return Err(TesError::Validation("executors required".into()));
         }

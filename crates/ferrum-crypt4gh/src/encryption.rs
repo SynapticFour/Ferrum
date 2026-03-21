@@ -100,10 +100,14 @@ impl KeyStore for LocalKeyStore {
             return Ok(None);
         }
         let path = path.clone();
-        let raw = tokio::task::spawn_blocking(move || get_private_key(&path, || Ok(String::new())))
-            .await
-            .map_err(|e| Crypt4GHError::Other(e.into()))?
-            .map_err(Crypt4GHError::Crypto)?;
+        // Lesson: dedicated POSIX I/O pool instead of Tokio's spawn_blocking for key file reads.
+        // Source: HPC / many concurrent Crypt4GH decrypt streams.
+        let raw = ferrum_core::io::posix::spawn_blocking(move || {
+            get_private_key(&path, || Ok(String::new()))
+        })
+        .await
+        .map_err(|e| Crypt4GHError::Other(e.into()))?
+        .map_err(Crypt4GHError::Crypto)?;
         // crypt4gh get_private_key returns raw key bytes; wrap as C4ghKeys for KeyStore API
         let keys = C4ghKeys {
             method: 0,
@@ -119,7 +123,7 @@ impl KeyStore for LocalKeyStore {
             return Ok(None);
         }
         let path = path.clone();
-        let bytes = tokio::task::spawn_blocking(move || get_public_key(&path))
+        let bytes = ferrum_core::io::posix::spawn_blocking(move || get_public_key(&path))
             .await
             .map_err(|e| Crypt4GHError::Other(e.into()))?
             .map_err(Crypt4GHError::Crypto)?;

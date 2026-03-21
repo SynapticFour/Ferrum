@@ -1,6 +1,7 @@
 mod noop;
 mod podman;
 mod slurm;
+mod slurm_compat;
 
 pub use noop::NoopExecutor;
 pub use podman::PodmanExecutor;

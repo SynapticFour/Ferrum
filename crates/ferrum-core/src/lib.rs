@@ -5,6 +5,7 @@ pub mod config;
 pub mod db;
 pub mod error;
 pub mod health;
+pub mod io;
 pub mod provenance;
 pub mod security;
 pub mod ssrf;

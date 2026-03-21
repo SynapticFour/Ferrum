@@ -1,6 +1,7 @@
 //! Storage abstraction: ObjectStorage trait, LocalStorage and S3Storage.
 
 use crate::error::{FerrumError, Result};
+use crate::io::posix;
 use async_trait::async_trait;
 use aws_credential_types::Credentials;
 use aws_sdk_s3::primitives::ByteStream;
@@ -37,24 +38,51 @@ impl LocalStorage {
     }
 
     fn path_for(&self, key: &str) -> Result<PathBuf> {
-        let path = self.base_path.join(key);
-        if path.strip_prefix(&self.base_path).is_err() {
-            return Err(FerrumError::ValidationError(
-                "invalid key: path escape".to_string(),
-            ));
-        }
-        Ok(path)
+        path_for_local(&self.base_path, key)
     }
+}
+
+fn path_for_local(base_path: &std::path::Path, key: &str) -> Result<PathBuf> {
+    let path = base_path.join(key);
+    if path.strip_prefix(base_path).is_err() {
+        return Err(FerrumError::ValidationError(
+            "invalid key: path escape".to_string(),
+        ));
+    }
+    Ok(path)
 }
 
 #[async_trait]
 impl ObjectStorage for LocalStorage {
     async fn put_bytes(&self, key: &str, data: &[u8]) -> Result<()> {
-        let path = self.path_for(key)?;
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| FerrumError::StorageError(e.into()))?;
-        }
-        std::fs::write(path, data).map_err(|e| FerrumError::StorageError(e.into()))?;
+        // Lesson: POSIX blocking I/O on dedicated pool (not Tokio blocking pool).
+        // Source: TB-scale / HPC concurrent read patterns.
+        let base_path = self.base_path.clone();
+        let key = key.to_string();
+        let data = data.to_vec();
+        posix::spawn_blocking(move || {
+            let path = base_path.join(&key);
+            if path.strip_prefix(&base_path).is_err() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "invalid key: path escape",
+                ));
+            }
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(path, &data)?;
+            Ok::<(), std::io::Error>(())
+        })
+        .await
+        .map_err(|e| FerrumError::StorageError(e.into()))?
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::InvalidInput {
+                FerrumError::ValidationError(e.to_string())
+            } else {
+                FerrumError::StorageError(e.into())
+            }
+        })?;
         Ok(())
     }
 
@@ -71,29 +99,80 @@ impl ObjectStorage for LocalStorage {
     }
 
     async fn delete(&self, key: &str) -> Result<()> {
-        let path = self.path_for(key)?;
-        if path.exists() {
-            tokio::fs::remove_file(&path)
-                .await
-                .map_err(|e| FerrumError::StorageError(e.into()))?;
-        }
-        Ok(())
-    }
-
-    async fn exists(&self, key: &str) -> Result<bool> {
-        Ok(self.path_for(key)?.exists())
-    }
-
-    async fn size(&self, key: &str) -> Result<u64> {
-        let path = self.path_for(key)?;
-        let meta = tokio::fs::metadata(&path).await.map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                FerrumError::NotFound(key.to_string())
+        let base_path = self.base_path.clone();
+        let key = key.to_string();
+        posix::spawn_blocking(move || {
+            let path = base_path.join(&key);
+            if path.strip_prefix(&base_path).is_err() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "invalid key: path escape",
+                ));
+            }
+            if path.exists() {
+                std::fs::remove_file(path)?;
+            }
+            Ok::<(), std::io::Error>(())
+        })
+        .await
+        .map_err(|e| FerrumError::StorageError(e.into()))?
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::InvalidInput {
+                FerrumError::ValidationError(e.to_string())
             } else {
                 FerrumError::StorageError(e.into())
             }
         })?;
-        Ok(meta.len())
+        Ok(())
+    }
+
+    async fn exists(&self, key: &str) -> Result<bool> {
+        let base_path = self.base_path.clone();
+        let key = key.to_string();
+        let exists = posix::spawn_blocking(move || {
+            let path = base_path.join(&key);
+            if path.strip_prefix(&base_path).is_err() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "invalid key: path escape",
+                ));
+            }
+            Ok(path.exists())
+        })
+        .await
+        .map_err(|e| FerrumError::StorageError(e.into()))?
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::InvalidInput {
+                FerrumError::ValidationError(e.to_string())
+            } else {
+                FerrumError::StorageError(e.into())
+            }
+        })?;
+        Ok(exists)
+    }
+
+    async fn size(&self, key: &str) -> Result<u64> {
+        let base_path = self.base_path.clone();
+        let key_owned = key.to_string();
+        let len = posix::spawn_blocking(move || {
+            let path = base_path.join(&key_owned);
+            if path.strip_prefix(&base_path).is_err() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "invalid key: path escape",
+                ));
+            }
+            let meta = std::fs::metadata(&path)?;
+            Ok(meta.len())
+        })
+        .await
+        .map_err(|e| FerrumError::StorageError(e.into()))?
+        .map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => FerrumError::NotFound(key.to_string()),
+            std::io::ErrorKind::InvalidInput => FerrumError::ValidationError(e.to_string()),
+            _ => FerrumError::StorageError(e.into()),
+        })?;
+        Ok(len)
     }
 }
 
