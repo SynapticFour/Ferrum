@@ -171,6 +171,12 @@ impl<DB: Send + Sync> KeyStore for DatabaseKeyStore<DB> {
 /// Chunk size for streaming (align with Crypt4GH segment where possible).
 const STREAM_CHUNK: usize = 65536;
 
+/// Lesson 4: bounded channels + explicit yielding avoid unbounded buffering and deadlocks.
+/// - IN_FLIGHT_IN: Reader pump -> decrypt/encrypt spawn_blocking
+/// - IN_FLIGHT_OUT: spawn_blocking -> async writer pump
+const IN_FLIGHT_IN: usize = 8;
+const IN_FLIGHT_OUT: usize = 4;
+
 /// Bridge: async read from R, sync decrypt, async write to W. Runs decrypt in spawn_blocking with
 /// channel-based Read/Write for bounded memory.
 pub async fn stream_decrypt<R, W>(
@@ -183,10 +189,10 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    // Progress guarantee: unbounded channels prevent deadlocks caused by
-    // bounded-capacity backpressure between async pumps and spawn_blocking.
-    let (tx_in, rx_in) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (tx_out, rx_out) = std::sync::mpsc::channel::<Vec<u8>>();
+    // Lesson 4: bounded channels provide backpressure; non-blocking try_send avoids
+    // blocking Tokio worker threads when the channel is full.
+    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_IN);
+    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_OUT);
     let keys = keys.to_vec();
     let sender = sender_pubkey.map(Vec::from);
 
@@ -205,8 +211,16 @@ where
                 drop(tx_in);
                 break;
             }
-            if tx_in.send(buf[..n].to_vec()).is_err() {
-                break;
+            let mut chunk = buf[..n].to_vec();
+            loop {
+                match tx_in.try_send(chunk) {
+                    Ok(()) => break,
+                    Err(std::sync::mpsc::TrySendError::Full(v)) => {
+                        chunk = v;
+                        tokio::task::yield_now().await;
+                    }
+                    Err(std::sync::mpsc::TrySendError::Disconnected(_v)) => break,
+                }
             }
         }
         Ok::<_, Crypt4GHError>(())
@@ -251,10 +265,10 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    // Progress guarantee: unbounded channels prevent deadlocks caused by
-    // bounded-capacity backpressure between async pumps and spawn_blocking.
-    let (tx_in, rx_in) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (tx_out, rx_out) = std::sync::mpsc::channel::<Vec<u8>>();
+    // Lesson 4: bounded channels provide backpressure; non-blocking try_send avoids
+    // blocking Tokio worker threads when the channel is full.
+    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_IN);
+    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_OUT);
     let keys = recipient_keys.clone();
 
     let mut reader = ChannelReader::new(rx_in);
@@ -271,8 +285,16 @@ where
                 drop(tx_in);
                 break;
             }
-            if tx_in.send(buf[..n].to_vec()).is_err() {
-                break;
+            let mut chunk = buf[..n].to_vec();
+            loop {
+                match tx_in.try_send(chunk) {
+                    Ok(()) => break,
+                    Err(std::sync::mpsc::TrySendError::Full(v)) => {
+                        chunk = v;
+                        tokio::task::yield_now().await;
+                    }
+                    Err(std::sync::mpsc::TrySendError::Disconnected(_v)) => break,
+                }
             }
         }
         Ok::<_, Crypt4GHError>(())
@@ -317,10 +339,10 @@ where
     R: AsyncRead + Unpin + Send + 'static,
     W: AsyncWrite + Unpin + Send + 'static,
 {
-    // Progress guarantee: unbounded channels prevent deadlocks caused by
-    // bounded-capacity backpressure between async pumps and spawn_blocking.
-    let (tx_in, rx_in) = std::sync::mpsc::channel::<Vec<u8>>();
-    let (tx_out, rx_out) = std::sync::mpsc::channel::<Vec<u8>>();
+    // Lesson 4: bounded channels provide backpressure; non-blocking try_send avoids
+    // blocking Tokio worker threads when the channel is full.
+    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_IN);
+    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_OUT);
     let keys = keys.to_vec();
     let recipients = recipient_keys.clone();
 
@@ -339,8 +361,16 @@ where
                 drop(tx_in);
                 break;
             }
-            if tx_in.send(buf[..n].to_vec()).is_err() {
-                break;
+            let mut chunk = buf[..n].to_vec();
+            loop {
+                match tx_in.try_send(chunk) {
+                    Ok(()) => break,
+                    Err(std::sync::mpsc::TrySendError::Full(v)) => {
+                        chunk = v;
+                        tokio::task::yield_now().await;
+                    }
+                    Err(std::sync::mpsc::TrySendError::Disconnected(_v)) => break,
+                }
             }
         }
         Ok::<_, Crypt4GHError>(())
@@ -402,7 +432,7 @@ impl std::io::Read for ChannelReader {
 
 /// Sync Write that sends to a channel. Exported for proxy pipeline.
 pub(crate) struct ChannelWriter {
-    sender: std::sync::mpsc::Sender<Vec<u8>>,
+    sender: std::sync::mpsc::SyncSender<Vec<u8>>,
     buffer: Vec<u8>,
 }
 
@@ -413,13 +443,14 @@ impl Drop for ChannelWriter {
         // push any remaining buffered data when the writer is dropped.
         if !self.buffer.is_empty() {
             let chunk = std::mem::take(&mut self.buffer);
-            let _ = self.sender.send(chunk);
+            // Avoid blocking in Drop: bounded sync_channel can be full.
+            let _ = self.sender.try_send(chunk);
         }
     }
 }
 
 impl ChannelWriter {
-    pub(crate) fn new(sender: std::sync::mpsc::Sender<Vec<u8>>) -> Self {
+    pub(crate) fn new(sender: std::sync::mpsc::SyncSender<Vec<u8>>) -> Self {
         Self {
             sender,
             buffer: Vec::with_capacity(STREAM_CHUNK),

@@ -13,6 +13,10 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use tower::{Layer, Service};
 
+/// Lesson 4: bounded channels + cooperative yielding to avoid unbounded buffering.
+const PROXY_IN_FLIGHT_IN: usize = 8; // Reader pump -> reencrypt spawn_blocking
+const PROXY_IN_FLIGHT_OUT: usize = 4; // spawn_blocking -> async HTTP writer
+
 /// Custom header for requester's Crypt4GH public key (base64).
 pub const HEADER_CRYPT4GH_PUBLIC_KEY: &str = "x-crypt4gh-public-key";
 
@@ -149,10 +153,10 @@ where
                 }
             };
 
-            // Progress guarantee: use unbounded channels so the re-encryption
-            // blocking thread cannot deadlock on bounded backpressure.
-            let (tx_in, rx_in) = mpsc::channel();
-            let (tx_out, rx_out) = mpsc::channel();
+            // Lesson 4: bounded channels provide backpressure. We avoid blocking Tokio
+            // worker threads by using `try_send` + `yield_now` in the async pump.
+            let (tx_in, rx_in) = mpsc::sync_channel::<Vec<u8>>(PROXY_IN_FLIGHT_IN);
+            let (tx_out, rx_out) = mpsc::sync_channel::<Vec<u8>>(PROXY_IN_FLIGHT_OUT);
             let mut reader = ChannelReader::new(rx_in);
             let mut writer = ChannelWriter::new(tx_out);
             let keys = master_keys.clone();
@@ -162,7 +166,17 @@ where
                 let mut stream = BodyStream::new(body);
                 while let Some(Ok(frame)) = stream.next().await {
                     if let Ok(data) = frame.into_data() {
-                        let _ = tx_in.send(data.to_vec());
+                        let mut chunk = data.to_vec();
+                        loop {
+                            match tx_in.try_send(chunk) {
+                                Ok(()) => break,
+                                Err(mpsc::TrySendError::Full(v)) => {
+                                    chunk = v;
+                                    tokio::task::yield_now().await;
+                                }
+                                Err(mpsc::TrySendError::Disconnected(_v)) => break,
+                            }
+                        }
                     }
                 }
                 drop(tx_in);
@@ -184,13 +198,24 @@ fn body_to_stream<B>(body: B) -> impl Stream<Item = Result<Frame<Bytes>, std::io
 where
     B: http_body::Body<Data = Bytes, Error = std::io::Error> + Send + Unpin + 'static,
 {
-    // Unbounded to avoid deadlocks between HTTP body pumping and downstream re-encryption streaming.
-    let (tx, rx) = mpsc::channel();
+    // Lesson 4: bounded to avoid unbounded buffering; use try_send/yield to avoid
+    // blocking Tokio workers.
+    let (tx, rx) = mpsc::sync_channel(32);
     tokio::spawn(async move {
         let mut stream = BodyStream::new(body);
         while let Some(Ok(frame)) = stream.next().await {
             if let Ok(data) = frame.into_data() {
-                let _ = tx.send(Ok(Frame::data(data)));
+                let mut item = Ok(Frame::data(data));
+                loop {
+                    match tx.try_send(item) {
+                        Ok(()) => break,
+                        Err(mpsc::TrySendError::Full(v)) => {
+                            item = v;
+                            tokio::task::yield_now().await;
+                        }
+                        Err(mpsc::TrySendError::Disconnected(_v)) => break,
+                    }
+                }
             }
         }
         drop(tx);
@@ -207,11 +232,15 @@ impl Stream for BodyStreamAdapter {
 
     fn poll_next(
         self: std::pin::Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         match self.rx.try_recv() {
             Ok(item) => std::task::Poll::Ready(Some(item)),
-            Err(mpsc::TryRecvError::Empty) => std::task::Poll::Pending,
+            Err(mpsc::TryRecvError::Empty) => {
+                // mpsc doesn't automatically wake us; repoll cooperatively.
+                cx.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
             Err(mpsc::TryRecvError::Disconnected) => std::task::Poll::Ready(None),
         }
     }

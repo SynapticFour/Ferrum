@@ -18,9 +18,11 @@ use sha2::{Digest, Sha256};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::time::Duration;
+use std::future::Future;
 use tokio::io::{AsyncReadExt, AsyncWrite};
 use tokio::sync::mpsc;
-use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::io::ReaderStream;
 use utoipa::ToSchema;
 
@@ -351,27 +353,80 @@ pub async fn get_object_view(
     Ok(res)
 }
 
-/// AsyncWrite adapter: decrypted Crypt4GH bytes into an unbounded channel for HTTP streaming.
-struct UnboundedBodyWriter {
-    tx: mpsc::UnboundedSender<Bytes>,
+/// AsyncWrite adapter: decrypted Crypt4GH bytes into a bounded channel for HTTP streaming.
+///
+/// Lesson 4: bounded channels provide backpressure and prevent OOM on slow/dead clients.
+/// Source: production postmortems (OOM due to unbounded buffering) + Tokio mpsc bounded design.
+struct BoundedBodyWriter {
+    tx: mpsc::Sender<Bytes>,
+    pending_send:
+        Option<Pin<
+            Box<
+                dyn Future<
+                        Output = std::result::Result<(), mpsc::error::SendError<Bytes>>,
+                    > + Send + 'static,
+            >,
+        >>,
+    pending_timeout: Option<Pin<Box<tokio::time::Sleep>>>,
+    pending_len: usize,
+    send_timeout: Duration,
 }
 
-impl AsyncWrite for UnboundedBodyWriter {
+impl AsyncWrite for BoundedBodyWriter {
     fn poll_write(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
         buf: &[u8],
     ) -> Poll<std::io::Result<usize>> {
-        let this = self.get_mut();
+        let this = self.as_mut().get_mut();
+
         if buf.is_empty() {
             return Poll::Ready(Ok(0));
         }
-        match this.tx.send(Bytes::copy_from_slice(buf)) {
-            Ok(()) => Poll::Ready(Ok(buf.len())),
-            Err(_) => Poll::Ready(Err(std::io::Error::new(
-                std::io::ErrorKind::BrokenPipe,
-                "stream receiver dropped",
-            ))),
+
+        // If a previous send is still in-flight, poll it. `AsyncWrite::write_all` ensures
+        // we won't see a new `buf` until the previous one is complete.
+        if this.pending_send.is_none() {
+            let chunk = Bytes::copy_from_slice(buf);
+            this.pending_len = buf.len();
+            let tx = this.tx.clone();
+            this.pending_send = Some(Box::pin(async move { tx.send(chunk).await }));
+            this.pending_timeout = Some(Box::pin(tokio::time::sleep(this.send_timeout)));
+        }
+
+        // Timeout: if the client doesn't drain the HTTP stream fast enough, the bounded
+        // channel stays full and we fail fast to avoid resource leaks.
+        if let Some(t) = this.pending_timeout.as_mut() {
+            if t.as_mut().poll(cx).is_ready() {
+                this.pending_send.take();
+                this.pending_timeout.take();
+                return Poll::Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "client timeout while sending response bytes",
+                )));
+            }
+        }
+
+        let fut = this
+            .pending_send
+            .as_mut()
+            .expect("pending_send must exist when poll_write is called");
+
+        match fut.as_mut().poll(cx) {
+            Poll::Ready(Ok(())) => {
+                this.pending_send.take();
+                this.pending_timeout.take();
+                Poll::Ready(Ok(this.pending_len))
+            }
+            Poll::Ready(Err(_)) => {
+                this.pending_send.take();
+                this.pending_timeout.take();
+                Poll::Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "stream receiver dropped",
+                )))
+            }
+            Poll::Pending => Poll::Pending,
         }
     }
 
@@ -379,7 +434,10 @@ impl AsyncWrite for UnboundedBodyWriter {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+    ) -> Poll<std::io::Result<()>> {
         Poll::Ready(Ok(()))
     }
 }
@@ -501,8 +559,17 @@ pub async fn get_object_stream(
             ))
         })?;
 
-    let (tx, rx) = mpsc::unbounded_channel::<Bytes>();
-    let writer = UnboundedBodyWriter { tx };
+    const CLIENT_SEND_TIMEOUT: Duration = Duration::from_secs(30);
+    const DECRYPT_TO_HTTP_CHANNEL_CAPACITY: usize = 4;
+
+    let (tx, rx) = mpsc::channel::<Bytes>(DECRYPT_TO_HTTP_CHANNEL_CAPACITY);
+    let writer = BoundedBodyWriter {
+        tx,
+        pending_send: None,
+        pending_timeout: None,
+        pending_len: 0,
+        send_timeout: CLIENT_SEND_TIMEOUT,
+    };
     let oid_for_log = canonical.clone();
     tokio::spawn(async move {
         if let Err(e) = stream_decrypt(&keys, reader, writer, None).await {
@@ -510,7 +577,7 @@ pub async fn get_object_stream(
         }
     });
 
-    let stream = UnboundedReceiverStream::new(rx).map(|b| Ok::<_, std::io::Error>(b));
+    let stream = ReceiverStream::new(rx).map(|b| Ok::<_, std::io::Error>(b));
     let body = Body::from_stream(stream);
     Response::builder()
         .status(StatusCode::OK)
