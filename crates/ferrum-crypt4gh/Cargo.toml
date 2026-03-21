@@ -39,3 +39,10 @@ required-features = ["standalone"]
 [features]
 default = []
 standalone = ["tracing-subscriber"]
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "header_rewrap"
+harness = false

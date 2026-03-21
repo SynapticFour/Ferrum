@@ -6,6 +6,7 @@ use crate::policy::PolicyEngine;
 use axum::{extract::State, routing::post, Json, Router};
 use base64::Engine;
 use ferrum_core::auth::{AuthClaims, VisaObject};
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -110,10 +111,14 @@ async fn key_exchange_handler(
     .await?
     .ok_or(Crypt4GHError::NotFound("Object not found".to_string()))?;
 
-    let reencrypted = reencrypt_bytes(&master_keys, &recipient_keys, &object_bytes, true)
+    let object_bytes = Bytes::from(object_bytes);
+
+    let reencrypted =
+        reencrypt_bytes(&master_keys, &recipient_keys, object_bytes.clone(), true)
         .map_err(Crypt4GHError::Crypto)?;
 
-    let encrypted_header = base64::engine::general_purpose::STANDARD.encode(&reencrypted);
+    let encrypted_header =
+        base64::engine::general_purpose::STANDARD.encode(&reencrypted);
     Ok(Json(KeyExchangeResponse {
         encrypted_header,
         object_size: Some(object_bytes.len() as u64),

@@ -155,8 +155,8 @@ where
 
             // Lesson 4: bounded channels provide backpressure. We avoid blocking Tokio
             // worker threads by using `try_send` + `yield_now` in the async pump.
-            let (tx_in, rx_in) = mpsc::sync_channel::<Vec<u8>>(PROXY_IN_FLIGHT_IN);
-            let (tx_out, rx_out) = mpsc::sync_channel::<Vec<u8>>(PROXY_IN_FLIGHT_OUT);
+            let (tx_in, rx_in) = mpsc::sync_channel::<Bytes>(PROXY_IN_FLIGHT_IN);
+            let (tx_out, rx_out) = mpsc::sync_channel::<Bytes>(PROXY_IN_FLIGHT_OUT);
             let mut reader = ChannelReader::new(rx_in);
             let mut writer = ChannelWriter::new(tx_out);
             let keys = master_keys.clone();
@@ -166,7 +166,7 @@ where
                 let mut stream = BodyStream::new(body);
                 while let Some(Ok(frame)) = stream.next().await {
                     if let Ok(data) = frame.into_data() {
-                        let mut chunk = data.to_vec();
+                        let mut chunk = data;
                         loop {
                             match tx_in.try_send(chunk) {
                                 Ok(()) => break,
@@ -247,7 +247,7 @@ impl Stream for BodyStreamAdapter {
 }
 
 struct ReencryptStream {
-    rx: mpsc::Receiver<Vec<u8>>,
+    rx: mpsc::Receiver<Bytes>,
 }
 
 impl Stream for ReencryptStream {
@@ -259,7 +259,7 @@ impl Stream for ReencryptStream {
     ) -> std::task::Poll<Option<Self::Item>> {
         let rx = &self.rx;
         match rx.try_recv() {
-            Ok(chunk) => std::task::Poll::Ready(Some(Ok(Frame::data(Bytes::from(chunk))))),
+            Ok(chunk) => std::task::Poll::Ready(Some(Ok(Frame::data(chunk)))),
             Err(mpsc::TryRecvError::Empty) => {
                 cx.waker().wake_by_ref();
                 std::task::Poll::Pending

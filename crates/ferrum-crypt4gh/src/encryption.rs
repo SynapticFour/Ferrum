@@ -4,6 +4,7 @@ use crate::error::{Crypt4GHError, Result};
 use async_trait::async_trait;
 use crypt4gh::keys::{generate_keys as c4gh_generate_keys, get_private_key, get_public_key};
 use crypt4gh::{decrypt, encrypt, reencrypt};
+use bytes::Bytes;
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
@@ -191,8 +192,8 @@ where
 {
     // Lesson 4: bounded channels provide backpressure; non-blocking try_send avoids
     // blocking Tokio worker threads when the channel is full.
-    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_IN);
-    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_OUT);
+    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Bytes>(IN_FLIGHT_IN);
+    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Bytes>(IN_FLIGHT_OUT);
     let keys = keys.to_vec();
     let sender = sender_pubkey.map(Vec::from);
 
@@ -211,7 +212,7 @@ where
                 drop(tx_in);
                 break;
             }
-            let mut chunk = buf[..n].to_vec();
+            let mut chunk = Bytes::copy_from_slice(&buf[..n]);
             loop {
                 match tx_in.try_send(chunk) {
                     Ok(()) => break,
@@ -231,7 +232,7 @@ where
         loop {
             match rx_out.try_recv() {
                 Ok(chunk) => {
-                    write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+                    write.write_all(chunk.as_ref()).await.map_err(Crypt4GHError::Io)?;
                 }
                 Err(TryRecvError::Empty) => {
                     // Avoid blocking a Tokio worker thread. We are in an async task,
@@ -267,8 +268,8 @@ where
 {
     // Lesson 4: bounded channels provide backpressure; non-blocking try_send avoids
     // blocking Tokio worker threads when the channel is full.
-    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_IN);
-    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_OUT);
+    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Bytes>(IN_FLIGHT_IN);
+    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Bytes>(IN_FLIGHT_OUT);
     let keys = recipient_keys.clone();
 
     let mut reader = ChannelReader::new(rx_in);
@@ -285,7 +286,7 @@ where
                 drop(tx_in);
                 break;
             }
-            let mut chunk = buf[..n].to_vec();
+            let mut chunk = Bytes::copy_from_slice(&buf[..n]);
             loop {
                 match tx_in.try_send(chunk) {
                     Ok(()) => break,
@@ -305,7 +306,7 @@ where
         loop {
             match rx_out.try_recv() {
                 Ok(chunk) => {
-                    write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+                    write.write_all(chunk.as_ref()).await.map_err(Crypt4GHError::Io)?;
                 }
                 Err(TryRecvError::Empty) => {
                     tokio::task::yield_now().await;
@@ -341,8 +342,8 @@ where
 {
     // Lesson 4: bounded channels provide backpressure; non-blocking try_send avoids
     // blocking Tokio worker threads when the channel is full.
-    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_IN);
-    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Vec<u8>>(IN_FLIGHT_OUT);
+    let (tx_in, rx_in) = std::sync::mpsc::sync_channel::<Bytes>(IN_FLIGHT_IN);
+    let (tx_out, rx_out) = std::sync::mpsc::sync_channel::<Bytes>(IN_FLIGHT_OUT);
     let keys = keys.to_vec();
     let recipients = recipient_keys.clone();
 
@@ -361,7 +362,7 @@ where
                 drop(tx_in);
                 break;
             }
-            let mut chunk = buf[..n].to_vec();
+            let mut chunk = Bytes::copy_from_slice(&buf[..n]);
             loop {
                 match tx_in.try_send(chunk) {
                     Ok(()) => break,
@@ -381,7 +382,7 @@ where
         loop {
             match rx_out.try_recv() {
                 Ok(chunk) => {
-                    write.write_all(&chunk).await.map_err(Crypt4GHError::Io)?;
+                    write.write_all(chunk.as_ref()).await.map_err(Crypt4GHError::Io)?;
                 }
                 Err(TryRecvError::Empty) => {
                     tokio::task::yield_now().await;
@@ -405,15 +406,15 @@ where
 
 /// Sync Read that reads from a channel (for use inside spawn_blocking). Exported for proxy pipeline.
 pub(crate) struct ChannelReader {
-    receiver: std::sync::mpsc::Receiver<Vec<u8>>,
-    current: std::io::Cursor<Vec<u8>>,
+    receiver: std::sync::mpsc::Receiver<Bytes>,
+    current: std::io::Cursor<Bytes>,
 }
 
 impl ChannelReader {
-    pub(crate) fn new(receiver: std::sync::mpsc::Receiver<Vec<u8>>) -> Self {
+    pub(crate) fn new(receiver: std::sync::mpsc::Receiver<Bytes>) -> Self {
         Self {
             receiver,
-            current: std::io::Cursor::new(Vec::new()),
+            current: std::io::Cursor::new(Bytes::new()),
         }
     }
 }
@@ -432,7 +433,7 @@ impl std::io::Read for ChannelReader {
 
 /// Sync Write that sends to a channel. Exported for proxy pipeline.
 pub(crate) struct ChannelWriter {
-    sender: std::sync::mpsc::SyncSender<Vec<u8>>,
+    sender: std::sync::mpsc::SyncSender<Bytes>,
     buffer: Vec<u8>,
 }
 
@@ -444,13 +445,13 @@ impl Drop for ChannelWriter {
         if !self.buffer.is_empty() {
             let chunk = std::mem::take(&mut self.buffer);
             // Avoid blocking in Drop: bounded sync_channel can be full.
-            let _ = self.sender.try_send(chunk);
+            let _ = self.sender.try_send(Bytes::from(chunk));
         }
     }
 }
 
 impl ChannelWriter {
-    pub(crate) fn new(sender: std::sync::mpsc::SyncSender<Vec<u8>>) -> Self {
+    pub(crate) fn new(sender: std::sync::mpsc::SyncSender<Bytes>) -> Self {
         Self {
             sender,
             buffer: Vec::with_capacity(STREAM_CHUNK),
@@ -468,7 +469,7 @@ impl std::io::Write for ChannelWriter {
         self.buffer.extend_from_slice(buf);
         let chunk = std::mem::take(&mut self.buffer);
         self.sender
-            .send(chunk)
+            .send(Bytes::from(chunk))
             .map_err(|_| std::io::ErrorKind::BrokenPipe)?;
         Ok(buf.len())
     }
@@ -482,11 +483,11 @@ impl std::io::Write for ChannelWriter {
 pub fn reencrypt_bytes(
     keys: &[C4ghKeys],
     recipient_keys: &HashSet<C4ghKeys>,
-    input: &[u8],
+    input: Bytes,
     trim: bool,
-) -> std::result::Result<Vec<u8>, crypt4gh::error::Crypt4GHError> {
+) -> std::result::Result<Bytes, crypt4gh::error::Crypt4GHError> {
     let mut reader = std::io::Cursor::new(input);
     let mut writer = Vec::new();
     reencrypt(keys, recipient_keys, &mut reader, &mut writer, trim)?;
-    Ok(writer)
+    Ok(Bytes::from(writer))
 }
