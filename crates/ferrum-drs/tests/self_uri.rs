@@ -23,4 +23,3 @@ fn test_self_uri_always_drs_scheme() {
     assert!(!canonical.starts_with("http://"));
     assert!(!canonical.starts_with("https://"));
 }
-

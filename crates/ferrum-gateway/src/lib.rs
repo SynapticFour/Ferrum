@@ -5,14 +5,14 @@ mod admin;
 mod shutdown;
 
 use axum::http::header;
-use axum::{routing::get, Router};
 use axum::response::IntoResponse;
-use ferrum_core::health::health_router;
+use axum::{routing::get, Router};
 use ferrum_core::config::watch::ConfigWatcher;
 use ferrum_core::config::FerrumConfig;
+use ferrum_core::health::health_router;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
 use tower_http::cors::CorsLayer;
@@ -150,11 +150,22 @@ pub fn app(
 
     // GA4GH standard paths (add all nests first)
     if hot_reload || cfg.map(|c| c.services.enable_drs).unwrap_or(true) {
-        let drs_router = match drs_state {
-            Some(state) => ferrum_drs::router(state),
-            None => ferrum_drs::router_unconfigured(),
-        };
-        app = app.nest("/ga4gh/drs/v1", drs_router);
+        match &drs_state {
+            Some(state) => {
+                app = app.nest("/ga4gh/drs/v1", ferrum_drs::router(state.clone()));
+                app = app.nest(
+                    "/api/v1/ingest",
+                    ferrum_drs::ingest_api_v1_router(std::sync::Arc::new(state.clone())),
+                );
+            }
+            None => {
+                app = app.nest("/ga4gh/drs/v1", ferrum_drs::router_unconfigured());
+                app = app.nest(
+                    "/api/v1/ingest",
+                    ferrum_drs::ingest_api_v1_router_unconfigured(),
+                );
+            }
+        }
     }
     if hot_reload || cfg.map(|c| c.services.enable_trs).unwrap_or(true) {
         let trs_router = match trs_params {
@@ -260,36 +271,39 @@ pub fn app(
     // Lesson 9: graceful shutdown for long-running transfers.
     // We reject new DRS stream requests with 503 and track in-flight streams until body drain ends.
     let shutdown_for_mw = Arc::clone(&shutdown_coordinator);
-    app = app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
-        let shutdown = Arc::clone(&shutdown_for_mw);
-        async move {
-            let path = req.uri().path().to_string();
-            let is_drs_stream = req.method() == axum::http::Method::GET && is_drs_stream_path(&path);
-            if !is_drs_stream {
-                return next.run(req).await;
-            }
+    app = app.layer(axum::middleware::from_fn(
+        move |req: axum::extract::Request, next: axum::middleware::Next| {
+            let shutdown = Arc::clone(&shutdown_for_mw);
+            async move {
+                let path = req.uri().path().to_string();
+                let is_drs_stream =
+                    req.method() == axum::http::Method::GET && is_drs_stream_path(&path);
+                if !is_drs_stream {
+                    return next.run(req).await;
+                }
 
-            if shutdown.is_shutting_down() {
-                let mut res = (
-                    axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                    "Service shutting down",
-                )
-                    .into_response();
-                res.headers_mut().insert(
-                    axum::http::header::RETRY_AFTER,
-                    axum::http::HeaderValue::from_static("60"),
-                );
-                return res;
-            }
+                if shutdown.is_shutting_down() {
+                    let mut res = (
+                        axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                        "Service shutting down",
+                    )
+                        .into_response();
+                    res.headers_mut().insert(
+                        axum::http::header::RETRY_AFTER,
+                        axum::http::HeaderValue::from_static("60"),
+                    );
+                    return res;
+                }
 
-            // Keep the guard alive until the response (including its streaming body) is dropped.
-            // http::Extensions are dropped when the Response is dropped by the server runtime.
-            let guard = shutdown.register_transfer();
-            let mut response = next.run(req).await;
-            response.extensions_mut().insert(guard);
-            response
-        }
-    }));
+                // Keep the guard alive until the response (including its streaming body) is dropped.
+                // http::Extensions are dropped when the Response is dropped by the server runtime.
+                let guard = shutdown.register_transfer();
+                let mut response = next.run(req).await;
+                response.extensions_mut().insert(guard);
+                response
+            }
+        },
+    ));
 
     // A01: Auth middleware wraps the complete router (all nests). Apply last so every request to /workspaces, /cohorts, etc. goes through it.
     let auth_cfg = auth_config.clone();
@@ -304,47 +318,52 @@ pub fn app(
     // Learned from production hot-reload patterns: when config changes, return `503 Service Unavailable`
     // for disabled services without restarting the HTTP server or rebuilding routers.
     if let Some(config_rx) = config_watch_rx {
-        app = app.layer(axum::middleware::from_fn(move |req: axum::extract::Request, next: axum::middleware::Next| {
-            let rx = config_rx.clone();
-            async move {
-                // `tokio::sync::watch::Ref` is not `Send`, so keep it in a tight scope and
-                // compute a plain `bool` before awaiting `next.run(req)`.
-                let enabled = {
-                    let cfg = rx.borrow();
-                    let path = req.uri().path();
+        app = app.layer(axum::middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {
+                let rx = config_rx.clone();
+                async move {
+                    // `tokio::sync::watch::Ref` is not `Send`, so keep it in a tight scope and
+                    // compute a plain `bool` before awaiting `next.run(req)`.
+                    let enabled = {
+                        let cfg = rx.borrow();
+                        let path = req.uri().path();
 
-                    if path.starts_with("/ga4gh/drs/v1") || path.starts_with("/objects") {
-                        cfg.services.enable_drs
-                    } else if path.starts_with("/ga4gh/wes/v1") {
-                        cfg.services.enable_wes
-                    } else if path.starts_with("/ga4gh/tes/v1") {
-                        cfg.services.enable_tes
-                    } else if path.starts_with("/ga4gh/trs/v2") {
-                        cfg.services.enable_trs
-                    } else if path.starts_with("/ga4gh/beacon/v2") {
-                        cfg.services.enable_beacon
-                    } else if path.starts_with("/passports/v1") {
-                        cfg.services.enable_passports
-                    } else if path.starts_with("/ga4gh/crypt4gh/v1") {
-                        cfg.services.enable_crypt4gh
-                    } else if path.starts_with("/ga4gh/htsget/v1") {
-                        cfg.services.enable_htsget
+                        if path.starts_with("/ga4gh/drs/v1")
+                            || path.starts_with("/api/v1/ingest")
+                            || path.starts_with("/objects")
+                        {
+                            cfg.services.enable_drs
+                        } else if path.starts_with("/ga4gh/wes/v1") {
+                            cfg.services.enable_wes
+                        } else if path.starts_with("/ga4gh/tes/v1") {
+                            cfg.services.enable_tes
+                        } else if path.starts_with("/ga4gh/trs/v2") {
+                            cfg.services.enable_trs
+                        } else if path.starts_with("/ga4gh/beacon/v2") {
+                            cfg.services.enable_beacon
+                        } else if path.starts_with("/passports/v1") {
+                            cfg.services.enable_passports
+                        } else if path.starts_with("/ga4gh/crypt4gh/v1") {
+                            cfg.services.enable_crypt4gh
+                        } else if path.starts_with("/ga4gh/htsget/v1") {
+                            cfg.services.enable_htsget
+                        } else {
+                            true
+                        }
+                    };
+
+                    if enabled {
+                        next.run(req).await
                     } else {
-                        true
+                        (
+                            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+                            "service disabled via hot-reload config",
+                        )
+                            .into_response()
                     }
-                };
-
-                if enabled {
-                    next.run(req).await
-                } else {
-                    (
-                        axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                        "service disabled via hot-reload config",
-                    )
-                        .into_response()
                 }
-            }
-        }));
+            },
+        ));
     }
 
     app

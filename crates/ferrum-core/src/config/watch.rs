@@ -88,4 +88,3 @@ impl ConfigWatcher {
         ev_paths.iter().any(|p| p == path)
     }
 }
-

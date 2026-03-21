@@ -10,9 +10,9 @@ pub mod helixtest_ferrum;
 pub mod log_stream;
 pub mod metrics;
 pub mod multiqc;
+pub mod output_sampling;
 pub mod process_sampler;
 pub mod provenance_helpers;
-pub mod output_sampling;
 pub mod repo;
 pub mod run_manager;
 pub mod state;
@@ -170,15 +170,17 @@ pub fn router(
             if v.get("state").and_then(|s| s.as_str()) != Some("RUNNING") {
                 continue;
             }
-            let Some(pid) = v.get("engine_pid").and_then(|p| p.as_u64()).and_then(|p| u32::try_from(p).ok()) else {
+            let Some(pid) = v
+                .get("engine_pid")
+                .and_then(|p| p.as_u64())
+                .and_then(|p| u32::try_from(p).ok())
+            else {
                 // No PID stored -> skip (e.g. TES-backed runs).
                 continue;
             };
 
             sys.refresh_processes(sysinfo::ProcessesToUpdate::All);
-            let exists = sys
-                .process(sysinfo::Pid::from_u32(pid))
-                .is_some();
+            let exists = sys.process(sysinfo::Pid::from_u32(pid)).is_some();
 
             if !exists {
                 let _ = repo_restore
@@ -205,10 +207,7 @@ pub fn router(
         .route("/provenance/graph", get(get_provenance_graph));
     r = r
         .route("/runs/:run_id/metrics", get(get_run_metrics))
-        .route(
-            "/runs/:run_id/metrics/report",
-            get(get_run_metrics_report),
-        )
+        .route("/runs/:run_id/metrics/report", get(get_run_metrics_report))
         .route("/cost/estimate", axum::routing::post(post_cost_estimate))
         .route("/cost/summary", get(get_cost_summary))
         .route("/cache/stats", get(get_cache_stats))

@@ -7,9 +7,9 @@ pub mod policy;
 pub mod proxy;
 
 pub use encryption::{
-    generate_keypair, load_recipient_keys, recipient_keys_from_pubkey, reencrypt_bytes,
-    stream_decrypt, stream_encrypt, stream_reencrypt, C4ghKeys, DatabaseKeyStore, KeyStore,
-    LocalKeyStore,
+    encrypt_bytes_for_pubkey, generate_keypair, load_recipient_keys, recipient_keys_from_pubkey,
+    reencrypt_bytes, stream_decrypt, stream_encrypt, stream_reencrypt, C4ghKeys, DatabaseKeyStore,
+    KeyStore, LocalKeyStore,
 };
 pub use error::{Crypt4GHError, Result};
 pub use keys::{

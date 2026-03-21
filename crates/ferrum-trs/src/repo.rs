@@ -145,24 +145,22 @@ impl TrsRepo {
     /// in the URL; we store by id, so if the given version_id is a name, look it up.
     async fn resolve_version_id(&self, tool_id: &str, version_id: &str) -> Result<Option<String>> {
         // Already an id if we have a row
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM trs_tool_versions WHERE tool_id = $1 AND id = $2",
-        )
-        .bind(tool_id)
-        .bind(version_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT id FROM trs_tool_versions WHERE tool_id = $1 AND id = $2")
+                .bind(tool_id)
+                .bind(version_id)
+                .fetch_optional(&self.pool)
+                .await?;
         if row.is_some() {
             return Ok(Some(version_id.to_string()));
         }
         // Try as version name
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM trs_tool_versions WHERE tool_id = $1 AND name = $2",
-        )
-        .bind(tool_id)
-        .bind(version_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<(String,)> =
+            sqlx::query_as("SELECT id FROM trs_tool_versions WHERE tool_id = $1 AND name = $2")
+                .bind(tool_id)
+                .bind(version_id)
+                .fetch_optional(&self.pool)
+                .await?;
         Ok(row.map(|r| r.0))
     }
 

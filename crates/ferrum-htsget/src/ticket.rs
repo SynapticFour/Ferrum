@@ -22,17 +22,12 @@ pub fn classify_object(mime_type: Option<&str>, name: Option<&str>) -> FileKind 
     let mime = mime_type
         .map(|s| s.to_ascii_lowercase())
         .unwrap_or_default();
-    let name_l = name
-        .map(|s| s.to_ascii_lowercase())
-        .unwrap_or_default();
+    let name_l = name.map(|s| s.to_ascii_lowercase()).unwrap_or_default();
 
     if mime.contains("cram") || name_l.ends_with(".cram") {
         return FileKind::ReadsCram;
     }
-    if mime.contains("bam")
-        || mime.contains("vnd.ga4gh.bam")
-        || name_l.ends_with(".bam")
-    {
+    if mime.contains("bam") || mime.contains("vnd.ga4gh.bam") || name_l.ends_with(".bam") {
         return FileKind::ReadsBam;
     }
     if mime.contains("bcf") || name_l.ends_with(".bcf") {

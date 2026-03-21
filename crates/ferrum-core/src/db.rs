@@ -79,37 +79,36 @@ impl DatabasePool {
         };
 
         let url_lower = url.split('?').next().unwrap_or(&url).to_lowercase();
-        let mut pool = if url_lower.starts_with("postgres://")
-            || url_lower.starts_with("postgresql://")
-        {
-            let max_c = cfg.max_connections.max(1);
-            let min_c = cfg.min_connections.min(max_c).max(1).min(max_c);
-            let pool = PgPoolOptions::new()
-                .max_connections(max_c)
-                .min_connections(min_c)
-                .acquire_timeout(Duration::from_secs(cfg.acquire_timeout_secs.max(1)))
-                .idle_timeout(Some(Duration::from_secs(cfg.idle_timeout_secs.max(1))))
-                .max_lifetime(Some(Duration::from_secs(cfg.max_lifetime_secs.max(60))))
-                .connect(&url)
-                .await?;
-            DatabasePool::Postgres(pool)
-        } else if url_lower.starts_with("sqlite://") || url_lower.starts_with("sqlite:") {
-            let path = url
-                .trim_start_matches("sqlite://")
-                .trim_start_matches("sqlite:");
-            let sqlite_max = cfg.max_connections.max(1).min(5);
-            let pool = SqlitePoolOptions::new()
-                .max_connections(sqlite_max)
-                .acquire_timeout(Duration::from_secs(cfg.acquire_timeout_secs.max(1)))
-                .connect(&format!("sqlite:{}", path))
-                .await?;
-            DatabasePool::Sqlite(pool)
-        } else {
-            return Err(FerrumError::ValidationError(format!(
-                "Unsupported database URL scheme: {}",
-                url
-            )));
-        };
+        let mut pool =
+            if url_lower.starts_with("postgres://") || url_lower.starts_with("postgresql://") {
+                let max_c = cfg.max_connections.max(1);
+                let min_c = cfg.min_connections.min(max_c).max(1).min(max_c);
+                let pool = PgPoolOptions::new()
+                    .max_connections(max_c)
+                    .min_connections(min_c)
+                    .acquire_timeout(Duration::from_secs(cfg.acquire_timeout_secs.max(1)))
+                    .idle_timeout(Some(Duration::from_secs(cfg.idle_timeout_secs.max(1))))
+                    .max_lifetime(Some(Duration::from_secs(cfg.max_lifetime_secs.max(60))))
+                    .connect(&url)
+                    .await?;
+                DatabasePool::Postgres(pool)
+            } else if url_lower.starts_with("sqlite://") || url_lower.starts_with("sqlite:") {
+                let path = url
+                    .trim_start_matches("sqlite://")
+                    .trim_start_matches("sqlite:");
+                let sqlite_max = cfg.max_connections.max(1).min(5);
+                let pool = SqlitePoolOptions::new()
+                    .max_connections(sqlite_max)
+                    .acquire_timeout(Duration::from_secs(cfg.acquire_timeout_secs.max(1)))
+                    .connect(&format!("sqlite:{}", path))
+                    .await?;
+                DatabasePool::Sqlite(pool)
+            } else {
+                return Err(FerrumError::ValidationError(format!(
+                    "Unsupported database URL scheme: {}",
+                    url
+                )));
+            };
 
         // Env override so demo/CI can force skip (init already ran migrations + seeds)
         let run_migrations = match std::env::var("FERRUM_DATABASE__RUN_MIGRATIONS").as_deref() {

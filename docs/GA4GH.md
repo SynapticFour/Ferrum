@@ -19,10 +19,21 @@ This document lists each GA4GH standard implemented by Ferrum: version, specific
 | DELETE | `/ga4gh/drs/v1/objects/{object_id}` | Delete object (admin) | Yes |
 | GET | `/ga4gh/drs/v1/objects` | List objects (paginated) | Optional |
 | GET | `/ga4gh/drs/v1/service-info` | Service info | No |
+| POST | `/ga4gh/drs/v1/ingest/file` | Multipart file upload | Yes |
 | POST | `/ga4gh/drs/v1/ingest/url` | Ingest from URL | Yes |
 | POST | `/ga4gh/drs/v1/ingest/batch` | Batch ingest | Yes |
 
-**Ferrum extensions:** Ingest endpoints (`/ingest/url`, `/ingest/batch`), `GET .../stream` for plaintext delivery of Crypt4GH-encrypted blobs (see [CRYPT4GH.md](CRYPT4GH.md)), Crypt4GH header re-wrap via `X-Crypt4GH-Public-Key` where layered.  
+### Versioned ingest API (Lab Kit / automation)
+
+Stable routes on the **gateway** (same auth as DRS). Errors: JSON `{ "code", "message", "details?" }`. Reference: [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/ingest/register` | Register URLs or existing storage objects (metadata-only bind) |
+| POST | `/api/v1/ingest/upload` | Multipart upload; optional Crypt4GH; `client_request_id` for idempotency |
+| GET | `/api/v1/ingest/jobs/{job_id}` | Job status and result |
+
+**Ferrum extensions:** Ingest under `/ga4gh/drs/v1/ingest/*` and `/api/v1/ingest/*`; `GET .../stream` for plaintext delivery of Crypt4GH-encrypted blobs (see [CRYPT4GH.md](CRYPT4GH.md)); Crypt4GH header re-wrap via `X-Crypt4GH-Public-Key` where layered.  
 **Limitations:** Bundles use same storage model; no custom `access_id` types beyond `https`.
 
 ---

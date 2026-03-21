@@ -36,11 +36,7 @@ fn render_submit_script(task_id: &str, request: &CreateTaskRequest) -> Result<St
     let job_name = format!("tes-{}", task_id);
     let output = format!("tes-{}-%j.out", task_id);
     let error = format!("tes-{}-%j.err", task_id);
-    let executor_command = format!(
-        "podman run --rm {} {}",
-        exec.image,
-        exec.command.join(" ")
-    );
+    let executor_command = format!("podman run --rm {} {}", exec.image, exec.command.join(" "));
 
     let mut hb = Handlebars::new();
     hb.register_template_string("submit", DEFAULT_SUBMIT_TEMPLATE)
@@ -71,7 +67,9 @@ fn parse_base_job_id(stdout: &str) -> Result<String> {
     // Array jobs can carry suffixes like `12345_1`.
     let base = token.split('_').next().unwrap_or(token).trim();
     if base.is_empty() {
-        return Err(TesError::Executor("sbatch: could not extract base job id".into()));
+        return Err(TesError::Executor(
+            "sbatch: could not extract base job id".into(),
+        ));
     }
     Ok(base.to_string())
 }
@@ -186,13 +184,7 @@ impl TaskExecutor for SlurmExecutor {
         // 2) squeue has no record (job likely left the queue): fallback to sacct.
         // Example token: `COMPLETED`
         let sacct_out = Command::new("sacct")
-            .args([
-                "-j",
-                job_id,
-                "--format=State",
-                "--noheader",
-                "--parsable2",
-            ])
+            .args(["-j", job_id, "--format=State", "--noheader", "--parsable2"])
             .output()
             .await
             .map_err(|e| TesError::Executor(e.to_string()))?;
@@ -209,8 +201,8 @@ impl TaskExecutor for SlurmExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::CreateTaskRequest;
     use crate::types::TesExecutor;
-    use crate::types::{CreateTaskRequest};
 
     #[test]
     fn test_parse_base_job_id_normal() {
@@ -241,12 +233,18 @@ mod tests {
 
     #[test]
     fn test_map_sacct_completed() {
-        assert_eq!(map_sacct_state_to_task_state("COMPLETED"), TaskState::Complete);
+        assert_eq!(
+            map_sacct_state_to_task_state("COMPLETED"),
+            TaskState::Complete
+        );
     }
 
     #[test]
     fn test_map_sacct_failed() {
-        assert_eq!(map_sacct_state_to_task_state("FAILED"), TaskState::ExecutorError);
+        assert_eq!(
+            map_sacct_state_to_task_state("FAILED"),
+            TaskState::ExecutorError
+        );
     }
 
     #[test]

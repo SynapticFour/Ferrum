@@ -34,6 +34,8 @@ flowchart LR
 
 **Solution:** At ingest, Ferrum encrypts objects with a **node master key** as the sole recipient. On download, after authorization, Ferrum **re-wraps only the header** for the requester’s public key. The body is never re-encrypted.
 
+**Upload paths:** Multipart ingest (`POST /ga4gh/drs/v1/ingest/file` and **`POST /api/v1/ingest/upload`**) can set `encrypt=true` (or `[ingest].default_encrypt_upload` on the v1 API) so the stored blob is Crypt4GH-encrypted to the node public key before `put_bytes`. Requires `crypt4gh_key_dir` and key files; see [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md).
+
 - **Ingest:** Client (or pipeline) sends plaintext or already-encrypted data; Ferrum encrypts with the node key and stores header + body.
 - **Download:** Client sends auth (e.g. Passport) and `X-Crypt4GH-Public-Key`. Ferrum decrypts the header with the node key, re-encrypts the header for the client’s key, and streams **new header + same body** to the client.
 

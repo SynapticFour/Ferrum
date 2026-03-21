@@ -35,8 +35,7 @@ impl ShutdownCoordinator {
     }
 
     pub fn register_transfer(&self) -> TransferGuard {
-        self.active_transfers
-            .fetch_add(1, Ordering::SeqCst);
+        self.active_transfers.fetch_add(1, Ordering::SeqCst);
         Arc::new(TransferGuardInner {
             active_transfers: Arc::clone(&self.active_transfers),
         })
@@ -63,8 +62,6 @@ pub struct TransferGuardInner {
 
 impl Drop for TransferGuardInner {
     fn drop(&mut self) {
-        self.active_transfers
-            .fetch_sub(1, Ordering::SeqCst);
+        self.active_transfers.fetch_sub(1, Ordering::SeqCst);
     }
 }
-

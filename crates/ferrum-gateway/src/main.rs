@@ -156,14 +156,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             pool.clone(),
             drs_hostname.clone(),
         ));
-        let storage: Option<Arc<dyn ferrum_storage::ObjectStorage>> = if let Some(ref cfg) = config {
+        let object_storage_backend = config
+            .as_ref()
+            .map(|c| c.storage.backend.clone())
+            .unwrap_or_else(|| "local".to_string());
+
+        let ingest = config
+            .as_ref()
+            .map(|c| c.ingest.clone())
+            .unwrap_or_default();
+
+        let storage: Option<Arc<dyn ferrum_storage::ObjectStorage>> = if let Some(ref cfg) = config
+        {
             if cfg.storage.backend == "s3" {
                 match ferrum_storage::S3Storage::from_config(&cfg.storage).await {
                     Ok(s) => Some(Arc::new(s) as Arc<dyn ferrum_storage::ObjectStorage>),
                     Err(_) => None,
                 }
             } else {
-                None
+                let base = cfg.storage.base_path.as_deref().unwrap_or("./ferrum-blobs");
+                match ferrum_storage::LocalStorage::new(base) {
+                    Ok(s) => Some(Arc::new(s) as Arc<dyn ferrum_storage::ObjectStorage>),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "LocalStorage init failed; DRS upload ingest disabled");
+                        None
+                    }
+                }
             }
         } else {
             None
@@ -194,6 +212,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             crypt4gh_key_dir,
             crypt4gh_master_key_id,
             crypt4gh_decrypt_stream,
+            ingest,
+            object_storage_backend,
         })
     } else {
         None
@@ -213,8 +233,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let work_dir = std::env::var("FERRUM_WES_WORK_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| std::env::temp_dir().join("wes-runs"));
-        let tes_url =
-            std::env::var("FERRUM_WES_TES_URL").unwrap_or_else(|_| "http://localhost:8080/ga4gh/tes/v1".to_string());
+        let tes_url = std::env::var("FERRUM_WES_TES_URL")
+            .unwrap_or_else(|_| "http://localhost:8080/ga4gh/tes/v1".to_string());
         (
             pool,
             Some(work_dir),

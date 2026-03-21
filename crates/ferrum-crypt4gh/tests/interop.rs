@@ -33,7 +33,9 @@ async fn test_can_decrypt_python_encrypted_file() {
         .expect("read python_ref_alice.sec");
     // `crypt4gh` may return only the 32-byte Curve25519 private key.
     // Decryption does not require `recipient_pubkey`, so we can keep it empty.
-    let recipient_pubkey = crypt4gh::keys::get_public_key(&alice_pub).ok().unwrap_or_default();
+    let recipient_pubkey = crypt4gh::keys::get_public_key(&alice_pub)
+        .ok()
+        .unwrap_or_default();
 
     let dec_key = C4ghKeys {
         method: 0,
@@ -45,7 +47,9 @@ async fn test_can_decrypt_python_encrypted_file() {
     fs::create_dir_all(&root).await.expect("mkdir");
     let out = root.join("out.bin");
 
-    let r = fs::File::open(&encrypted).await.expect("open encrypted fixture");
+    let r = fs::File::open(&encrypted)
+        .await
+        .expect("open encrypted fixture");
     let w = fs::File::create(&out).await.expect("create output");
     stream_decrypt(&[dec_key], r, w, None)
         .await
@@ -59,4 +63,3 @@ async fn test_can_decrypt_python_encrypted_file() {
         "decrypted bytes must match the python reference plaintext"
     );
 }
-

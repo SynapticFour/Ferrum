@@ -246,12 +246,7 @@ impl S3Storage {
         completed.sort_by_key(|(n, _)| *n);
         let parts: Vec<CompletedPart> = completed
             .into_iter()
-            .map(|(n, etag)| {
-                CompletedPart::builder()
-                    .e_tag(etag)
-                    .part_number(n)
-                    .build()
-            })
+            .map(|(n, etag)| CompletedPart::builder().e_tag(etag).part_number(n).build())
             .collect();
 
         let completed_upload = CompletedMultipartUpload::builder()
@@ -382,12 +377,7 @@ impl S3Storage {
         completed.sort_by_key(|(n, _)| *n);
         let parts: Vec<CompletedPart> = completed
             .into_iter()
-            .map(|(n, etag)| {
-                CompletedPart::builder()
-                    .e_tag(etag)
-                    .part_number(n)
-                    .build()
-            })
+            .map(|(n, etag)| CompletedPart::builder().e_tag(etag).part_number(n).build())
             .collect();
 
         let completed_upload = CompletedMultipartUpload::builder()

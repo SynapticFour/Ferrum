@@ -36,7 +36,10 @@ pub fn router(state: Arc<HtsgetState>) -> Router {
     // Same order as ferrum-drs: merge SwaggerUi before `with_state` so nested ticket routes keep state.
     Router::new()
         .route("/reads/service-info", get(handlers::reads_service_info))
-        .route("/variants/service-info", get(handlers::variants_service_info))
+        .route(
+            "/variants/service-info",
+            get(handlers::variants_service_info),
+        )
         // `:id` = single segment (same style as DRS `/objects/:object_id`). Slashes in ids → `%2F`.
         .route("/reads/:id", get(handlers::get_reads_ticket))
         .route("/reads/:id", post(handlers::post_reads_ticket))

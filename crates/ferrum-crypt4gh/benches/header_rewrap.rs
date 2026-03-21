@@ -42,7 +42,12 @@ fn setup_ciphertext_and_keys() -> (Vec<C4ghKeys>, HashSet<C4ghKeys>, Vec<u8>, By
         .expect("encrypt ciphertext for bench");
 
     let ciphertext_bytes = Bytes::from(ciphertext.clone());
-    (master_keys, client_recipient_keys, ciphertext, ciphertext_bytes)
+    (
+        master_keys,
+        client_recipient_keys,
+        ciphertext,
+        ciphertext_bytes,
+    )
 }
 
 fn reencrypt_header_vec_baseline(
@@ -63,11 +68,7 @@ fn bench_header_rewrap(c: &mut Criterion) {
     c.bench_function("header_rewrap_vec_baseline", |b| {
         b.iter(|| {
             let input = black_box(ciphertext_vec.clone());
-            let out = reencrypt_header_vec_baseline(
-                &master_keys,
-                &client_recipient_keys,
-                input,
-            );
+            let out = reencrypt_header_vec_baseline(&master_keys, &client_recipient_keys, input);
             black_box(out)
         })
     });
@@ -84,4 +85,3 @@ fn bench_header_rewrap(c: &mut Criterion) {
 
 criterion_group!(benches, bench_header_rewrap);
 criterion_main!(benches);
-

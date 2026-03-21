@@ -120,9 +120,11 @@ pub fn router(state: AppState) -> Router {
         .route("/objects", post(create_object))
 }
 
-// Gateway composes all
+// Gateway composes all (ingest API shares cloned AppState behind Arc)
+let ingest_state = Arc::new(drs_state.clone());
 let app = Router::new()
     .nest("/ga4gh/drs/v1", ferrum_drs::router(drs_state))
+    .nest("/api/v1/ingest", ferrum_drs::ingest_api_v1_router(ingest_state))
     .nest("/ga4gh/htsget/v1", ferrum_htsget::router(htsget_state))
     .nest("/ga4gh/trs/v2", ferrum_trs::router(trs_state))
     .nest("/ga4gh/wes/v1", ferrum_wes::router(wes_state))
@@ -147,7 +149,7 @@ sequenceDiagram
   participant Crypt4GH as Crypt4GH Layer
   participant Storage
 
-  Client->>DRS: POST /ingest/url or multipart upload
+  Client->>DRS: POST /api/v1/ingest/* or /ga4gh/drs/v1/ingest/*
   DRS->>DRS: Validate, compute checksums
   DRS->>Crypt4GH: Encrypt (node key)
   Crypt4GH->>Storage: Write encrypted stream

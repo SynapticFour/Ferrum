@@ -41,3 +41,31 @@ export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
 export async function apiDelete(path: string): Promise<void> {
   return apiFetch(path, { method: 'DELETE' });
 }
+
+/** Multipart POST (e.g. `/api/v1/ingest/upload`). Do not set Content-Type — browser sets boundary. */
+export async function apiPostFormData<T>(path: string, formData: FormData): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeader(),
+    },
+    body: formData,
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = text || `HTTP ${res.status}`;
+    try {
+      const j = JSON.parse(text) as { code?: string; message?: string; error?: string };
+      if (typeof j.message === 'string') {
+        msg = j.code ? `${j.code}: ${j.message}` : j.message;
+      } else if (typeof j.error === 'string') {
+        msg = j.error;
+      }
+    } catch {
+      /* plain-text error body */
+    }
+    throw new Error(msg);
+  }
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
+}

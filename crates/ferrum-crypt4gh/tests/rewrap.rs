@@ -49,26 +49,33 @@ async fn test_rewrap_preserves_other_recipients() {
 
     let r = fs::File::open(&plain).await.expect("open plain");
     let w = fs::File::create(&enc).await.expect("create enc");
-    stream_encrypt(&initial_recipients, r, w).await.expect("encrypt");
+    stream_encrypt(&initial_recipients, r, w)
+        .await
+        .expect("encrypt");
 
     let mut rewrap_recipients = initial_recipients.clone();
     rewrap_recipients.insert(recipient_keys_from_pubkey(carol_pk));
 
     let r = fs::File::open(&enc).await.expect("open enc");
-    let w = fs::File::create(&rewrapped).await.expect("create rewrapped");
-    stream_reencrypt(&[dec_key(alice_sk, alice_pk)], &rewrap_recipients, r, w, false)
+    let w = fs::File::create(&rewrapped)
         .await
-        .expect("rewrap");
+        .expect("create rewrapped");
+    stream_reencrypt(
+        &[dec_key(alice_sk, alice_pk)],
+        &rewrap_recipients,
+        r,
+        w,
+        false,
+    )
+    .await
+    .expect("rewrap");
 
     for (name, sk, pk) in [
         ("alice", alice_sk, alice_pk),
         ("bob", bob_sk, bob_pk),
         ("carol", carol_sk, carol_pk),
     ] {
-        let out = root.join(format!(
-            "{}.out",
-            name
-        ));
+        let out = root.join(format!("{}.out", name));
         let r = fs::File::open(&rewrapped).await.expect("open rewrapped");
         let w = fs::File::create(&out).await.expect("create out");
         stream_decrypt(&[dec_key(sk, pk)], r, w, None)
@@ -80,4 +87,3 @@ async fn test_rewrap_preserves_other_recipients() {
 
     let _ = fs::remove_dir_all(root).await;
 }
-

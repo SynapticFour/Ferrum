@@ -268,12 +268,16 @@ helm install ferrum ferrum/ferrum \
 | | `enable_crypt4gh` | bool | true | Enable Crypt4GH layer |
 | | `enable_htsget` | bool | true | Enable htsget tickets and streams |
 | `[encryption]` | `enabled` | bool | false | High-level encryption flag |
+| `[ingest]` | `default_encrypt_upload` | bool | false | Default Crypt4GH on multipart upload when client omits `encrypt` ([INGEST-LAB-KIT.md](INGEST-LAB-KIT.md)) |
+| | `max_upload_bytes` | u64 (optional) | — | Max upload size; unset or `0` → 1 GiB |
 | `[logging]` | `level` | string | `info` | Log level |
 
 ### Environment-only tuning
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `FERRUM_INGEST__DEFAULT_ENCRYPT_UPLOAD` | `false` | Same as `[ingest].default_encrypt_upload` |
+| `FERRUM_INGEST__MAX_UPLOAD_BYTES` | — | Same as `[ingest].max_upload_bytes` |
 | `FERRUM_POSIX_IO_THREADS` | `32` | Size of the dedicated Rayon pool for blocking POSIX filesystem work (`ferrum-storage` local backend: put/delete/exists/size) and Crypt4GH on-disk key reads. Increase on HPC nodes with many concurrent local-object or decrypt workloads. |
 | `FERRUM_DRAIN_TIMEOUT_SECS` | `300` | Gateway graceful shutdown: max seconds to wait for in-flight DRS stream responses after SIGTERM/Ctrl+C before the process exits. |
 

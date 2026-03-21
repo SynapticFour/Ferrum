@@ -52,15 +52,8 @@ async fn test_edit_list_offset_is_plaintext_not_ciphertext() {
     let got_plaintext = {
         let mut reader = std::io::Cursor::new(&rearranged_ciphertext);
         let mut writer: Vec<u8> = Vec::new();
-        crypt4gh::decrypt(
-            &[dec_key],
-            &mut reader,
-            &mut writer,
-            0,
-            None,
-            &None,
-        )
-        .expect("crypt4gh decrypt failed");
+        crypt4gh::decrypt(&[dec_key], &mut reader, &mut writer, 0, None, &None)
+            .expect("crypt4gh decrypt failed");
         writer
     };
 
@@ -70,4 +63,3 @@ async fn test_edit_list_offset_is_plaintext_not_ciphertext() {
         "edit-list offset must use plaintext coordinates"
     );
 }
-

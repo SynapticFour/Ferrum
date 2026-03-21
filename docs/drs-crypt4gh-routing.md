@@ -21,6 +21,8 @@ let drs_state = ferrum_drs::AppState {
     crypt4gh_key_dir: Some(std::path::PathBuf::from("/data/ferrum/keys")),
     crypt4gh_master_key_id: "node".to_string(),
     crypt4gh_decrypt_stream: true,
+    ingest: ferrum_core::IngestConfig::default(),
+    object_storage_backend: "s3".to_string(),
 };
 ```
 

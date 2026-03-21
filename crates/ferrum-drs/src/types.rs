@@ -79,7 +79,7 @@ pub struct CreateObjectRequest {
     pub workspace_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub struct ChecksumInput {
     pub r#type: String,
     pub checksum: String,

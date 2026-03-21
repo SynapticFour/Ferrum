@@ -2,8 +2,8 @@
 
 use crate::error::{htsget_error_response, HTSGET_JSON};
 use crate::ticket::{
-    classify_object, default_format_for, drs_stream_url, endpoint_matches_file, format_matches_file,
-    normalize_format, EndpointKind, FileKind,
+    classify_object, default_format_for, drs_stream_url, endpoint_matches_file,
+    format_matches_file, normalize_format, EndpointKind, FileKind,
 };
 use crate::HtsgetState;
 use axum::{
@@ -171,12 +171,7 @@ fn validate_get_params(
         notags,
     };
 
-    validate_start_end_with_ref(
-        endpoint,
-        p.reference_name.as_deref(),
-        p.start,
-        p.end,
-    )?;
+    validate_start_end_with_ref(endpoint, p.reference_name.as_deref(), p.start, p.end)?;
 
     if p.class.as_deref() == Some("header") {
         validate_class_header(&p)?;
@@ -209,12 +204,7 @@ fn validate_post_params(
         }
         for r in regions {
             validate_range(r.start, r.end)?;
-            validate_start_end_with_ref(
-                endpoint,
-                Some(&r.reference_name),
-                r.start,
-                r.end,
-            )?;
+            validate_start_end_with_ref(endpoint, Some(&r.reference_name), r.start, r.end)?;
         }
     }
 
@@ -299,11 +289,7 @@ async fn ticket_for_object(
         .await
         .map_err(|e| map_drs_err(e))?
         .ok_or_else(|| {
-            htsget_error_response(
-                StatusCode::NOT_FOUND,
-                "NotFound",
-                "object not found",
-            )
+            htsget_error_response(StatusCode::NOT_FOUND, "NotFound", "object not found")
         })?;
 
     let kind = classify_object(obj.mime_type.as_deref(), obj.name.as_deref());
@@ -513,14 +499,7 @@ pub async fn post_reads_ticket(
 ) -> Result<Response, Response> {
     let (body, auth) = parse_post_ticket_body(req).await?;
     let params = validate_post_params(EndpointKind::Reads, body)?;
-    ticket_for_object(
-        &state,
-        EndpointKind::Reads,
-        &id,
-        params,
-        auth.as_ref(),
-    )
-    .await
+    ticket_for_object(&state, EndpointKind::Reads, &id, params, auth.as_ref()).await
 }
 
 pub async fn post_variants_ticket(
@@ -530,12 +509,5 @@ pub async fn post_variants_ticket(
 ) -> Result<Response, Response> {
     let (body, auth) = parse_post_ticket_body(req).await?;
     let params = validate_post_params(EndpointKind::Variants, body)?;
-    ticket_for_object(
-        &state,
-        EndpointKind::Variants,
-        &id,
-        params,
-        auth.as_ref(),
-    )
-    .await
+    ticket_for_object(&state, EndpointKind::Variants, &id, params, auth.as_ref()).await
 }

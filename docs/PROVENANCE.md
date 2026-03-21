@@ -21,7 +21,7 @@ Edges are stored in `provenance_edges`; a recursive view `provenance_lineage` su
 |-------|--------|
 | **WES run submitted** | `workflow_params` is scanned for `drs://` URIs; for each resolved object ID, `record_wes_input(run_id, object_id)` is called. |
 | **WES run completes** | When outputs are registered in DRS (e.g. auto-ingest), call `record_wes_output(run_id, object_id)` for each output. |
-| **DRS ingest with `derived_from`** | POST `/ingest/url` or `/ingest/batch` can include `"derived_from": ["drs://host/id", ...]`; for each source object, `record_derived_from(from_id, to_id)` is called. |
+| **DRS ingest with `derived_from`** | POST `/ga4gh/drs/v1/ingest/url` or `/ingest/batch`, or **`POST /api/v1/ingest/register`** with `kind: "url"` and `derived_from`, can include `drs://` URIs; for each resolved source object, `record_derived_from(from_id, to_id)` is called. |
 
 Provenance is only written when a **provenance store** is configured (PostgreSQL; optional).
 

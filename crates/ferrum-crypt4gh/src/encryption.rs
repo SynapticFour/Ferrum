@@ -2,9 +2,9 @@
 
 use crate::error::{Crypt4GHError, Result};
 use async_trait::async_trait;
+use bytes::Bytes;
 use crypt4gh::keys::{generate_keys as c4gh_generate_keys, get_private_key, get_public_key};
 use crypt4gh::{decrypt, encrypt, reencrypt};
-use bytes::Bytes;
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
@@ -14,6 +14,17 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 pub type C4ghKeys = crypt4gh::Keys;
 
 /// Build recipient Keys from raw public key bytes (e.g. from age or Crypt4GH format).
+/// Encrypt plaintext for a single recipient public key (Ferrum-managed node key for at-rest storage).
+/// Uses a fresh ephemeral sender key per call (standard Crypt4GH envelope).
+pub fn encrypt_bytes_for_pubkey(recipient_pubkey: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
+    let mut keys = HashSet::new();
+    keys.insert(recipient_keys_from_pubkey(recipient_pubkey));
+    let mut reader = std::io::Cursor::new(plaintext.to_vec());
+    let mut writer = Vec::new();
+    encrypt(&keys, &mut reader, &mut writer, 0, None).map_err(Crypt4GHError::Crypto)?;
+    Ok(writer)
+}
+
 pub fn recipient_keys_from_pubkey(pubkey: &[u8]) -> C4ghKeys {
     // Learned from neicnordic/crypt4gh reference behavior:
     // the encrypt path requires a non-empty ephemeral sender private key for
@@ -232,7 +243,10 @@ where
         loop {
             match rx_out.try_recv() {
                 Ok(chunk) => {
-                    write.write_all(chunk.as_ref()).await.map_err(Crypt4GHError::Io)?;
+                    write
+                        .write_all(chunk.as_ref())
+                        .await
+                        .map_err(Crypt4GHError::Io)?;
                 }
                 Err(TryRecvError::Empty) => {
                     // Avoid blocking a Tokio worker thread. We are in an async task,
@@ -306,7 +320,10 @@ where
         loop {
             match rx_out.try_recv() {
                 Ok(chunk) => {
-                    write.write_all(chunk.as_ref()).await.map_err(Crypt4GHError::Io)?;
+                    write
+                        .write_all(chunk.as_ref())
+                        .await
+                        .map_err(Crypt4GHError::Io)?;
                 }
                 Err(TryRecvError::Empty) => {
                     tokio::task::yield_now().await;
@@ -382,7 +399,10 @@ where
         loop {
             match rx_out.try_recv() {
                 Ok(chunk) => {
-                    write.write_all(chunk.as_ref()).await.map_err(Crypt4GHError::Io)?;
+                    write
+                        .write_all(chunk.as_ref())
+                        .await
+                        .map_err(Crypt4GHError::Io)?;
                 }
                 Err(TryRecvError::Empty) => {
                     tokio::task::yield_now().await;

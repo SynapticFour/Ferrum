@@ -9,6 +9,10 @@ npm-debug.log*
 .npm
 dist/
 *.local
+services/ui/*.tsbuildinfo
+
+# Local clones / tooling checkouts
+helixtest-repo/
 
 # OS
 .DS_Store

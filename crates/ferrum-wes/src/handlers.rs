@@ -473,8 +473,7 @@ pub async fn get_run_status(
     let state_row = app.run_manager.poll_status(&run_id).await?;
     if state_row == RunState::Unknown {
         let run_row = app.repo.get_run(&run_id).await?;
-        if let Some((_, _, _, _, _, _, _, s, _, _, _, _, _, _, _)) = run_row
-        {
+        if let Some((_, _, _, _, _, _, _, s, _, _, _, _, _, _, _)) = run_row {
             return Ok(Json(RunStatus {
                 run_id,
                 state: RunState::from_str(&s),

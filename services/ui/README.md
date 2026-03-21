@@ -18,7 +18,7 @@ React 18 + TypeScript + Vite frontend for the Ferrum GA4GH platform.
 | Path | Purpose |
 |------|--------|
 | `/` | Dashboard – summary cards, storage donut, run history, health badges |
-| `/data` | Data Browser – DRS objects table, filters, upload, object detail |
+| `/data` | Data Browser – DRS objects table, **file upload** (`POST /api/v1/ingest/upload`), optional Crypt4GH checkbox, object detail |
 | `/workflows` | Workflow Center – WES runs list, submit form, run detail + logs |
 | `/tools` | Tool Registry – TRS tools grid |
 | `/beacon` | Beacon Explorer – variant query, chromosome range, results |
@@ -32,7 +32,7 @@ npm install
 npm run dev
 ```
 
-Runs at `http://localhost:5173`. API requests are proxied to `http://localhost:8080` (gateway).
+Runs at `http://localhost:5173`. API requests are proxied to `http://localhost:8080` (gateway), including **`/api/*`** (Lab Kit ingest) and `/ga4gh/*`.
 
 ## Build
 

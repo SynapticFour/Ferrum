@@ -1,5 +1,6 @@
 //! GA4GH Data Repository Service (DRS) 1.4.
 
+pub mod api_v1;
 pub mod error;
 pub mod handlers;
 pub mod ingest;
@@ -11,14 +12,16 @@ pub mod uri;
 
 use crate::error::{JsonResult, StreamResult, ViewResult};
 use crate::types::{CreateObjectRequest, ListObjectsQuery};
+pub use api_v1::{ingest_api_v1_router, ingest_api_v1_router_unconfigured};
 use axum::{
     extract::{Extension, Multipart, Query, State},
     routing::{get, post},
     Json, Router,
 };
 use handlers::{
-    delete_object, get_access, get_object, get_object_provenance, get_object_stream, get_object_view,
-    get_service_info, list_bundle_contents, list_objects, options_object, post_object, put_object,
+    delete_object, get_access, get_object, get_object_provenance, get_object_stream,
+    get_object_view, get_service_info, list_bundle_contents, list_objects, options_object,
+    post_object, put_object,
 };
 pub use state::AppState;
 use std::sync::Arc;
@@ -128,7 +131,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/objects/:object_id/contents",
-            get(|s, p, q, h, auth| async move { JsonResult(list_bundle_contents(s, p, q, h, auth).await) }),
+            get(|s, p, q, h, auth| async move {
+                JsonResult(list_bundle_contents(s, p, q, h, auth).await)
+            }),
         )
         .route(
             "/objects/:object_id/provenance",
@@ -144,7 +149,9 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/objects/:object_id/stream",
-            get(|s, p, h, auth| async move { StreamResult(get_object_stream(s, p, h, auth).await) }),
+            get(
+                |s, p, h, auth| async move { StreamResult(get_object_stream(s, p, h, auth).await) },
+            ),
         )
         .route("/ingest/file", post(ingest_file_json))
         .route("/ingest/url", post(ingest_url_json))

@@ -36,6 +36,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | Document | Description |
 |----------|-------------|
 | [GA4GH.md](GA4GH.md) | DRS, WES, TES, TRS, Beacon, Passports: versions, endpoints, auth, extensions, interoperability, Passport/Visa config. |
+| [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md) | **Machine ingest for Lab Kit:** `/api/v1/ingest` (register, upload, jobs), auth, Crypt4GH, idempotency, curl examples. |
 | [CRYPT4GH.md](CRYPT4GH.md) | Crypt4GH transparent encryption: header re-wrapping, security invariants, key exchange, key management, client usage. |
 | [HTSGET.md](HTSGET.md) | GA4GH htsget 1.3.0 tickets (reads/variants): ticket URLs, service-info, validation and DRS `/stream` mapping. |
 

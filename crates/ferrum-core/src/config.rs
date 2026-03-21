@@ -27,6 +27,48 @@ pub struct FerrumConfig {
     /// Workspace invite emails (SMTP). If absent, invites are stored but not emailed.
     #[serde(default)]
     pub email: Option<EmailConfig>,
+    /// Lab Kit / machine ingest: upload defaults and limits (`/api/v1/ingest/*`).
+    #[serde(default)]
+    pub ingest: IngestConfig,
+}
+
+/// Upload/register ingest limits for [`FerrumConfig::ingest`].
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct IngestConfig {
+    /// When true, multipart upload defaults to Crypt4GH (Ferrum node public key) if the client omits `encrypt`.
+    #[serde(default)]
+    pub default_encrypt_upload: bool,
+    /// Max accepted upload body size in bytes (0 = use built-in default 1 GiB).
+    #[serde(default)]
+    pub max_upload_bytes: Option<u64>,
+}
+
+impl IngestConfig {
+    /// Effective max upload size (defaults to 1 GiB when unset or zero).
+    pub fn effective_max_upload_bytes(&self) -> u64 {
+        const DEFAULT: u64 = 1 << 30;
+        self.max_upload_bytes.filter(|&n| n > 0).unwrap_or(DEFAULT)
+    }
+}
+
+#[cfg(test)]
+mod ingest_config_tests {
+    use super::IngestConfig;
+
+    #[test]
+    fn effective_max_upload_bytes_default_one_gib() {
+        let c = IngestConfig::default();
+        assert_eq!(c.effective_max_upload_bytes(), 1 << 30);
+    }
+
+    #[test]
+    fn effective_max_upload_bytes_custom() {
+        let c = IngestConfig {
+            default_encrypt_upload: false,
+            max_upload_bytes: Some(1024),
+        };
+        assert_eq!(c.effective_max_upload_bytes(), 1024);
+    }
 }
 
 /// SMTP configuration for workspace invite emails.
@@ -395,9 +437,18 @@ impl FerrumConfig {
             .set_default("auth.require_auth", false)?
             .set_default("database.max_connections", default_max_connections() as i64)?
             .set_default("database.min_connections", default_min_connections() as i64)?
-            .set_default("database.acquire_timeout_secs", default_acquire_timeout_secs() as i64)?
-            .set_default("database.idle_timeout_secs", default_idle_timeout_secs() as i64)?
-            .set_default("database.max_lifetime_secs", default_max_lifetime_secs() as i64)?
+            .set_default(
+                "database.acquire_timeout_secs",
+                default_acquire_timeout_secs() as i64,
+            )?
+            .set_default(
+                "database.idle_timeout_secs",
+                default_idle_timeout_secs() as i64,
+            )?
+            .set_default(
+                "database.max_lifetime_secs",
+                default_max_lifetime_secs() as i64,
+            )?
             .set_default("database.run_migrations", true)?
             .set_default("database.driver", "sqlite")?
             .set_default("database.sqlite_path", "ferrum.db")?
@@ -412,6 +463,7 @@ impl FerrumConfig {
             .set_default("services.enable_htsget", true)?
             .set_default("encryption.crypt4gh_decrypt_stream", true)?
             .set_default("encryption.crypt4gh_master_key_id", "node")?
+            .set_default("ingest.default_encrypt_upload", false)?
             .set_default("pricing.enabled", false)?
             .set_default("pricing.currency", "USD")?
             .set_default("pricing.cpu_core_hour", 0.048)?

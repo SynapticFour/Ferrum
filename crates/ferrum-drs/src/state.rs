@@ -7,11 +7,12 @@
 
 use crate::presign::S3Presigner;
 use crate::repo::DrsRepo;
-use ferrum_core::ProvenanceStore;
+use ferrum_core::{IngestConfig, ProvenanceStore};
 use ferrum_storage::ObjectStorage;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct AppState {
     pub repo: Arc<DrsRepo>,
     pub storage: Option<Arc<dyn ObjectStorage>>,
@@ -24,4 +25,8 @@ pub struct AppState {
     pub crypt4gh_master_key_id: String,
     /// When true, encrypted objects are decrypted when using `GET .../objects/{id}/stream`.
     pub crypt4gh_decrypt_stream: bool,
+    /// Ingest API defaults and limits.
+    pub ingest: IngestConfig,
+    /// Value stored in `storage_references.storage_backend` for bytes written via ingest (e.g. `local`, `s3`).
+    pub object_storage_backend: String,
 }

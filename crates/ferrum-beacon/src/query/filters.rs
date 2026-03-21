@@ -46,10 +46,7 @@ pub fn merge_or_dedup_by_id(left: Vec<Hit>, right: Vec<Hit>) -> Vec<Hit> {
 ///
 /// `eval_left` and `eval_right` are intentionally separate to mirror production logic
 /// where OR spans collections that cannot be joined safely in one DB query.
-pub fn eval_or_cross_collections<L, R>(
-    eval_left: L,
-    eval_right: R,
-) -> Vec<Hit>
+pub fn eval_or_cross_collections<L, R>(eval_left: L, eval_right: R) -> Vec<Hit>
 where
     L: FnOnce() -> Vec<Hit>,
     R: FnOnce() -> Vec<Hit>,
@@ -68,12 +65,24 @@ mod tests {
         // Two independent collection queries (genomicVariations and individuals).
         // Both match logical entity "v1", so merged results must contain v1 once.
         let genomic_hits = vec![
-            Hit { id: "v1".to_string(), collection: FilterCollection::GenomicVariation },
-            Hit { id: "v2".to_string(), collection: FilterCollection::GenomicVariation },
+            Hit {
+                id: "v1".to_string(),
+                collection: FilterCollection::GenomicVariation,
+            },
+            Hit {
+                id: "v2".to_string(),
+                collection: FilterCollection::GenomicVariation,
+            },
         ];
         let individual_hits = vec![
-            Hit { id: "v1".to_string(), collection: FilterCollection::Individual },
-            Hit { id: "v3".to_string(), collection: FilterCollection::Individual },
+            Hit {
+                id: "v1".to_string(),
+                collection: FilterCollection::Individual,
+            },
+            Hit {
+                id: "v3".to_string(),
+                collection: FilterCollection::Individual,
+            },
         ];
 
         let merged = merge_or_dedup_by_id(genomic_hits, individual_hits);
@@ -84,12 +93,17 @@ mod tests {
     #[test]
     fn test_merge_or_dedup_is_id_based() {
         // Dedup key is logical id; collection kind does not matter.
-        let left = vec![Hit { id: "x".into(), collection: FilterCollection::Individual }];
-        let right = vec![Hit { id: "x".into(), collection: FilterCollection::GenomicVariation }];
+        let left = vec![Hit {
+            id: "x".into(),
+            collection: FilterCollection::Individual,
+        }];
+        let right = vec![Hit {
+            id: "x".into(),
+            collection: FilterCollection::GenomicVariation,
+        }];
 
         let merged = merge_or_dedup_by_id(left, right);
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].id, "x");
     }
 }
-

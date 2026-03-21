@@ -19,8 +19,9 @@ pub use auth::{
     PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
 };
 pub use config::{
-    AppConfig, AuthConfig, DatabaseConfig, EncryptionConfig, FerrumConfig, MultiQCConfig,
-    PricingConfig, PricingTier, SecurityConfig, ServicesConfig, StorageConfig, WesServiceConfig,
+    AppConfig, AuthConfig, DatabaseConfig, EncryptionConfig, FerrumConfig, IngestConfig,
+    MultiQCConfig, PricingConfig, PricingTier, SecurityConfig, ServicesConfig, StorageConfig,
+    WesServiceConfig,
 };
 pub use db::DatabasePool;
 pub use error::{FerrumError, Result};

@@ -381,6 +381,98 @@ impl DrsRepo {
         .await?;
         Ok(())
     }
+
+    // --- Ingest jobs (`/api/v1/ingest`, Lab Kit) ---
+
+    /// Find ingest job by idempotent client key (if set).
+    pub async fn ingest_job_by_client_request_id(
+        &self,
+        client_request_id: &str,
+    ) -> Result<Option<DrsIngestJobRow>> {
+        let row: Option<DrsIngestJobRow> = sqlx::query_as(
+            r#"SELECT id, client_request_id, job_type, status, created_at, updated_at, result_json, error_json
+               FROM drs_ingest_jobs WHERE client_request_id = $1"#,
+        )
+        .bind(client_request_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn ingest_job_get(&self, id: &str) -> Result<Option<DrsIngestJobRow>> {
+        let row: Option<DrsIngestJobRow> = sqlx::query_as(
+            r#"SELECT id, client_request_id, job_type, status, created_at, updated_at, result_json, error_json
+               FROM drs_ingest_jobs WHERE id = $1"#,
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn ingest_job_insert(
+        &self,
+        id: &str,
+        client_request_id: Option<&str>,
+        job_type: &str,
+        status: &str,
+    ) -> Result<()> {
+        sqlx::query(
+            r#"INSERT INTO drs_ingest_jobs (id, client_request_id, job_type, status)
+               VALUES ($1, $2, $3, $4)"#,
+        )
+        .bind(id)
+        .bind(client_request_id)
+        .bind(job_type)
+        .bind(status)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn ingest_job_finish_success(
+        &self,
+        id: &str,
+        result: &serde_json::Value,
+    ) -> Result<()> {
+        sqlx::query(
+            r#"UPDATE drs_ingest_jobs SET status = 'succeeded', result_json = $2, error_json = NULL, updated_at = NOW()
+               WHERE id = $1"#,
+        )
+        .bind(id)
+        .bind(result)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn ingest_job_finish_failed(
+        &self,
+        id: &str,
+        error: &serde_json::Value,
+    ) -> Result<()> {
+        sqlx::query(
+            r#"UPDATE drs_ingest_jobs SET status = 'failed', error_json = $2, updated_at = NOW() WHERE id = $1"#,
+        )
+        .bind(id)
+        .bind(error)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+}
+
+/// Row for `drs_ingest_jobs` (machine ingest / Lab Kit polling).
+#[derive(Debug, Clone, sqlx::FromRow, serde::Serialize)]
+pub struct DrsIngestJobRow {
+    pub id: String,
+    pub client_request_id: Option<String>,
+    pub job_type: String,
+    pub status: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
+    pub result_json: Option<serde_json::Value>,
+    pub error_json: Option<serde_json::Value>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -574,7 +666,8 @@ impl DrsRepo {
         let contents = rows
             .into_iter()
             .map(|(object_id, name, drs_uri)| {
-                let uri = drs_uri.or_else(|| Some(format!("drs://{}/{}", self.hostname(), object_id)));
+                let uri =
+                    drs_uri.or_else(|| Some(format!("drs://{}/{}", self.hostname(), object_id)));
                 ContentsObject {
                     name,
                     id: Some(object_id.clone()),

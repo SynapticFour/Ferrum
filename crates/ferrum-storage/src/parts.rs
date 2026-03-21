@@ -68,10 +68,7 @@ mod tests {
     #[test]
     fn many_parts() {
         let ranges = split_into_part_ranges(10, 3);
-        assert_eq!(
-            ranges,
-            vec![(0, 3), (3, 6), (6, 9), (9, 10)]
-        );
+        assert_eq!(ranges, vec![(0, 3), (3, 6), (6, 9), (9, 10)]);
     }
 
     #[test]

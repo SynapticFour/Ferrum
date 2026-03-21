@@ -1,3 +1,2 @@
-pub mod sanitize;
 pub mod filters;
-
+pub mod sanitize;

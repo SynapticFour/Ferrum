@@ -13,8 +13,10 @@ export default defineConfig({
     server: {
         port: 5173,
         proxy: {
+            '/api': { target: 'http://localhost:8080', changeOrigin: true },
             '/ga4gh': { target: 'http://localhost:8080', changeOrigin: true },
             '/workspaces': { target: 'http://localhost:8080', changeOrigin: true },
+            '/cohorts': { target: 'http://localhost:8080', changeOrigin: true },
             '/passports': { target: 'http://localhost:8080', changeOrigin: true },
             '/health': { target: 'http://localhost:8080', changeOrigin: true },
             '/admin': { target: 'http://localhost:8080', changeOrigin: true },

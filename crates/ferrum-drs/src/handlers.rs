@@ -15,11 +15,11 @@ use ferrum_core::{Organization, ServiceInfo, ServiceType};
 use ferrum_crypt4gh::{stream_decrypt, KeyStore, LocalKeyStore};
 use futures_util::stream::StreamExt;
 use sha2::{Digest, Sha256};
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use std::future::Future;
 use tokio::io::{AsyncReadExt, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -81,13 +81,7 @@ pub async fn get_object(
     // Async checksum model: when metadata is `pending`, DRS must not leak partially computed checksums.
     // Learned from Broad Terra production behavior (DRS scaling issues).
     let mut obj = obj;
-    if state
-        .repo
-        .get_checksum_status(&canonical)
-        .await?
-        .as_deref()
-        == Some("pending")
-    {
+    if state.repo.get_checksum_status(&canonical).await?.as_deref() == Some("pending") {
         obj.checksums = vec![];
         let mut res = Json(obj).into_response();
         res.headers_mut().insert(
@@ -229,9 +223,8 @@ pub async fn get_access(
     if let (Some((backend, key, _)), Some(presigner)) = (storage_ref, state.s3_presigner.as_ref()) {
         if backend.eq_ignore_ascii_case("s3") || backend.eq_ignore_ascii_case("minio") {
             let expires_secs: i64 = 3600;
-            url.expires_at = Some(
-                (chrono::Utc::now() + chrono::Duration::seconds(expires_secs)).to_rfc3339(),
-            );
+            url.expires_at =
+                Some((chrono::Utc::now() + chrono::Duration::seconds(expires_secs)).to_rfc3339());
             let expires = std::time::Duration::from_secs(expires_secs as u64);
             match presigner.presign(key.as_str(), range, expires).await {
                 Ok(presigned) => url.url = presigned,
@@ -358,14 +351,15 @@ pub async fn get_object_view(
 /// Source: production postmortems (OOM due to unbounded buffering) + Tokio mpsc bounded design.
 struct BoundedBodyWriter {
     tx: mpsc::Sender<Bytes>,
-    pending_send:
-        Option<Pin<
+    pending_send: Option<
+        Pin<
             Box<
-                dyn Future<
-                        Output = std::result::Result<(), mpsc::error::SendError<Bytes>>,
-                    > + Send + 'static,
+                dyn Future<Output = std::result::Result<(), mpsc::error::SendError<Bytes>>>
+                    + Send
+                    + 'static,
             >,
-        >>,
+        >,
+    >,
     pending_timeout: Option<Pin<Box<tokio::time::Sleep>>>,
     pending_len: usize,
     send_timeout: Duration,
@@ -433,10 +427,7 @@ impl AsyncWrite for BoundedBodyWriter {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_shutdown(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Poll::Ready(Ok(()))
     }
 }
@@ -472,10 +463,9 @@ pub async fn get_object_stream(
         }
     }
 
-    let storage = state
-        .storage
-        .as_ref()
-        .ok_or_else(|| DrsError::Validation("object streaming requires configured storage (S3/local)".into()))?;
+    let storage = state.storage.as_ref().ok_or_else(|| {
+        DrsError::Validation("object streaming requires configured storage (S3/local)".into())
+    })?;
 
     let storage_ref = state
         .repo
@@ -542,11 +532,7 @@ pub async fn get_object_stream(
                         break;
                     }
                 };
-                if tx
-                    .send(Bytes::copy_from_slice(&buf[..n]))
-                    .await
-                    .is_err()
-                {
+                if tx.send(Bytes::copy_from_slice(&buf[..n])).await.is_err() {
                     break;
                 }
             }
@@ -556,9 +542,11 @@ pub async fn get_object_stream(
         let body = Body::from_stream(stream);
         return Response::builder()
             .status(StatusCode::OK)
-            .header(CONTENT_TYPE, HeaderValue::from_str(mime).unwrap_or_else(|_| {
-                HeaderValue::from_static("application/octet-stream")
-            }))
+            .header(
+                CONTENT_TYPE,
+                HeaderValue::from_str(mime)
+                    .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+            )
             .body(body)
             .map_err(|e| DrsError::Other(e.into()));
     }
@@ -614,9 +602,11 @@ pub async fn get_object_stream(
     let body = Body::from_stream(stream);
     Response::builder()
         .status(StatusCode::OK)
-        .header(CONTENT_TYPE, HeaderValue::from_str(mime).unwrap_or_else(|_| {
-            HeaderValue::from_static("application/octet-stream")
-        }))
+        .header(
+            CONTENT_TYPE,
+            HeaderValue::from_str(mime)
+                .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+        )
         .body(body)
         .map_err(|e| DrsError::Other(e.into()))
 }

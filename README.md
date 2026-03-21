@@ -133,6 +133,8 @@ Open **http://localhost:3000**. The demo includes pre-seeded DRS objects and tes
 | [Passports](https://github.com/ga4gh-duri/ga4gh-passport-v1) | 1.0 | ✅ Implemented | `/passports/v1` |
 | Crypt4GH | 1.0 | ✅ Implemented | `/ga4gh/crypt4gh/v1` |
 
+**Lab Kit / automation:** versioned ingest at **`/api/v1/ingest`** (register, upload, job polling) — [docs/INGEST-LAB-KIT.md](docs/INGEST-LAB-KIT.md). The web UI **Data Browser** can upload via the same API when the gateway and UI are deployed together.
+
 ---
 
 ## Conformance (HelixTest)

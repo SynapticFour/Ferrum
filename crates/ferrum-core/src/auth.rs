@@ -388,9 +388,10 @@ fn decode_passport_jwt(
 
     // The current call-site tries `decode_passport_jwt` first. If the caller isn't configured with a JWKS,
     // we must fail signature verification (fail closed).
-    let jwks_url = _cfg.jwks_url.as_deref().ok_or_else(|| {
-        jsonwebtoken::errors::ErrorKind::InvalidToken
-    })?;
+    let jwks_url = _cfg
+        .jwks_url
+        .as_deref()
+        .ok_or_else(|| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
     let kid = decoded_header.kid.unwrap_or_default();
     let validation_jwks = async {
@@ -404,8 +405,8 @@ fn decode_passport_jwt(
             .json::<serde_json::Value>()
             .await
             .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-        let set: jsonwebtoken::jwk::JwkSet =
-            serde_json::from_value(jwks_value).map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        let set: jsonwebtoken::jwk::JwkSet = serde_json::from_value(jwks_value)
+            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
         let jwk = if !kid.is_empty() {
             set.find(&kid)

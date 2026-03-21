@@ -11,13 +11,7 @@ pub struct SanitizedVariantQuery {
 
 const MAX_GENOMIC_COORD: i64 = 3_100_000_000; // ~3.1x10^9 as a realistic bound
 
-const ASSEMBLY_WHITELIST: &[&str] = &[
-    "GRCh37",
-    "GRCh38",
-    "hg19",
-    "hg38",
-    "T2T-CHM13v2.0",
-];
+const ASSEMBLY_WHITELIST: &[&str] = &["GRCh37", "GRCh38", "hg19", "hg38", "T2T-CHM13v2.0"];
 
 /// Reject obvious injection vectors before any DB interaction.
 fn reject_for_injection(s: &str) -> Result<(), BeaconError> {
@@ -48,7 +42,9 @@ pub fn sanitize_filter_id(filter_id: &str) -> Result<String, BeaconError> {
     // patterns in any query-builder path, including Beacon `filters[].id`.
     let raw = filter_id.trim();
     if raw.is_empty() {
-        return Err(BeaconError::Validation("filter id must not be empty".into()));
+        return Err(BeaconError::Validation(
+            "filter id must not be empty".into(),
+        ));
     }
     reject_for_injection(raw)?;
     Ok(raw.to_string())
@@ -57,7 +53,9 @@ pub fn sanitize_filter_id(filter_id: &str) -> Result<String, BeaconError> {
 pub fn sanitize_reference_name(reference_name: Option<&str>) -> Result<String, BeaconError> {
     let raw = reference_name.unwrap_or("1").trim();
     if raw.is_empty() {
-        return Err(BeaconError::Validation("reference_name must not be empty".into()));
+        return Err(BeaconError::Validation(
+            "reference_name must not be empty".into(),
+        ));
     }
     reject_for_injection(raw)?;
 
@@ -129,9 +127,7 @@ pub fn sanitize_range(start: Option<i64>, end: Option<i64>) -> Result<(i64, i64)
         ));
     }
     if s > e {
-        return Err(BeaconError::Validation(
-            "start must be <= end".into(),
-        ));
+        return Err(BeaconError::Validation("start must be <= end".into()));
     }
     Ok((s, e))
 }
@@ -214,4 +210,3 @@ mod tests {
         assert_eq!(sanitize_filter_id("SNV").unwrap(), "SNV");
     }
 }
-

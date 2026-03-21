@@ -203,9 +203,7 @@ pub async fn query_variants(
             .ok_or_else(|| {
                 // Beacon conformance: invalid/unknown `assemblyId` must be treated as
                 // a client error (400), not as a missing resource (404).
-                crate::error::BeaconError::Validation(format!(
-                    "invalid assembly_id '{aid}'"
-                ))
+                crate::error::BeaconError::Validation(format!("invalid assembly_id '{aid}'"))
             })?,
         None => "default".to_string(),
     };
@@ -490,7 +488,10 @@ pub async fn query_variants(
             };
             Ok(Json(VariantQueryResponse {
                 meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
-                response: VariantQueryResult { exists: None, count: Some(count) },
+                response: VariantQueryResult {
+                    exists: None,
+                    count: Some(count),
+                },
             }))
         }
     }
@@ -502,7 +503,10 @@ mod tests {
 
     #[test]
     fn test_parse_granularity_defaults_to_boolean() {
-        assert_eq!(parse_granularity(None).unwrap(), VariantGranularity::Boolean);
+        assert_eq!(
+            parse_granularity(None).unwrap(),
+            VariantGranularity::Boolean
+        );
     }
 
     #[test]

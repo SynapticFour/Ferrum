@@ -66,8 +66,14 @@ pub fn collect_output_files(work_dir: &Path, ignore_globs: &[String]) -> Vec<Val
 
     // Stable ordering for deterministic API/RO-Crate output.
     out.sort_by(|a, b| {
-        let fa = a.get("file_id").and_then(|v| v.as_str()).unwrap_or_default();
-        let fb = b.get("file_id").and_then(|v| v.as_str()).unwrap_or_default();
+        let fa = a
+            .get("file_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
+        let fb = b
+            .get("file_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default();
         fa.cmp(fb)
     });
 
@@ -82,9 +88,7 @@ pub fn collect_output_files(work_dir: &Path, ignore_globs: &[String]) -> Vec<Val
 ///
 /// Additionally, if MultiQC is configured, we reuse its `*.log`-style globs
 /// (this keeps behaviour aligned with existing service configuration).
-pub fn default_ignore_globs(
-    multiqc_scan_patterns: Option<&[String]>,
-) -> Vec<String> {
+pub fn default_ignore_globs(multiqc_scan_patterns: Option<&[String]>) -> Vec<String> {
     let mut out = vec![
         "state.json".to_string(),
         "stdout.txt".to_string(),
@@ -111,12 +115,7 @@ pub fn default_ignore_globs(
     out
 }
 
-fn should_ignore_name(
-    path: &Path,
-    is_dir: bool,
-    file_name: &str,
-    ignore_globs: &[String],
-) -> bool {
+fn should_ignore_name(path: &Path, is_dir: bool, file_name: &str, ignore_globs: &[String]) -> bool {
     if file_name.is_empty() {
         return true;
     }
@@ -151,10 +150,11 @@ fn should_ignore_name(
     }
 
     // Avoid including the directory that stores this service's provenance snapshot.
-    if path
-        .components()
-        .any(|c| c.as_os_str().to_str().is_some_and(|s| s.eq_ignore_ascii_case("tmp")))
-    {
+    if path.components().any(|c| {
+        c.as_os_str()
+            .to_str()
+            .is_some_and(|s| s.eq_ignore_ascii_case("tmp"))
+    }) {
         // Best-effort: ignore anything inside a `tmp` path segment.
         return true;
     }
@@ -265,7 +265,11 @@ mod tests {
         let files = collect_output_files(&base, &ignore_globs);
         let names: Vec<String> = files
             .iter()
-            .filter_map(|v| v.get("name").and_then(|x| x.as_str()).map(|s| s.to_string()))
+            .filter_map(|v| {
+                v.get("name")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string())
+            })
             .collect();
 
         assert!(names.contains(&"a.txt".to_string()));
@@ -279,4 +283,3 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
     }
 }
-

@@ -285,23 +285,8 @@ impl RunManager {
                     let _ = metrics.compute_run_summary(run_id).await;
                 }
                 if let Some(row) = self.repo.get_run(run_id).await? {
-                    let (
-                        _,
-                        _,
-                        _,
-                        _,
-                        _,
-                        _,
-                        _,
-                        _,
-                        start_time,
-                        end_time,
-                        outputs,
-                        work_dir,
-                        _,
-                        _,
-                        _,
-                    ) = row;
+                    let (_, _, _, _, _, _, _, _, start_time, end_time, outputs, work_dir, _, _, _) =
+                        row;
 
                     if state == RunState::Complete {
                         if let Some(ref work_dir) = work_dir {
@@ -332,9 +317,7 @@ impl RunManager {
                                         serde_json::Value::Array(files),
                                     );
                                     // Best-effort: ignore merge failures.
-                                    let _ = repo
-                                        .merge_run_outputs(&run_id_s, &updates)
-                                        .await;
+                                    let _ = repo.merge_run_outputs(&run_id_s, &updates).await;
                                 }
                             }
                         }
@@ -404,16 +387,12 @@ impl RunManager {
         let workflow_url = row.1;
         let params = row.4;
         if workflow_url.contains("test-tool/echo") {
-            let msg = params
-                .get("message")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let msg = params.get("message").and_then(|v| v.as_str()).unwrap_or("");
             let out = serde_json::json!({ "echo_out": msg });
             self.repo
                 .merge_run_outputs(run_id, out.as_object().expect("echo outputs object"))
                 .await?;
-        } else if workflow_url.contains("demo-bam-to-vcf")
-            && params.get("input_drs_uri").is_some()
+        } else if workflow_url.contains("demo-bam-to-vcf") && params.get("input_drs_uri").is_some()
         {
             let out = serde_json::json!({ "result_drs_id": "demo-sample-vcf" });
             self.repo

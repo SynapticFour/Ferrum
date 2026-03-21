@@ -69,7 +69,9 @@ async fn test_encrypt_zero_bytes_produces_non_empty_ciphertext() {
 
     let plain = root.join("plain.bin");
     let enc = root.join("enc.c4gh");
-    fs::write(&plain, Vec::<u8>::new()).await.expect("write plain");
+    fs::write(&plain, Vec::<u8>::new())
+        .await
+        .expect("write plain");
 
     let r = fs::File::open(&plain).await.expect("open plain");
     let w = fs::File::create(&enc).await.expect("create enc");
@@ -113,4 +115,3 @@ async fn test_encrypt_decrypt_large_bam_like_payload() {
     let got = roundtrip(payload.clone()).await.expect("roundtrip");
     assert_eq!(got, payload);
 }
-

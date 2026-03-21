@@ -115,7 +115,11 @@ fn beacon_variant_query_envelope_with_filters(
     })
 }
 
-async fn post_json(app: &axum::Router, uri: &str, body: serde_json::Value) -> (StatusCode, serde_json::Value) {
+async fn post_json(
+    app: &axum::Router,
+    uri: &str,
+    body: serde_json::Value,
+) -> (StatusCode, serde_json::Value) {
     let req = Request::builder()
         .method(Method::POST)
         .uri(uri)
@@ -169,9 +173,17 @@ async fn beacon_variants_exists_positive_and_negative() {
         "referenceBases": "A",
         "alternateBases": "T"
     });
-    let (status, json) = post_json(&app, "/query", beacon_variant_query_envelope(positive_params)).await;
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(positive_params),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.pointer("/response/exists").and_then(|x| x.as_bool()), Some(true));
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(true)
+    );
 
     // Negative: referenceName=1, start=999999999, referenceBases=C, alternateBases=G
     let negative_params = serde_json::json!({
@@ -181,9 +193,17 @@ async fn beacon_variants_exists_positive_and_negative() {
         "referenceBases": "C",
         "alternateBases": "G"
     });
-    let (status, json) = post_json(&app, "/query", beacon_variant_query_envelope(negative_params)).await;
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(negative_params),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.pointer("/response/exists").and_then(|x| x.as_bool()), Some(false));
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(false)
+    );
 }
 
 #[tokio::test]
@@ -255,8 +275,14 @@ async fn beacon_variants_count_and_end_defaulting() {
     });
     let (status, json) = post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.pointer("/response/exists").and_then(|x| x.as_bool()), None);
-    assert_eq!(json.pointer("/response/count").and_then(|x| x.as_i64()), Some(1));
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        None
+    );
+    assert_eq!(
+        json.pointer("/response/count").and_then(|x| x.as_i64()),
+        Some(1)
+    );
 
     let params = serde_json::json!({
         "assemblyId": "GRCh38",
@@ -269,7 +295,10 @@ async fn beacon_variants_count_and_end_defaulting() {
     });
     let (status, json) = post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.pointer("/response/count").and_then(|x| x.as_i64()), Some(0));
+    assert_eq!(
+        json.pointer("/response/count").and_then(|x| x.as_i64()),
+        Some(0)
+    );
 
     // end default: omit "end" -> treat end=start and still hit
     let params = serde_json::json!({
@@ -282,7 +311,10 @@ async fn beacon_variants_count_and_end_defaulting() {
     });
     let (status, json) = post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.pointer("/response/exists").and_then(|x| x.as_bool()), Some(true));
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(true)
+    );
 }
 
 #[tokio::test]
@@ -334,13 +366,24 @@ async fn beacon_routes_and_shapes() {
         "referenceBases": "A",
         "alternateBases": "T"
     });
-    let (status, json) = post_json(&app, "/g_variants/query", beacon_variant_query_envelope(params)).await;
+    let (status, json) = post_json(
+        &app,
+        "/g_variants/query",
+        beacon_variant_query_envelope(params),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.pointer("/response/exists").and_then(|x| x.as_bool()), Some(true));
+    assert_eq!(
+        json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        Some(true)
+    );
 
     let (status, json) = get_json(&app, "/info").await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.get("id").and_then(|v| v.as_str()), Some("ferrum-beacon"));
+    assert_eq!(
+        json.get("id").and_then(|v| v.as_str()),
+        Some("ferrum-beacon")
+    );
 
     let (status, _) = get_json(&app, "/service-info").await;
     assert_eq!(status, StatusCode::OK);
@@ -351,11 +394,17 @@ async fn beacon_routes_and_shapes() {
 
     let (status, json) = post_json(&app, "/individuals/query", serde_json::json!({})).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(json.get("response").and_then(|r| r.get("individuals")).is_some());
+    assert!(json
+        .get("response")
+        .and_then(|r| r.get("individuals"))
+        .is_some());
 
     let (status, json) = post_json(&app, "/biosamples/query", serde_json::json!({})).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(json.get("response").and_then(|r| r.get("biosamples")).is_some());
+    assert!(json
+        .get("response")
+        .and_then(|r| r.get("biosamples"))
+        .is_some());
 }
 
 #[tokio::test]
@@ -384,8 +433,7 @@ async fn beacon_fixture_bulk_positive_and_negative_queries() {
             "referenceBases": reference_bases,
             "alternateBases": alternate_bases
         });
-        let (status, json) =
-            post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
+        let (status, json) = post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(
             json.pointer("/response/exists").and_then(|x| x.as_bool()),
@@ -402,8 +450,7 @@ async fn beacon_fixture_bulk_positive_and_negative_queries() {
             "referenceBases": reference_bases,
             "alternateBases": alternate_bases
         });
-        let (status, json) =
-            post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
+        let (status, json) = post_json(&app, "/query", beacon_variant_query_envelope(params)).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(
             json.pointer("/response/exists").and_then(|x| x.as_bool()),
@@ -530,7 +577,10 @@ async fn beacon_integration_matrix_min_20_checks() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.pointer("/response/count").and_then(|x| x.as_i64()), Some(0));
+    assert_eq!(
+        json.pointer("/response/count").and_then(|x| x.as_i64()),
+        Some(0)
+    );
 
     // 7) referenceBases injection -> 400.
     let (status, _) = post_json(
@@ -693,7 +743,10 @@ async fn beacon_integration_matrix_min_20_checks() {
     // 17) /info shape.
     let (status, json) = get_json(&app, "/info").await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(json.get("id").and_then(|v| v.as_str()), Some("ferrum-beacon"));
+    assert_eq!(
+        json.get("id").and_then(|v| v.as_str()),
+        Some("ferrum-beacon")
+    );
 
     // 18) /map includes entryTypes.
     let (status, json) = get_json(&app, "/map").await;
@@ -703,12 +756,18 @@ async fn beacon_integration_matrix_min_20_checks() {
     // 19) /individuals/query returns individuals array.
     let (status, json) = post_json(&app, "/individuals/query", serde_json::json!({})).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(json.get("response").and_then(|r| r.get("individuals")).is_some());
+    assert!(json
+        .get("response")
+        .and_then(|r| r.get("individuals"))
+        .is_some());
 
     // 20) /biosamples/query returns biosamples array.
     let (status, json) = post_json(&app, "/biosamples/query", serde_json::json!({})).await;
     assert_eq!(status, StatusCode::OK);
-    assert!(json.get("response").and_then(|r| r.get("biosamples")).is_some());
+    assert!(json
+        .get("response")
+        .and_then(|r| r.get("biosamples"))
+        .is_some());
 }
 
 #[tokio::test]
@@ -819,5 +878,3 @@ async fn beacon_or_filter_boolean_and_count_semantics_minimal() {
         Some(1)
     );
 }
-
-

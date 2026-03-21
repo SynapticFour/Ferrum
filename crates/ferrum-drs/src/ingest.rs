@@ -2,40 +2,33 @@
 
 use crate::error::{DrsError, Result};
 use crate::state::AppState;
-use crate::types::{
-    CreateObjectRequest, IngestBatchItem, IngestBatchRequest, IngestUrlRequest,
-};
+use crate::types::{CreateObjectRequest, IngestBatchItem, IngestBatchRequest, IngestUrlRequest};
 use axum::{
     extract::{Extension, Multipart, State},
     Json,
 };
+use ferrum_crypt4gh::KeyStore;
 use sha2::{Digest, Sha256, Sha512};
 use std::sync::Arc;
-use utoipa::ToSchema;
 use tokio::io::AsyncReadExt;
+use utoipa::ToSchema;
 
-/// Multipart file upload; computes checksums, stores file, creates DRS object. Optional encrypt=true.
-#[utoipa::path(
-    post,
-    path = "/ingest/file",
-    responses((status = 200, body = IngestFileResponse))
-)]
-pub async fn ingest_file(
-    State(state): State<Arc<AppState>>,
-    mut multipart: Multipart,
-    auth: Option<Extension<ferrum_core::AuthClaims>>,
-) -> Result<Json<IngestFileResponse>> {
-    let storage = state
-        .storage
-        .clone()
-        .ok_or_else(|| DrsError::Validation("ingest not configured: no storage".into()))?;
-    let mut name = None;
-    let mut explicit_name = None::<String>;
-    let mut mime_type = None;
-    let mut encrypt = false;
-    let mut expected_sha256 = None::<String>;
-    let mut workspace_id = None::<String>;
-    let mut data = Vec::new();
+/// Parsed multipart fields for file ingest (GA4GH `/ingest/file` and `/api/v1/ingest/upload`).
+#[derive(Debug, Default)]
+pub struct ParsedMultipartUpload {
+    pub file_name: Option<String>,
+    pub explicit_name: Option<String>,
+    pub mime_type: Option<String>,
+    /// When absent, callers should apply [`ferrum_core::IngestConfig::default_encrypt_upload`].
+    pub encrypt: Option<bool>,
+    pub expected_sha256: Option<String>,
+    pub workspace_id: Option<String>,
+    pub client_request_id: Option<String>,
+    pub data: Vec<u8>,
+}
+
+pub async fn parse_multipart_upload(multipart: &mut Multipart) -> Result<ParsedMultipartUpload> {
+    let mut out = ParsedMultipartUpload::default();
     while let Some(field) = multipart
         .next_field()
         .await
@@ -47,46 +40,75 @@ pub async fn ingest_file(
                 if let Ok(t) = field.text().await {
                     let t = t.trim().to_string();
                     if !t.is_empty() {
-                        workspace_id = Some(t);
+                        out.workspace_id = Some(t);
+                    }
+                }
+            }
+            "client_request_id" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        out.client_request_id = Some(t);
                     }
                 }
             }
             "file" => {
-                name = field.file_name().map(str::to_string);
+                out.file_name = field.file_name().map(str::to_string);
                 if let Some(mime) = field.content_type().map(|c| c.to_string()) {
-                    mime_type = Some(mime);
+                    out.mime_type = Some(mime);
                 }
                 let buf = field.bytes().await.map_err(|e| DrsError::Other(e.into()))?;
-                data = buf.to_vec();
+                out.data = buf.to_vec();
             }
             "name" => {
                 if let Ok(t) = field.text().await {
                     let t = t.trim().to_string();
                     if !t.is_empty() {
-                        explicit_name = Some(t);
+                        out.explicit_name = Some(t);
                     }
                 }
             }
             "encrypt" => {
                 if let Ok(v) = field.text().await {
-                    encrypt = v.eq_ignore_ascii_case("true") || v == "1";
+                    out.encrypt = Some(v.eq_ignore_ascii_case("true") || v == "1");
                 }
             }
             "expected_sha256" => {
                 if let Ok(v) = field.text().await {
-                    expected_sha256 = Some(v.trim().to_string());
+                    out.expected_sha256 = Some(v.trim().to_string());
                 }
             }
             _ => {}
         }
     }
-    let object_name = explicit_name.or(name);
-    if data.is_empty() {
+    Ok(out)
+}
+
+/// Store bytes (optionally Crypt4GH-encrypted with Ferrum node public key), create DRS object, async checksums.
+pub async fn process_upload_from_parts(
+    state: Arc<AppState>,
+    auth: Option<&ferrum_core::AuthClaims>,
+    parsed: ParsedMultipartUpload,
+) -> Result<IngestFileResponse> {
+    let storage = state
+        .storage
+        .clone()
+        .ok_or_else(|| DrsError::Validation("ingest not configured: no storage".into()))?;
+    let object_name = parsed.explicit_name.or(parsed.file_name);
+    if parsed.data.is_empty() {
         return Err(DrsError::Validation("no file in multipart".into()));
     }
-    let size = data.len() as i64;
-    if let Some(ref expected) = expected_sha256 {
-        // Validate expected sha-256 immediately to keep request semantics intact.
+    let max_bytes = state.ingest.effective_max_upload_bytes();
+    if parsed.data.len() as u64 > max_bytes {
+        return Err(DrsError::Validation(format!(
+            "upload exceeds ingest.max_upload_bytes ({max_bytes})"
+        )));
+    }
+    let mut data = parsed.data;
+    let encrypt = parsed
+        .encrypt
+        .unwrap_or(state.ingest.default_encrypt_upload);
+    if let Some(ref expected) = parsed.expected_sha256 {
         let sha256 = format!("{:x}", Sha256::digest(&data));
         if expected.to_lowercase() != sha256 {
             return Err(DrsError::Validation(format!(
@@ -95,10 +117,9 @@ pub async fn ingest_file(
             )));
         }
     }
-    if let Some(ref ws_id) = workspace_id {
+    if let Some(ref ws_id) = parsed.workspace_id {
         let sub = auth
-            .as_ref()
-            .and_then(|c| c.0.sub())
+            .and_then(|c| c.sub())
             .ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
         let ok = ferrum_core::is_workspace_editor_or_owner(state.repo.pool(), ws_id, sub)
             .await
@@ -109,32 +130,57 @@ pub async fn ingest_file(
             ));
         }
     }
+    if encrypt {
+        let key_dir = state.crypt4gh_key_dir.as_ref().ok_or_else(|| {
+            DrsError::Validation(
+                "encrypt=true requires FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR (or [encryption].crypt4gh_key_dir)"
+                    .into(),
+            )
+        })?;
+        let ks = ferrum_crypt4gh::LocalKeyStore::new(key_dir.as_path());
+        let key_id = state.crypt4gh_master_key_id.clone();
+        let pk = ks
+            .get_public_key_bytes(&key_id)
+            .await
+            .map_err(|e| DrsError::Validation(format!("crypt4gh key store: {e}")))?;
+        let pubkey = pk.ok_or_else(|| {
+            DrsError::Validation(format!(
+                "no public key for crypt4gh_master_key_id={key_id} under CRYPT4GH_KEY_DIR"
+            ))
+        })?;
+        let plaintext = std::mem::take(&mut data);
+        data = tokio::task::spawn_blocking(move || {
+            ferrum_crypt4gh::encrypt_bytes_for_pubkey(&pubkey, &plaintext)
+        })
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?
+        .map_err(|e| DrsError::Validation(format!("crypt4gh encrypt: {e}")))?;
+    }
+    let size = data.len() as i64;
     let object_id = ulid::Ulid::new().to_string();
     let storage_key = format!("drs/{}", object_id);
     storage
         .put_bytes(&storage_key, &data)
         .await
         .map_err(|e| DrsError::Other(e.into()))?;
+    let backend = state.object_storage_backend.clone();
     let req = CreateObjectRequest {
         name: object_name.or_else(|| Some(storage_key.clone())),
         description: None,
-        mime_type,
+        mime_type: parsed.mime_type,
         size,
-        // Learned from production lessons: checksum computation can be done
-        // asynchronously after ingest for large objects.
         checksums: vec![],
         aliases: None,
-        storage_backend: "local".to_string(),
+        storage_backend: backend,
         storage_key: storage_key.clone(),
         is_encrypted: Some(encrypt),
-        workspace_id,
+        workspace_id: parsed.workspace_id,
     };
     state
         .repo
         .create_object_with_id(&req, Some(object_id.clone()))
         .await?;
 
-    // Mark checksums as pending and compute in the background.
     state
         .repo
         .set_checksum_status(&object_id, "pending")
@@ -145,7 +191,6 @@ pub async fn ingest_file(
     let object_id_bg = object_id.clone();
     let storage_bg = Arc::clone(&storage);
     tokio::spawn(async move {
-        // Compute checksums by streaming the stored bytes (no full buffering).
         let mut reader = match storage_bg.get(&storage_key_bg).await {
             Ok(r) => r,
             Err(e) => {
@@ -191,10 +236,7 @@ pub async fn ingest_file(
             ("md5", md5_hex.as_str()),
         ];
 
-        if let Err(e) = repo
-            .upsert_checksums(&object_id_bg, &checksum_pairs)
-            .await
-        {
+        if let Err(e) = repo.upsert_checksums(&object_id_bg, &checksum_pairs).await {
             tracing::error!(object_id = %object_id_bg, error = %e, "checksum compute: db upsert failed");
             let _ = repo
                 .set_checksum_status(&object_id_bg, &format!("failed:{e}"))
@@ -202,17 +244,31 @@ pub async fn ingest_file(
             return;
         }
 
-        let _ = repo
-            .set_checksum_status(&object_id_bg, "computed")
-            .await;
+        let _ = repo.set_checksum_status(&object_id_bg, "computed").await;
     });
 
-    Ok(Json(IngestFileResponse {
+    Ok(IngestFileResponse {
         id: object_id,
         size,
-        // Checksums are computed asynchronously; return empty until GET observes completion.
         checksums: vec![],
-    }))
+    })
+}
+
+/// Multipart file upload; computes checksums, stores file, creates DRS object. Optional encrypt=true.
+#[utoipa::path(
+    post,
+    path = "/ingest/file",
+    responses((status = 200, body = IngestFileResponse))
+)]
+pub async fn ingest_file(
+    State(state): State<Arc<AppState>>,
+    mut multipart: Multipart,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<Json<IngestFileResponse>> {
+    let parsed = parse_multipart_upload(&mut multipart).await?;
+    let claims = auth.as_ref().map(|e| &e.0);
+    let res = process_upload_from_parts(state, claims, parsed).await?;
+    Ok(Json(res))
 }
 
 #[derive(serde::Serialize, ToSchema)]
@@ -411,7 +467,7 @@ pub async fn ingest_batch(
                     // Async checksum computation (see ingest_file for details).
                     checksums: vec![],
                     aliases: None,
-                    storage_backend: "local".to_string(),
+                    storage_backend: state.object_storage_backend.clone(),
                     storage_key: storage_key.clone(),
                     is_encrypted: Some(false),
                     workspace_id: req.workspace_id.clone(),
@@ -421,10 +477,7 @@ pub async fn ingest_batch(
                     .create_object_with_id(&create, Some(object_id))
                     .await?;
 
-                state
-                    .repo
-                    .set_checksum_status(&id, "pending")
-                    .await?;
+                state.repo.set_checksum_status(&id, "pending").await?;
 
                 // Background task to compute checksums by streaming from storage.
                 let repo = Arc::clone(&state.repo);
@@ -477,10 +530,7 @@ pub async fn ingest_batch(
                         ("md5", md5_hex.as_str()),
                     ];
 
-                    if let Err(e) = repo
-                        .upsert_checksums(&object_id_bg, &checksum_pairs)
-                        .await
-                    {
+                    if let Err(e) = repo.upsert_checksums(&object_id_bg, &checksum_pairs).await {
                         tracing::error!(object_id = %object_id_bg, error = %e, "batch checksum compute: db upsert failed");
                         let _ = repo
                             .set_checksum_status(&object_id_bg, &format!("failed:{e}"))
@@ -488,9 +538,7 @@ pub async fn ingest_batch(
                         return;
                     }
 
-                    let _ = repo
-                        .set_checksum_status(&object_id_bg, "computed")
-                        .await;
+                    let _ = repo.set_checksum_status(&object_id_bg, "computed").await;
                 });
                 if let Some(ref store) = state.provenance_store {
                     if let Some(ref uris) = derived_from {
