@@ -189,12 +189,22 @@ pub async fn list_bundle_contents(
 
 /// Get access URL for an access_id (e.g. presigned URL).
 ///
-/// Returns **JSON** with a download **URL** (and optional headers), not object bytes. For a direct
-/// byte stream use **`GET .../objects/{id}/stream`**.
+/// Returns **`application/json`** body [`AccessUrl`]: a **URL string** (`url`), optional `headers`,
+/// optional `expires_at` — **not** the object bytes. For raw octets use **`GET .../objects/{id}/stream`**
+/// (binary stream, see that operation).
+///
+/// **Storage:** `access_url` in the database may be a JSON string or `{"url":"…"}`; both are accepted.
+///
+/// **S3 / MinIO:** When a presigner is configured, `url` is replaced with a **presigned** HTTPS URL
+/// when possible; if presigning fails, the stored URL is returned and a warning is logged (fallback).
 #[utoipa::path(
     get,
     path = "/objects/{object_id}/access/{access_id}",
-    responses((status = 200, body = AccessUrl), (status = 404, description = "Not found"))
+    responses((
+        status = 200,
+        body = AccessUrl,
+        description = "JSON AccessUrl (url, optional headers, optional expires_at); not object bytes"
+    ), (status = 404, description = "Not found"))
 )]
 pub async fn get_access(
     State(state): State<Arc<AppState>>,
@@ -438,11 +448,15 @@ impl AsyncWrite for BoundedBodyWriter {
 /// GET /objects/{object_id}/stream — stream object bytes. Unencrypted objects pass through from
 /// storage; Crypt4GH at-rest objects are decrypted server-side when `crypt4gh_decrypt_stream` is
 /// enabled and `crypt4gh_key_dir` contains the node key (`{crypt4gh_master_key_id}.sec`).
+///
+/// Response is a **binary octet stream** (`Content-Type` from object `mime_type` or
+/// `application/octet-stream`), **not** JSON. Contrast with **`GET .../access/{access_id}`**, which
+/// returns JSON with a **URL** to fetch bytes (and may use presigned URLs for S3/MinIO).
 #[utoipa::path(
     get,
     path = "/objects/{object_id}/stream",
     responses(
-        (status = 200, description = "Object bytes (plaintext after Crypt4GH decrypt when applicable)"),
+        (status = 200, description = "Binary body: object bytes (plaintext after Crypt4GH decrypt when applicable); not JSON"),
         (status = 404, description = "Not found"),
         (status = 501, description = "Stream not supported for this storage backend")
     )

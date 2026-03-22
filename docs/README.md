@@ -4,6 +4,19 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 ---
 
+## Licensing, compliance, and disclaimers
+
+| Topic | Where to read |
+|--------|----------------|
+| **Software license (BUSL-1.1)** — research vs commercial, Change Date → Apache-2.0 | [LICENSE](../LICENSE), [BUSINESS-MODEL.md](BUSINESS-MODEL.md) |
+| **Open core, Lab Kit, keys, enterprise** (high-level only; not a substitute for counsel) | [BUSINESS-MODEL.md](BUSINESS-MODEL.md) |
+| **Data protection / sector regulation** (GDPR, EU examples, operator duties) | [COMPLIANCE.md](COMPLIANCE.md) |
+| **Security model, reporting vulnerabilities** | [SECURITY.md](../SECURITY.md) |
+
+**Important:** Docs in this tree are **technical orientation** unless marked otherwise. They are **not legal advice**. Operators and organisations remain responsible for their own compliance, contracts, and jurisdictional requirements.
+
+---
+
 ## Getting started
 
 | Document | Description |
@@ -27,6 +40,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 | Document | Description |
 |----------|-------------|
+| [BUSINESS-MODEL.md](BUSINESS-MODEL.md) | **Open core & BUSL:** research vs commercial use, relation to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), differentiated paths (SLA, consortium, delayed Apache-2.0). |
 | [GA4GH-LAB-KIT-SCOPE.md](GA4GH-LAB-KIT-SCOPE.md) | **German:** Ferrum vs. a separate “compliance kit” repo — boundaries, phased roadmap, component matrix, non-goals. Useful for consortia and labs planning deployments. |
 
 ---

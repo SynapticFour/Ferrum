@@ -35,6 +35,20 @@ Mounting **`/var/run/docker.sock`** exposes the daemon API. Engines or wrappers 
 
 ---
 
+## Nested container execution / Host path contract (WES → TES)
+
+**Problem:** WES submits TES tasks that may run **nested** `docker`/`podman` (see [Host bind mounts and `docker.sock`](#host-bind-mounts-and-dockersock)). A second, **orthogonal** issue is **volume strategy**: should the executor see the **same host path** for workflow scratch and engine mounts as the outer TES agent, or only a container-local path such as `/work`?
+
+| Topic | Status in Ferrum (this repo) |
+|--------|----------------------------|
+| TES **entrypoint** optional (`executors[].entrypoint`) for Docker / Podman / Slurm-wrapped Podman | **Implemented** (see [Entrypoint vs command](#entrypoint-vs-command-docker-api-semantics)) |
+| Docs on nested mounts / `docker.sock` | **Documented** (this file) |
+| **Symmetric host-path** vs **“`/work` only”** volume contract between **WES → TES** task JSON and site bind mounts | **Open / documented-only** — no dedicated WES→TES volume normalisation or env-driven “host prefix” in code yet; operators must align TES `volumes` / WES defaults with their cluster layout. |
+
+Explicit **backlog-style** reference: choosing a single supported pattern (e.g. `FERRUM_TES_WORK_HOST_PATH` or documented “always mount host `X` at `/work`”) would be a follow-up; this iteration does **not** add that configuration.
+
+---
+
 ## WES → TES (Ferrum defaults)
 
 WES can submit runs to TES with **engine-specific** images and command vectors (`ferrum-wes` TES backend). Assumptions are **best-effort** (public images, default entrypoints). Operators should validate **`entrypoint` / `command`** for their images and pin versions. For Cromwell / cwltool / Nextflow / Snakemake, expect different base images and CLI shapes; adjust TES task JSON or extend WES configuration when defaults are insufficient.
@@ -45,10 +59,10 @@ WES can submit runs to TES with **engine-specific** images and command vectors (
 
 For downloads, distinguish:
 
-- **`GET /ga4gh/drs/v1/objects/{id}/access/{access_id}`** — JSON **`AccessUrl`** (URL to fetch, headers, optional expiry); not the object body.
-- **`GET /ga4gh/drs/v1/objects/{id}/stream`** — **raw bytes** (plaintext or Crypt4GH path per config).
+- **`GET /ga4gh/drs/v1/objects/{id}/access/{access_id}`** — JSON **`AccessUrl`** (`url`, optional `headers`, optional `expires_at`); **not** the object body. For **S3/MinIO**, `url` may be a **presigned** link when presigning is configured (fallback to stored URL if presign fails).
+- **`GET /ga4gh/drs/v1/objects/{id}/stream`** — **raw bytes** (plaintext or Crypt4GH path per config), not JSON.
 
-`access_url` in the database is JSONB and may be a **string** or **`{"url": "…"}`**; Ferrum read paths accept both.
+`access_url` in the database is JSONB and may be a **string** or **`{"url": "…"}`**; Ferrum read paths accept both. Details: [GA4GH.md — access vs stream](GA4GH.md#drs-get-accessaccess_id-vs-get-stream).
 
 ---
 

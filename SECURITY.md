@@ -25,7 +25,7 @@ We take security seriously. Please report vulnerabilities **privately** to avoid
 ## Security model overview
 
 - **Authentication:** JWT and/or GA4GH Passports; JWKS and optional issuer validation. See [INSTALLATION.md](docs/INSTALLATION.md) and [GA4GH.md](docs/GA4GH.md).
-- **Encryption:** All data at rest is encrypted with Crypt4GH; downloads are re-encrypted per requester. See [CRYPT4GH.md](docs/CRYPT4GH.md) for the threat model and invariants.
+- **Encryption:** When **Crypt4GH at-rest encryption** is enabled and configured, object bodies can be stored encrypted; downloads may use header re-wrapping / per-requester keys as described in [CRYPT4GH.md](docs/CRYPT4GH.md). Deployments without Crypt4GH rely on **other** storage and organisational controls—see your security assessment.
 - **Authorization:** Passport Visa claims and optional role-based checks before granting access to DRS objects, WES runs, workspaces, and other resources.
 
 ## OWASP alignment

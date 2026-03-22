@@ -14,7 +14,7 @@
 For product scope versus a future **GA4GH compliance starter kit** (orchestration, checklists, audit artefacts around Ferrum), see [`docs/GA4GH-LAB-KIT-SCOPE.md`](docs/GA4GH-LAB-KIT-SCOPE.md).
 
 > **Legal notice:** This README is an overview of technical capabilities, not legal advice.  
-> Whether a specific deployment complies with GDPR/DSGVO, NIS2, EHDS, HIPAA or other frameworks depends on the operator’s legal basis, contracts, configuration and organisational measures. Always consult qualified legal counsel for compliance questions.
+> Whether a specific deployment complies with GDPR/DSGVO, NIS2, EHDS, HIPAA or other frameworks depends on the operator’s legal basis, contracts, configuration and organisational measures. Always consult qualified legal counsel for compliance questions. **Software licensing** (research vs commercial use, BUSL): see **[docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md)** and [LICENSE](LICENSE).
 
 ---
 
@@ -266,7 +266,7 @@ We welcome contributions. See [CONTRIBUTING.md](CONTRIBUTING.md) for development
 
 ## License
 
-Licensed under the **Business Source License 1.1 (BUSL-1.1)**. See [LICENSE](LICENSE) for details. Free for non-commercial research and academic use.
+Licensed under the **Business Source License 1.1 (BUSL-1.1)**. See [LICENSE](LICENSE) for the legal text. **Free for non-commercial research and academic use** under the Additional Use Grant. **Research vs commercial**, relation to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), and optional engagement models: **[docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md)**.
 
 ---
 

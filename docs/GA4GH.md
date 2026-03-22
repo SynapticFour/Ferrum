@@ -4,6 +4,24 @@ This document lists each GA4GH standard implemented by Ferrum: version, specific
 
 ---
 
+## If you already work with GA4GH APIs
+
+These patterns match what many **reference stacks**, **Starter Kit** deployments, and **interop tutorials** in the GA4GH ecosystem use—so Ferrum should feel familiar:
+
+| Convention | How Ferrum maps to it |
+|------------|------------------------|
+| **Path layout** | APIs live under **`/ga4gh/<product>/<major-version>/…`** on the **gateway** (single host), e.g. `…/ga4gh/drs/v1/…`, `…/ga4gh/wes/v1/…` — the usual prefix pattern for [GA4GH technical standards](https://www.ga4gh.org/) and their published OpenAPI bases. |
+| **Service info** | Each product exposes **`GET …/service-info`** (DRS, WES, TES, TRS, htsget reads/variants). The cross-product [**GA4GH Discovery service-info**](https://github.com/ga4gh-discovery/ga4gh-service-info) spec describes the common metadata shape; **removing `/service-info` from the URL** yields the usual **API base** clients expect for that service (see also [Starter Kit — configuring service-info](https://starterkit.ga4gh.org/docs/concepts-and-guides/configuring-service-info)). |
+| **Bearer auth & Passports** | Protected routes expect **`Authorization: Bearer <JWT>`** when auth is enabled; **GA4GH Passports / Visas** ([Passport v1](https://github.com/ga4gh-duri/ga4gh-passport-v1)) are validated for dataset and service access—aligned with **AAI** practice in ELIXIR and other nodes. |
+| **`drs://` URIs** | Objects use canonical **`drs://<drs_hostname>/<object_id>`** (hostname from Ferrum DRS config, not the full HTTP path). Resolve with **`GET /ga4gh/drs/v1/objects/{id}`** or by passing the URI where the API accepts it. |
+| **DRS access vs bytes** | Use **`GET …/access/{access_id}`** for a **JSON** URL (and optional presigned URL on S3/MinIO); use **`GET …/stream`** for **raw bytes**—see [DRS: access vs stream](#drs-get-accessaccess_id-vs-get-stream). |
+| **OpenAPI** | The **DRS** crate exposes **Swagger UI** when run with OpenAPI enabled (useful for trying requests next to the spec). Other services follow the published GA4GH OpenAPI layouts for their versions. |
+| **Conformance-style checks** | Community-oriented automated checks: **[HelixTest](https://github.com/SynapticFour/HelixTest)** in Ferrum mode (see [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md)); align expectations with official **testbeds** and implementers’ forums rather than assuming CI covers every spec edge case. |
+
+**Not every GA4GH product has a single global registry** you must register with to be “valid”—interop is usually **pairwise** (your client ↔ your Ferrum base URL + auth). For **federated** setups (e.g. Beacon networks), follow that network’s registration and metadata requirements.
+
+---
+
 ## DRS (Data Repository Service)
 
 - **Version:** 1.4  
@@ -12,8 +30,8 @@ This document lists each GA4GH standard implemented by Ferrum: version, specific
 | Method | Path | Description | Auth required |
 |--------|------|-------------|----------------|
 | GET | `/ga4gh/drs/v1/objects/{object_id}` | Get object metadata | Optional (config) |
-| GET | `/ga4gh/drs/v1/objects/{object_id}/access/{access_id}` | Get access URL or stream | Yes (when auth enabled) |
-| GET | `/ga4gh/drs/v1/objects/{object_id}/stream` | Stream object bytes; Crypt4GH at-rest objects decrypted server-side (plaintext to client) when configured | Optional (dataset rules apply) |
+| GET | `/ga4gh/drs/v1/objects/{object_id}/access/{access_id}` | **JSON** AccessUrl: download **URL** (+ optional headers); **not** object bytes | Yes (when auth enabled) |
+| GET | `/ga4gh/drs/v1/objects/{object_id}/stream` | **Binary** octet stream of object bytes; Crypt4GH at-rest objects decrypted server-side when configured | Optional (dataset rules apply) |
 | POST | `/ga4gh/drs/v1/objects` | Create object (admin) | Yes |
 | PUT | `/ga4gh/drs/v1/objects/{object_id}` | Update object (admin) | Yes |
 | DELETE | `/ga4gh/drs/v1/objects/{object_id}` | Delete object (admin) | Yes |
@@ -35,6 +53,19 @@ Stable routes on the **gateway** (same auth as DRS). Errors: JSON `{ "code", "me
 
 **Ferrum extensions:** Ingest under `/ga4gh/drs/v1/ingest/*` and `/api/v1/ingest/*`; `GET .../stream` for plaintext delivery of Crypt4GH-encrypted blobs (see [CRYPT4GH.md](CRYPT4GH.md)); Crypt4GH header re-wrap via `X-Crypt4GH-Public-Key` where layered.  
 **Limitations:** Bundles use same storage model; no custom `access_id` types beyond `https`.
+
+### DRS: `GET .../access/{access_id}` vs `GET .../stream`
+
+| Endpoint | Response | Notes |
+|----------|----------|--------|
+| **`.../access/{access_id}`** | **`application/json`** — `url` string (and optional `headers`, `expires_at`) | `access_url` in the DB may be a JSON string or `{"url":"…"}`; both are read correctly. For **S3/MinIO** backends, Ferrum may replace `url` with a **presigned** URL when presigning is configured; if presign fails, the stored URL is returned (logged warning). |
+| **`.../stream`** | **Raw bytes** (`Content-Type` from object metadata or `application/octet-stream`) | Direct read from storage (with optional Crypt4GH decrypt). **Not** a JSON wrapper. |
+
+Same distinction as [TES-DOCKER-BACKEND.md — DRS: metadata vs bytes](TES-DOCKER-BACKEND.md#drs-metadata-vs-bytes-cross-reference).
+
+### Nested containers & WES → TES volume strategy
+
+Workflow engines started via **WES → TES** may run **nested** containers (`docker`/`podman` inside the task). Host bind mounts and scratch paths must be consistent on the **host** (see [TES-DOCKER-BACKEND.md — Nested container execution / Host path contract](TES-DOCKER-BACKEND.md#nested-container-execution--host-path-contract-wes--tes)). **Symmetric host path vs `/work`-only** alignment between WES defaults and site mounts is **documented as an open design area**, not fully automated in code.
 
 ---
 
@@ -156,7 +187,7 @@ Automated checks against the demo stack use [HelixTest](https://github.com/Synap
 
 ## Interoperability
 
-- **Using Ferrum DRS with external WES (e.g. Terra):** Point the external WES at Ferrum’s DRS base URL. Use `drs://ferrum.example.com/ga4gh/drs/v1/objects/{id}` or the WES client’s DRS resolution (e.g. FISS) with Ferrum’s URL.
+- **Using Ferrum DRS with external WES (e.g. Terra):** Point the external WES at Ferrum’s DRS **HTTP base** (e.g. `https://ferrum.example.com/ga4gh/drs/v1`). Use canonical **`drs://<drs_hostname>/{object_id}`** URIs (see DRS `self_uri` / hostname config) or the WES client’s DRS resolution (e.g. FISS) with that base URL—not the object path inside the `drs://` scheme.
 - **Using external DRS with Ferrum WES:** Configure workflow inputs with `drs://` URIs for the external DRS; Ferrum WES resolves them via the standard DRS client interface (GET object, GET access).
 - **Federated Beacon:** Ferrum Beacon can participate in federated queries by exposing the Beacon v2 API; aggregators can include your Ferrum instance in their network.
 

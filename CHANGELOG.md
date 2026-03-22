@@ -11,8 +11,16 @@ All notable changes to this project will be documented in this file. The format 
 - htsget routing reliability: compose router/state so ticket endpoints don’t 404 with empty bodies (HelixTest htsget suite).
 - CI reliability: build the gateway using an official mirror (ECR public) and retry gateway Docker builds when registries are temporarily flaky.
 
+### Changed
+
+- **Docs** — [docs/README.md](docs/README.md): **Licensing, compliance, and disclaimers**. [docs/GA4GH.md](docs/GA4GH.md): **If you already work with GA4GH APIs** (service-info / API base pattern, Passports, `drs://`, OpenAPI, HelixTest); corrected **`drs://` interoperability** example.
+- **Docs / legal clarity** — [BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md): LICENSE prevails, jurisdiction, no implied warranty. [COMPLIANCE.md](docs/COMPLIANCE.md): frameworks non-exhaustive. [SECURITY.md](SECURITY.md): Crypt4GH when configured. [CONTRIBUTING.md](CONTRIBUTING.md): employer permission, tests/docs. [README.md](README.md): licensing in legal notice.
+
 ### Added
 
+- **DRS** — `jsonb_to_core_access_url_for_listing` in `access_url` (single place for `GET object` access methods); integration test `tests/access_url_get_access_regression.rs`; utoipa descriptions align **`GET .../access`** (JSON, presign fallback) vs **`GET .../stream`** (binary).
+- **Docs** — [docs/TES-DOCKER-BACKEND.md](docs/TES-DOCKER-BACKEND.md) / [docs/GA4GH.md](docs/GA4GH.md): “Nested container execution / Host path contract” and **WES→TES volume strategy** (implemented vs documented-only).
+- **Docs** — [docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md): open-core / BUSL guidance, alignment with [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) business model, differentiated commercial paths; cross-links from [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (intro + contact section) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Tests:** `ferrum-drs` `api_v1` (structured error JSON + register JSON deserialization); `ferrum-core` `IngestConfig::effective_max_upload_bytes`.
 - **Web UI:** Data Browser **Upload file** uses `/api/v1/ingest/upload` (optional Crypt4GH); works when UI is served from the gateway and DRS + storage are configured.
 - **Lab Kit ingest API (`/api/v1/ingest`)** — `POST …/register` (URL + existing-object registration), `POST …/upload` (multipart, optional Crypt4GH via Ferrum node key), `GET …/jobs/{id}` with **structured JSON errors** (`code`, `message`, optional `details`). Jobs table `drs_ingest_jobs` + optional **`client_request_id`** idempotency. Config: `[ingest]` (`default_encrypt_upload`, optional `max_upload_bytes`). Gateway wires **local object storage** when `storage.backend` is not `s3` (default dir `./ferrum-blobs` or `storage.base_path`). See [docs/INGEST-LAB-KIT.md](docs/INGEST-LAB-KIT.md).

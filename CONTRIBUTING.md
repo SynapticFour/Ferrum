@@ -10,7 +10,9 @@ Ferrum is developed by Synaptic Four, a company based in Germany 🇩🇪 founde
 
 We welcome contributors from all backgrounds. We value clear communication, well-documented decisions, and thorough reviews over speed. If you have questions about our process or need accommodations to contribute comfortably, please reach out — we understand.
 
-License note: By contributing to Ferrum, you agree that your contributions will be licensed under the same BUSL-1.1 terms as the rest of the project.
+**License:** By contributing to Ferrum, you agree that your contributions will be licensed under the same **BUSL-1.1** terms as the rest of the project (see [LICENSE](LICENSE)). For how research vs commercial use fits the open-core model and how this relates to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), see **[docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md)**. If you contribute on behalf of an employer, ensure you have **permission** to contribute under those terms.
+
+**Not legal advice:** Repository docs do not replace counsel for your jurisdiction (employment, IP assignment, export rules, etc.).
 
 ---
 
@@ -85,6 +87,8 @@ Checklist for adding a new service crate (e.g. a new GA4GH API):
 - **Linting:** `clippy` with `-D warnings`; fix all warnings in new code.
 - **Naming:** Follow Rust API guidelines (e.g. `snake_case` for functions, `PascalCase` for types).
 - **Errors:** Use `thiserror` / `anyhow` as in the rest of the repo; prefer typed errors in libraries.
+- **Tests:** Add or extend **unit tests** for non-trivial logic (parsers, auth checks, URL/storage helpers). Prefer **deterministic** tests without network or real cloud credentials unless the crate already uses an integration pattern for them.
+- **Docs:** Public items should have **`///` rustdoc** when behaviour is not obvious; link related types and security-relevant caveats where useful.
 
 ---
 

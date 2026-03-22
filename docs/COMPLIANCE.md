@@ -5,12 +5,16 @@ environments. This document describes how Ferrum can technically support
 institutions that need to comply with legal and regulatory frameworks in
 Germany, the EU, and worldwide.
 
+The **frameworks and regulations named below are examples** often relevant to European and international research deployments; the list is **not exhaustive**, and other countries or sectors may impose **additional** requirements.
+
 > **Important:** This document is for technical orientation only and is not
 > legal advice. Ferrum is infrastructure software. Regulatory obligations
 > (e.g. GDPR controller/processor roles, NIS2 categorisation, EHDS duties,
 > ethics approvals) rest with the institution operating Ferrum and its
 > partners, not with Synaptic Four as the software vendor. Operators must
 > obtain their own legal assessment for any concrete deployment.
+
+**Software licensing** (BUSL-1.1, non-commercial research vs commercial use, relation to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), open-core principles) is documented separately in **[BUSINESS-MODEL.md](BUSINESS-MODEL.md)**. This page focuses on **data protection and sector regulation** for operators, not copyright or patent terms.
 
 ---
 
@@ -389,7 +393,9 @@ Before going into production with sensitive data, operators should complete:
 
 ## Contact & Commercial Licensing
 
-For questions about compliance, commercial licensing, or Data Processing
+For **software terms** (when BUSL permits use, commercial / SaaS / embedding, optional support or institutional agreements), see **[BUSINESS-MODEL.md](BUSINESS-MODEL.md)** and the root **[LICENSE](../LICENSE)**.
+
+For questions about **deployment compliance**, commercial licensing in the broad sense, or Data Processing
 Agreements:
 
 🌐 https://github.com/SynapticFour/Ferrum

@@ -160,15 +160,10 @@ impl DrsRepo {
                 "file" => AccessType::File,
                 _ => AccessType::Https,
             };
-            let access_url = r.access_url.as_ref().and_then(|v| {
-                if v.is_string() {
-                    Some(ferrum_core::AccessUrl::String(v.as_str()?.to_string()))
-                } else if v.is_object() {
-                    Some(ferrum_core::AccessUrl::Object(v.as_object()?.clone()))
-                } else {
-                    None
-                }
-            });
+            let access_url = r
+                .access_url
+                .as_ref()
+                .and_then(crate::access_url::jsonb_to_core_access_url_for_listing);
             out.push(AccessMethod {
                 access_type,
                 access_url,
