@@ -42,16 +42,34 @@ fi
 # --- 2b. Stream microbenchmark object (MinIO + DRS, 4096-byte deterministic payload) ---
 # Used by CI and external “Plain vs Crypt4GH” demos: `GET .../objects/microbench-plain-v1/stream`.
 # See docs/PERFORMANCE-CRYPT4GH.md. Crypt4GH twin is created via ingest (same bytes, encrypt=true), not here.
+# MinIO may need a short delay after TCP is open; retries avoid empty DB + missing blob (DRS /stream 500).
 MICRO_ID="microbench-plain-v1"
 MICRO_KEY="microbench/plain-v1.bin"
 GATEWAY_PUBLIC_URL="${GATEWAY_PUBLIC_URL:-http://localhost:8080}"
 if command -v mc >/dev/null 2>&1; then
   TMP_MB="/tmp/ferrum-microbench-plain.bin"
-  if dd if=/dev/zero bs=4096 count=1 2>/dev/null | tr '\0' 'P' > "$TMP_MB" 2>/dev/null; then
-    mc cp "$TMP_MB" "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" 2>/dev/null || true
-    MB_SHA256=$(sha256sum "$TMP_MB" | awk '{print $1}')
-    echo "  Microbench object $MICRO_ID sha256=$MB_SHA256"
-    PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<SEEDMICRO
+  if ! dd if=/dev/zero bs=4096 count=1 2>/dev/null | tr '\0' 'P' > "$TMP_MB" 2>/dev/null; then
+    echo "ERROR: could not build microbench payload at $TMP_MB" >&2
+    exit 1
+  fi
+  MB_SHA256=$(sha256sum "$TMP_MB" | awk '{print $1}')
+  UPLOAD_OK=0
+  i=1
+  while [ "$i" -le 20 ]; do
+    if mc cp "$TMP_MB" "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" && mc stat "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" >/dev/null 2>&1; then
+      UPLOAD_OK=1
+      break
+    fi
+    echo "  microbench: MinIO upload/stat attempt $i failed, retry in 2s..."
+    sleep 2
+    i=$((i + 1))
+  done
+  if [ "$UPLOAD_OK" != "1" ]; then
+    echo "ERROR: microbench upload to MinIO failed after retries (bucket=${MINIO_BUCKET:-ferrum} key=$MICRO_KEY)" >&2
+    exit 1
+  fi
+  echo "  Microbench object $MICRO_ID sha256=$MB_SHA256 (MinIO ok)"
+  PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<SEEDMICRO
 INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
 VALUES (
   '${MICRO_ID}',
@@ -86,11 +104,8 @@ VALUES ('${MICRO_ID}', 'sha256', '${MB_SHA256}')
 ON CONFLICT (object_id, type)
 DO UPDATE SET checksum = EXCLUDED.checksum;
 SEEDMICRO
-  else
-    echo "  (could not build microbench payload file, skip)"
-  fi
 else
-  echo "  (mc not installed, skip microbench seed)"
+  echo "  (mc not installed: skipping microbench-plain-v1 — DRS /stream microbench CI will fail unless you use deploy/Dockerfile.init)"
 fi
 
 # --- 3. Keycloak realm + test users ---

@@ -11,7 +11,7 @@ use axum::{
     Json,
 };
 use bytes::Bytes;
-use ferrum_core::{Organization, ServiceInfo, ServiceType};
+use ferrum_core::{FerrumError, Organization, ServiceInfo, ServiceType};
 use ferrum_crypt4gh::{stream_decrypt, KeyStore, LocalKeyStore};
 use futures_util::stream::StreamExt;
 use sha2::{Digest, Sha256};
@@ -522,7 +522,13 @@ pub async fn get_object_stream(
     let reader = storage
         .get(&key)
         .await
-        .map_err(|e| DrsError::Other(e.into()))?;
+        .map_err(|e| match e {
+            FerrumError::NotFound(msg) => DrsError::NotFound(format!(
+                "storage object missing (backend={} key={}): {msg}",
+                backend_lower, key
+            )),
+            other => DrsError::Other(other.into()),
+        })?;
 
     let client_ip = headers
         .get("x-forwarded-for")

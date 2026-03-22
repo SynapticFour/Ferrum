@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
+- **DRS /stream** — `storage.get` **NotFound** maps to **404** (not opaque 500). **Init microbench:** `deploy/scripts/init-demo.sh` retries **MinIO** `mc cp`/`mc stat` (was `|| true` on cp → missing blob + 500 in CI).
 - **DRS** — `GET .../access/{access_id}` resolves `access_url` stored as JSON **`{"url": "…"}`** (same shape as create/ingest writes), not only a plain JSON string.
 - **TES** — Optional **`executors[].entrypoint`** for Docker (Bollard), Podman CLI, and Slurm-wrapped `podman run`; documents shell/ENTRYPOINT pitfalls in **`docs/TES-DOCKER-BACKEND.md`**.
 - htsget routing reliability: compose router/state so ticket endpoints don’t 404 with empty bodies (HelixTest htsget suite).
