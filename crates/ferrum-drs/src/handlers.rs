@@ -188,6 +188,9 @@ pub async fn list_bundle_contents(
 }
 
 /// Get access URL for an access_id (e.g. presigned URL).
+///
+/// Returns **JSON** with a download **URL** (and optional headers), not object bytes. For a direct
+/// byte stream use **`GET .../objects/{id}/stream`**.
 #[utoipa::path(
     get,
     path = "/objects/{object_id}/access/{access_id}",

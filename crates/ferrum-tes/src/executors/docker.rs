@@ -36,6 +36,7 @@ impl TaskExecutor for DockerExecutor {
         let name = format!("tes-{}", task_id);
         let config = Config {
             image: Some(exec.image.clone()),
+            entrypoint: exec.entrypoint.clone(),
             cmd: Some(exec.command.clone()),
             env: exec.env.as_ref().map(|m| {
                 m.iter()

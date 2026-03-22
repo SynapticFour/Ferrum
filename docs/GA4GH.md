@@ -71,7 +71,7 @@ Stable routes on the **gateway** (same auth as DRS). Errors: JSON `{ "code", "me
 | POST | `/ga4gh/tes/v1/tasks/{id}/cancel` | Cancel task | Yes |
 | GET | `/ga4gh/tes/v1/service-info` | Service info | No |
 
-**Ferrum extensions:** HPC backends (SLURM, LSF) for task execution.  
+**Ferrum extensions:** HPC backends (SLURM, LSF) for task execution; Docker/Podman executors accept optional **`executors[].entrypoint`** (Docker Engine API semantics) for images with a fixed `ENTRYPOINT`. See [TES-DOCKER-BACKEND.md](TES-DOCKER-BACKEND.md).
 **Limitations:** Input/output mounting follows TES spec; DRS inputs resolved to URLs or paths by executor.
 
 ---

@@ -52,10 +52,20 @@ impl TaskState {
 }
 
 /// Executor: image + command (TES 1.1).
+///
+/// **Docker / Podman:** If the image defines an `ENTRYPOINT`, your `command` is passed as
+/// additional arguments to that entrypoint. To run a shell wrapper (e.g. `bash -lc '…'`) instead,
+/// set [`Self::entrypoint`] explicitly (e.g. `["/bin/bash", "-lc"]`) and put the script line in
+/// `command`, or clear the image entrypoint via `["/bin/sh", "-c"]` plus a single joined command
+/// string — see **`docs/TES-DOCKER-BACKEND.md`** in the Ferrum repository.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct TesExecutor {
     pub image: String,
     pub command: Vec<String>,
+    /// Overrides the container image entrypoint (Docker `Entrypoint`). When set, `command` follows
+    /// as argv after the entrypoint vector (Docker API semantics).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub entrypoint: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workdir: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

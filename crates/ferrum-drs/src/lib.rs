@@ -1,5 +1,6 @@
 //! GA4GH Data Repository Service (DRS) 1.4.
 
+pub mod access_url;
 pub mod api_v1;
 pub mod error;
 pub mod handlers;

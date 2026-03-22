@@ -20,6 +20,25 @@ impl SlurmExecutor {
     }
 }
 
+/// `podman run` invocation for Slurm `#SBATCH --wrap` (space-separated; avoid spaces in args when possible).
+fn build_podman_cli_line(exec: &crate::types::TesExecutor) -> String {
+    let mut parts: Vec<String> = vec!["podman".into(), "run".into(), "--rm".into()];
+    if let Some(ep) = &exec.entrypoint {
+        if let Some(first) = ep.first() {
+            parts.push("--entrypoint".into());
+            parts.push(first.clone());
+        }
+    }
+    parts.push(exec.image.clone());
+    if let Some(ep) = &exec.entrypoint {
+        for x in ep.iter().skip(1) {
+            parts.push(x.clone());
+        }
+    }
+    parts.extend(exec.command.iter().cloned());
+    parts.join(" ")
+}
+
 const DEFAULT_SUBMIT_TEMPLATE: &str = r#"#!/bin/bash
 #SBATCH --job-name={{job_name}}
 #SBATCH --output={{output}}
@@ -36,7 +55,7 @@ fn render_submit_script(task_id: &str, request: &CreateTaskRequest) -> Result<St
     let job_name = format!("tes-{}", task_id);
     let output = format!("tes-{}-%j.out", task_id);
     let error = format!("tes-{}-%j.err", task_id);
-    let executor_command = format!("podman run --rm {} {}", exec.image, exec.command.join(" "));
+    let executor_command = build_podman_cli_line(exec);
 
     let mut hb = Handlebars::new();
     hb.register_template_string("submit", DEFAULT_SUBMIT_TEMPLATE)
@@ -265,6 +284,7 @@ mod tests {
             executors: vec![TesExecutor {
                 image: "alpine:3.20".to_string(),
                 command: vec!["echo".to_string(), "hello".to_string()],
+                entrypoint: None,
                 workdir: None,
                 stdin: None,
                 stdout: None,
@@ -279,5 +299,32 @@ mod tests {
         let script = render_submit_script("task1", &req).unwrap();
         assert!(script.contains("#SBATCH --job-name=tes-task1"));
         assert!(script.contains(r#"--wrap="podman run --rm alpine:3.20 echo hello""#));
+    }
+
+    #[test]
+    fn test_render_submit_script_entrypoint_before_image() {
+        let req = CreateTaskRequest {
+            name: None,
+            description: None,
+            inputs: None,
+            outputs: None,
+            executors: vec![TesExecutor {
+                image: "img:latest".to_string(),
+                command: vec!["-c".into(), "echo ok".into()],
+                entrypoint: Some(vec!["/bin/sh".into()]),
+                workdir: None,
+                stdin: None,
+                stdout: None,
+                stderr: None,
+                env: None,
+            }],
+            resources: None,
+            volumes: None,
+            tags: None,
+        };
+        let script = render_submit_script("t2", &req).unwrap();
+        assert!(script.contains(
+            r#"--wrap="podman run --rm --entrypoint /bin/sh img:latest -c echo ok""#
+        ));
     }
 }

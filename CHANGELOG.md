@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- **DRS** — `GET .../access/{access_id}` resolves `access_url` stored as JSON **`{"url": "…"}`** (same shape as create/ingest writes), not only a plain JSON string.
+- **TES** — Optional **`executors[].entrypoint`** for Docker (Bollard), Podman CLI, and Slurm-wrapped `podman run`; documents shell/ENTRYPOINT pitfalls in **`docs/TES-DOCKER-BACKEND.md`**.
+- htsget routing reliability: compose router/state so ticket endpoints don’t 404 with empty bodies (HelixTest htsget suite).
+- CI reliability: build the gateway using an official mirror (ECR public) and retry gateway Docker builds when registries are temporarily flaky.
+
 ### Added
 
 - **Tests:** `ferrum-drs` `api_v1` (structured error JSON + register JSON deserialization); `ferrum-core` `IngestConfig::effective_max_upload_bytes`.
@@ -16,7 +23,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Graceful shutdown** (gateway) — `503` + `Retry-After` for new DRS stream requests during drain; in-flight stream tracking; `FERRUM_DRAIN_TIMEOUT_SECS` (default 300).
 - **Optional build features** — `ferrum-core/libdeflate` (re-exports `noodles_bgzf` for faster BGZF; needs system libdeflate); `ferrum-drs/bam-lazy-ingest` (`ingest::bam::scan_alignment_start_positions` via `lazy_records()`); `ferrum-beacon` feature to pull `libdeflate` through core.
 - **`ferrum-bench`** — Criterion benchmarks (compile with `cargo bench -p ferrum-bench --no-run`); CI job `bench-and-features` compiles benches and optional features.
-- **Docs** — [PERFORMANCE.md](PERFORMANCE.md), [docs/STORAGE-BACKENDS.md](docs/STORAGE-BACKENDS.md).
+- **Docs** — [PERFORMANCE.md](PERFORMANCE.md), [docs/STORAGE-BACKENDS.md](docs/STORAGE-BACKENDS.md), [docs/TES-DOCKER-BACKEND.md](docs/TES-DOCKER-BACKEND.md) (TES Docker/Podman, nested `docker run`, DRS access vs stream).
 - TB-scale hardening (Lesson 3): dedicated Rayon pool for blocking POSIX filesystem I/O (`ferrum_core::io::posix`, tunable via `FERRUM_POSIX_IO_THREADS`); `LocalStorage` put/delete/exists/size and Crypt4GH `LocalKeyStore` key file reads use it instead of Tokio’s default blocking pool. TES SLURM backend logs a one-time warning when GNU libc &lt; 2.24 (slow `fork`-based process spawn on some clusters).
 - Crypt4GH / hot path: **`Bytes`**-based header rewrap and related throughput-oriented refactors (see crate benchmarks).
 - Initial implementation of all GA4GH services (DRS, WES, TES, TRS, Beacon v2, Passports).
@@ -38,10 +45,6 @@ All notable changes to this project will be documented in this file. The format 
 ### API stability
 
 - **`/api/v1/ingest/*`** is the supported **versioned** contract for external automation (e.g. Lab Kit). Treat path or response-shape breaks as **semver-major** for consumers relying on this surface.
-
-### Fixed
-- htsget routing reliability: compose router/state so ticket endpoints don’t 404 with empty bodies (HelixTest htsget suite).
-- CI reliability: build the gateway using an official mirror (ECR public) and retry gateway Docker builds when registries are temporarily flaky.
 
 ---
 

@@ -46,9 +46,19 @@ impl TaskExecutor for PodmanExecutor {
         cmd.arg("run")
             .arg("--rm")
             .arg("--name")
-            .arg(format!("tes-{}", task_id))
-            .arg(&exec.image)
-            .args(&exec.command)
+            .arg(format!("tes-{}", task_id));
+        if let Some(ep) = &exec.entrypoint {
+            if let Some(first) = ep.first() {
+                cmd.arg("--entrypoint").arg(first);
+            }
+        }
+        cmd.arg(&exec.image);
+        if let Some(ep) = &exec.entrypoint {
+            for arg in ep.iter().skip(1) {
+                cmd.arg(arg);
+            }
+        }
+        cmd.args(&exec.command)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .kill_on_drop(true);

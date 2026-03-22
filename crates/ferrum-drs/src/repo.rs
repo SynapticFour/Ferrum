@@ -196,8 +196,15 @@ impl DrsRepo {
             Some(r) => r,
             None => return Ok(None),
         };
-        let url = access_url.and_then(|v| v.as_str().map(String::from));
-        let url = url.ok_or_else(|| DrsError::Validation("access_url missing".into()))?;
+        let url = access_url
+            .as_ref()
+            .and_then(|v| crate::access_url::parse_stored_access_url(v));
+        let url = url.ok_or_else(|| {
+            DrsError::Validation(
+                "access_url missing or unsupported shape (expected JSON string or object with url)"
+                    .into(),
+            )
+        })?;
         let headers: Option<Vec<String>> = headers.and_then(|h| serde_json::from_value(h).ok());
         Ok(Some(AccessUrl {
             url,
