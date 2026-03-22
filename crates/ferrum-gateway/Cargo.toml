@@ -17,6 +17,7 @@ ferrum-drs = { path = "../ferrum-drs" }
 ferrum-htsget = { path = "../ferrum-htsget" }
 ferrum-trs = { path = "../ferrum-trs" }
 ferrum-wes = { path = "../ferrum-wes" }
+# `docker` backend is opt-in: build gateway with `--features tes-docker` (see deploy/Dockerfile.gateway).
 ferrum-tes = { path = "../ferrum-tes" }
 ferrum-passports = { path = "../ferrum-passports" }
 ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
@@ -42,4 +43,6 @@ futures-util = "0.3"
 [features]
 default = []
 standalone = []
+# Enables Bollard + Docker daemon executor for TES (`FERRUM_TES_BACKEND=docker`). Default image stays Podman/noop-capable.
+tes-docker = ["ferrum-tes/docker"]
 workspaces_email = ["ferrum-workspaces/email"]

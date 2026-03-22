@@ -58,15 +58,64 @@ Details and nested-mount pitfalls: [Nested container execution / Host path contr
 |--------|----------------------------|
 | TES **entrypoint** optional (`executors[].entrypoint`) for Docker / Podman / Slurm-wrapped Podman | **Implemented** (see [Entrypoint vs command](#entrypoint-vs-command-docker-api-semantics)) |
 | Docs on nested mounts / `docker.sock` | **Documented** (this file) |
-| **Symmetric host-path** vs **“`/work` only”** volume contract between **WES → TES** task JSON and site bind mounts | **Open / documented-only** — no dedicated WES→TES volume normalisation or env-driven “host prefix” in code yet; operators must align TES `volumes` / WES defaults with their cluster layout. |
+| **Symmetric host-path** bind for WES → TES | **Opt-in** — set **`FERRUM_WES_TES_WORK_HOST_PREFIX`** on the **gateway** (see below). No effect unless set. |
+| **TES `volumes[]` → Docker `HostConfig.Binds`** | **Implemented** for the **Docker** TES backend (strings `host:container[:opts]` or objects `{ "host", "container", "mode?" }`). |
+| **Optional socket / CLI / network / platform** | **Opt-in** env on the **TES** process (see below). |
 
-Explicit **backlog-style** reference: choosing a single supported pattern (e.g. `FERRUM_TES_WORK_HOST_PATH` or documented “always mount host `X` at `/work`”) would be a follow-up; this iteration does **not** add that configuration.
+---
+
+## Gateway image: Docker-backed TES (`tes-docker` feature)
+
+The default **`ferrum-gateway`** binary does **not** enable Bollard. To run **`FERRUM_TES_BACKEND=docker`** (or equivalent deployment choice), build with:
+
+```bash
+cargo build -p ferrum-gateway --features tes-docker
+```
+
+Docker image:
+
+```bash
+docker build -f deploy/Dockerfile.gateway --build-arg FERRUM_GATEWAY_FEATURES=tes-docker -t ferrum-gateway:tes-docker ..
+```
+
+Without this feature, choosing the `docker` TES backend falls back to **Podman** (existing behaviour).
+
+---
+
+## TES Docker executor: optional environment (site-specific)
+
+All variables are **ignored unless set**. They apply only when the TES backend is **Docker** (Bollard).
+
+| Variable | Effect |
+|----------|--------|
+| **`FERRUM_TES_DOCKER_MOUNT_SOCKET`** | If truthy (`1`, `true`, `yes`, `on`), add bind `/var/run/docker.sock:/var/run/docker.sock`. |
+| **`FERRUM_TES_DOCKER_CLI_HOST_PATH`** | Host path to a static **`docker`** binary; bind-mount read-only into the task. Target path: **`FERRUM_TES_DOCKER_CLI_CONTAINER_PATH`** (default `/usr/local/bin/docker-host`). |
+| **`FERRUM_TES_DOCKER_NETWORK_MODE`** | Docker `NetworkMode` (e.g. `host`, `bridge`, or a custom network name). |
+| **`FERRUM_TES_DOCKER_EXTRA_HOSTS`** | Comma-separated `hostname:ip` entries (e.g. `host.docker.internal:host-gateway`). |
+| **`FERRUM_TES_DOCKER_PLATFORM`** | Container create **platform** (API ≥ 1.41), e.g. `linux/amd64` for arm64 hosts pulling amd64-only images. |
+
+**Security:** socket and host binds increase privilege; keep defaults off for untrusted tenants.
+
+---
+
+## WES → TES: optional environment (gateway)
+
+Defaults are **unchanged** from older Ferrum (minimal `image` + `command`, no `volumes`). Enable extras only when your deployment needs them.
+
+| Variable | Effect |
+|----------|--------|
+| **`FERRUM_WES_TES_WORK_HOST_PREFIX`** | Absolute host directory prefix. Ferrum adds a TES volume `{prefix}/{run_id}:{prefix}/{run_id}:rw` so nested `docker run -v` can resolve the **same** path on the host. Align **`FERRUM_WES_WORK_DIR`** / `work_dir_base` with this layout. |
+| **`FERRUM_WES_TES_CONTAINER_WORKDIR`** | Sets **`executors[].workdir`** on submitted tasks (optional working directory inside the task). |
+| **`FERRUM_WES_TES_WDL_BASH_LAUNCH`** | If truthy and **`workflow_type`** is WDL: use **`/bin/bash -lc`** and run Cromwell with **`$FERRUM_WES_WORKFLOW_URL`**; optional **`inputs.json`** in the work dir (from **`workflow_params`** when non-empty). |
+| **`FERRUM_WES_TES_NEXTFLOW_FILE_LAUNCH`** | If truthy and type is Nextflow: download workflow with **`curl`**, write minimal **`nextflow.config`** (`docker { enabled = true }`), run **`nextflow run workflow.nf`** with **`-params-file params.json`** when **`workflow_params`** was written. Requires the work dir to be visible in the task (same bind pattern as above). |
+
+Workflow URL is always passed as env **`FERRUM_WES_WORKFLOW_URL`** in those opt-in modes.
 
 ---
 
 ## WES → TES (Ferrum defaults)
 
-WES can submit runs to TES with **engine-specific** images and command vectors (`ferrum-wes` TES backend). Assumptions are **best-effort** (public images, default entrypoints). Operators should validate **`entrypoint` / `command`** for their images and pin versions. For Cromwell / cwltool / Nextflow / Snakemake, expect different base images and CLI shapes; adjust TES task JSON or extend WES configuration when defaults are insufficient.
+With **no** env vars above, WES submits the same **minimal** tasks as before (suitable for CI and simple demos). For JVM **`ENTRYPOINT`** images (e.g. Cromwell) the legacy argv shape may still be wrong for some images — use **`FERRUM_WES_TES_WDL_BASH_LAUNCH`** or custom TES clients that set **`entrypoint`** / **`volumes`** explicitly.
 
 ---
 
@@ -78,6 +127,8 @@ For downloads, distinguish:
 - **`GET /ga4gh/drs/v1/objects/{id}/stream`** — **raw bytes** (plaintext or Crypt4GH path per config), not JSON.
 
 `access_url` in the database is JSONB and may be a **string** or **`{"url": "…"}`**; Ferrum read paths accept both. Details: [GA4GH.md — access vs stream](GA4GH.md#drs-get-accessaccess_id-vs-get-stream).
+
+Many **`…/stream`** URLs share the same path basename (`stream`). If a workflow engine stages inputs **only by basename**, collisions are possible. Use **distinct local names** (e.g. Nextflow **`stageAs`**, or WDL **`File`** inputs mapped to unique paths). Ferrum does not rewrite client staging behaviour.
 
 ---
 

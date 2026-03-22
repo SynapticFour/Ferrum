@@ -7,13 +7,19 @@
 ARG RUST_BUILDER_IMAGE=rust:1-bookworm
 ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim
 FROM ${RUST_BUILDER_IMAGE} AS builder
+# Optional: e.g. `tes-docker` for Docker-backed TES (re-declare after FROM so RUN sees it).
+ARG FERRUM_GATEWAY_FEATURES=
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
 COPY tools ./tools
 
-RUN cargo build --release -p ferrum-gateway
+RUN if [ -n "$FERRUM_GATEWAY_FEATURES" ]; then \
+      cargo build --release -p ferrum-gateway --features "$FERRUM_GATEWAY_FEATURES"; \
+    else \
+      cargo build --release -p ferrum-gateway; \
+    fi
 
 # Runtime image (keep in sync with builder OS family)
 FROM ${DEBIAN_RUNTIME_IMAGE}

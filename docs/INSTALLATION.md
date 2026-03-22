@@ -62,6 +62,8 @@ git clone https://github.com/SynapticFour/Ferrum
 cd Ferrum
 cargo build --release
 # Binaries in target/release/ferrum-gateway
+# Optional: Docker daemon as TES backend (Bollard) — not included in default build
+# cargo build --release -p ferrum-gateway --features tes-docker
 ```
 
 On **Apple M4 (aarch64)**:

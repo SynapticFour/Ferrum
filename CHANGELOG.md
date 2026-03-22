@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
+- **WES → TES** — Cancel uses **`POST …/tasks/{id}/cancel`** (Ferrum TES route), not `…:cancel`.
 - **DRS /stream** — `storage.get` **NotFound** maps to **404** (not opaque 500). **Init microbench:** `deploy/scripts/init-demo.sh` seeds **`microbench-plain-v1` last** (after DRS/TRS URL seeds), **UPSERT**s Postgres rows (repairs `ON CONFLICT DO NOTHING` partials), re-`mc alias set` + retried `mc cp`/`mc stat`, and **fails init** if `storage_references` count ≠ 1. Conformance **verify** waits on **`GET …/objects/microbench-plain-v1`**; **`ci-drs-microbench-stream.sh`** prints metadata on stream failure.
 - **Gateway / DRS** — Object storage init merges **`FERRUM_STORAGE__*`** env into the loaded `StorageConfig` so **`S3_ENDPOINT` / bucket / keys** are never dropped (without MinIO endpoint the AWS SDK targets **real S3** → **`GET …/stream` 404** while metadata **200**). **`minio`** backend treated like **`s3`**. **S3 init errors** are logged (no longer silent). DRS router: **`/stream`** (and other sub-routes) registered **before** **`/objects/:object_id`**. Stream path **trims** `storage_key`.
 - **DRS** — `GET .../access/{access_id}` resolves `access_url` stored as JSON **`{"url": "…"}`** (same shape as create/ingest writes), not only a plain JSON string.
@@ -20,12 +21,15 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **TES Docker (Bollard)** — `CreateTaskRequest.volumes[]` → **`HostConfig.Binds`**; optional **`FERRUM_TES_DOCKER_*`** env (`MOUNT_SOCKET`, `CLI_HOST_PATH` + `CLI_CONTAINER_PATH`, `NETWORK_MODE`, `EXTRA_HOSTS`, `PLATFORM`). **`deploy/Dockerfile.gateway`**: build-arg **`FERRUM_GATEWAY_FEATURES`** (e.g. `tes-docker`).
+- **Gateway** — Cargo feature **`tes-docker`** → enables **`ferrum-tes/docker`** for daemon-backed TES without changing default builds.
+- **WES → TES (opt-in)** — Env **`FERRUM_WES_TES_WORK_HOST_PREFIX`**, **`FERRUM_WES_TES_CONTAINER_WORKDIR`**, **`FERRUM_WES_TES_WDL_BASH_LAUNCH`**, **`FERRUM_WES_TES_NEXTFLOW_FILE_LAUNCH`**; default task shape **unchanged** when unset. **`FERRUM_WES_WORKFLOW_URL`** in task env for shell modes.
 - **DRS /stream observability** — Response header **`X-Ferrum-DRS-Stream-Path`** (`plaintext` | `crypt4gh_decrypt`); structured logs (`target: ferrum_drs::stream`, `drs.stream.started` / `drs.stream.finished`, byte counters). See [docs/PERFORMANCE-CRYPT4GH.md](docs/PERFORMANCE-CRYPT4GH.md).
 - **Demo / CI** — Seeded DRS object **`microbench-plain-v1`** (4096 B, deterministic SHA-256, MinIO `s3` backend) from **`deploy/scripts/init-demo.sh`**; **`deploy/scripts/ci-drs-microbench-stream.sh`**; **`GATEWAY_PUBLIC_URL`** for init (`deploy/docker-compose.yml`). Conformance workflow runs the microbench script before HelixTest.
 - **Docs** — [docs/PERFORMANCE-CRYPT4GH.md](docs/PERFORMANCE-CRYPT4GH.md), [docs/WES-WORKFLOW-ENGINES.md](docs/WES-WORKFLOW-ENGINES.md); TES long-run / workdir section in [docs/TES-DOCKER-BACKEND.md](docs/TES-DOCKER-BACKEND.md).
 - **WES** — Treat **`NFL`** as **Nextflow** (`workflow_type`) alongside `nextflow` / `nxf` (direct, Slurm, and TES paths).
 - **DRS** — `jsonb_to_core_access_url_for_listing` in `access_url` (single place for `GET object` access methods); integration test `tests/access_url_get_access_regression.rs`; utoipa descriptions align **`GET .../access`** (JSON, presign fallback) vs **`GET .../stream`** (binary).
-- **Docs** — [docs/TES-DOCKER-BACKEND.md](docs/TES-DOCKER-BACKEND.md) / [docs/GA4GH.md](docs/GA4GH.md): “Nested container execution / Host path contract” and **WES→TES volume strategy** (implemented vs documented-only).
+- **Docs** — [docs/TES-DOCKER-BACKEND.md](docs/TES-DOCKER-BACKEND.md) / [docs/GA4GH.md](docs/GA4GH.md): “Nested container execution / Host path contract” and **WES→TES** opt-in env (`FERRUM_WES_TES_*`, `FERRUM_TES_DOCKER_*`).
 - **Docs** — [docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md): open-core / BUSL guidance, alignment with [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) business model, differentiated commercial paths; cross-links from [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (intro + contact section) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Tests:** `ferrum-drs` `api_v1` (structured error JSON + register JSON deserialization); `ferrum-core` `IngestConfig::effective_max_upload_bytes`.
 - **Web UI:** Data Browser **Upload file** uses `/api/v1/ingest/upload` (optional Crypt4GH); works when UI is served from the gateway and DRS + storage are configured.
