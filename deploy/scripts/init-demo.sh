@@ -39,75 +39,6 @@ else
   echo "  (mc not installed, skipping bucket create; ensure bucket exists)"
 fi
 
-# --- 2b. Stream microbenchmark object (MinIO + DRS, 4096-byte deterministic payload) ---
-# Used by CI and external “Plain vs Crypt4GH” demos: `GET .../objects/microbench-plain-v1/stream`.
-# See docs/PERFORMANCE-CRYPT4GH.md. Crypt4GH twin is created via ingest (same bytes, encrypt=true), not here.
-# MinIO may need a short delay after TCP is open; retries avoid empty DB + missing blob (DRS /stream 500).
-MICRO_ID="microbench-plain-v1"
-MICRO_KEY="microbench/plain-v1.bin"
-GATEWAY_PUBLIC_URL="${GATEWAY_PUBLIC_URL:-http://localhost:8080}"
-if command -v mc >/dev/null 2>&1; then
-  TMP_MB="/tmp/ferrum-microbench-plain.bin"
-  if ! dd if=/dev/zero bs=4096 count=1 2>/dev/null | tr '\0' 'P' > "$TMP_MB" 2>/dev/null; then
-    echo "ERROR: could not build microbench payload at $TMP_MB" >&2
-    exit 1
-  fi
-  MB_SHA256=$(sha256sum "$TMP_MB" | awk '{print $1}')
-  UPLOAD_OK=0
-  i=1
-  while [ "$i" -le 20 ]; do
-    if mc cp "$TMP_MB" "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" && mc stat "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" >/dev/null 2>&1; then
-      UPLOAD_OK=1
-      break
-    fi
-    echo "  microbench: MinIO upload/stat attempt $i failed, retry in 2s..."
-    sleep 2
-    i=$((i + 1))
-  done
-  if [ "$UPLOAD_OK" != "1" ]; then
-    echo "ERROR: microbench upload to MinIO failed after retries (bucket=${MINIO_BUCKET:-ferrum} key=$MICRO_KEY)" >&2
-    exit 1
-  fi
-  echo "  Microbench object $MICRO_ID sha256=$MB_SHA256 (MinIO ok)"
-  PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<SEEDMICRO
-INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
-VALUES (
-  '${MICRO_ID}',
-  'Microbench plaintext (S3)',
-  'Deterministic 4096-byte payload on MinIO for DRS /stream timing (Plain path).',
-  4096,
-  'application/octet-stream',
-  false,
-  '[]'::jsonb
-)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO storage_references (object_id, storage_backend, storage_key, is_encrypted)
-VALUES ('${MICRO_ID}', 's3', '${MICRO_KEY}', false)
-ON CONFLICT (object_id) DO NOTHING;
-
-INSERT INTO drs_access_methods (object_id, type, access_id, access_url, headers)
-VALUES (
-  '${MICRO_ID}',
-  'https',
-  'access-${MICRO_ID}',
-  jsonb_build_object(
-    'url',
-    '${GATEWAY_PUBLIC_URL}/ga4gh/drs/v1/objects/${MICRO_ID}/access/access-${MICRO_ID}'
-  ),
-  '[]'::jsonb
-)
-ON CONFLICT (object_id, type) DO NOTHING;
-
-INSERT INTO drs_checksums (object_id, type, checksum)
-VALUES ('${MICRO_ID}', 'sha256', '${MB_SHA256}')
-ON CONFLICT (object_id, type)
-DO UPDATE SET checksum = EXCLUDED.checksum;
-SEEDMICRO
-else
-  echo "  (mc not installed: skipping microbench-plain-v1 — DRS /stream microbench CI will fail unless you use deploy/Dockerfile.init)"
-fi
-
 # --- 3. Keycloak realm + test users ---
 echo "Configuring Keycloak realm..."
 KEYCLOAK_URL="${KEYCLOAK_URL:-http://keycloak:8080}"
@@ -263,6 +194,91 @@ VALUES
   ('demo-bam-to-vcf', 'demo-bam-to-vcf-1.0', 'DESCRIPTOR', 'CWL', 'cwlVersion: v1.0\nclass: Workflow\ninputs:\n  bam: File\noutputs:\n  vcf: File\nsteps: []', NULL, NOW()),
   ('demo-bam-to-vcf', 'demo-bam-to-vcf-1.0', 'DESCRIPTOR', 'PLAIN_CWL', 'cwlVersion: v1.0\nclass: Workflow\ninputs:\n  bam: File\noutputs:\n  vcf: File\nsteps: []', NULL, NOW());
 TRSSEED
+
+# --- 6b. DRS /stream microbenchmark (MinIO + Postgres, last — repairs partial init / DO NOTHING skips) ---
+# `GET .../objects/microbench-plain-v1/stream` for CI (see docs/PERFORMANCE-CRYPT4GH.md). Runs AFTER all DRS URL seeds.
+MICRO_ID="microbench-plain-v1"
+MICRO_KEY="microbench/plain-v1.bin"
+GATEWAY_PUBLIC_URL="${GATEWAY_PUBLIC_URL:-http://localhost:8080}"
+if command -v mc >/dev/null 2>&1; then
+  mc alias set local "http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}" "${MINIO_ROOT_USER:-minioadmin}" "${MINIO_ROOT_PASSWORD:-minioadmin}" >/dev/null 2>&1 || true
+  TMP_MB="/tmp/ferrum-microbench-plain.bin"
+  if ! dd if=/dev/zero bs=4096 count=1 2>/dev/null | tr '\0' 'P' > "$TMP_MB" 2>/dev/null; then
+    echo "ERROR: could not build microbench payload at $TMP_MB" >&2
+    exit 1
+  fi
+  MB_SHA256=$(sha256sum "$TMP_MB" | awk '{print $1}')
+  UPLOAD_OK=0
+  i=1
+  while [ "$i" -le 25 ]; do
+    if mc cp "$TMP_MB" "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" && mc stat "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" >/dev/null 2>&1; then
+      UPLOAD_OK=1
+      break
+    fi
+    echo "  microbench: MinIO upload/stat attempt $i failed, retry in 2s..."
+    sleep 2
+    i=$((i + 1))
+  done
+  if [ "$UPLOAD_OK" != "1" ]; then
+    echo "ERROR: microbench upload to MinIO failed after retries (bucket=${MINIO_BUCKET:-ferrum} key=$MICRO_KEY)" >&2
+    exit 1
+  fi
+  echo "  Microbench $MICRO_ID: MinIO ok, sha256=$MB_SHA256"
+  PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<SEEDMICRO
+INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
+VALUES (
+  '${MICRO_ID}',
+  'Microbench plaintext (S3)',
+  'Deterministic 4096-byte payload on MinIO for DRS /stream timing (Plain path).',
+  4096,
+  'application/octet-stream',
+  false,
+  '[]'::jsonb
+)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  size = EXCLUDED.size,
+  mime_type = EXCLUDED.mime_type,
+  is_bundle = EXCLUDED.is_bundle,
+  aliases = EXCLUDED.aliases;
+
+INSERT INTO storage_references (object_id, storage_backend, storage_key, is_encrypted)
+VALUES ('${MICRO_ID}', 's3', '${MICRO_KEY}', false)
+ON CONFLICT (object_id) DO UPDATE SET
+  storage_backend = EXCLUDED.storage_backend,
+  storage_key = EXCLUDED.storage_key,
+  is_encrypted = EXCLUDED.is_encrypted;
+
+INSERT INTO drs_access_methods (object_id, type, access_id, access_url, headers)
+VALUES (
+  '${MICRO_ID}',
+  'https',
+  'access-${MICRO_ID}',
+  jsonb_build_object(
+    'url',
+    '${GATEWAY_PUBLIC_URL}/ga4gh/drs/v1/objects/${MICRO_ID}/access/access-${MICRO_ID}'
+  ),
+  '[]'::jsonb
+)
+ON CONFLICT (object_id, type) DO UPDATE SET
+  access_id = EXCLUDED.access_id,
+  access_url = EXCLUDED.access_url,
+  headers = EXCLUDED.headers;
+
+INSERT INTO drs_checksums (object_id, type, checksum)
+VALUES ('${MICRO_ID}', 'sha256', '${MB_SHA256}')
+ON CONFLICT (object_id, type)
+DO UPDATE SET checksum = EXCLUDED.checksum;
+SEEDMICRO
+  MB_ROWS=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -t -A -c "SELECT COUNT(*) FROM storage_references WHERE object_id='${MICRO_ID}';" 2>/dev/null || echo "0")
+  if [ "$(echo "$MB_ROWS" | tr -d ' ')" != "1" ]; then
+    echo "ERROR: microbench storage_references row missing after seed (count=$MB_ROWS)" >&2
+    exit 1
+  fi
+else
+  echo "  (mc not installed: skipping microbench-plain-v1 — DRS /stream microbench CI will fail unless you use deploy/Dockerfile.init)"
+fi
 
 # --- 7. Verify demo data ---
 echo "Verifying demo data..."

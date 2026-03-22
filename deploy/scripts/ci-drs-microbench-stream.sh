@@ -10,6 +10,11 @@ EXPECTED_BYTES=4096
 code=$(curl -sS -o /tmp/ferrum-microbench-stream.out -w "%{http_code}" "$URL" || echo "000")
 if [ "$code" != "200" ]; then
   echo "ci-drs-microbench-stream: expected HTTP 200, got $code for $URL" >&2
+  META="${BASE}/ga4gh/drs/v1/objects/microbench-plain-v1"
+  mc=$(curl -sS -o /dev/null -w "%{http_code}" "$META" || echo "000")
+  echo "ci-drs-microbench-stream: GET $META -> HTTP $mc (body snippet):" >&2
+  curl -sS "$META" 2>/dev/null | head -c 800 >&2 || true
+  echo >&2
   exit 1
 fi
 

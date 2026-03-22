@@ -83,16 +83,19 @@ jobs:
           for i in $(seq 1 12); do
             code_demo=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-1000genomes-chr22 || echo "000")
             code_test=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1 || echo "000")
-            if [ "$code_demo" = "200" ] && [ "$code_test" = "200" ]; then
-              echo "DRS OK: demo-1000genomes-chr22=200, test-object-1=200"
+            code_mb=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/microbench-plain-v1 || echo "000")
+            if [ "$code_demo" = "200" ] && [ "$code_test" = "200" ] && [ "$code_mb" = "200" ]; then
+              echo "DRS OK: demo-1000genomes-chr22=200, test-object-1=200, microbench-plain-v1=200"
               break
             fi
             if [ "$i" -eq 12 ]; then
-              echo "DRS check failed after 60s: demo-1000genomes-chr22=$code_demo, test-object-1=$code_test"
+              echo "DRS check failed after 60s: demo-1000genomes-chr22=$code_demo, test-object-1=$code_test, microbench-plain-v1=$code_mb"
               echo "=== curl -sv demo-1000genomes-chr22 ==="
               curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-1000genomes-chr22 2>&1 | tail -120 || true
               echo "=== curl -sv test-object-1 ==="
               curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1 2>&1 | tail -120 || true
+              echo "=== curl -sv microbench-plain-v1 ==="
+              curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/microbench-plain-v1 2>&1 | tail -120 || true
               docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -40
               exit 1
             fi
@@ -218,13 +221,16 @@ jobs:
           for i in $(seq 1 12); do
             code_demo=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-1000genomes-chr22 || echo "000")
             code_test=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1 || echo "000")
-            if [ "$code_demo" = "200" ] && [ "$code_test" = "200" ]; then echo "DRS OK"; break; fi
+            code_mb=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/microbench-plain-v1 || echo "000")
+            if [ "$code_demo" = "200" ] && [ "$code_test" = "200" ] && [ "$code_mb" = "200" ]; then echo "DRS OK (incl. microbench-plain-v1)"; break; fi
             if [ "$i" -eq 12 ]; then
-              echo "DRS check failed: demo-1000genomes-chr22=$code_demo, test-object-1=$code_test"
+              echo "DRS check failed: demo-1000genomes-chr22=$code_demo, test-object-1=$code_test, microbench-plain-v1=$code_mb"
               echo "=== curl -sv demo-1000genomes-chr22 ==="
               curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/demo-1000genomes-chr22 2>&1 | tail -120 || true
               echo "=== curl -sv test-object-1 ==="
               curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1 2>&1 | tail -120 || true
+              echo "=== curl -sv microbench-plain-v1 ==="
+              curl -sv ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/microbench-plain-v1 2>&1 | tail -120 || true
               docker compose -f deploy/docker-compose.yml logs ferrum-gateway 2>&1 | tail -40
               exit 1
             fi
