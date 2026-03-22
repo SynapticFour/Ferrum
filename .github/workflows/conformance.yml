@@ -129,6 +129,11 @@ jobs:
             exit 1
           fi
 
+      - name: DRS /stream microbench (plaintext S3 seed, fast regression)
+        run: |
+          chmod +x deploy/scripts/ci-drs-microbench-stream.sh
+          GATEWAY_BASE="${{ env.GATEWAY_BASE }}" deploy/scripts/ci-drs-microbench-stream.sh
+
       - name: Run HelixTest (full, Ferrum mode)
         env:
           WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
@@ -236,6 +241,11 @@ jobs:
             exit 1
           fi
           echo "TRS descriptor=200, E2E DRS=200"
+
+      - name: DRS /stream microbench (plaintext S3 seed)
+        run: |
+          chmod +x deploy/scripts/ci-drs-microbench-stream.sh
+          GATEWAY_BASE="${{ env.GATEWAY_BASE }}" deploy/scripts/ci-drs-microbench-stream.sh
 
       - name: Run HelixTest (WES, TES, DRS, TRS, Beacon)
         env:

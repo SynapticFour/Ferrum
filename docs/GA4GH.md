@@ -85,7 +85,8 @@ Workflow engines started via **WES → TES** may run **nested** containers (`doc
 | GET | `/ga4gh/wes/v1/service-info` | Service info | No |
 
 **Ferrum extensions:** SSE log streaming at `/runs/{run_id}/logs/stream`; DRS URI resolution for workflow inputs; SLURM/LSF backend via `workflow_engine_params`.  
-**Limitations:** Engine-specific params depend on executor (Nextflow, CWL, WDL, Snakemake).
+**Limitations:** Engine-specific params depend on executor (Nextflow, CWL, WDL, Snakemake).  
+**Workflow types:** See **[WES-WORKFLOW-ENGINES.md](WES-WORKFLOW-ENGINES.md)** (`nextflow` / `nxf` / **`NFL`**, WDL, CWL, Snakemake; TES default images).
 
 ---
 

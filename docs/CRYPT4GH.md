@@ -78,6 +78,10 @@ Configuration (TOML or `FERRUM_ENCRYPTION__*` env):
 
 **Security note:** Plaintext leaves the server over the **TLS** connection only; it is not written to disk as part of this handler. Operators who require Crypt4GH on the wire as well should use re-wrap flows or disable this path.
 
+### Benchmarking Plain vs. Crypt4GH (external repos)
+
+For **reproducible** comparisons over the **GA4GH DRS API** (micro-benchmarks, demo stacks), see **[PERFORMANCE-CRYPT4GH.md](PERFORMANCE-CRYPT4GH.md)** — paired objects (same payload), **`GET .../stream`** timing, response header **`X-Ferrum-DRS-Stream-Path`**, structured logs (`ferrum_drs::stream`), and seeded **`microbench-plain-v1`**.
+
 ---
 
 ## Security invariants

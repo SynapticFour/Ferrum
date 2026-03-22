@@ -39,6 +39,60 @@ else
   echo "  (mc not installed, skipping bucket create; ensure bucket exists)"
 fi
 
+# --- 2b. Stream microbenchmark object (MinIO + DRS, 4096-byte deterministic payload) ---
+# Used by CI and external “Plain vs Crypt4GH” demos: `GET .../objects/microbench-plain-v1/stream`.
+# See docs/PERFORMANCE-CRYPT4GH.md. Crypt4GH twin is created via ingest (same bytes, encrypt=true), not here.
+MICRO_ID="microbench-plain-v1"
+MICRO_KEY="microbench/plain-v1.bin"
+GATEWAY_PUBLIC_URL="${GATEWAY_PUBLIC_URL:-http://localhost:8080}"
+if command -v mc >/dev/null 2>&1; then
+  TMP_MB="/tmp/ferrum-microbench-plain.bin"
+  if dd if=/dev/zero bs=4096 count=1 2>/dev/null | tr '\0' 'P' > "$TMP_MB" 2>/dev/null; then
+    mc cp "$TMP_MB" "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" 2>/dev/null || true
+    MB_SHA256=$(sha256sum "$TMP_MB" | awk '{print $1}')
+    echo "  Microbench object $MICRO_ID sha256=$MB_SHA256"
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<SEEDMICRO
+INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
+VALUES (
+  '${MICRO_ID}',
+  'Microbench plaintext (S3)',
+  'Deterministic 4096-byte payload on MinIO for DRS /stream timing (Plain path).',
+  4096,
+  'application/octet-stream',
+  false,
+  '[]'::jsonb
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage_references (object_id, storage_backend, storage_key, is_encrypted)
+VALUES ('${MICRO_ID}', 's3', '${MICRO_KEY}', false)
+ON CONFLICT (object_id) DO NOTHING;
+
+INSERT INTO drs_access_methods (object_id, type, access_id, access_url, headers)
+VALUES (
+  '${MICRO_ID}',
+  'https',
+  'access-${MICRO_ID}',
+  jsonb_build_object(
+    'url',
+    '${GATEWAY_PUBLIC_URL}/ga4gh/drs/v1/objects/${MICRO_ID}/access/access-${MICRO_ID}'
+  ),
+  '[]'::jsonb
+)
+ON CONFLICT (object_id, type) DO NOTHING;
+
+INSERT INTO drs_checksums (object_id, type, checksum)
+VALUES ('${MICRO_ID}', 'sha256', '${MB_SHA256}')
+ON CONFLICT (object_id, type)
+DO UPDATE SET checksum = EXCLUDED.checksum;
+SEEDMICRO
+  else
+    echo "  (could not build microbench payload file, skip)"
+  fi
+else
+  echo "  (mc not installed, skip microbench seed)"
+fi
+
 # --- 3. Keycloak realm + test users ---
 echo "Configuring Keycloak realm..."
 KEYCLOAK_URL="${KEYCLOAK_URL:-http://keycloak:8080}"

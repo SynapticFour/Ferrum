@@ -18,6 +18,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **DRS /stream observability** — Response header **`X-Ferrum-DRS-Stream-Path`** (`plaintext` | `crypt4gh_decrypt`); structured logs (`target: ferrum_drs::stream`, `drs.stream.started` / `drs.stream.finished`, byte counters). See [docs/PERFORMANCE-CRYPT4GH.md](docs/PERFORMANCE-CRYPT4GH.md).
+- **Demo / CI** — Seeded DRS object **`microbench-plain-v1`** (4096 B, deterministic SHA-256, MinIO `s3` backend) from **`deploy/scripts/init-demo.sh`**; **`deploy/scripts/ci-drs-microbench-stream.sh`**; **`GATEWAY_PUBLIC_URL`** for init (`deploy/docker-compose.yml`). Conformance workflow runs the microbench script before HelixTest.
+- **Docs** — [docs/PERFORMANCE-CRYPT4GH.md](docs/PERFORMANCE-CRYPT4GH.md), [docs/WES-WORKFLOW-ENGINES.md](docs/WES-WORKFLOW-ENGINES.md); TES long-run / workdir section in [docs/TES-DOCKER-BACKEND.md](docs/TES-DOCKER-BACKEND.md).
+- **WES** — Treat **`NFL`** as **Nextflow** (`workflow_type`) alongside `nextflow` / `nxf` (direct, Slurm, and TES paths).
 - **DRS** — `jsonb_to_core_access_url_for_listing` in `access_url` (single place for `GET object` access methods); integration test `tests/access_url_get_access_regression.rs`; utoipa descriptions align **`GET .../access`** (JSON, presign fallback) vs **`GET .../stream`** (binary).
 - **Docs** — [docs/TES-DOCKER-BACKEND.md](docs/TES-DOCKER-BACKEND.md) / [docs/GA4GH.md](docs/GA4GH.md): “Nested container execution / Host path contract” and **WES→TES volume strategy** (implemented vs documented-only).
 - **Docs** — [docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md): open-core / BUSL guidance, alignment with [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) business model, differentiated commercial paths; cross-links from [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (intro + contact section) and [CONTRIBUTING.md](CONTRIBUTING.md).

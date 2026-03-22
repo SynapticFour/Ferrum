@@ -1,6 +1,6 @@
 # Performance tuning (TB-scale)
 
-Related: **[docs/STORAGE-BACKENDS.md](docs/STORAGE-BACKENDS.md)** (object stores), **[docs/INSTALLATION.md](docs/INSTALLATION.md)** (database pool env/keys), **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** (streaming, `ferrum-storage`).
+Related: **[docs/STORAGE-BACKENDS.md](docs/STORAGE-BACKENDS.md)** (object stores), **[docs/INSTALLATION.md](docs/INSTALLATION.md)** (database pool env/keys), **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** (streaming, `ferrum-storage`), **[docs/PERFORMANCE-CRYPT4GH.md](docs/PERFORMANCE-CRYPT4GH.md)** (DRS Plain vs Crypt4GH micro-benchmarks, `X-Ferrum-DRS-Stream-Path`, seeded `microbench-plain-v1`).
 
 ## PostgreSQL pool
 

@@ -113,7 +113,7 @@ impl SlurmExecutor {
     fn write_run_script(work_dir: &Path, run: &WesRun) -> Result<std::path::PathBuf> {
         let script_path = work_dir.join("slurm_run.sh");
         let cmd = match run.workflow_type.to_lowercase().as_str() {
-            "nextflow" | "nxf" => {
+            "nextflow" | "nxf" | "nfl" => {
                 format!("nextflow run {} 2>&1", run.workflow_url)
             }
             "cwl" => {

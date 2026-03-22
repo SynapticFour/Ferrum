@@ -6,7 +6,7 @@ use crate::types::*;
 use axum::{
     body::Body,
     extract::{Extension, Path, Query, State},
-    http::{header::CONTENT_TYPE, HeaderMap, HeaderValue, StatusCode},
+    http::{header::CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
@@ -17,6 +17,7 @@ use futures_util::stream::StreamExt;
 use sha2::{Digest, Sha256};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -376,6 +377,8 @@ struct BoundedBodyWriter {
     pending_timeout: Option<Pin<Box<tokio::time::Sleep>>>,
     pending_len: usize,
     send_timeout: Duration,
+    /// Optional bytes accepted from decrypt and handed to the HTTP channel (observability).
+    byte_counter: Option<Arc<AtomicU64>>,
 }
 
 impl AsyncWrite for BoundedBodyWriter {
@@ -422,6 +425,9 @@ impl AsyncWrite for BoundedBodyWriter {
             Poll::Ready(Ok(())) => {
                 this.pending_send.take();
                 this.pending_timeout.take();
+                if let Some(c) = &this.byte_counter {
+                    c.fetch_add(this.pending_len as u64, Ordering::Relaxed);
+                }
                 Poll::Ready(Ok(this.pending_len))
             }
             Poll::Ready(Err(_)) => {
@@ -452,11 +458,15 @@ impl AsyncWrite for BoundedBodyWriter {
 /// Response is a **binary octet stream** (`Content-Type` from object `mime_type` or
 /// `application/octet-stream`), **not** JSON. Contrast with **`GET .../access/{access_id}`**, which
 /// returns JSON with a **URL** to fetch bytes (and may use presigned URLs for S3/MinIO).
+///
+/// **Ferrum extension header:** `X-Ferrum-DRS-Stream-Path: plaintext | crypt4gh_decrypt` identifies
+/// the server path for benchmarks (not a GA4GH standard field). Structured logs: target
+/// `ferrum_drs::stream`, events `drs.stream.started` / `drs.stream.finished`.
 #[utoipa::path(
     get,
     path = "/objects/{object_id}/stream",
     responses(
-        (status = 200, description = "Binary body: object bytes (plaintext after Crypt4GH decrypt when applicable); not JSON"),
+        (status = 200, description = "Binary body: object bytes (plaintext after Crypt4GH decrypt when applicable); not JSON. Response may include X-Ferrum-DRS-Stream-Path."),
         (status = 404, description = "Not found"),
         (status = 501, description = "Stream not supported for this storage backend")
     )
@@ -524,6 +534,15 @@ pub async fn get_object_stream(
         .log_access(&canonical, None, "GET/stream", 200, client_ip.as_deref())
         .await;
 
+    tracing::info!(
+        target: "ferrum_drs::stream",
+        object_id = %canonical,
+        encrypted = is_encrypted,
+        declared_size = obj.size,
+        storage_backend = %backend_lower,
+        event = "drs.stream.started",
+    );
+
     if !is_encrypted {
         // Lesson 4: bounded channel between storage read and HTTP body — backpressure on slow clients.
         // Source: Zellij/OneUptime postmortems; unbounded buffering can OOM on TB-scale streams.
@@ -532,6 +551,9 @@ pub async fn get_object_stream(
         const STORAGE_READ_TIMEOUT: Duration = Duration::from_secs(120);
 
         let (tx, rx) = mpsc::channel::<Bytes>(STORAGE_TO_HTTP_CAP);
+        let bytes_from_storage = Arc::new(AtomicU64::new(0));
+        let bytes_counter = bytes_from_storage.clone();
+        let oid_plain = canonical.clone();
         tokio::spawn(async move {
             let mut reader = reader;
             let mut buf = vec![0u8; READ_CHUNK];
@@ -549,10 +571,18 @@ pub async fn get_object_stream(
                         break;
                     }
                 };
+                bytes_counter.fetch_add(n as u64, Ordering::Relaxed);
                 if tx.send(Bytes::copy_from_slice(&buf[..n])).await.is_err() {
                     break;
                 }
             }
+            tracing::info!(
+                target: "ferrum_drs::stream",
+                object_id = %oid_plain,
+                event = "drs.stream.finished",
+                stream_path = "plaintext",
+                bytes_from_storage = bytes_counter.load(Ordering::Relaxed),
+            );
         });
 
         let stream = ReceiverStream::new(rx).map(|b| Ok::<_, std::io::Error>(b));
@@ -563,6 +593,10 @@ pub async fn get_object_stream(
                 CONTENT_TYPE,
                 HeaderValue::from_str(mime)
                     .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+            )
+            .header(
+                HeaderName::from_static("x-ferrum-drs-stream-path"),
+                HeaderValue::from_static("plaintext"),
             )
             .body(body)
             .map_err(|e| DrsError::Other(e.into()));
@@ -601,16 +635,29 @@ pub async fn get_object_stream(
     const DECRYPT_TO_HTTP_CHANNEL_CAPACITY: usize = 4;
 
     let (tx, rx) = mpsc::channel::<Bytes>(DECRYPT_TO_HTTP_CHANNEL_CAPACITY);
+    let bytes_to_client = Arc::new(AtomicU64::new(0));
+    let bytes_counter = bytes_to_client.clone();
     let writer = BoundedBodyWriter {
         tx,
         pending_send: None,
         pending_timeout: None,
         pending_len: 0,
         send_timeout: CLIENT_SEND_TIMEOUT,
+        byte_counter: Some(bytes_counter),
     };
     let oid_for_log = canonical.clone();
     tokio::spawn(async move {
-        if let Err(e) = stream_decrypt(&keys, reader, writer, None).await {
+        let r = stream_decrypt(&keys, reader, writer, None).await;
+        let n = bytes_to_client.load(Ordering::Relaxed);
+        tracing::info!(
+            target: "ferrum_drs::stream",
+            object_id = %oid_for_log,
+            event = "drs.stream.finished",
+            stream_path = "crypt4gh_decrypt",
+            bytes_to_client = n,
+            decrypt_ok = r.is_ok(),
+        );
+        if let Err(e) = r {
             tracing::error!(object_id = %oid_for_log, error = %e, "Crypt4GH stream_decrypt failed");
         }
     });
@@ -623,6 +670,10 @@ pub async fn get_object_stream(
             CONTENT_TYPE,
             HeaderValue::from_str(mime)
                 .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+        )
+        .header(
+            HeaderName::from_static("x-ferrum-drs-stream-path"),
+            HeaderValue::from_static("crypt4gh_decrypt"),
         )
         .body(body)
         .map_err(|e| DrsError::Other(e.into()))

@@ -76,7 +76,7 @@ impl TesExecutorBackend {
 
     fn default_image_and_command(workflow_type: &str, workflow_url: &str) -> (String, Vec<String>) {
         match workflow_type.to_lowercase().as_str() {
-            "nextflow" | "nxf" => (
+            "nextflow" | "nxf" | "nfl" => (
                 "nextflow/nextflow:latest".to_string(),
                 vec![
                     "nextflow".to_string(),

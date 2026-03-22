@@ -111,7 +111,8 @@ impl RunManager {
             return Some(tes.as_ref());
         }
         match workflow_type.to_lowercase().as_str() {
-            "nextflow" | "nxf" => Some(&self.nextflow),
+            // GA4GH / clients sometimes use NFL for Nextflow DSL2
+            "nextflow" | "nxf" | "nfl" => Some(&self.nextflow),
             "cwl" => Some(&self.cwltool),
             "wdl" => Some(&self.cromwell),
             "snakemake" => Some(&self.snakemake),

@@ -2,6 +2,8 @@
 
 This guide covers submitting workflows (Nextflow, CWL, WDL, Snakemake) via the WES API and Ferrum UI, using DRS objects as inputs, HPC execution (SLURM/LSF), and live log streaming.
 
+**Engine matrix (`workflow_type`, TES images):** [WES-WORKFLOW-ENGINES.md](WES-WORKFLOW-ENGINES.md).
+
 ---
 
 ## Nextflow
@@ -23,6 +25,8 @@ curl -X POST "https://ferrum.example.com/ga4gh/wes/v1/runs" \
     }
   }'
 ```
+
+`workflow_type` **`NFL`**, **`nextflow`**, or **`nxf`** all route to the Nextflow executor (see [WES-WORKFLOW-ENGINES.md](WES-WORKFLOW-ENGINES.md)).
 
 ### Submit via Ferrum UI
 

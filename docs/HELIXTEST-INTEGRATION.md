@@ -24,9 +24,10 @@ This section is the **single place** in the Ferrum repo that maps **GitHub Actio
 
 | Job | Docker stack | HelixTest command (simplified) | Purpose |
 |-----|----------------|--------------------------------|---------|
-| **HelixTest (full)** | `deploy/docker-compose.yml` (demo + init + gateway) | `cargo run --bin helixtest --release -- --all --mode ferrum --report json --fail-level 1` | One gate with **maximum coverage**: everything HelixTest runs in Ferrum mode, including cross-service scenarios. Report uploaded as workflow artifact. |
+| **HelixTest (full)** | `deploy/docker-compose.yml` (demo + init + gateway) | `ci-drs-microbench-stream.sh` then `cargo run --bin helixtest --release -- --all --mode ferrum --report json --fail-level 1` | **Microbench** first (fast DRS `/stream` regression), then one gate with **maximum** HelixTest coverage; report uploaded as workflow artifact. |
 | **HelixTest (core services)** | Same stack | Step 1: `… --only wes --only tes --only drs --only trs --only beacon --fail-level 2` | Fast feedback in the Actions UI for the “core” GA4GH APIs. |
 | | | Step 2: `… --only htsget --fail-level 2` | **htsget** isolated so ticket/stream regressions do not hide inside a large step. |
+| **DRS /stream microbench** | Same stack | `deploy/scripts/ci-drs-microbench-stream.sh` (after gateway healthy) | **Fast path** (no HelixTest): plaintext **`microbench-plain-v1`** stream, **4096** bytes, SHA-256 check, **`X-Ferrum-DRS-Stream-Path`**. Catches DRS stream / MinIO seed regressions before heavy suites. |
 
 HelixTest is cloned from GitHub on each run; the ref is **`HELIXTEST_REF`** in the workflow (default `main`). Patch steps align expected checksums with Ferrum’s noop TES backend and seeded DRS URLs; auth-heavy Level‑4 behaviour is skipped in CI as documented below.
 

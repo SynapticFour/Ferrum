@@ -35,6 +35,21 @@ Mounting **`/var/run/docker.sock`** exposes the daemon API. Engines or wrappers 
 
 ---
 
+## Long-running tasks and larger workdirs (Docker / Podman TES)
+
+For **benchmarks** or **WES → TES** pipelines (Nextflow, WDL, …) that run longer than default container assumptions:
+
+| Concern | What to configure |
+|---------|-------------------|
+| **Scratch / workdir size** | TES **`volumes`** / **`disk_gb`** (see your TES client): bind a **host directory** with enough space into the task (e.g. `/work`), or use a **Docker volume** with sufficient quota. Ferrum does not auto-grow anonymous container storage. |
+| **Timeouts** | **TES** executor and **reverse proxies** may impose HTTP or idle timeouts; raise limits for long `stdout` or idle CPU phases. |
+| **Nested engines** | Nextflow/Cromwell may spawn many processes; ensure **CPU / memory** limits on the Docker/Podman daemon (or Slurm allocation) match the workflow. |
+| **WES work dir** | Non-TES WES executors use a **local** `work_dir_base` per run (see deployment config / `INSTALLATION.md`). Keep that filesystem on fast, spacious storage for large intermediates. |
+
+Details and nested-mount pitfalls: [Nested container execution / Host path contract](#nested-container-execution--host-path-contract-wes--tes). WES engine matrix: **[WES-WORKFLOW-ENGINES.md](WES-WORKFLOW-ENGINES.md)**.
+
+---
+
 ## Nested container execution / Host path contract (WES → TES)
 
 **Problem:** WES submits TES tasks that may run **nested** `docker`/`podman` (see [Host bind mounts and `docker.sock`](#host-bind-mounts-and-dockersock)). A second, **orthogonal** issue is **volume strategy**: should the executor see the **same host path** for workflow scratch and engine mounts as the outer TES agent, or only a container-local path such as `/work`?

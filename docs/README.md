@@ -33,6 +33,8 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System diagram, monorepo design, ferrum-core, **ferrum-storage**, service isolation, data flows, DB schema, async streaming, config system, deployment topologies. |
 | [STORAGE-BACKENDS.md](STORAGE-BACKENDS.md) | Object storage: `LocalStorage`, `S3Storage`, `put_file`, optional OpenDAL. |
 | [PERFORMANCE.md](../PERFORMANCE.md) | TB-scale options: libdeflate, benchmarks, BAM lazy ingest feature, cross-links. |
+| [PERFORMANCE-CRYPT4GH.md](PERFORMANCE-CRYPT4GH.md) | DRS **Plain vs Crypt4GH** benchmarks: comparable objects, curl/Python timing, `X-Ferrum-DRS-Stream-Path`, logs, pitfalls, CI microbench script. |
+| [WES-WORKFLOW-ENGINES.md](WES-WORKFLOW-ENGINES.md) | WES **`workflow_type`** matrix (WDL, **Nextflow**, CWL, Snakemake), TES defaults, `workflow_engine_params`, roadmap notes. |
 
 ---
 
@@ -61,7 +63,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | Document | Description |
 |----------|-------------|
 | [PROVENANCE.md](PROVENANCE.md) | Data provenance and lineage: DAG model, when edges are recorded, API endpoints, UI, RO-Crate export, configuration. |
-| [WORKFLOWS.md](WORKFLOWS.md) | Submitting Nextflow, CWL, WDL, Snakemake via WES; DRS inputs; HPC execution; live log streaming. |
+| [WORKFLOWS.md](WORKFLOWS.md) | Submitting Nextflow, CWL, WDL, Snakemake via WES; DRS inputs; HPC execution; live log streaming. See also [WES-WORKFLOW-ENGINES.md](WES-WORKFLOW-ENGINES.md). |
 | [TES-DOCKER-BACKEND.md](TES-DOCKER-BACKEND.md) | TES Docker/Podman: **entrypoint vs command**, nested `docker run`, host binds, `docker.sock` vs CLI, WES defaults pointer. |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Development setup, testing, PR process, adding a GA4GH service, Rust style. |
 | [SECURITY.md](../SECURITY.md) | Supported versions, reporting vulnerabilities, security model, operator considerations. |
