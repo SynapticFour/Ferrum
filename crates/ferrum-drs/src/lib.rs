@@ -123,12 +123,12 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/service-info", get(get_service_info))
         .route("/objects", get(list_objects_json).post(post_object_json))
+        // Register specific `/objects/:id/...` routes before `/objects/:object_id` so matchers stay unambiguous.
         .route(
-            "/objects/:object_id",
-            get(get_object)
-                .put(|s, p, j| async move { JsonResult(put_object(s, p, j).await) })
-                .delete(|s, p| async move { JsonResult(delete_object(s, p).await) })
-                .options(options_object),
+            "/objects/:object_id/stream",
+            get(
+                |s, p, h, auth| async move { StreamResult(get_object_stream(s, p, h, auth).await) },
+            ),
         )
         .route(
             "/objects/:object_id/contents",
@@ -149,10 +149,11 @@ pub fn router(state: AppState) -> Router {
             get(|s, p, auth| async move { ViewResult(get_object_view(s, p, auth).await) }),
         )
         .route(
-            "/objects/:object_id/stream",
-            get(
-                |s, p, h, auth| async move { StreamResult(get_object_stream(s, p, h, auth).await) },
-            ),
+            "/objects/:object_id",
+            get(get_object)
+                .put(|s, p, j| async move { JsonResult(put_object(s, p, j).await) })
+                .delete(|s, p| async move { JsonResult(delete_object(s, p).await) })
+                .options(options_object),
         )
         .route("/ingest/file", post(ingest_file_json))
         .route("/ingest/url", post(ingest_url_json))

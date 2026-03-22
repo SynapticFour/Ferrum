@@ -47,6 +47,135 @@ fn demo_dir() -> PathBuf {
         .join("demo")
 }
 
+/// Merge `FERRUM_STORAGE__*` env into storage config so Docker/CI never lose nested fields
+/// (e.g. `S3_ENDPOINT` missing from deserialized config → SDK defaults to real AWS and DRS /stream 404s on MinIO).
+fn merged_storage_config(base: Option<&ferrum_core::StorageConfig>) -> ferrum_core::StorageConfig {
+    let mut s = base.cloned().unwrap_or_default();
+    if let Ok(v) = std::env::var("FERRUM_STORAGE__BACKEND") {
+        let v = v.trim();
+        if !v.is_empty() {
+            s.backend = v.to_string();
+        }
+    }
+    if s.s3_endpoint
+        .as_ref()
+        .map(|e| e.trim().is_empty())
+        .unwrap_or(true)
+    {
+        if let Ok(v) = std::env::var("FERRUM_STORAGE__S3_ENDPOINT") {
+            let v = v.trim().to_string();
+            if !v.is_empty() {
+                s.s3_endpoint = Some(v);
+            }
+        }
+    }
+    if s.s3_bucket
+        .as_ref()
+        .map(|e| e.trim().is_empty())
+        .unwrap_or(true)
+    {
+        if let Ok(v) = std::env::var("FERRUM_STORAGE__S3_BUCKET") {
+            let v = v.trim().to_string();
+            if !v.is_empty() {
+                s.s3_bucket = Some(v);
+            }
+        }
+    }
+    if s.s3_region
+        .as_ref()
+        .map(|e| e.trim().is_empty())
+        .unwrap_or(true)
+    {
+        if let Ok(v) = std::env::var("FERRUM_STORAGE__S3_REGION") {
+            let v = v.trim().to_string();
+            if !v.is_empty() {
+                s.s3_region = Some(v);
+            }
+        }
+    }
+    if s.s3_access_key_id
+        .as_ref()
+        .map(|e| e.trim().is_empty())
+        .unwrap_or(true)
+    {
+        if let Ok(v) = std::env::var("FERRUM_STORAGE__S3_ACCESS_KEY_ID") {
+            let v = v.trim().to_string();
+            if !v.is_empty() {
+                s.s3_access_key_id = Some(v);
+            }
+        }
+    }
+    if s.s3_secret_access_key
+        .as_ref()
+        .map(|e| e.trim().is_empty())
+        .unwrap_or(true)
+    {
+        if let Ok(v) = std::env::var("FERRUM_STORAGE__S3_SECRET_ACCESS_KEY") {
+            let v = v.trim().to_string();
+            if !v.is_empty() {
+                s.s3_secret_access_key = Some(v);
+            }
+        }
+    }
+    s
+}
+
+fn storage_backend_is_s3_like(backend: &str) -> bool {
+    match backend.trim().to_ascii_lowercase().as_str() {
+        "s3" | "minio" | "s3-compatible" => true,
+        _ => false,
+    }
+}
+
+async fn build_object_storage(
+    storage_cfg: &ferrum_core::StorageConfig,
+) -> Option<std::sync::Arc<dyn ferrum_storage::ObjectStorage>> {
+    if storage_backend_is_s3_like(&storage_cfg.backend) {
+        if storage_cfg
+            .s3_endpoint
+            .as_ref()
+            .map(|e| e.trim().is_empty())
+            .unwrap_or(true)
+        {
+            tracing::warn!(
+                "storage.backend is S3-compatible but s3_endpoint is empty — AWS SDK will use default AWS S3; set FERRUM_STORAGE__S3_ENDPOINT for MinIO (DRS /stream will 404 if the object only exists on MinIO)"
+            );
+        }
+        match ferrum_storage::S3Storage::from_config(storage_cfg).await {
+            Ok(s) => {
+                tracing::info!(
+                    endpoint = ?storage_cfg.s3_endpoint,
+                    bucket = ?storage_cfg.s3_bucket,
+                    backend = %storage_cfg.backend,
+                    "S3-compatible object storage initialized for DRS"
+                );
+                Some(std::sync::Arc::new(s) as std::sync::Arc<dyn ferrum_storage::ObjectStorage>)
+            }
+            Err(e) => {
+                tracing::error!(
+                    error = %e,
+                    endpoint = ?storage_cfg.s3_endpoint,
+                    bucket = ?storage_cfg.s3_bucket,
+                    "S3Storage::from_config failed; DRS stream/ingest to object storage disabled"
+                );
+                None
+            }
+        }
+    } else {
+        let base = storage_cfg.base_path.as_deref().unwrap_or("./ferrum-blobs");
+        match ferrum_storage::LocalStorage::new(base) {
+            Ok(s) => {
+                tracing::info!(base_path = %base, "Local object storage initialized for DRS");
+                Some(std::sync::Arc::new(s) as std::sync::Arc<dyn ferrum_storage::ObjectStorage>)
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "LocalStorage init failed; DRS upload ingest disabled");
+                None
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let cli = Cli::parse();
@@ -156,36 +285,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             pool.clone(),
             drs_hostname.clone(),
         ));
-        let object_storage_backend = config
-            .as_ref()
-            .map(|c| c.storage.backend.clone())
-            .unwrap_or_else(|| "local".to_string());
+        let merged_storage = merged_storage_config(config.as_ref().map(|c| &c.storage));
+        let object_storage_backend = merged_storage.backend.clone();
 
         let ingest = config
             .as_ref()
             .map(|c| c.ingest.clone())
             .unwrap_or_default();
 
-        let storage: Option<Arc<dyn ferrum_storage::ObjectStorage>> = if let Some(ref cfg) = config
-        {
-            if cfg.storage.backend == "s3" {
-                match ferrum_storage::S3Storage::from_config(&cfg.storage).await {
-                    Ok(s) => Some(Arc::new(s) as Arc<dyn ferrum_storage::ObjectStorage>),
-                    Err(_) => None,
-                }
-            } else {
-                let base = cfg.storage.base_path.as_deref().unwrap_or("./ferrum-blobs");
-                match ferrum_storage::LocalStorage::new(base) {
-                    Ok(s) => Some(Arc::new(s) as Arc<dyn ferrum_storage::ObjectStorage>),
-                    Err(e) => {
-                        tracing::warn!(error = %e, "LocalStorage init failed; DRS upload ingest disabled");
-                        None
-                    }
-                }
-            }
-        } else {
-            None
-        };
+        let storage: Option<Arc<dyn ferrum_storage::ObjectStorage>> =
+            build_object_storage(&merged_storage).await;
         let crypt4gh_key_dir = std::env::var("FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR")
             .ok()
             .map(std::path::PathBuf::from)

@@ -501,6 +501,7 @@ pub async fn get_object_stream(
         .ok_or_else(|| DrsError::NotFound("no storage reference for object".into()))?;
 
     let (backend, key, is_encrypted) = storage_ref;
+    let key = key.trim().trim_start_matches('/').to_string();
     let backend_lower = backend.to_lowercase();
     if !(backend_lower == "local" || backend_lower == "s3" || backend_lower == "minio") {
         return Err(DrsError::Validation(format!(
@@ -520,7 +521,7 @@ pub async fn get_object_stream(
         .unwrap_or("application/octet-stream");
 
     let reader = storage
-        .get(&key)
+        .get(key.as_str())
         .await
         .map_err(|e| match e {
             FerrumError::NotFound(msg) => DrsError::NotFound(format!(
