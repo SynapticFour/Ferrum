@@ -33,7 +33,7 @@ async-trait = "0.1"
 base64 = "0.22.1"
 
 [dependencies.noodles-bam]
-version = "0.46"
+version = "0.87"
 optional = true
 default-features = false
 
