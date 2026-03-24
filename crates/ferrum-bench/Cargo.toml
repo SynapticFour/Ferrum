@@ -6,7 +6,7 @@ publish = false
 description = "Criterion benchmarks for Ferrum hot paths (compile with cargo bench -p ferrum-bench)"
 
 [dependencies]
-criterion = "0.5"
+criterion = "0.8"
 ferrum-storage = { path = "../ferrum-storage" }
 
 [[bench]]
