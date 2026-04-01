@@ -1793,6 +1793,7 @@ dependencies = [
  "ferrum-crypt4gh",
  "ferrum-storage",
  "futures-util",
+ "hex",
  "md5",
  "noodles-bam",
  "reqwest",

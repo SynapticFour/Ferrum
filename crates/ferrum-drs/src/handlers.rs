@@ -336,7 +336,7 @@ pub async fn get_object_view(
         .find(|c| c.r#type.eq_ignore_ascii_case("sha-256"))
         .map(|c| c.checksum.as_str())
     {
-        let actual = format!("{:x}", Sha256::digest(&body));
+        let actual = hex::encode(Sha256::digest(&body));
         if !expected.eq_ignore_ascii_case(&actual) {
             tracing::error!(object_id = %canonical, "checksum_mismatch on serve");
             return Err(DrsError::Other(anyhow::anyhow!(
