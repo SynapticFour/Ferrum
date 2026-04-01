@@ -109,7 +109,7 @@ pub async fn process_upload_from_parts(
         .encrypt
         .unwrap_or(state.ingest.default_encrypt_upload);
     if let Some(ref expected) = parsed.expected_sha256 {
-        let sha256 = format!("{:x}", Sha256::digest(&data));
+        let sha256 = hex::encode(Sha256::digest(&data));
         if expected.to_lowercase() != sha256 {
             return Err(DrsError::Validation(format!(
                 "checksum mismatch: expected sha-256 {}",
@@ -226,8 +226,8 @@ pub async fn process_upload_from_parts(
             md5_hasher.consume(&buf[..n]);
         }
 
-        let sha256_hex = format!("{:x}", sha256.finalize());
-        let sha512_hex = format!("{:x}", sha512.finalize());
+        let sha256_hex = hex::encode(sha256.finalize());
+        let sha512_hex = hex::encode(sha512.finalize());
         let md5_hex = format!("{:x}", md5_hasher.compute());
 
         let checksum_pairs = vec![
@@ -520,8 +520,8 @@ pub async fn ingest_batch(
                         md5_hasher.consume(&buf[..n]);
                     }
 
-                    let sha256_hex = format!("{:x}", sha256.finalize());
-                    let sha512_hex = format!("{:x}", sha512.finalize());
+                    let sha256_hex = hex::encode(sha256.finalize());
+                    let sha512_hex = hex::encode(sha512.finalize());
                     let md5_hex = format!("{:x}", md5_hasher.compute());
 
                     let checksum_pairs = vec![
