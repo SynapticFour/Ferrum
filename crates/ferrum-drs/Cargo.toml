@@ -40,7 +40,7 @@ default-features = false
 
 [features]
 default = []
-# BAM ingest helpers using `lazy_records()` (faster when only positions/names are needed; skips full record validation).
+# BAM ingest helpers using noodles `Reader::records()` (lazy decode; faster when only positions/names are needed).
 bam-lazy-ingest = ["dep:noodles-bam"]
 standalone = ["tracing-subscriber"]
 s3_signed = ["dep:aws-config", "dep:aws-sdk-s3"]
