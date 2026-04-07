@@ -12,6 +12,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --workspace
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace --all-targets
+
   # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
   bench-and-features:
     runs-on: ubuntu-latest
