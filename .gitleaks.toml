@@ -1,0 +1,6 @@
+[allowlist]
+description = "Allow fixture private keys used in crypt4gh test vectors"
+paths = [
+  '''^crates/ferrum-crypt4gh/tests/keys/python_ref_alice\.sec$''',
+  '''^crates/ferrum-crypt4gh/tests/keys/python_ref_bob\.sec$'''
+]
