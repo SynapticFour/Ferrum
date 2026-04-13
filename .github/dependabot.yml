@@ -7,41 +7,25 @@ updates:
     open-pull-requests-limit: 3
     groups:
       github_actions_all:
-        patterns:
-          - "*"
+        patterns: ["*"]
     commit-message:
       prefix: "deps"
       include: "scope"
-    labels:
-      - "dependencies"
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
-    groups:
-      npm_all:
-        patterns:
-          - "*"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels:
-      - "dependencies"
+    labels: ["dependencies"]
+
   - package-ecosystem: "npm"
     directory: "/services/ui"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 3
     groups:
-      npm_all:
-        patterns:
-          - "*"
+      npm_ui:
+        patterns: ["*"]
     commit-message:
       prefix: "deps"
       include: "scope"
-    labels:
-      - "dependencies"
+    labels: ["dependencies"]
+
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
@@ -49,38 +33,34 @@ updates:
     open-pull-requests-limit: 3
     groups:
       cargo_all:
-        patterns:
-          - "*"
+        patterns: ["*"]
     commit-message:
       prefix: "deps"
       include: "scope"
-    labels:
-      - "dependencies"
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
-    groups:
-      docker_all:
-        patterns:
-          - "*"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels:
-      - "dependencies"
+    labels: ["dependencies"]
+
   - package-ecosystem: "docker"
     directory: "/deploy"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 3
     groups:
-      docker_all:
-        patterns:
-          - "*"
+      docker_deploy:
+        patterns: ["*"]
     commit-message:
       prefix: "deps"
       include: "scope"
-    labels:
-      - "dependencies"
+    labels: ["dependencies"]
+
+  - package-ecosystem: "docker"
+    directory: "/services/ui"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    groups:
+      docker_ui:
+        patterns: ["*"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels: ["dependencies"]
