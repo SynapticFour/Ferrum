@@ -1,6 +1,6 @@
 # Init container: migrations, MinIO bucket, Keycloak realm, Crypt4GH keys, seed DRS.
 # Run once after postgres/minio/keycloak are healthy.
-FROM alpine:3.19
+FROM alpine:3.23
 RUN apk add --no-cache postgresql16-client curl netcat-openbsd bash wget
 
 # MinIO client for bucket creation (multi-arch)
