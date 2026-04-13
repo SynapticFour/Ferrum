@@ -7,9 +7,9 @@ license = "BUSL-1.1"
 
 [dependencies]
 ferrum-core = { path = "../ferrum-core" }
-axum = "0.7"
+axum = "0.8"
 tokio = { version = "1", features = ["full"] }
-tower = "0.4"
+tower = "0.5"
 tower-service = "0.3"
 http-body-util = "0.1"
 http = "1"
@@ -18,17 +18,17 @@ hyper = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
-utoipa = { version = "4", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "6", features = ["axum"] }
+utoipa = { version = "5", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7", features = ["axum"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 crypt4gh = "0.4"
 async-trait = "0.1"
 bytes = "1"
-dashmap = "5"
+dashmap = "6"
 futures-util = "0.3"
 parking_lot = "0.12"
 base64 = "0.22"
-thiserror = "1"
+thiserror = "2"
 anyhow = "1"
 
 [[bin]]
