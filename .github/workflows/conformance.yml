@@ -27,6 +27,7 @@ env:
 
 jobs:
   helixtest-full:
+    if: github.actor != 'dependabot[bot]'
     name: HelixTest (full)
     runs-on: ubuntu-latest
     steps:
@@ -166,6 +167,7 @@ jobs:
         run: docker compose -f deploy/docker-compose.yml down -v --remove-orphans || true
 
   helixtest-services:
+    if: github.actor != 'dependabot[bot]'
     name: HelixTest (core services)
     runs-on: ubuntu-latest
     steps:
