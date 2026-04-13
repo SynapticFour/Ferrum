@@ -4,63 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 1
     groups:
       github_actions_all:
-        patterns: ["*"]
+        patterns:
+          - "*"
     commit-message:
       prefix: "deps"
       include: "scope"
-    labels: ["dependencies"]
-
-  - package-ecosystem: "npm"
-    directory: "/services/ui"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
-    groups:
-      npm_ui:
-        patterns: ["*"]
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels: ["dependencies"]
-
-  - package-ecosystem: "cargo"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
-    groups:
-      cargo_all:
-        patterns: ["*"]
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels: ["dependencies"]
-
-  - package-ecosystem: "docker"
-    directory: "/deploy"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
-    groups:
-      docker_deploy:
-        patterns: ["*"]
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels: ["dependencies"]
-
-  - package-ecosystem: "docker"
-    directory: "/services/ui"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
-    groups:
-      docker_ui:
-        patterns: ["*"]
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-    labels: ["dependencies"]
+    labels:
+      - "dependencies"
