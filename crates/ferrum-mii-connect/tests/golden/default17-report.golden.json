@@ -1,0 +1,167 @@
+{
+  "ferrum_component": "ferrum-mii-connect",
+  "profile_set_version": "mii-kds-default17-v1",
+  "manifest_sha256": "818b58c9a971a64043d1047b3153a6802ce04732af2e89bff48ee8885882333f",
+  "summary": {
+    "total_resources": 17,
+    "passed": 17,
+    "failed": 0,
+    "skipped": 0
+  },
+  "gap_list": [],
+  "resources": [
+    {
+      "resource_id": "person-1",
+      "resource_type": "Patient",
+      "module": "person",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/core/modul-person/StructureDefinition/Patient",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "enc-1",
+      "resource_type": "Encounter",
+      "module": "encounter",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/core/modul-fall/StructureDefinition/KontaktGesundheitseinrichtung",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "consent-1",
+      "resource_type": "Consent",
+      "module": "consent",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/modul-consent/StructureDefinition/mii-pr-consent-einwilligung",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "diag-1",
+      "resource_type": "Condition",
+      "module": "diagnosis",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/core/modul-diagnose/StructureDefinition/Diagnose",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "proc-1",
+      "resource_type": "Procedure",
+      "module": "procedure",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/core/modul-prozedur/StructureDefinition/Procedure",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "lab-1",
+      "resource_type": "Observation",
+      "module": "laboratory",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/core/modul-labor/StructureDefinition/ObservationLab",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "med-1",
+      "resource_type": "MedicationRequest",
+      "module": "medication",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/core/modul-medikation/StructureDefinition/MedicationRequest",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "onco-1",
+      "resource_type": "Condition",
+      "module": "oncology",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/StructureDefinition/mii-pr-onko-diagnose-primaertumor",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "path-1",
+      "resource_type": "Composition",
+      "module": "pathology_report",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/ext/modul-patho/StructureDefinition/mii-pr-patho-composition",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "molgen-1",
+      "resource_type": "DiagnosticReport",
+      "module": "molecular_genetic_report",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/ext/modul-molgen/StructureDefinition/molekulargenetischer-befundbericht",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "mtb-1",
+      "resource_type": "CarePlan",
+      "module": "molecular_tumor_board",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/ext/modul-mtb/StructureDefinition/mii-pr-mtb-therapieplan",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "micro-1",
+      "resource_type": "DiagnosticReport",
+      "module": "microbiology",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/modul-mikrobio/StructureDefinition/mii-pr-mikrobio-diagnostic-report",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "img-1",
+      "resource_type": "ImagingStudy",
+      "module": "imaging",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/ext/modul-bildgebung/StructureDefinition/mii-pr-bildgebung-bildgebungsstudie",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "icu-1",
+      "resource_type": "DeviceMetric",
+      "module": "intensive_care",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/ext/modul-icu/StructureDefinition/mii-pr-icu-devicemetric-eingestellte-gemessene-parameter-beatmung",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "bio-1",
+      "resource_type": "Specimen",
+      "module": "biobank",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/ext/modul-biobank/StructureDefinition/Specimen",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "doc-1",
+      "resource_type": "DocumentReference",
+      "module": "document",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/ext/modul-dokument/StructureDefinition/mii-pr-dokument-dokument",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    },
+    {
+      "resource_id": "study-1",
+      "resource_type": "ResearchStudy",
+      "module": "research_study",
+      "profile": "https://www.medizininformatik-initiative.de/fhir/modul-studie/StructureDefinition/mii-pr-studie-studie",
+      "status": "pass",
+      "issues": [],
+      "gap_tags": []
+    }
+  ]
+}

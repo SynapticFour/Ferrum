@@ -256,6 +256,17 @@ that can support EHDS‑related requirements. Whether a deployment is EHDS
 compliant depends on future delegated acts and on the operator’s legal and
 organisational measures.
 
+### MII-KDS conformance layer (technical)
+
+Ferrum can be extended with **Ferrum MII Connect**, a technical validation layer for checking FHIR resources against vendored MII-KDS profile metadata. This supports operational quality control for DIZ-style ETL processes and improves auditability of profile adherence.
+
+Important boundary:
+
+- MII Connect provides a **technical conformance signal** (resource/profile checks, gap reports).
+- The optional **`mii sync-manifest`** path regenerates the manifest from pinned FHIR NPM packages; it records package checksums for auditability but **does not** substitute for a full FHIR validator, MII ballot processes, or site-specific accreditation.
+- It does **not** by itself establish legal EHDS, GDPR, BDSG, or hospital-policy compliance.
+- Operators remain responsible for legal basis, governance, consent models, and institutional controls.
+
 ### EHDS Primary Use (patient access to own data)
 
 Ferrum's DRS API enables structured access to genomic data, supporting
@@ -406,4 +417,4 @@ qualified legal professional familiar with your jurisdiction.*
 ---
 
 *Proudly developed by individuals on the autism spectrum in Germany 🇩🇪*
-*© 2025 Synaptic Four — Precise tools for precise science*
+*© 2026 Synaptic Four — Precise tools for precise science*

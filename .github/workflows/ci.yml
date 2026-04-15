@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  RUN_MII_CONNECT: "false"
+
 jobs:
   build:
     if: github.actor != 'dependabot[bot]'
@@ -22,6 +25,20 @@ jobs:
       - name: Run workspace tests (best effort)
         continue-on-error: true
         run: cargo test --workspace --all-targets
+      - name: Run MII Connect validation (optional)
+        if: env.RUN_MII_CONNECT == 'true'
+        run: |
+          cargo run -p ferrum-cli -- mii validate \
+            --input profiles/mii/samples/default17-bundle.json \
+            --manifest profiles/mii/manifest.json \
+            --strict \
+            --output mii-conformance-report.json
+      - name: Upload MII Connect report (optional)
+        if: always() && env.RUN_MII_CONNECT == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mii-conformance-report
+          path: mii-conformance-report.json
 
   # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
   bench-and-features:
@@ -36,3 +53,4 @@ jobs:
       - run: cargo check -p ferrum-storage --features opendal
       - run: cargo check -p ferrum-core --features libdeflate
       - run: cargo check -p ferrum-drs --features bam-lazy-ingest
+      - run: cargo check -p ferrum-mii-connect

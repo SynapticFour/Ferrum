@@ -1,0 +1,23 @@
+{
+  "registry_base": "https://packages.fhir.org",
+  "profile_set_version": "mii-kds-default17-v1",
+  "packages": [
+    { "module": "person", "package_name": "de.medizininformatikinitiative.kerndatensatz.person", "package_version": "2025.0.1" },
+    { "module": "encounter", "package_name": "de.medizininformatikinitiative.kerndatensatz.fall", "package_version": "2025.0.1" },
+    { "module": "consent", "package_name": "de.medizininformatikinitiative.kerndatensatz.consent", "package_version": "2026.0.0" },
+    { "module": "diagnosis", "package_name": "de.medizininformatikinitiative.kerndatensatz.diagnose", "package_version": "2025.0.1" },
+    { "module": "procedure", "package_name": "de.medizininformatikinitiative.kerndatensatz.prozedur", "package_version": "2025.0.1" },
+    { "module": "laboratory", "package_name": "de.medizininformatikinitiative.kerndatensatz.laborbefund", "package_version": "2026.0.1" },
+    { "module": "medication", "package_name": "de.medizininformatikinitiative.kerndatensatz.medikation", "package_version": "2026.0.1" },
+    { "module": "oncology", "package_name": "de.medizininformatikinitiative.kerndatensatz.onkologie", "package_version": "2026.0.3" },
+    { "module": "pathology_report", "package_name": "de.medizininformatikinitiative.kerndatensatz.patho", "package_version": "2026.0.2" },
+    { "module": "molecular_genetic_report", "package_name": "de.medizininformatikinitiative.kerndatensatz.molgen", "package_version": "2026.0.4" },
+    { "module": "molecular_tumor_board", "package_name": "de.medizininformatikinitiative.kerndatensatz.mtb", "package_version": "2026.0.1" },
+    { "module": "microbiology", "package_name": "de.medizininformatikinitiative.kerndatensatz.mikrobiologie", "package_version": "2025.0.1" },
+    { "module": "imaging", "package_name": "de.medizininformatikinitiative.kerndatensatz.bildgebung", "package_version": "2026.0.0" },
+    { "module": "intensive_care", "package_name": "de.medizininformatikinitiative.kerndatensatz.icu", "package_version": "2026.0.2" },
+    { "module": "biobank", "package_name": "de.medizininformatikinitiative.kerndatensatz.biobank", "package_version": "2026.0.1" },
+    { "module": "document", "package_name": "de.medizininformatikinitiative.kerndatensatz.dokument", "package_version": "2026.0.1" },
+    { "module": "research_study", "package_name": "de.medizininformatikinitiative.kerndatensatz.studie", "package_version": "2026.0.2" }
+  ]
+}

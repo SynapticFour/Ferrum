@@ -56,16 +56,8 @@ fn parse_volume_entry(v: &serde_json::Value) -> Option<String> {
         .or_else(|| obj.get("Container"))
         .or_else(|| obj.get("target"))
         .and_then(|x| x.as_str())?;
-    let mode = obj
-        .get("mode")
-        .and_then(|x| x.as_str())
-        .unwrap_or("rw");
-    Some(format!(
-        "{}:{}:{}",
-        host.trim(),
-        dest.trim(),
-        mode.trim()
-    ))
+    let mode = obj.get("mode").and_then(|x| x.as_str()).unwrap_or("rw");
+    Some(format!("{}:{}:{}", host.trim(), dest.trim(), mode.trim()))
 }
 
 fn collect_binds(request: &CreateTaskRequest) -> Vec<String> {
@@ -98,11 +90,7 @@ fn collect_binds(request: &CreateTaskRequest) -> Vec<String> {
 
 fn build_host_config(binds: Vec<String>) -> Option<HostConfig> {
     let mut hc = HostConfig {
-        binds: if binds.is_empty() {
-            None
-        } else {
-            Some(binds)
-        },
+        binds: if binds.is_empty() { None } else { Some(binds) },
         ..Default::default()
     };
 
@@ -124,9 +112,7 @@ fn build_host_config(binds: Vec<String>) -> Option<HostConfig> {
         }
     }
 
-    let empty = hc.binds.is_none()
-        && hc.network_mode.is_none()
-        && hc.extra_hosts.is_none();
+    let empty = hc.binds.is_none() && hc.network_mode.is_none() && hc.extra_hosts.is_none();
     if empty {
         None
     } else {
@@ -168,10 +154,7 @@ impl TaskExecutor for DockerExecutor {
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty());
 
-        let opts = CreateContainerOptions {
-            name,
-            platform,
-        };
+        let opts = CreateContainerOptions { name, platform };
         let create = self
             .docker
             .create_container(Some(opts), config)
@@ -224,10 +207,7 @@ mod tests {
     #[test]
     fn parse_volume_string() {
         let v = serde_json::json!("/a:/b:rw");
-        assert_eq!(
-            parse_volume_entry(&v),
-            Some("/a:/b:rw".to_string())
-        );
+        assert_eq!(parse_volume_entry(&v), Some("/a:/b:rw".to_string()));
     }
 
     #[test]

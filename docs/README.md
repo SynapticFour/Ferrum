@@ -52,6 +52,9 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | Document | Description |
 |----------|-------------|
 | [GA4GH.md](GA4GH.md) | DRS, WES, TES, TRS, Beacon, Passports: versions, endpoints, auth, extensions, interoperability, Passport/Visa config. |
+| [MII-CONNECT.md](MII-CONNECT.md) | Ferrum MII Connect: technical MII-oriented profile checks, `validate` / `sync-manifest` CLI, config, legal/technical boundaries. |
+| [MII-MODULE-MAPPING.md](MII-MODULE-MAPPING.md) | Default-17 module/resource mapping and gap tag taxonomy for MII validation. |
+| [MII-CI-INTEGRATION.md](MII-CI-INTEGRATION.md) | CI patterns (GitHub/GitLab), strictness strategy and audit retention for MII reports. |
 | [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md) | **Machine ingest for Lab Kit:** `/api/v1/ingest` (register, upload, jobs), auth, Crypt4GH, idempotency, curl examples. |
 | [CRYPT4GH.md](CRYPT4GH.md) | Crypt4GH transparent encryption: header re-wrapping, security invariants, key exchange, key management, client usage. |
 | [HTSGET.md](HTSGET.md) | GA4GH htsget 1.3.0 tickets (reads/variants): ticket URLs, service-info, validation and DRS `/stream` mapping. |

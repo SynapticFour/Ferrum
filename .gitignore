@@ -14,6 +14,9 @@ services/ui/*.tsbuildinfo
 # Local clones / tooling checkouts
 helixtest-repo/
 
+# MII FHIR package mirrors (from `ferrum mii sync-manifest`)
+profiles/mii/package-cache/
+
 # OS
 .DS_Store
 Thumbs.db

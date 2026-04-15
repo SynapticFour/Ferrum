@@ -1,0 +1,16 @@
+[package]
+name = "ferrum-mii-connect"
+version = "0.1.0"
+edition = "2021"
+description = "MII-KDS conformance validation layer for Ferrum"
+license = "BUSL-1.1"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+thiserror = "1"
+flate2 = "1"
+tar = "0.4"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking"] }

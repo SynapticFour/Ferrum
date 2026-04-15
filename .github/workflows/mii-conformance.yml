@@ -1,0 +1,31 @@
+name: MII Conformance
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - "crates/ferrum-mii-connect/**"
+      - "tools/ferrum-cli/**"
+      - "profiles/mii/**"
+      - ".github/workflows/mii-conformance.yml"
+
+jobs:
+  mii-validate:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run MII validation report
+        run: |
+          cargo run -p ferrum-cli -- mii validate \
+            --input profiles/mii/samples/default17-bundle.json \
+            --manifest profiles/mii/manifest.json \
+            --strict \
+            --output mii-conformance-report.json
+      - name: Upload MII report
+        uses: actions/upload-artifact@v4
+        with:
+          name: mii-conformance-report
+          path: mii-conformance-report.json

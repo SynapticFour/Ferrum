@@ -323,8 +323,7 @@ mod tests {
             tags: None,
         };
         let script = render_submit_script("t2", &req).unwrap();
-        assert!(script.contains(
-            r#"--wrap="podman run --rm --entrypoint /bin/sh img:latest -c echo ok""#
-        ));
+        assert!(script
+            .contains(r#"--wrap="podman run --rm --entrypoint /bin/sh img:latest -c echo ok""#));
     }
 }

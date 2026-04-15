@@ -49,6 +49,7 @@ Security-focused tests live in the `ferrum-security-tests` crate (SSRF, validati
 - **TLS:** Use HTTPS in production; terminate TLS at a reverse proxy (e.g. nginx) or load balancer.
 - **Network:** Restrict access to Ferrum and backing services (PostgreSQL, MinIO) to trusted networks where possible.
 - **Updates:** Apply security and dependency updates promptly; run `cargo audit` (or similar) as part of your process.
+- **MII manifest sync (`ferrum mii sync-manifest`):** When not using `--offline`, the CLI downloads FHIR NPM packages over HTTPS from the configured registry (default `https://packages.fhir.org`). Treat downloaded `.tgz` files like any other supply-chain artifact: verify versions against your change-management policy, prefer offline mirrors in high-assurance environments, and store caches with appropriate access controls.
 
 ### Production hardening checklist (non-exhaustive)
 

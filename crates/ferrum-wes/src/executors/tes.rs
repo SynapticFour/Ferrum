@@ -154,7 +154,8 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
         std::fs::write(&path, json)?;
     }
 
-    if nf_file && matches!(wt.as_str(), "nextflow" | "nxf" | "nfl")
+    if nf_file
+        && matches!(wt.as_str(), "nextflow" | "nxf" | "nfl")
         && workflow_params_meaningful(&run.workflow_params)
     {
         let path = work_dir.join("params.json");

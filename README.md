@@ -39,6 +39,7 @@ For product scope versus a future **GA4GH compliance starter kit** (orchestratio
 | 🖥️ | **HPC scheduling** — SLURM and LSF job scheduling. |
 | 🚀 | **One-command demo** — `ferrum demo start`; Helm charts for production. |
 | 📊 | **Provenance & lineage** — DAG of DRS objects and WES runs; queryable upstream/downstream, visual graph, [RO-Crate](https://w3id.org/ro/crate/1.1) export for citation. |
+| 🇩🇪 | **Ferrum MII Connect (default-17)** — offline-first technical checks of FHIR `meta.profile` against vendored MII-oriented profile metadata (default 17-module set), optional deterministic `mii sync-manifest` from pinned FHIR NPM packages, JSON/SARIF reports for ETL CI. Not a full FHIR validator or legal compliance claim. See [docs/MII-CONNECT.md](docs/MII-CONNECT.md). |
 | GDPR/DSGVO support | Technical features (encryption, provenance, access control) that operators can combine with their own legal and organisational measures. See [COMPLIANCE.md](docs/COMPLIANCE.md). |
 | Gaia-X principles | On-premises deployment and GA4GH APIs that can support Gaia-X-style data sovereignty; formal Gaia-X labelling requires separate assessment. |
 | EHDS alignment | Uses GA4GH APIs referenced in EHDS discussions; actual EHDS compliance depends on future delegated acts and operator processes. |
@@ -275,5 +276,5 @@ Built with ❤️ for the open science community.
 Implementing GA4GH open standards for sovereign bioinformatics infrastructure.
 Proudly developed by individuals on the autism spectrum in Germany 🇩🇪
 We build tools that are precise, thorough, and designed to work exactly as documented.
-© 2025 Synaptic Four · Licensed under BUSL-1.1 · Free for non-commercial research
+© 2026 Synaptic Four · Licensed under BUSL-1.1 · Free for non-commercial research
 </div>

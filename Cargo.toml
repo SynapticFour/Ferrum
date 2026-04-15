@@ -15,6 +15,7 @@ members = [
     "crates/ferrum-workspaces",
     "crates/ferrum-security-tests",
     "crates/ferrum-htsget",
+    "crates/ferrum-mii-connect",
     "tools/ferrum-cli",
     "crates/ferrum-bench",
 ]

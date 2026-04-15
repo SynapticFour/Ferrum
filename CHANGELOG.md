@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **MII Connect** — `ferrum mii sync-manifest` regenerates `profiles/mii/manifest.json` from pinned FHIR NPM packages (`profiles/mii/sync-spec.json`), with optional cache under `profiles/mii/package-cache/` and `package_sha256` per package. Library support in `ferrum-mii-connect::sync` (StructureDefinition extraction from `.tgz`). Docs: [docs/MII-CONNECT.md](docs/MII-CONNECT.md), [SECURITY.md](SECURITY.md) (supply-chain note).
 - **TES Docker (Bollard)** — `CreateTaskRequest.volumes[]` → **`HostConfig.Binds`**; optional **`FERRUM_TES_DOCKER_*`** env (`MOUNT_SOCKET`, `CLI_HOST_PATH` + `CLI_CONTAINER_PATH`, `NETWORK_MODE`, `EXTRA_HOSTS`, `PLATFORM`). **`deploy/Dockerfile.gateway`**: build-arg **`FERRUM_GATEWAY_FEATURES`** (e.g. `tes-docker`).
 - **Gateway** — Cargo feature **`tes-docker`** → enables **`ferrum-tes/docker`** for daemon-backed TES without changing default builds.
 - **WES → TES (opt-in)** — Env **`FERRUM_WES_TES_WORK_HOST_PREFIX`**, **`FERRUM_WES_TES_CONTAINER_WORKDIR`**, **`FERRUM_WES_TES_WDL_BASH_LAUNCH`**, **`FERRUM_WES_TES_NEXTFLOW_FILE_LAUNCH`**; default task shape **unchanged** when unset. **`FERRUM_WES_WORKFLOW_URL`** in task env for shell modes.

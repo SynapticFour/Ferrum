@@ -30,6 +30,9 @@ pub struct FerrumConfig {
     /// Lab Kit / machine ingest: upload defaults and limits (`/api/v1/ingest/*`).
     #[serde(default)]
     pub ingest: IngestConfig,
+    /// MII Connect (FHIR MII-KDS conformance checks).
+    #[serde(default)]
+    pub mii_connect: MiiConnectConfig,
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].
@@ -51,9 +54,81 @@ impl IngestConfig {
     }
 }
 
+/// MII Connect configuration for offline-first KDS profile validation.
+#[derive(Debug, Clone, Deserialize)]
+pub struct MiiConnectConfig {
+    /// Enable MII validation checks.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Active module set (MII default-17 profile defaults).
+    #[serde(default = "default_mii_modules")]
+    pub modules: Vec<String>,
+    /// Version tag of vendored profile set.
+    #[serde(default = "default_mii_profile_set_version")]
+    pub profile_set_version: String,
+    /// Strict mode fails on warnings that indicate gaps.
+    #[serde(default)]
+    pub strict_mode: bool,
+    /// Optional cap for maximum per-run errors before short-circuit.
+    #[serde(default)]
+    pub max_errors: Option<usize>,
+    /// Keep validation offline-only unless explicitly disabled.
+    #[serde(default = "default_true")]
+    pub offline_only: bool,
+    /// Path to vendored manifest json.
+    #[serde(default = "default_mii_manifest_path")]
+    pub manifest_path: String,
+}
+
+impl Default for MiiConnectConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            modules: default_mii_modules(),
+            profile_set_version: default_mii_profile_set_version(),
+            strict_mode: false,
+            max_errors: None,
+            offline_only: true,
+            manifest_path: default_mii_manifest_path(),
+        }
+    }
+}
+
+fn default_mii_modules() -> Vec<String> {
+    vec![
+        "person".to_string(),
+        "encounter".to_string(),
+        "consent".to_string(),
+        "diagnosis".to_string(),
+        "procedure".to_string(),
+        "laboratory".to_string(),
+        "medication".to_string(),
+        "oncology".to_string(),
+        "pathology_report".to_string(),
+        "molecular_genetic_report".to_string(),
+        "molecular_tumor_board".to_string(),
+        "microbiology".to_string(),
+        "imaging".to_string(),
+        "intensive_care".to_string(),
+        "biobank".to_string(),
+        "document".to_string(),
+        "research_study".to_string(),
+    ]
+}
+
+fn default_mii_profile_set_version() -> String {
+    "mii-kds-default17-v1".to_string()
+}
+
+fn default_mii_manifest_path() -> String {
+    "profiles/mii/manifest.json".to_string()
+}
+
 #[cfg(test)]
 mod ingest_config_tests {
-    use super::IngestConfig;
+    use super::{FerrumConfig, IngestConfig, MiiConnectConfig};
+    use std::fs;
+    use std::io::Write;
 
     #[test]
     fn effective_max_upload_bytes_default_one_gib() {
@@ -68,6 +143,56 @@ mod ingest_config_tests {
             max_upload_bytes: Some(1024),
         };
         assert_eq!(c.effective_max_upload_bytes(), 1024);
+    }
+
+    #[test]
+    fn mii_connect_default_is_offline_default17_disabled() {
+        let m = MiiConnectConfig::default();
+        assert!(!m.enabled);
+        assert!(m.offline_only);
+        assert_eq!(m.modules.len(), 17);
+        assert_eq!(m.profile_set_version, "mii-kds-default17-v1");
+        assert_eq!(m.manifest_path, "profiles/mii/manifest.json");
+    }
+
+    #[test]
+    fn mii_connect_loads_from_file() {
+        let file = std::env::temp_dir().join("ferrum-config-mii-test.toml");
+        let mut f = fs::File::create(&file).expect("create temp config");
+        writeln!(
+            f,
+            r#"
+bind = "0.0.0.0:8080"
+
+[database]
+driver = "sqlite"
+sqlite_path = "ferrum.db"
+
+[mii_connect]
+enabled = true
+modules = ["diagnosis", "genomics"]
+profile_set_version = "mii-kds-default17-v2"
+strict_mode = true
+max_errors = 7
+offline_only = true
+manifest_path = "profiles/mii/custom-manifest.json"
+"#
+        )
+        .expect("write");
+
+        let cfg = FerrumConfig::load_from_path(&file).expect("load config");
+        assert!(cfg.mii_connect.enabled);
+        assert_eq!(cfg.mii_connect.modules, vec!["diagnosis", "genomics"]);
+        assert_eq!(cfg.mii_connect.profile_set_version, "mii-kds-default17-v2");
+        assert!(cfg.mii_connect.strict_mode);
+        assert_eq!(cfg.mii_connect.max_errors, Some(7));
+        assert!(cfg.mii_connect.offline_only);
+        assert_eq!(
+            cfg.mii_connect.manifest_path,
+            "profiles/mii/custom-manifest.json"
+        );
+
+        let _ = fs::remove_file(file);
     }
 }
 
@@ -464,6 +589,33 @@ impl FerrumConfig {
             .set_default("encryption.crypt4gh_decrypt_stream", true)?
             .set_default("encryption.crypt4gh_master_key_id", "node")?
             .set_default("ingest.default_encrypt_upload", false)?
+            .set_default("mii_connect.enabled", false)?
+            .set_default(
+                "mii_connect.modules",
+                vec![
+                    "person",
+                    "encounter",
+                    "consent",
+                    "diagnosis",
+                    "procedure",
+                    "laboratory",
+                    "medication",
+                    "oncology",
+                    "pathology_report",
+                    "molecular_genetic_report",
+                    "molecular_tumor_board",
+                    "microbiology",
+                    "imaging",
+                    "intensive_care",
+                    "biobank",
+                    "document",
+                    "research_study",
+                ],
+            )?
+            .set_default("mii_connect.profile_set_version", "mii-kds-default17-v1")?
+            .set_default("mii_connect.strict_mode", false)?
+            .set_default("mii_connect.offline_only", true)?
+            .set_default("mii_connect.manifest_path", "profiles/mii/manifest.json")?
             .set_default("pricing.enabled", false)?
             .set_default("pricing.currency", "USD")?
             .set_default("pricing.cpu_core_hour", 0.048)?

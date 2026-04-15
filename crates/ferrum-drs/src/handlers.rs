@@ -520,16 +520,13 @@ pub async fn get_object_stream(
         .as_deref()
         .unwrap_or("application/octet-stream");
 
-    let reader = storage
-        .get(key.as_str())
-        .await
-        .map_err(|e| match e {
-            FerrumError::NotFound(msg) => DrsError::NotFound(format!(
-                "storage object missing (backend={} key={}): {msg}",
-                backend_lower, key
-            )),
-            other => DrsError::Other(other.into()),
-        })?;
+    let reader = storage.get(key.as_str()).await.map_err(|e| match e {
+        FerrumError::NotFound(msg) => DrsError::NotFound(format!(
+            "storage object missing (backend={} key={}): {msg}",
+            backend_lower, key
+        )),
+        other => DrsError::Other(other.into()),
+    })?;
 
     let client_ip = headers
         .get("x-forwarded-for")

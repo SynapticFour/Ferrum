@@ -54,6 +54,7 @@ We follow a respectful, inclusive code of conduct. Be kind and professional in i
 - **Integration tests:** Same; integration tests live under `*/tests/` or within crates.
 - **CI (Rust):** GitHub Actions runs `cargo test --all` and `cargo clippy --all-targets --all -- -D warnings` on push and PRs.
 - **GA4GH conformance (HelixTest):** The [Conformance (HelixTest)](.github/workflows/conformance.yml) workflow builds the demo stack and runs [HelixTest](https://github.com/SynapticFour/HelixTest) in Ferrum mode. **What is covered in CI** (WES, TES, DRS, TRS, Beacon, htsget, E2E, etc.) is documented in [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
+- **MII Connect:** `cargo test -p ferrum-mii-connect` (includes golden manifest snapshot). Regenerating `profiles/mii/manifest.json` via `ferrum mii sync-manifest` is optional and may hit the public package registry; see [docs/MII-CONNECT.md](docs/MII-CONNECT.md).
 
 ---
 
