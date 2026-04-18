@@ -22,7 +22,7 @@ env:
   # Tickets from htsget must point at a URL the runner can use; gateway default is https://{FERRUM_DRS_HOSTNAME}
   FERRUM_PUBLIC_BASE_URL: http://localhost:8080
   # Official library mirror on AWS Public ECR — avoids Docker Hub 504/timeouts in CI
-  RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1-bookworm
+  RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1.91.1-bookworm
   DEBIAN_RUNTIME_IMAGE: public.ecr.aws/docker/library/debian:bookworm-slim
 
 jobs:

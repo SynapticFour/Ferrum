@@ -81,7 +81,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.gateway
       args:
-        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1-bookworm}
+        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.91.1-bookworm}
         DEBIAN_RUNTIME_IMAGE: ${DEBIAN_RUNTIME_IMAGE:-debian:bookworm-slim}
     image: ferrum-gateway:latest
     pull_policy: build

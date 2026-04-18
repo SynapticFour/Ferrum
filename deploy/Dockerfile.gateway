@@ -1,10 +1,10 @@
 # Build Ferrum gateway binary
 # Override in CI via build-args to use a mirror when Docker Hub is flaky, e.g.:
-#   RUST_BUILDER_IMAGE=public.ecr.aws/docker/library/rust:1-bookworm
+#   RUST_BUILDER_IMAGE=public.ecr.aws/docker/library/rust:1.91.1-bookworm
 #
 # BuildKit: every ARG used in any FROM must be declared here *before* the first FROM
 # (not only before the stage that uses it), or the runtime stage gets a blank image name.
-ARG RUST_BUILDER_IMAGE=rust:1-bookworm
+ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm
 ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim
 FROM ${RUST_BUILDER_IMAGE} AS builder
 # Optional: e.g. `tes-docker` for Docker-backed TES (re-declare after FROM so RUN sees it).

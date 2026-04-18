@@ -3,7 +3,7 @@
 # Build: docker build -f deploy/Dockerfile -t ferrum-gateway:static .
 
 # Stage 1: cargo-chef for dependency caching
-FROM rust:1-bookworm AS chef
+FROM rust:1.91.1-bookworm AS chef
 WORKDIR /app
 RUN cargo install cargo-chef
 COPY Cargo.toml Cargo.lock* ./
@@ -12,7 +12,7 @@ COPY tools ./tools
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: build release with musl for static binary
-FROM rust:1-bookworm AS builder
+FROM rust:1.91.1-bookworm AS builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     musl-tools libssl-dev pkg-config \
