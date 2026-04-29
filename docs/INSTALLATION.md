@@ -2,6 +2,9 @@
 
 This guide covers prerequisites, quick demo, building from source, single-node production, Ansible-based HPC deployment, Kubernetes/Helm, configuration reference, upgrading, uninstall, and troubleshooting.
 
+Deployment scenarios and update delivery strategy:
+`docs/deployment/README.md`
+
 ---
 
 ## Prerequisites
@@ -298,6 +301,17 @@ helm install ferrum ferrum/ferrum \
 4. Restart the service: `sudo systemctl restart ferrum-gateway`.
 
 Migrations are backward compatible within a major version. For major upgrades, check the release notes.
+
+### Recommended update policy by path
+
+- **Single-node:** pin binary/image versions, run preflight, deploy, smoke-test, keep rollback binary/tag.
+- **HPC/Ansible:** version playbook variables, deploy to staging nodes first, then production wave rollout.
+- **Kubernetes:** pin image/chart versions and deploy via `helm upgrade`; rollback via `helm rollback`.
+- **Air-gapped:** use signed offline bundles and staged import; rollback by re-importing previous bundle.
+
+Operational templates:
+- `docs/deployment/UPDATE-SOP.md`
+- `docs/deployment/RELEASE-CHECKLIST.md`
 
 ---
 

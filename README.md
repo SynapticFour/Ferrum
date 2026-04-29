@@ -181,6 +181,9 @@ See [docs/CRYPT4GH.md](docs/CRYPT4GH.md) for the full design.
 
 ## Deployment
 
+Deployment matrix (including offline + update strategy):
+`docs/deployment/README.md`
+
 ### 🍎 Local demo (MacBook)
 
 ```bash
@@ -213,6 +216,14 @@ Environment="FERRUM_CONFIG=/etc/ferrum/config.toml"
 helm repo add ferrum https://github.com/SynapticFour/Ferrum
 helm install ferrum ferrum/ferrum -n ferrum --create-namespace -f values-production.yaml
 ```
+
+### Update operations
+
+- Preflight: `./scripts/deployment_preflight.sh --scenario <target>`
+- Docs consistency: `./scripts/docs_consistency_check.sh`
+- Runbook templates:
+  - `docs/deployment/UPDATE-SOP.md`
+  - `docs/deployment/RELEASE-CHECKLIST.md`
 
 ---
 
