@@ -24,6 +24,7 @@ env:
   # Official library mirror on AWS Public ECR — avoids Docker Hub 504/timeouts in CI
   RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1.91.1-bookworm
   DEBIAN_RUNTIME_IMAGE: public.ecr.aws/docker/library/debian:bookworm-slim
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   helixtest-full:

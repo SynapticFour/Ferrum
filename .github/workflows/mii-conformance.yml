@@ -10,6 +10,9 @@ on:
       - "profiles/mii/**"
       - ".github/workflows/mii-conformance.yml"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   mii-validate:
     if: github.actor != 'dependabot[bot]'
