@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Ferrum
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Clone HelixTest
         run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
@@ -158,7 +158,7 @@ jobs:
 
       - name: Upload conformance report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: helixtest-report
           path: helixtest-report.txt
@@ -173,7 +173,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Ferrum
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Clone HelixTest
         run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
