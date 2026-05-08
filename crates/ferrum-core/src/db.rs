@@ -96,7 +96,7 @@ impl DatabasePool {
                 let path = url
                     .trim_start_matches("sqlite://")
                     .trim_start_matches("sqlite:");
-                let sqlite_max = cfg.max_connections.max(1).min(5);
+                let sqlite_max = cfg.max_connections.clamp(1, 5);
                 let pool = SqlitePoolOptions::new()
                     .max_connections(sqlite_max)
                     .acquire_timeout(Duration::from_secs(cfg.acquire_timeout_secs.max(1)))

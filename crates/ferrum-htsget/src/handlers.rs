@@ -75,6 +75,7 @@ fn tags_intersect(a: &[String], b: &[String]) -> bool {
     b.iter().any(|x| sa.contains(x.as_str()))
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_range(start: Option<u64>, end: Option<u64>) -> Result<(), Response> {
     match (start, end) {
         (Some(s), Some(e)) if s > e => Err(htsget_error_response(
@@ -87,6 +88,7 @@ fn validate_range(start: Option<u64>, end: Option<u64>) -> Result<(), Response> 
 }
 
 /// class=header: only `format` may be set (htsget 1.3.0).
+#[allow(clippy::result_large_err)]
 fn validate_class_header(p: &NormalizedParams) -> Result<(), Response> {
     if p.class.as_deref() != Some("header") {
         return Ok(());
@@ -111,6 +113,7 @@ fn validate_class_header(p: &NormalizedParams) -> Result<(), Response> {
     ))
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_start_end_with_ref(
     endpoint: EndpointKind,
     reference_name: Option<&str>,
@@ -140,6 +143,7 @@ fn validate_start_end_with_ref(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_get_params(
     endpoint: EndpointKind,
     q: &HtsgetGetQuery,
@@ -180,6 +184,7 @@ fn validate_get_params(
     Ok(p)
 }
 
+#[allow(clippy::result_large_err)]
 fn validate_post_params(
     endpoint: EndpointKind,
     body: PostTicketBody,
@@ -252,7 +257,7 @@ async fn ticket_for_object(
         .repo
         .resolve_id_or_uri(raw_id)
         .await
-        .map_err(|e| map_drs_err(e))?;
+        .map_err(map_drs_err)?;
     let canonical = resolved.ok_or_else(|| {
         htsget_error_response(
             StatusCode::NOT_FOUND,
@@ -265,7 +270,7 @@ async fn ticket_for_object(
         .repo
         .get_dataset_id(&canonical)
         .await
-        .map_err(|e| map_drs_err(e))?
+        .map_err(map_drs_err)?
     {
         let claims = auth.ok_or_else(|| {
             htsget_error_response(
@@ -287,7 +292,7 @@ async fn ticket_for_object(
         .repo
         .get_object(&canonical, false)
         .await
-        .map_err(|e| map_drs_err(e))?
+        .map_err(map_drs_err)?
         .ok_or_else(|| {
             htsget_error_response(StatusCode::NOT_FOUND, "NotFound", "object not found")
         })?;
@@ -312,7 +317,7 @@ async fn ticket_for_object(
         .repo
         .get_storage_ref(&canonical)
         .await
-        .map_err(|e| map_drs_err(e))?;
+        .map_err(map_drs_err)?;
     if storage.is_none() {
         return Err(htsget_error_response(
             StatusCode::NOT_FOUND,

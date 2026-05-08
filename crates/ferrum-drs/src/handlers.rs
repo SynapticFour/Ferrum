@@ -370,21 +370,21 @@ pub async fn get_object_view(
 /// Source: production postmortems (OOM due to unbounded buffering) + Tokio mpsc bounded design.
 struct BoundedBodyWriter {
     tx: mpsc::Sender<Bytes>,
-    pending_send: Option<
-        Pin<
-            Box<
-                dyn Future<Output = std::result::Result<(), mpsc::error::SendError<Bytes>>>
-                    + Send
-                    + 'static,
-            >,
-        >,
-    >,
+    pending_send: Option<PendingSendFut>,
     pending_timeout: Option<Pin<Box<tokio::time::Sleep>>>,
     pending_len: usize,
     send_timeout: Duration,
     /// Optional bytes accepted from decrypt and handed to the HTTP channel (observability).
     byte_counter: Option<Arc<AtomicU64>>,
 }
+
+type PendingSendFut = Pin<
+    Box<
+        dyn Future<Output = std::result::Result<(), mpsc::error::SendError<Bytes>>>
+            + Send
+            + 'static,
+    >,
+>;
 
 impl AsyncWrite for BoundedBodyWriter {
     fn poll_write(
@@ -594,7 +594,7 @@ pub async fn get_object_stream(
             );
         });
 
-        let stream = ReceiverStream::new(rx).map(|b| Ok::<_, std::io::Error>(b));
+        let stream = ReceiverStream::new(rx).map(Ok::<_, std::io::Error>);
         let body = Body::from_stream(stream);
         return Response::builder()
             .status(StatusCode::OK)
@@ -671,7 +671,7 @@ pub async fn get_object_stream(
         }
     });
 
-    let stream = ReceiverStream::new(rx).map(|b| Ok::<_, std::io::Error>(b));
+    let stream = ReceiverStream::new(rx).map(Ok::<_, std::io::Error>);
     let body = Body::from_stream(stream);
     Response::builder()
         .status(StatusCode::OK)

@@ -483,7 +483,7 @@ pub async fn ingest_batch(
                 let repo = Arc::clone(&state.repo);
                 let storage_key_bg = storage_key.clone();
                 let object_id_bg = id.clone();
-                let storage_bg = Arc::clone(&storage);
+                let storage_bg = Arc::clone(storage);
                 tokio::spawn(async move {
                     let mut reader = match storage_bg.get(&storage_key_bg).await {
                         Ok(r) => r,

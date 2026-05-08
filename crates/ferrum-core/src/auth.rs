@@ -277,7 +277,7 @@ pub async fn auth_middleware_with_config(
 
     // Demo mode: when no claims were set, inject demo-user if auth is not required (config absent = treat as demo; config.require_auth false = demo).
     if request.extensions().get::<AuthClaims>().is_none() {
-        let inject = config.as_ref().map_or(true, |cfg| !cfg.require_auth);
+        let inject = config.as_ref().is_none_or(|cfg| !cfg.require_auth);
         if inject {
             let exp = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -392,7 +392,7 @@ fn decode_passport_jwt(
     let jwks_url = _cfg
         .jwks_url
         .as_deref()
-        .ok_or_else(|| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
     let kid = decoded_header.kid.unwrap_or_default();
     let validation_jwks = async {
@@ -415,7 +415,7 @@ fn decode_passport_jwt(
             // If no `kid` is present, fall back to the first supported key.
             set.keys.first()
         }
-        .ok_or_else(|| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
         let key = jsonwebtoken::DecodingKey::from_jwk(jwk)
             .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
@@ -432,12 +432,7 @@ fn decode_passport_jwt(
     // `decode_passport_jwt` is non-async by design. We currently execute verification through the request path,
     // so we can use a small blocking runtime hop. This keeps changes localized and avoids touching call sites.
     // If JWKS fetching is slow, consider adding caching later.
-    match tokio::task::block_in_place(|| {
-        tokio::runtime::Handle::current().block_on(validation_jwks)
-    }) {
-        Ok(claims) => Ok(claims),
-        Err(e) => Err(e),
-    }
+    tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(validation_jwks))
 }
 
 fn decode_passport_visas(visa_jwts: &[String]) -> Vec<VisaObject> {

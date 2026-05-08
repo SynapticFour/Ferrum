@@ -121,10 +121,10 @@ fn merged_storage_config(base: Option<&ferrum_core::StorageConfig>) -> ferrum_co
 }
 
 fn storage_backend_is_s3_like(backend: &str) -> bool {
-    match backend.trim().to_ascii_lowercase().as_str() {
-        "s3" | "minio" | "s3-compatible" => true,
-        _ => false,
-    }
+    matches!(
+        backend.trim().to_ascii_lowercase().as_str(),
+        "s3" | "minio" | "s3-compatible"
+    )
 }
 
 async fn build_object_storage(

@@ -75,10 +75,9 @@ fn render_submit_script(task_id: &str, request: &CreateTaskRequest) -> Result<St
 /// Parse `sbatch` stdout like:
 /// - `Submitted batch job 12345`
 /// - `Submitted batch job 12345_1` (array job)
-/// into the base job id `12345`.
+///   into the base job id `12345`.
 fn parse_base_job_id(stdout: &str) -> Result<String> {
     let token = stdout
-        .trim()
         .split_whitespace()
         .last()
         .ok_or_else(|| TesError::Executor("sbatch: missing stdout token".into()))?;

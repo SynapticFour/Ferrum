@@ -13,6 +13,12 @@ impl NoopExecutor {
     }
 }
 
+impl Default for NoopExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl TaskExecutor for NoopExecutor {
     fn name(&self) -> &'static str {

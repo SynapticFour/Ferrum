@@ -18,9 +18,9 @@ fn reject_for_injection(s: &str) -> Result<(), BeaconError> {
     // Learned from EGA beacon2-pi-api hardening: never pass raw strings
     // containing control characters into query-builder paths.
     if s.contains('$') || s.contains('{') || s.contains('}') || s.contains(';') {
-        return Err(BeaconError::Validation(format!(
-            "invalid characters in input; forbidden one of [$ {{ }} ;]"
-        )));
+        return Err(BeaconError::Validation(
+            "invalid characters in input; forbidden one of [$ { } ;]".to_string(),
+        ));
     }
     Ok(())
 }

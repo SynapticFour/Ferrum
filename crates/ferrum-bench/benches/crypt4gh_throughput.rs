@@ -1,7 +1,8 @@
 //! Lesson 8: regression guard for Crypt4GH throughput-sensitive paths.
 //! Source: Polars / DataFusion / noodles CI benchmark patterns.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use std::hint::black_box;
 
 fn bench_small_payload_roundtrip(c: &mut Criterion) {
     let mut group = c.benchmark_group("crypt4gh_small_encrypt_decrypt");

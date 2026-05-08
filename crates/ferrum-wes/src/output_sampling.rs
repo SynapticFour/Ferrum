@@ -6,7 +6,6 @@
 
 use serde_json::Value;
 use std::path::Path;
-
 /// Collect output file manifests for `work_dir` (recursive).
 ///
 /// Returned value is a JSON array of objects containing:
@@ -33,7 +32,7 @@ pub fn collect_output_files(work_dir: &Path, ignore_globs: &[String]) -> Vec<Val
                 .unwrap_or_default();
             let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
 
-            if should_ignore_name(&path, is_dir, &file_name, ignore_globs) {
+            if should_ignore_name(is_dir, &file_name, ignore_globs) {
                 continue;
             }
 
@@ -115,7 +114,7 @@ pub fn default_ignore_globs(multiqc_scan_patterns: Option<&[String]>) -> Vec<Str
     out
 }
 
-fn should_ignore_name(path: &Path, is_dir: bool, file_name: &str, ignore_globs: &[String]) -> bool {
+fn should_ignore_name(is_dir: bool, file_name: &str, ignore_globs: &[String]) -> bool {
     if file_name.is_empty() {
         return true;
     }
@@ -146,16 +145,6 @@ fn should_ignore_name(path: &Path, is_dir: bool, file_name: &str, ignore_globs: 
 
     // Extra temp directory guard (cheap and improves correctness).
     if is_dir && (file_name == "tmp" || file_name.starts_with("tmp_")) {
-        return true;
-    }
-
-    // Avoid including the directory that stores this service's provenance snapshot.
-    if path.components().any(|c| {
-        c.as_os_str()
-            .to_str()
-            .is_some_and(|s| s.eq_ignore_ascii_case("tmp"))
-    }) {
-        // Best-effort: ignore anything inside a `tmp` path segment.
         return true;
     }
 

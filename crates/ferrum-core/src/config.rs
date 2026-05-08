@@ -318,7 +318,7 @@ fn default_max_connections() -> u32 {
     std::thread::available_parallelism()
         .map(|n| {
             let doubled = (n.get() as u32).saturating_mul(2);
-            doubled.max(10).min(100)
+            doubled.clamp(10, 100)
         })
         .unwrap_or(10)
 }

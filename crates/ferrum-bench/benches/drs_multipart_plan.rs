@@ -1,7 +1,8 @@
 //! Part-planning for S3 multipart (no AWS I/O) — catches regressions in range splitting.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use ferrum_storage::split_file_part_ranges;
+use std::hint::black_box;
 
 fn bench_plan_large_object(c: &mut Criterion) {
     c.bench_function("split_file_part_ranges_5gib_64mib", |b| {

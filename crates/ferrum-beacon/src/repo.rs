@@ -139,6 +139,7 @@ impl BeaconRepo {
     ///
     /// This enables correct OR semantics (union + dedup) when Beacon `query.filters`
     /// contains OR groups represented as nested arrays.
+    #[allow(clippy::too_many_arguments)]
     pub async fn variant_match_ids(
         &self,
         dataset_id: &str,

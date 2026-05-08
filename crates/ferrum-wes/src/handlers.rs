@@ -446,17 +446,15 @@ pub async fn get_run_status(
         })
         .unwrap_or(false);
     let visibility_checked = require_auth;
-    if require_auth {
-        if !run_visible(&app, &run_id, auth.as_ref()).await? {
-            tracing::warn!(
-                run_id = %run_id,
-                require_auth = %require_auth,
-                visibility_checked = %visibility_checked,
-                auth_sub = auth.as_ref().and_then(|c| c.sub()),
-                "WES run visibility denied for /runs/{run_id}/status"
-            );
-            return Err(WesError::NotFound(format!("run not found: {}", run_id)));
-        }
+    if require_auth && !run_visible(&app, &run_id, auth.as_ref()).await? {
+        tracing::warn!(
+            run_id = %run_id,
+            require_auth = %require_auth,
+            visibility_checked = %visibility_checked,
+            auth_sub = auth.as_ref().and_then(|c| c.sub()),
+            "WES run visibility denied for /runs/{run_id}/status"
+        );
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
     if let (Some(ref metrics), false) = (
         &app.metrics,
@@ -491,31 +489,44 @@ pub async fn get_run_status(
 
     // Learned from Sapporo: persist a JSON snapshot after each state transition.
     // Best-effort only; failures must not break the HTTP contract.
-    if let Ok(Some((_, _, workflow_type, _, _, _, _, _, start_time, _, _, work_dir, _, _, _))) =
-        app.repo.get_run(&run_id).await
+    if let Ok(Some((
+        _,
+        _,
+        workflow_type,
+        _,
+        _,
+        _,
+        _,
+        _,
+        start_time,
+        _,
+        _,
+        Some(work_dir),
+        _,
+        _,
+        _,
+    ))) = app.repo.get_run(&run_id).await
     {
-        if let Some(work_dir) = work_dir {
-            let engine = workflow_type.to_lowercase();
-            let engine_pid = app.run_manager.process_id_for_run(&run_id).await;
-            let snapshot = serde_json::json!({
-                "run_id": run_id,
-                "state": state_row.as_str(),
-                "start_time": start_time.map(|t| t.to_rfc3339()),
-                "last_updated": Utc::now().to_rfc3339(),
-                "engine": engine,
-                "engine_pid": engine_pid,
-            });
+        let engine = workflow_type.to_lowercase();
+        let engine_pid = app.run_manager.process_id_for_run(&run_id).await;
+        let snapshot = serde_json::json!({
+            "run_id": run_id,
+            "state": state_row.as_str(),
+            "start_time": start_time.map(|t| t.to_rfc3339()),
+            "last_updated": Utc::now().to_rfc3339(),
+            "engine": engine,
+            "engine_pid": engine_pid,
+        });
 
-            let snapshot_path = std::path::Path::new(&work_dir).join("state.json");
-            let _ = tokio::fs::create_dir_all(std::path::Path::new(&work_dir)).await;
-            if let Err(e) = tokio::fs::write(&snapshot_path, snapshot.to_string()).await {
-                tracing::warn!(
-                    run_id = %run_id,
-                    path = %snapshot_path.display(),
-                    error = %e,
-                    "failed to write run state snapshot"
-                );
-            }
+        let snapshot_path = std::path::Path::new(&work_dir).join("state.json");
+        let _ = tokio::fs::create_dir_all(std::path::Path::new(&work_dir)).await;
+        if let Err(e) = tokio::fs::write(&snapshot_path, snapshot.to_string()).await {
+            tracing::warn!(
+                run_id = %run_id,
+                path = %snapshot_path.display(),
+                error = %e,
+                "failed to write run state snapshot"
+            );
         }
     }
 

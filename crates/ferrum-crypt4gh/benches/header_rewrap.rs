@@ -1,8 +1,9 @@
 use bytes::Bytes;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use crypt4gh::reencrypt;
 use ferrum_crypt4gh::{recipient_keys_from_pubkey, reencrypt_bytes, C4ghKeys};
 use std::collections::HashSet;
+use std::hint::black_box;
 use std::io::Cursor;
 
 /// Create valid Crypt4GH ciphertext for a header-only rewrap benchmark.

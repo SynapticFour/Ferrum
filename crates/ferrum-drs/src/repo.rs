@@ -193,7 +193,7 @@ impl DrsRepo {
         };
         let url = access_url
             .as_ref()
-            .and_then(|v| crate::access_url::parse_stored_access_url(v));
+            .and_then(crate::access_url::parse_stored_access_url);
         let url = url.ok_or_else(|| {
             DrsError::Validation(
                 "access_url missing or unsupported shape (expected JSON string or object with url)"
