@@ -429,13 +429,9 @@ flowchart TB
 
 ---
 
-## Project Philosophy
+## Design principles
 
-Ferrum is built with a deep appreciation for systems that behave predictably, documented interfaces that mean exactly what they say, and standards that are implemented completely — not approximately.
-
-This reflects the values of the team behind it.
-
-*Proudly developed by individuals on the autism spectrum in Germany 🇩🇪*
+Ferrum prioritizes predictable behavior, explicit interfaces, and complete standard implementations with clear operational boundaries.
 
 ---
 

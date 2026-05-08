@@ -1,30 +1,70 @@
 # Ferrum
 
-<!-- logo placeholder -->
 <p align="center"><strong>Ferrum</strong></p>
 
 [![CI](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml)
 [![Conformance](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
 [![Rust 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
-[![Docker](https://img.shields.io/docker/pulls/ferrum/gateway?label=docker%20pulls)](https://hub.docker.com/r/ferrum/gateway)
 
-**Sovereign bioinformatics infrastructure. GA4GH-native. On-premises first. Built in Rust.**
+**A complete GA4GH stack. On-premises. In Rust.**
 
-For product scope versus a future **GA4GH compliance starter kit** (orchestration, checklists, audit artefacts around Ferrum), see [`docs/GA4GH-LAB-KIT-SCOPE.md`](docs/GA4GH-LAB-KIT-SCOPE.md).
+DRS · WES · TES · TRS · Beacon v2 · htsget · Passports · Crypt4GH —
+one gateway, your hardware, verifiable conformance.
 
-> **Legal notice:** This README is an overview of technical capabilities, not legal advice.  
-> Whether a specific deployment complies with GDPR/DSGVO, NIS2, EHDS, HIPAA or other frameworks depends on the operator’s legal basis, contracts, configuration and organisational measures. Always consult qualified legal counsel for compliance questions. **Software licensing** (research vs commercial use, BUSL): see **[docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md)** and [LICENSE](LICENSE).
+> **Legal notice:** This README describes technical capabilities, not legal advice.
+> Compliance with GDPR, NIS2, EHDS, HIPAA, or other frameworks depends on the
+> operator's legal basis, configuration, and organisational measures.
+> See [docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md) for licensing details.
 
 ---
 
-## Why Ferrum?
+## Why Ferrum exists
 
-| Problem | Solution |
-|--------|----------|
-| **Cloud lock-in** | Runs entirely on your hardware — no vendor SaaS required. |
-| **Vendor APIs** | Full [GA4GH](https://www.ga4gh.org/) standard compatibility so you interoperate with the global ecosystem. |
-| **Plaintext data** | Zero-plaintext [Crypt4GH](https://www.ga4gh.org/news_item/crypt4gh-encryption-standard/) encryption at rest and per-requester re-encryption on download. |
+The GA4GH standards are good. They were designed to interoperate — DRS feeds WES,
+WES uses TES, TRS registers the tools, Passports control access. The complementary
+design is one of GA4GH's real strengths.
+
+The problem: most implementations cover one standard at a time. Reference
+implementations exist for individual APIs. Large platforms like CanDIG or ELIXIR
+cover more, but they are built for institutions with significant infrastructure
+teams and cloud budgets.
+
+There is almost no production-ready implementation that:
+- covers the full GA4GH Cloud stack in a single deployable system
+- runs entirely on your own hardware, with no cloud dependency
+- is written in a language that makes it fast, memory-safe, and auditable
+
+Ferrum is that implementation.
+
+It started as an act of conviction: the standards should be used, and they should
+be implementable by institutions that cannot or will not move their data to the cloud.
+Clinical genomics data in particular — patient data, often under GDPR and increasingly
+under EHDS — belongs on infrastructure the institution controls. Rust was the right
+choice: no garbage collector, predictable latency, a smaller attack surface, and the
+ability to scale to cloud if needed without rewriting.
+
+The full integrated stack is admittedly idealistic — few existing institutions will
+adopt it wholesale. But new deployments, research consortia building GA4GH-native
+infrastructure, and institutions preparing for EHDS obligations now have a starting
+point that didn't exist before.
+
+**What we still need:** a first production partner with real clinical data volumes.
+Ferrum is tested — HelixTest runs in CI, the demo is reproducible — but large-scale
+clinical deployment has not happened yet. That is something we want to do with the
+right partner, not alone.
+If that is you: [contact@synapticfour.com](mailto:contact@synapticfour.com)
+
+---
+
+## Where Ferrum fits
+
+| Situation | Ferrum helps |
+|-----------|-------------|
+| Building GA4GH-native infrastructure from scratch | Complete stack, one deployment |
+| EHDS preparation (2027–2029 deadlines) | GA4GH APIs referenced in EHDS; on-premise; audit trails |
+| Clinical data that cannot leave your hardware | On-premises first, no cloud dependency |
+| MII / NFDI4Health interoperability | GA4GH-compatible APIs with technical profile checks via Ferrum MII Connect |
 
 ---
 
@@ -39,7 +79,7 @@ For product scope versus a future **GA4GH compliance starter kit** (orchestratio
 | 🖥️ | **HPC scheduling** — SLURM and LSF job scheduling. |
 | 🚀 | **One-command demo** — `ferrum demo start`; Helm charts for production. |
 | 📊 | **Provenance & lineage** — DAG of DRS objects and WES runs; queryable upstream/downstream, visual graph, [RO-Crate](https://w3id.org/ro/crate/1.1) export for citation. |
-| 🇩🇪 | **Ferrum MII Connect (default-17)** — offline-first technical checks of FHIR `meta.profile` against vendored MII-oriented profile metadata (default 17-module set), optional deterministic `mii sync-manifest` from pinned FHIR NPM packages, JSON/SARIF reports for ETL CI. Not a full FHIR validator or legal compliance claim. See [docs/MII-CONNECT.md](docs/MII-CONNECT.md). |
+| 🧩 | **Ferrum MII Connect (default-17)** — offline-first technical checks of FHIR `meta.profile` against vendored MII-oriented profile metadata (default 17-module set), optional deterministic `mii sync-manifest` from pinned FHIR NPM packages, JSON/SARIF reports for ETL CI. Not a full FHIR validator or legal compliance claim. See [docs/MII-CONNECT.md](docs/MII-CONNECT.md). |
 | GDPR/DSGVO support | Technical features (encryption, provenance, access control) that operators can combine with their own legal and organisational measures. See [COMPLIANCE.md](docs/COMPLIANCE.md). |
 | Gaia-X principles | On-premises deployment and GA4GH APIs that can support Gaia-X-style data sovereignty; formal Gaia-X labelling requires separate assessment. |
 | EHDS alignment | Uses GA4GH APIs referenced in EHDS discussions; actual EHDS compliance depends on future delegated acts and operator processes. |
@@ -117,7 +157,7 @@ ferrum demo start
 
 ### 3. Use the UI
 
-Open **http://localhost:3000**. The demo includes pre-seeded DRS objects and test users. (Port may vary; run `ferrum status` to confirm.)
+Open **http://localhost:8082** for the UI. The gateway API is available at **http://localhost:8080**.
 
 ---
 
@@ -213,8 +253,7 @@ Environment="FERRUM_CONFIG=/etc/ferrum/config.toml"
 ### ☸️ Kubernetes
 
 ```bash
-helm repo add ferrum https://github.com/SynapticFour/Ferrum
-helm install ferrum ferrum/ferrum -n ferrum --create-namespace -f values-production.yaml
+helm install ferrum ./deploy/helm -n ferrum --create-namespace -f ./deploy/helm/values-production.yaml
 ```
 
 ### Update operations
@@ -283,9 +322,6 @@ Licensed under the **Business Source License 1.1 (BUSL-1.1)**. See [LICENSE](LIC
 ---
 
 <div align="center">
-Built with ❤️ for the open science community.
 Implementing GA4GH open standards for sovereign bioinformatics infrastructure.
-Proudly developed by individuals on the autism spectrum in Germany 🇩🇪
-We build tools that are precise, thorough, and designed to work exactly as documented.
 © 2026 Synaptic Four · Licensed under BUSL-1.1 · Free for non-commercial research
 </div>

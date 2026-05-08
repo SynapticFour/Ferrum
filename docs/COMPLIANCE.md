@@ -161,7 +161,7 @@ self‑description by the operator.
 | **Portability** | GA4GH standard APIs; no vendor lock-in |
 | **Interoperability** | DRS, WES, TES, TRS, Beacon v2, Passports |
 | **Security** | OWASP hardened; Crypt4GH encryption; TLS enforced |
-| **European Values** | Developed in Germany 🇩🇪; designed with GDPR principles in mind. Actual legal compliance depends on the operator and its processes. |
+| **European Values** | Developed in Germany; designed with GDPR principles in mind. Actual legal compliance depends on the operator and its processes. |
 
 ### Gaia-X Label Levels
 
@@ -416,5 +416,4 @@ qualified legal professional familiar with your jurisdiction.*
 
 ---
 
-*Proudly developed by individuals on the autism spectrum in Germany 🇩🇪*
 *© 2026 Synaptic Four — Precise tools for precise science*

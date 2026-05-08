@@ -75,24 +75,34 @@ pub fn app(
     let cfg = config;
     let hot_reload = config_watch_rx.is_some();
 
-    // Auth middleware config: use env FERRUM_AUTH__REQUIRE_AUTH so demo mode is reliable (config crate env parsing can vary).
-    // Only when explicitly "true" do we use loaded config's auth; otherwise middleware gets demo() so unauthenticated requests get demo-user.
-    let auth_config = match std::env::var("FERRUM_AUTH__REQUIRE_AUTH").as_deref() {
-        Ok("true") => cfg
-            .map(|c| {
-                Arc::new(ferrum_core::AuthMiddlewareConfig::from_crate_config(
-                    &c.auth,
-                ))
-            })
-            .or_else(|| ferrum_core::AuthMiddlewareConfig::from_env_strict().map(Arc::new))
-            .unwrap_or_else(|| {
-                tracing::warn!(
-                    "FERRUM_AUTH__REQUIRE_AUTH=true but no auth config file and FERRUM_AUTH__JWT_SECRET missing; using demo auth (HelixTest auth tests will fail)"
-                );
-                Arc::new(ferrum_core::AuthMiddlewareConfig::demo())
-            }),
-        _ => Arc::new(ferrum_core::AuthMiddlewareConfig::demo()),
-    };
+    // Resolve auth config deterministically:
+    // 1) config file values when present
+    // 2) strict env config when available
+    // 3) demo fallback
+    // Optional env override: FERRUM_AUTH__REQUIRE_AUTH=true|false (explicit only).
+    let mut resolved_auth = cfg
+        .map(|c| ferrum_core::AuthMiddlewareConfig::from_crate_config(&c.auth))
+        .or_else(ferrum_core::AuthMiddlewareConfig::from_env_strict)
+        .unwrap_or_else(ferrum_core::AuthMiddlewareConfig::demo);
+
+    if let Ok(override_value) = std::env::var("FERRUM_AUTH__REQUIRE_AUTH") {
+        let parsed = override_value.trim().to_ascii_lowercase();
+        match parsed.as_str() {
+            "true" => resolved_auth.require_auth = true,
+            "false" => resolved_auth.require_auth = false,
+            _ => tracing::warn!(
+                value = %override_value,
+                "invalid FERRUM_AUTH__REQUIRE_AUTH value; expected true/false"
+            ),
+        }
+    }
+
+    if !resolved_auth.require_auth {
+        tracing::warn!(
+            "authentication is running in demo mode (require_auth=false); this is intended for local/demo deployments only"
+        );
+    }
+    let auth_config = Arc::new(resolved_auth);
     let cors = cfg
         .and_then(|c| c.security.as_ref())
         .and_then(|s| {

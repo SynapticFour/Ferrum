@@ -17,7 +17,7 @@ export function Footer() {
           Precise tools for precise science
         </span>
         <span className="text-right">
-          Developed in Germany 🇩🇪 by individuals on the autism spectrum
+          Made in Germany
         </span>
       </div>
     </footer>

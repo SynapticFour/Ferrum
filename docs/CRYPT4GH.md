@@ -2,7 +2,7 @@
 
 > Ferrum can store data encrypted at rest using Crypt4GH. By default, downloads can be **re-wrapped** for the requester’s public key (Crypt4GH on the wire). Optionally, **`GET /ga4gh/drs/v1/objects/{id}/stream`** decrypts server-side and sends **plaintext** over TLS so clients without a Crypt4GH library still see the logical file (see below).
 
-This document describes how Crypt4GH works, Ferrum’s header re-wrapping extension, the DRS **stream** endpoint, security invariants, key exchange, key management, and client usage.
+This document describes how Crypt4GH works, Ferrum’s header re-wrapping extension, the DRS **stream** endpoint, security invariants, key management, and client usage.
 
 ---
 
@@ -94,42 +94,11 @@ For **reproducible** comparisons over the **GA4GH DRS API** (micro-benchmarks, d
 
 ---
 
-## Key exchange protocol (random access)
-
-For tools that need random access (e.g. `samtools`, `htseq`, `tabix`), Ferrum supports a key exchange so the client can perform decryption locally while the server streams the body.
-
-1. Client sends a request to `/ga4gh/crypt4gh/v1/keys/exchange` with auth and temporary public key.
-2. Server returns a **wrapped session key** (encrypted for the client’s key) and optional range/segment info.
-3. Client decrypts the session key and uses it to decrypt the stream (or segments) received from the DRS access endpoint.
-
-Example (conceptual):
-
-```bash
-# Request wrapped key for object (authenticated)
-curl -s -H "Authorization: Bearer $TOKEN" \
-  -H "X-Crypt4GH-Public-Key: $(base64 -w0 < client.pub)" \
-  "https://ferrum.example.com/ga4gh/crypt4gh/v1/keys/exchange?object_id=$ID" \
-  -o wrapped_key.bin
-```
-
----
-
 ## Key management
 
 | Store | Use case | Notes |
 |-------|----------|--------|
 | **LocalKeyStore** | Single-node, file-based | Keys in `/etc/ferrum/keys/` or config path |
-| **DatabaseKeyStore** | Multi-node, shared keys | Keys stored encrypted in DB (optional) |
-| **VaultKeyStore** | HPC / enterprise | HashiCorp Vault for key storage (optional) |
-
-**Generate node keypair:**
-
-```bash
-ferrum keys generate
-# Writes to config path, e.g. /etc/ferrum/keys/node.key, node.key.pub
-```
-
-**Rotate keys:** Run `ferrum keys rotate` to re-encrypt all object headers under a new node key. This touches only headers (metadata), not body segments; runtime depends on number of objects, not total data size.
 
 ---
 

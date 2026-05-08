@@ -4,11 +4,11 @@ Thank you for your interest in contributing. This document covers our code of co
 
 ---
 
-## Who builds Ferrum
+## Maintainers
 
-Ferrum is developed by Synaptic Four, a company based in Germany 🇩🇪 founded and staffed by individuals on the autism spectrum. We believe that the attention to detail, systematic thinking, and deep focus that characterizes our work makes us particularly well-suited to building infrastructure that researchers can rely on — tools that are precise, thoroughly documented, and that behave exactly as specified.
+Ferrum is maintained by Synaptic Four.
 
-We welcome contributors from all backgrounds. We value clear communication, well-documented decisions, and thorough reviews over speed. If you have questions about our process or need accommodations to contribute comfortably, please reach out — we understand.
+We welcome contributors from all backgrounds. We value clear communication, well-documented decisions, and thorough reviews.
 
 **License:** By contributing to Ferrum, you agree that your contributions will be licensed under the same **BUSL-1.1** terms as the rest of the project (see [LICENSE](LICENSE)). For how research vs commercial use fits the open-core model and how this relates to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), see **[docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md)**. If you contribute on behalf of an employer, ensure you have **permission** to contribute under those terms.
 
@@ -52,7 +52,7 @@ We follow a respectful, inclusive code of conduct. Be kind and professional in i
 
 - **Unit tests:** `cargo test --all`
 - **Integration tests:** Same; integration tests live under `*/tests/` or within crates.
-- **CI (Rust):** GitHub Actions runs `cargo test --all` and `cargo clippy --all-targets --all -- -D warnings` on push and PRs.
+- **CI (Rust):** GitHub Actions runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace --all-targets` on push and PRs.
 - **GA4GH conformance (HelixTest):** The [Conformance (HelixTest)](.github/workflows/conformance.yml) workflow builds the demo stack and runs [HelixTest](https://github.com/SynapticFour/HelixTest) in Ferrum mode. **What is covered in CI** (WES, TES, DRS, TRS, Beacon, htsget, E2E, etc.) is documented in [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
 - **MII Connect:** `cargo test -p ferrum-mii-connect` (includes golden manifest snapshot). Regenerating `profiles/mii/manifest.json` via `ferrum mii sync-manifest` is optional and may hit the public package registry; see [docs/MII-CONNECT.md](docs/MII-CONNECT.md).
 

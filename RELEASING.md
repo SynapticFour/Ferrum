@@ -4,13 +4,17 @@ This repository follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## Release process
 
-1. Ensure CI is green on `main`.
+1. Ensure all required CI workflows are green on `main` (build, lint, tests, conformance).
 2. Update `CHANGELOG.md` with user-visible changes.
 3. Create an annotated tag:
    - `git tag -a vX.Y.Z -m "vX.Y.Z"`
 4. Push the tag:
    - `git push origin vX.Y.Z`
-5. Verify GitHub release artifacts and notes.
+5. Verify GitHub Release assets are present:
+   - platform tarballs (`ferrum-gateway-*.tar.gz`)
+   - `SHA256SUMS.txt`
+   - `ferrum-sbom.cdx.json`
+6. Verify generated release notes and smoke-test installation from release artifacts.
 
 ## Versioning rules
 

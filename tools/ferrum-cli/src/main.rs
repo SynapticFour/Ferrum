@@ -123,8 +123,23 @@ async fn run_cli() -> Result<(), CliExit> {
             println!("{} {}", status, body);
         }
         Commands::Migrate { config } => {
-            let path = config.or_else(|| Some(std::path::PathBuf::from("config.toml")));
-            println!("Migrate (config: {:?}) - not yet implemented", path);
+            let cfg = config
+                .as_ref()
+                .and_then(|p| ferrum_core::FerrumConfig::load_from_path(p).ok())
+                .or_else(|| ferrum_core::FerrumConfig::load().ok())
+                .ok_or_else(|| {
+                    CliExit::RuntimeFailed(
+                        "no config found; pass --config or set FERRUM_CONFIG".to_string(),
+                    )
+                })?;
+
+            let mut db = ferrum_core::DatabasePool::from_config(&cfg.database)
+                .await
+                .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+            db.run_migrations()
+                .await
+                .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+            println!("Database migrations applied successfully.");
         }
         Commands::Config { path } => {
             let cfg = path

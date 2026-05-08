@@ -51,10 +51,10 @@ curl -sSf https://raw.githubusercontent.com/SynapticFour/Ferrum/main/install.sh 
 ferrum demo start
 
 # Verify all services are healthy
-ferrum status
+ferrum demo status
 ```
 
-The demo stack includes: **ferrum-gateway**, **PostgreSQL 16**, **MinIO**, **Keycloak** (realm + test users), **ferrum-ui**, and **nginx**. Pre-seeded DRS objects (public genomic URLs) and test users (e.g. `alice`/`bob`) are created by the init container. Access the UI at the URL printed by `ferrum status` (e.g. http://localhost:8082).
+The demo stack includes: **ferrum-gateway**, **PostgreSQL 16**, **MinIO**, **Keycloak** (realm + test users), **ferrum-ui**, and **nginx**. Pre-seeded DRS objects (public genomic URLs) and test users (e.g. `alice`/`bob`) are created by the init container. UI: `http://localhost:8082`, API: `http://localhost:8080`.
 
 ---
 
@@ -152,21 +152,14 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-### f) Generate Crypt4GH node keypair
-
-```bash
-ferrum keys generate
-# Keys in /etc/ferrum/keys/ or path from config
-```
-
-### g) Start and enable service
+### f) Start and enable service
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable --now ferrum-gateway
 ```
 
-### h) Configure nginx reverse proxy
+### g) Configure nginx reverse proxy
 
 ```nginx
 upstream ferrum {
@@ -188,10 +181,10 @@ server {
 }
 ```
 
-### i) Verify
+### h) Verify
 
 ```bash
-ferrum status
+ferrum demo status
 curl -s https://your-host/health
 ```
 
@@ -219,17 +212,14 @@ Use **vault** for secrets (`vault_ferrum_db_password`, etc.). SLURM integration 
 ## Kubernetes / Helm
 
 ```bash
-helm repo add ferrum https://github.com/SynapticFour/Ferrum
-helm repo update
-
-# Install with external PostgreSQL and S3
-helm install ferrum ferrum/ferrum \
+# Install chart from this repository checkout
+helm install ferrum ./deploy/helm \
   --namespace ferrum \
   --create-namespace \
   --set config.database.url="postgres://user:pass@postgres.example.com:5432/ferrum" \
   --set config.storage.s3_endpoint=https://minio.example.com \
   --set config.storage.s3_bucket=ferrum \
-  --values values-production.yaml
+  --values ./deploy/helm/values-production.yaml
 ```
 
 **values-production.yaml** typically sets:

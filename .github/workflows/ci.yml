@@ -17,14 +17,24 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --workspace
 
+  lint:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
   test:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - name: Run workspace tests (best effort)
-        continue-on-error: true
+      - name: Run workspace tests
         run: cargo test --workspace --all-targets
       - name: Run MII Connect validation (optional)
         if: env.RUN_MII_CONNECT == 'true'

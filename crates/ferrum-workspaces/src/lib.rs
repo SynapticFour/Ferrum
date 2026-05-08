@@ -64,12 +64,3 @@ pub fn router(
         .route("/workspaces/:id/contents", get(get_workspace_contents))
         .with_state(state)
 }
-
-pub fn router_unconfigured() -> Router {
-    Router::new().fallback(|| async {
-        (
-            axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            "Workspaces service not configured",
-        )
-    })
-}

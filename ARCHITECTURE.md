@@ -1,25 +1,11 @@
-# Architecture Overview
+# Architecture
 
-This document explains the system at a level that helps contributors reason about change impact.
+The canonical architecture documentation lives in:
 
-## Goals
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
-- Keep behavior predictable and testable.
-- Keep security and operational concerns explicit.
-- Keep extension points clear for new features.
+For contributor onboarding, also see:
 
-## High-level structure
-
-Describe the major modules/services and their responsibilities here.
-
-## Data and control flows
-
-Describe how requests/events flow through the system and where validation, authorization, and persistence happen.
-
-## Reliability and security boundaries
-
-Describe trust boundaries, secret handling, and failure modes that contributors should keep in mind.
-
-## Key extension points
-
-List where new integrations, endpoints, or jobs should be added.
+- [`docs/GA4GH.md`](docs/GA4GH.md)
+- [`docs/STORAGE-BACKENDS.md`](docs/STORAGE-BACKENDS.md)
+- [`docs/deployment/README.md`](docs/deployment/README.md)

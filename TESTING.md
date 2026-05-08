@@ -1,20 +1,28 @@
-# Testing Strategy
+# Testing
 
-This repository currently has limited automated tests.
+Ferrum uses a layered test strategy:
 
-## Minimum local checks before merging
+- crate-level unit and integration tests (`cargo test --workspace --all-targets`)
+- lint and formatting gates (`cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --all -- --check`)
+- GA4GH conformance and cross-service checks in CI via HelixTest
 
-- Run formatting checks
-- Run linting checks
-- Run type checks (if applicable)
-- Run the repository quality gate workflow in CI
+## Local verification
 
-## Near-term test plan
+Before opening a PR, run:
 
-1. Add smoke tests for critical user paths.
-2. Add regression tests for every production bugfix.
-3. Add at least one deterministic CI test suite per runtime stack.
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace --all-targets
+```
 
-## PR requirement
+## Conformance testing
 
-Any non-trivial behavior change should include tests or a documented reason why tests are not feasible.
+The repository includes dedicated workflows for standards conformance. See:
+
+- [`docs/HELIXTEST-INTEGRATION.md`](docs/HELIXTEST-INTEGRATION.md)
+- [`.github/workflows/conformance.yml`](.github/workflows/conformance.yml)
+
+## Contribution expectation
+
+Behavioral changes should include tests. If tests are not practical, document the rationale in the PR.

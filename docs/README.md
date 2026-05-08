@@ -40,12 +40,12 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 ---
 
-## Strategy / product scope
+## Product scope
 
 | Document | Description |
 |----------|-------------|
 | [BUSINESS-MODEL.md](BUSINESS-MODEL.md) | **Open core & BUSL:** research vs commercial use, relation to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), differentiated paths (SLA, consortium, delayed Apache-2.0). |
-| [GA4GH-LAB-KIT-SCOPE.md](GA4GH-LAB-KIT-SCOPE.md) | **German:** Ferrum vs. a separate “compliance kit” repo — boundaries, phased roadmap, component matrix, non-goals. Useful for consortia and labs planning deployments. |
+| [GA4GH-LAB-KIT-SCOPE.md](GA4GH-LAB-KIT-SCOPE.md) | Scope boundaries between Ferrum core and Ferrum Lab Kit extensions. |
 
 ---
 
@@ -58,7 +58,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [MII-MODULE-MAPPING.md](MII-MODULE-MAPPING.md) | Default-17 module/resource mapping and gap tag taxonomy for MII validation. |
 | [MII-CI-INTEGRATION.md](MII-CI-INTEGRATION.md) | CI patterns (GitHub/GitLab), strictness strategy and audit retention for MII reports. |
 | [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md) | **Machine ingest for Lab Kit:** `/api/v1/ingest` (register, upload, jobs), auth, Crypt4GH, idempotency, curl examples. |
-| [CRYPT4GH.md](CRYPT4GH.md) | Crypt4GH transparent encryption: header re-wrapping, security invariants, key exchange, key management, client usage. |
+| [CRYPT4GH.md](CRYPT4GH.md) | Crypt4GH transparent encryption: header re-wrapping, security invariants, and operational key management. |
 | [HTSGET.md](HTSGET.md) | GA4GH htsget 1.3.0 tickets (reads/variants): ticket URLs, service-info, validation and DRS `/stream` mapping. |
 
 ---

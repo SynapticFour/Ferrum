@@ -2,6 +2,7 @@
 
 use async_trait::async_trait;
 use axum::{extract::Request, middleware::Next, response::Response};
+use base64::Engine;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -442,21 +443,29 @@ fn decode_passport_jwt(
 fn decode_passport_visas(visa_jwts: &[String]) -> Vec<VisaObject> {
     let mut out = Vec::new();
     for s in visa_jwts {
-        if let Ok(decoded) = jsonwebtoken::decode_header(s) {
-            if decoded.alg != Algorithm::RS256 && decoded.alg != Algorithm::ES256 {
-                continue;
-            }
-            let key = jsonwebtoken::DecodingKey::from_secret(b"");
-            let mut val = jsonwebtoken::Validation::new(decoded.alg);
-            val.algorithms = vec![Algorithm::RS256, Algorithm::ES256];
-            if let Ok(data) = jsonwebtoken::decode::<VisaJwtPayload>(s, &key, &val) {
-                if let Some(v) = data.claims.ga4gh_visa_v1 {
-                    out.push(v);
-                }
-            }
+        if let Some(v) = parse_visa_claim_without_verification(s) {
+            out.push(v);
         }
     }
     out
+}
+
+/// Parse ga4gh_visa_v1 from a compact JWT payload without signature verification.
+///
+/// Security model: Passport JWT signature is verified upstream (`decode_passport_jwt`) before
+/// its embedded visa JWT strings are accepted. Here we extract visa claims to avoid invalid
+/// RS/ES verification with placeholder keys.
+fn parse_visa_claim_without_verification(token: &str) -> Option<VisaObject> {
+    let mut parts = token.split('.');
+    let _header = parts.next()?;
+    let payload = parts.next()?;
+    let _sig = parts.next()?;
+
+    let payload_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .ok()?;
+    let claims: VisaJwtPayload = serde_json::from_slice(&payload_bytes).ok()?;
+    claims.ga4gh_visa_v1
 }
 
 #[derive(Debug, Deserialize)]

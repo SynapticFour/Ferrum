@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -92,11 +93,22 @@ jobs:
           done
           ls -la *.tar.gz
 
+      - name: Generate checksums
+        run: sha256sum *.tar.gz > SHA256SUMS.txt
+
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          cargo install cargo-cyclonedx --locked
+          cargo cyclonedx --workspace --format json --output-file ferrum-sbom.cdx.json
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
           draft: false
           generate_release_notes: true
-          files: '*.tar.gz'
+          files: |
+            *.tar.gz
+            SHA256SUMS.txt
+            ferrum-sbom.cdx.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

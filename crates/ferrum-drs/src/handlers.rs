@@ -196,8 +196,8 @@ pub async fn list_bundle_contents(
 ///
 /// **Storage:** `access_url` in the database may be a JSON string or `{"url":"…"}`; both are accepted.
 ///
-/// **S3 / MinIO:** When a presigner is configured, `url` is replaced with a **presigned** HTTPS URL
-/// when possible; if presigning fails, the stored URL is returned and a warning is logged (fallback).
+/// **S3 / MinIO:** When a presigner is configured, `url` is replaced with a **presigned** HTTPS URL.
+/// If presigning fails, the request returns an error (fail-closed).
 #[utoipa::path(
     get,
     path = "/objects/{object_id}/access/{access_id}",
@@ -242,7 +242,12 @@ pub async fn get_access(
             let expires = std::time::Duration::from_secs(expires_secs as u64);
             match presigner.presign(key.as_str(), range, expires).await {
                 Ok(presigned) => url.url = presigned,
-                Err(e) => tracing::warn!(?e, "presign failed, returning placeholder URL"),
+                Err(e) => {
+                    tracing::error!(?e, "presign failed");
+                    return Err(DrsError::Other(anyhow::anyhow!(
+                        "failed to generate presigned access URL"
+                    )));
+                }
             }
         }
     }

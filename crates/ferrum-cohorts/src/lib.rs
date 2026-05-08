@@ -45,16 +45,6 @@ use crate::state::AppState;
 )))]
 pub struct CohortApiDoc;
 
-/// Returns a router that responds 503 when Cohorts is not configured.
-pub fn router_unconfigured() -> Router {
-    Router::new().fallback(|| async {
-        (
-            axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            "Cohorts service not configured",
-        )
-    })
-}
-
 /// Build the Cohort Browser router. Mount at /cohorts/v1.
 pub fn router(pool: sqlx::PgPool) -> Router {
     let state = Arc::new(AppState {

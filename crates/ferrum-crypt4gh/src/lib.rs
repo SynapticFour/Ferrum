@@ -2,7 +2,6 @@
 
 pub mod encryption;
 pub mod error;
-pub mod keys;
 pub mod policy;
 pub mod proxy;
 
@@ -12,10 +11,6 @@ pub use encryption::{
     KeyStore, LocalKeyStore,
 };
 pub use error::{Crypt4GHError, Result};
-pub use keys::{
-    keys_router, KeyExchangeRequest, KeyExchangeResponse, KeyExchangeState, NodeKeypair,
-    ObjectFetcher,
-};
 pub use policy::{DataAccessPolicy, PolicyEngine, VISA_TYPE_CONTROLLED_ACCESS_GRANTS};
 pub use proxy::{Crypt4GHLayer, Crypt4GHProxyConfig, HEADER_CRYPT4GH_PUBLIC_KEY};
 
@@ -32,22 +27,14 @@ pub struct Crypt4GhServiceInfo {
 }
 
 #[derive(OpenApi)]
-#[openapi(
-    paths(get_service_info, get_encrypted_object),
-    components(schemas(
-        Crypt4GhServiceInfo,
-        keys::KeyExchangeRequest,
-        keys::KeyExchangeResponse
-    ))
-)]
+#[openapi(paths(get_service_info), components(schemas(Crypt4GhServiceInfo)))]
 pub struct Crypt4GhApiDoc;
 
-/// Returns the Crypt4GH router: service-info, objects, and keys exchange.
-/// Mount at e.g. /ga4gh/crypt4gh/v1. Optionally nest keys_router at /keys.
+/// Returns the Crypt4GH router (service-info + OpenAPI docs).
+/// Mount at e.g. /ga4gh/crypt4gh/v1.
 pub fn router() -> Router {
     Router::new()
         .route("/service-info", get(get_service_info))
-        .route("/objects/{object_id}", get(get_encrypted_object))
         .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", Crypt4GhApiDoc::openapi()))
 }
 
@@ -58,17 +45,4 @@ async fn get_service_info() -> Json<Crypt4GhServiceInfo> {
         name: "Ferrum Crypt4GH".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
     })
-}
-
-#[utoipa::path(
-    get,
-    path = "/objects/{object_id}",
-    responses((status = 200, description = "Crypt4GH-encrypted object stream"))
-)]
-async fn get_encrypted_object(
-    axum::extract::Path(_object_id): axum::extract::Path<String>,
-) -> Json<serde_json::Value> {
-    Json(serde_json::json!({
-        "message": "Use DRS endpoint with X-Crypt4GH-Public-Key header for re-encrypted stream, or POST /keys/exchange for header delivery"
-    }))
 }
