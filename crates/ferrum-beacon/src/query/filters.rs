@@ -31,7 +31,7 @@ pub fn merge_or_dedup_by_id(left: Vec<Hit>, right: Vec<Hit>) -> Vec<Hit> {
     let mut seen: HashSet<String> = HashSet::new();
     let mut out = Vec::new();
 
-    for h in left.into_iter().chain(right.into_iter()) {
+    for h in left.into_iter().chain(right) {
         if seen.insert(h.id.clone()) {
             out.push(h);
         }
