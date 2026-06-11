@@ -36,8 +36,9 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 - **Demo init / partial DB volumes** — `deploy/scripts/init-demo.sh` records applied migrations in `_ferrum_init_migrations`, bootstraps from `_sqlx_migrations` or existing schema, and skips destructive re-apply on re-init; only pending `.up.sql` files run. Documented in [TEST-COVERAGE-GAPS.md](docs/TEST-COVERAGE-GAPS.md) and [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
-- **CI** — `cargo fmt` drift; laptop-mode job falls back when `unshare --net` is unavailable on GitHub runners.
+- **CI** — `cargo fmt` drift; laptop-mode job falls back when `unshare --net` is unavailable on GitHub runners; E2E script invoked with `bash`; Clippy fixes across workspace.
 - **ONT ingest API** — response includes `drs_object_id` alias alongside `object_id` for HelixTest Africa ONT profile.
+- **DRS GET** — `ont_metrics` included on object metadata when present (laptop/SQLite and Postgres).
 - **WES → TES** — Cancel uses **`POST …/tasks/{id}/cancel`** (Ferrum TES route), not `…:cancel`.
 - **DRS /stream** — `storage.get` **NotFound** maps to **404** (not opaque 500). **Init microbench:** `deploy/scripts/init-demo.sh` seeds **`microbench-plain-v1` last** (after DRS/TRS URL seeds), **UPSERT**s Postgres rows (repairs `ON CONFLICT DO NOTHING` partials), re-`mc alias set` + retried `mc cp`/`mc stat`, and **fails init** if `storage_references` count ≠ 1. Conformance **verify** waits on **`GET …/objects/microbench-plain-v1`**; **`ci-drs-microbench-stream.sh`** prints metadata on stream failure.
 - **Gateway / DRS** — Object storage init merges **`FERRUM_STORAGE__*`** env into the loaded `StorageConfig` so **`S3_ENDPOINT` / bucket / keys** are never dropped (without MinIO endpoint the AWS SDK targets **real S3** → **`GET …/stream` 404** while metadata **200**). **`minio`** backend treated like **`s3`**. **S3 init errors** are logged (no longer silent). DRS router: **`/stream`** (and other sub-routes) registered **before** **`/objects/:object_id`**. Stream path **trims** `storage_key`.

@@ -3,7 +3,7 @@
 use axum::http::{Method, Request, StatusCode};
 use ferrum_core::{
     auth::{AuthClaims, PassportClaims},
-    ActivateRequest, FerrumPool, OutbreakConfig, OutbreakPolicy, OutbreakService,
+    FerrumPool, OutbreakConfig, OutbreakPolicy, OutbreakService,
     ResidencyAuditLog,
 };
 use ferrum_drs::ingest::{process_upload_from_parts, ParsedMultipartUpload};

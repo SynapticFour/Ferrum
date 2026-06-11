@@ -240,10 +240,8 @@ pub async fn query_variants(
     let pathogen = crate::pathogen::merge_pathogen_params(pathogen_base, &filters_exprs);
 
     if crate::pathogen::has_pathogen_params(&pathogen) {
-        if let (Some(ref outbreak), Some(ref claims)) =
-            (&state.outbreak, auth.as_ref().map(|e| &e.0))
-        {
-            if let (Some(recipient), Some(ref organism)) =
+        if let (Some(ref outbreak), Some(claims)) = (&state.outbreak, auth.as_ref().map(|e| &e.0)) {
+            if let (Some(recipient), Some(organism)) =
                 (claims.recipient_identity(), pathogen.organism.as_deref())
             {
                 if outbreak

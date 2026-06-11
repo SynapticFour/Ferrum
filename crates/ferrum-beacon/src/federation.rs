@@ -1,9 +1,8 @@
 //! Federated Beacon query helpers.
 
 use crate::handlers::{AppState, VariantQueryResponse, VariantQueryResult};
-use ferrum_federation::{query_envelope_from_params, BeaconQueryParams, FederationClient};
+use ferrum_federation::{query_envelope_from_params, BeaconQueryParams};
 use serde_json::{json, Value};
-use std::sync::Arc;
 
 pub async fn maybe_federate_get(
     state: &AppState,

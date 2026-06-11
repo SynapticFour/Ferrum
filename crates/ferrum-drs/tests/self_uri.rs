@@ -16,6 +16,7 @@ fn test_self_uri_always_drs_scheme() {
         contents: None,
         description: None,
         aliases: None,
+        ont_metrics: None,
     };
 
     let canonical = obj.canonical_self_uri("drs.example.test");

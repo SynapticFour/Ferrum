@@ -91,6 +91,13 @@ async fn test_pod5_ingest_round_trip() {
     let metrics = row.0.expect("ont_metrics set");
     assert!(metrics.contains("Plasmodium_falciparum"));
     assert!(metrics.contains("sample-A"));
+
+    let obj = repo
+        .get_object(&object_id, false)
+        .await
+        .expect("get_object")
+        .expect("object");
+    assert!(obj.ont_metrics.is_some());
 }
 
 #[tokio::test]

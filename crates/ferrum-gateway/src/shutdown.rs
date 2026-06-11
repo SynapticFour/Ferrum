@@ -22,6 +22,12 @@ pub struct ShutdownCoordinator {
     active_transfers: Arc<AtomicU64>,
 }
 
+impl Default for ShutdownCoordinator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ShutdownCoordinator {
     pub fn new() -> Self {
         Self {

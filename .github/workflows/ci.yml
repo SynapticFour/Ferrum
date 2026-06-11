@@ -69,7 +69,7 @@ jobs:
           ./scripts/build-laptop-native.sh --no-native-cpu
           cargo build -p ferrum-cli
       - name: E2E ferrum demo start --offline
-        run: sh deploy/scripts/ci-laptop-demo-e2e.sh
+        run: bash deploy/scripts/ci-laptop-demo-e2e.sh
 
   # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
   bench-and-features:

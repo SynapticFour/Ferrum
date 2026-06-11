@@ -20,6 +20,9 @@ pub struct DrsObject {
     pub contents: Option<Vec<ContentsObject>>,
     pub description: Option<String>,
     pub aliases: Option<Vec<String>>,
+    /// ONT QC metrics (Ferrum extension; stored on `drs_objects.ont_metrics`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ont_metrics: Option<serde_json::Value>,
 }
 
 impl DrsObject {

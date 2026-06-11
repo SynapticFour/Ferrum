@@ -58,6 +58,10 @@ impl TransferQueue {
         self.queue.lock().expect("transfer queue lock").len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn drain_if_ready(&self, bandwidth: &BandwidthMonitor) -> Vec<QueuedTransfer> {
         let mut last = self.last_drain.lock().expect("last drain lock");
         let class = bandwidth.classify();

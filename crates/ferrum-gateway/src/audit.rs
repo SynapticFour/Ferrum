@@ -3,7 +3,7 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::{delete, get, post, put};
+use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use ferrum_core::{residency_delete_blocked, ResidencyAuditLog};
@@ -66,6 +66,7 @@ async fn method_not_allowed() -> Response {
         .into_response()
 }
 
+#[allow(clippy::result_large_err)]
 fn parse_ts(s: Option<&str>) -> Result<Option<DateTime<Utc>>, Response> {
     match s {
         None => Ok(None),

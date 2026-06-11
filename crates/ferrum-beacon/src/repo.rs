@@ -7,6 +7,7 @@ use ferrum_core::{
 
 pub struct BeaconRepo {
     pool: FerrumPool,
+    #[allow(dead_code)]
     dialect: DbDialect,
 }
 
@@ -304,6 +305,7 @@ impl BeaconRepo {
     }
 
     /// Insert pathogen annotation (tests and ingest helpers).
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert_pathogen_annotation(
         &self,
         id: &str,

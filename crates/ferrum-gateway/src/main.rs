@@ -227,16 +227,16 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     if let Some(ref mut cfg) = config {
         cfg.apply_embedded_defaults();
         let _ = ensure_data_dirs(cfg);
-        if LAPTOP_BUILD || cfg.is_offline_first() {
-            if cfg.africa.as_ref().and_then(|a| a.max_memory_mb).is_none() {
-                if let Some(cap_mb) = ferrum_embed::suggested_memory_cap_mb() {
-                    let africa = cfg.africa.get_or_insert_with(Default::default);
-                    africa.max_memory_mb = Some(cap_mb);
-                    tracing::info!(
-                        cap_mb,
-                        "auto-set memory cap to 80% of detected RAM (override with [africa] max_memory_mb)"
-                    );
-                }
+        if (LAPTOP_BUILD || cfg.is_offline_first())
+            && cfg.africa.as_ref().and_then(|a| a.max_memory_mb).is_none()
+        {
+            if let Some(cap_mb) = ferrum_embed::suggested_memory_cap_mb() {
+                let africa = cfg.africa.get_or_insert_with(Default::default);
+                africa.max_memory_mb = Some(cap_mb);
+                tracing::info!(
+                    cap_mb,
+                    "auto-set memory cap to 80% of detected RAM (override with [africa] max_memory_mb)"
+                );
             }
         }
     }

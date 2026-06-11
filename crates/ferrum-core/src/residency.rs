@@ -57,16 +57,16 @@ impl ResidencyAuditLog {
     ) -> Result<i64> {
         let prev_hash = self.last_entry_hash().await?;
         let timestamp = Utc::now();
-        let canonical = canonical_json(
-            &timestamp,
+        let canonical = canonical_json(&CanonicalAuditFields {
+            timestamp: &timestamp,
             event_type,
             drs_id,
             requester,
             destination,
             data_left_node,
             bytes_transferred,
-            &prev_hash,
-        );
+            prev_hash: &prev_hash,
+        });
         let entry_hash = sha256_hex(&canonical);
 
         let sql = "INSERT INTO residency_audit
@@ -230,25 +230,27 @@ impl From<ResidencyRowSqlite> for ResidencyAuditEntry {
     }
 }
 
-fn canonical_json(
-    timestamp: &DateTime<Utc>,
-    event_type: &str,
-    drs_id: Option<&str>,
-    requester: Option<&str>,
-    destination: Option<&str>,
+struct CanonicalAuditFields<'a> {
+    timestamp: &'a DateTime<Utc>,
+    event_type: &'a str,
+    drs_id: Option<&'a str>,
+    requester: Option<&'a str>,
+    destination: Option<&'a str>,
     data_left_node: bool,
     bytes_transferred: Option<i64>,
-    prev_hash: &str,
-) -> String {
+    prev_hash: &'a str,
+}
+
+fn canonical_json(fields: &CanonicalAuditFields<'_>) -> String {
     serde_json::json!({
-        "timestamp": timestamp.to_rfc3339(),
-        "event_type": event_type,
-        "drs_id": drs_id,
-        "requester": requester,
-        "destination": destination,
-        "data_left_node": data_left_node,
-        "bytes_transferred": bytes_transferred,
-        "prev_hash": prev_hash,
+        "timestamp": fields.timestamp.to_rfc3339(),
+        "event_type": fields.event_type,
+        "drs_id": fields.drs_id,
+        "requester": fields.requester,
+        "destination": fields.destination,
+        "data_left_node": fields.data_left_node,
+        "bytes_transferred": fields.bytes_transferred,
+        "prev_hash": fields.prev_hash,
     })
     .to_string()
 }
@@ -265,16 +267,16 @@ pub fn verify_chain(entries: &[ResidencyAuditEntry]) -> bool {
         if entry.prev_hash != expected_prev {
             return false;
         }
-        let canonical = canonical_json(
-            &entry.timestamp,
-            &entry.event_type,
-            entry.drs_id.as_deref(),
-            entry.requester.as_deref(),
-            entry.destination.as_deref(),
-            entry.data_left_node,
-            entry.bytes_transferred,
-            &entry.prev_hash,
-        );
+        let canonical = canonical_json(&CanonicalAuditFields {
+            timestamp: &entry.timestamp,
+            event_type: &entry.event_type,
+            drs_id: entry.drs_id.as_deref(),
+            requester: entry.requester.as_deref(),
+            destination: entry.destination.as_deref(),
+            data_left_node: entry.data_left_node,
+            bytes_transferred: entry.bytes_transferred,
+            prev_hash: &entry.prev_hash,
+        });
         if sha256_hex(&canonical) != entry.entry_hash {
             return false;
         }

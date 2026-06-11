@@ -64,7 +64,7 @@ fn read_ram_total_mb() -> Option<u64> {
             return None;
         }
         let bytes: u64 = String::from_utf8_lossy(&out.stdout).trim().parse().ok()?;
-        return Some(bytes / 1024 / 1024);
+        Some(bytes / 1024 / 1024)
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {

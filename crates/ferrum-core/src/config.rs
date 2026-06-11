@@ -332,7 +332,7 @@ pub struct AfricaProfile {
 }
 
 /// Outbreak Mode configuration (opt-in; disabled by default).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct OutbreakConfig {
     /// Master switch. Must be explicitly enabled.
     #[serde(default)]
@@ -340,15 +340,6 @@ pub struct OutbreakConfig {
     /// Policy definitions loaded from config (not stored in DB).
     #[serde(default)]
     pub policies: Vec<OutbreakPolicy>,
-}
-
-impl Default for OutbreakConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            policies: Vec::new(),
-        }
-    }
 }
 
 /// A single outbreak sharing policy (config-driven).

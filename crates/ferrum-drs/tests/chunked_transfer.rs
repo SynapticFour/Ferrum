@@ -144,7 +144,7 @@ async fn test_chunked_resume_http_interrupt_and_sha256() {
 
 #[tokio::test]
 async fn test_low_bandwidth_compression_flag() {
-    let (mut state, _tmp) = drs_test_state().await;
+    let (state, _tmp) = drs_test_state().await;
     state.bandwidth.as_ref().unwrap().inject_mock_bps(50_000);
     let class = state.bandwidth.as_ref().unwrap().classify();
     assert!(class.use_zstd_compression());
@@ -152,7 +152,7 @@ async fn test_low_bandwidth_compression_flag() {
 
 #[tokio::test]
 async fn test_low_bandwidth_compression() {
-    let (mut state, _tmp) = drs_test_state().await;
+    let (state, _tmp) = drs_test_state().await;
     state.bandwidth.as_ref().unwrap().inject_mock_bps(50_000);
     let app = axum::Router::new()
         .route(
@@ -177,7 +177,7 @@ async fn test_low_bandwidth_compression() {
 
 #[tokio::test]
 async fn test_transfer_queue_defers_large_download() {
-    let (mut state, _tmp) = drs_test_state().await;
+    let (state, _tmp) = drs_test_state().await;
     state.bandwidth.as_ref().unwrap().inject_mock_bps(50_000);
     let large = vec![0u8; 11 * 1024 * 1024];
     state
@@ -226,7 +226,7 @@ async fn test_transfer_queue_defers_large_download() {
 
 #[tokio::test]
 async fn test_transfer_queue_defers_large_upload() {
-    let (mut state, _tmp) = drs_test_state().await;
+    let (state, _tmp) = drs_test_state().await;
     state.bandwidth.as_ref().unwrap().inject_mock_bps(50_000);
     let large = vec![1u8; 11 * 1024 * 1024];
     let err = process_upload_from_parts(

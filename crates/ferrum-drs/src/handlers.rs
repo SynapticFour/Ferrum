@@ -15,7 +15,7 @@ use axum::{
 use bytes::Bytes;
 use ferrum_core::{FerrumError, Organization, ServiceInfo, ServiceType};
 use ferrum_crypt4gh::{stream_decrypt, KeyStore, LocalKeyStore};
-use ferrum_storage::{BandwidthClass, TransferDirection};
+use ferrum_storage::TransferDirection;
 use futures_util::stream::StreamExt;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -672,7 +672,6 @@ pub async fn get_object_stream(
         let resume_for_task = stream_query.resume_token.clone();
         let pool_for_task = state.repo.pool().clone();
         let bw_for_task = state.bandwidth.clone();
-        let total_size = obj.size;
         tokio::spawn(async move {
             let mut reader = reader;
             if skip_bytes > 0 {

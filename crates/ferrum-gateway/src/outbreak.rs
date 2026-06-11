@@ -130,6 +130,7 @@ async fn post_approve_download(
     })))
 }
 
+#[allow(clippy::result_large_err)]
 fn require_activator(auth: &Option<Extension<AuthClaims>>) -> Result<(), Response> {
     let claims = auth.as_ref().ok_or_else(|| {
         api_error(
@@ -148,6 +149,7 @@ fn require_activator(auth: &Option<Extension<AuthClaims>>) -> Result<(), Respons
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 fn activator_sub(auth: Option<&Extension<AuthClaims>>) -> Result<String, Response> {
     let claims = auth.ok_or_else(|| {
         api_error(

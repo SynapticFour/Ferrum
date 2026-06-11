@@ -186,9 +186,7 @@ async fn run_cli() -> Result<(), CliExit> {
         }
         Commands::Demo { action } => match action {
             DemoAction::Start { offline } => {
-                demo_start(offline)
-                    .await
-                    .map_err(|e| CliExit::RuntimeFailed(e))?;
+                demo_start(offline).await.map_err(CliExit::RuntimeFailed)?;
             }
         },
         Commands::Mii { action } => match action {

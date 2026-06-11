@@ -124,6 +124,7 @@ impl DrsRepo {
 
         let checksums = self.get_checksums(id).await?;
         let access_methods = self.get_access_methods(id).await?;
+        let ont_metrics = self.get_ont_metrics(id).await?;
         let contents = if row.is_bundle && expand {
             Some(self.get_bundle_contents_expanded(id).await?)
         } else {
@@ -152,7 +153,30 @@ impl DrsRepo {
             contents,
             description: row.description,
             aliases,
+            ont_metrics,
         }))
+    }
+
+    async fn get_ont_metrics(&self, object_id: &str) -> Result<Option<serde_json::Value>> {
+        if self.dialect == DbDialect::Postgres {
+            let row: Option<(Option<serde_json::Value>,)> = pool_query!(self, |p| {
+                sqlx::query_as("SELECT ont_metrics FROM drs_objects WHERE id = $1")
+                    .bind(object_id)
+                    .fetch_optional(p)
+                    .await
+            })?;
+            return Ok(row.and_then(|r| r.0));
+        }
+
+        let row: Option<(Option<String>,)> = pool_query!(self, |p| {
+            sqlx::query_as("SELECT ont_metrics FROM drs_objects WHERE id = $1")
+                .bind(object_id)
+                .fetch_optional(p)
+                .await
+        })?;
+        Ok(row
+            .and_then(|r| r.0)
+            .and_then(|raw| serde_json::from_str(&raw).ok()))
     }
 
     async fn get_checksums(&self, object_id: &str) -> Result<Vec<Checksum>> {
@@ -801,6 +825,7 @@ impl DrsRepo {
     }
 
     /// Insert pathogen annotation linked to a DRS object (multi-pathogen Beacon).
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert_pathogen_annotation(
         &self,
         drs_object_id: &str,
