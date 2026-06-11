@@ -12,7 +12,7 @@ fail() { echo "FAIL: $1"; FAILED=1; }
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/deployment_preflight.sh --scenario <demo|single-node|hpc|kubernetes|offline> [--require-internet true|false|auto]
+  ./scripts/deployment_preflight.sh --scenario <demo|laptop|single-node|hpc|kubernetes|offline> [--require-internet true|false|auto]
 EOF
 }
 
@@ -77,6 +77,17 @@ case "${SCENARIO}" in
     (( ram >= 8 )) && pass "RAM >= 8 GB" || fail "RAM < 8 GB"
     (( disk >= 20 )) && pass "Disk >= 20 GB" || fail "Disk < 20 GB"
     ;;
+  laptop)
+    if (( ram >= 8 )); then
+      pass "RAM >= 8 GB (recommended for Laptop Mode)"
+    elif (( ram >= 4 )); then
+      warn "RAM ${ram} GB — minimum for Laptop Mode; 8 GB+ recommended"
+    else
+      fail "RAM < 4 GB — insufficient for Laptop Mode"
+    fi
+    (( disk >= 10 )) && pass "Disk >= 10 GB free" || fail "Disk < 10 GB free"
+    warn "Laptop Mode preflight: no Docker check (embedded SQLite + local storage)"
+    ;;
   single-node)
     (( ram >= 16 )) && pass "RAM >= 16 GB" || fail "RAM < 16 GB"
     (( disk >= 50 )) && pass "Disk >= 50 GB" || fail "Disk < 50 GB"
@@ -96,6 +107,7 @@ case "${SCENARIO}" in
     check_docker
     (( ram >= 16 )) && pass "RAM >= 16 GB" || fail "RAM < 16 GB"
     (( disk >= 80 )) && pass "Disk >= 80 GB" || fail "Disk < 80 GB"
+    warn "offline scenario targets air-gapped Docker bundle import — use --scenario laptop for embedded mode"
     ;;
   *)
     fail "Unknown scenario: ${SCENARIO}"

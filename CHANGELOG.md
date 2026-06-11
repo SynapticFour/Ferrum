@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file. The format 
 - **`ferrum-embed` crate** — Embedded SQLite + local storage backends for offline-first / Laptop Mode deployments (`EmbedMode`, `SqliteStorage`, `PostgresStorage`, `Database` trait).
 - **`[africa]` config profile** — `offline_first`, `max_memory_mb`, `sqlite_path`, `objects_path`; `FERRUM_OFFLINE=1` env shortcut.
 - **Laptop Mode quickstart** — `ferrum demo start --offline` (CLI + gateway); auto-fallback when PostgreSQL is unavailable.
+- **Native laptop binary** — `./scripts/build-laptop-native.sh` (auto OS/CPU, profile `release-laptop`, `--features laptop`); GitHub Releases ship this optimized single binary.
 - **Laptop Mode E2E** — `deploy/scripts/ci-laptop-demo-e2e.sh` (CI job `test-laptop-mode`): health, DRS ingest, metadata, `/stream` round-trip via `ferrum demo start --offline`.
 - **Local HelixTest** — `deploy/scripts/run-helixtest-local.sh` (Docker stack + core or `--full` suite).
 - **Startup hardening** — Auth endpoint probes wrapped in 5s timeout; non-fatal in offline-first mode.

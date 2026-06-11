@@ -151,9 +151,19 @@ export PATH="$HOME/.ferrum/bin:$PATH"
 
 ### 2. Start demo
 
+**Full stack (Docker — Postgres, MinIO, UI, all GA4GH services):**
+
 ```bash
 ferrum demo start
 ```
+
+**Laptop Mode (one command, no Docker — SQLite + local storage):**
+
+```bash
+ferrum demo start --offline
+```
+
+See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for resource requirements (Linux, macOS, Raspberry Pi, etc.) and what is included in Laptop Mode.
 
 ### 3. Use the UI
 
@@ -226,10 +236,20 @@ Deployment matrix (including offline + update strategy):
 
 ### 🍎 Local demo (MacBook)
 
+**Docker demo (full stack):**
+
 ```bash
 ferrum demo start
 # or: make -C . demo  (from repo)
 ```
+
+**Laptop Mode (no Docker, single command):**
+
+```bash
+ferrum demo start --offline
+```
+
+Resource expectations and platform notes: [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md).
 
 ### 🏢 On-premises HPC
 

@@ -43,11 +43,14 @@ After four years from each release, that version becomes Apache-2.0.
 
 ## Quick demo (macOS / Linux)
 
+### Full stack (Docker required)
+
 ```bash
 # Install ferrum CLI
 curl -sSf https://raw.githubusercontent.com/SynapticFour/Ferrum/main/install.sh | sh
+export PATH="$HOME/.ferrum/bin:$PATH"
 
-# Start complete demo stack (Docker required)
+# Start complete demo stack (PostgreSQL, MinIO, Keycloak, UI)
 ferrum demo start
 
 # Verify all services are healthy
@@ -55,6 +58,36 @@ ferrum demo status
 ```
 
 The demo stack includes: **ferrum-gateway**, **PostgreSQL 16**, **MinIO**, **Keycloak** (realm + test users), **ferrum-ui**, and **nginx**. Pre-seeded DRS objects (public genomic URLs) and test users (e.g. `alice`/`bob`) are created by the init container. UI: `http://localhost:8082`, API: `http://localhost:8080`.
+
+**Preflight (Docker demo):** `./scripts/deployment_preflight.sh --scenario demo` (8 GB RAM, 20 GB disk recommended).
+
+### Laptop Mode (no Docker — one command)
+
+For offline or resource-constrained machines (shared laptops, field sites, Raspberry Pi with ARM64 Linux):
+
+```bash
+curl -sSf https://raw.githubusercontent.com/SynapticFour/Ferrum/main/install.sh | sh
+export PATH="$HOME/.ferrum/bin:$PATH"
+
+ferrum demo start --offline
+```
+
+- **One process:** `ferrum-gateway` with SQLite (`~/.ferrum/ferrum.db`) and local objects (`~/.ferrum/objects/`).
+- **No internet** required at runtime after install.
+- **Services:** DRS, Beacon, htsget; WES/TES/TRS need Postgres and are unavailable in this mode.
+
+Verify: `curl http://127.0.0.1:8080/health`
+
+**Preflight (Laptop Mode):** `./scripts/deployment_preflight.sh --scenario laptop`
+
+**Native optimized binary** (single executable, auto-detect OS/CPU):
+
+```bash
+./scripts/build-laptop-native.sh --install
+# or: make laptop
+```
+
+Full guide, platform matrix, and RAM/disk expectations: [docs/AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md).
 
 ---
 

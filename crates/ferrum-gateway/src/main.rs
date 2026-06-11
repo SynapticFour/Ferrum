@@ -2,9 +2,11 @@
 
 use clap::{Parser, Subcommand};
 use ferrum_embed::{
-    ensure_data_dirs, probe_auth_endpoints, Database, EmbedMode, MemoryCapGuard, MemoryCapState,
-    PostgresStorage, SqliteStorage,
+    ensure_data_dirs, log_platform_startup, probe_auth_endpoints, Database, EmbedMode,
+    MemoryCapGuard, MemoryCapState, SqliteStorage,
 };
+#[cfg(feature = "full")]
+use ferrum_embed::PostgresStorage;
 use ferrum_gateway::run;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -216,6 +218,8 @@ async fn build_object_storage(
 }
 
 async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    const LAPTOP_BUILD: bool = !cfg!(feature = "full");
+
     tracing_subscriber::registry()
         .with(
             EnvFilter::try_from_default_env()
@@ -228,7 +232,21 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     if let Some(ref mut cfg) = config {
         cfg.apply_embedded_defaults();
         let _ = ensure_data_dirs(cfg);
+        if LAPTOP_BUILD || cfg.is_offline_first() {
+            if cfg.africa.as_ref().and_then(|a| a.max_memory_mb).is_none() {
+                if let Some(cap_mb) = ferrum_embed::suggested_memory_cap_mb() {
+                    let africa = cfg.africa.get_or_insert_with(Default::default);
+                    africa.max_memory_mb = Some(cap_mb);
+                    tracing::info!(
+                        cap_mb,
+                        "auto-set memory cap to 80% of detected RAM (override with [africa] max_memory_mb)"
+                    );
+                }
+            }
+        }
     }
+
+    log_platform_startup(LAPTOP_BUILD);
 
     let offline_first = config.as_ref().is_some_and(|c| c.is_offline_first());
     let embed_mode = config
@@ -257,6 +275,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
 
     let ferrum_pool: Option<ferrum_core::FerrumPool> = if let Some(ref cfg) = config {
         let result = match embed_mode {
+            #[cfg(feature = "full")]
             EmbedMode::Full => {
                 let storage = PostgresStorage::connect(cfg).await?;
                 if cfg.database.run_migrations {
@@ -271,12 +290,24 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
                 }
                 Some(storage.pool().clone())
             }
+            #[cfg(not(feature = "full"))]
+            EmbedMode::Full => {
+                tracing::warn!(
+                    "postgres/full embed mode requested but this binary was built with --features laptop; using SQLite"
+                );
+                let storage = SqliteStorage::connect(cfg).await?;
+                if cfg.database.run_migrations {
+                    storage.migrate().await?;
+                }
+                Some(storage.pool().clone())
+            }
         };
         result
     } else {
         None
     };
 
+    #[cfg(feature = "full")]
     let pg_pool: Option<sqlx::PgPool> = if embed_mode == EmbedMode::Full {
         if let Some(ref cfg) = config {
             ferrum_core::postgres_pool_from_config(&cfg.database).await.ok()
@@ -363,6 +394,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         })
     });
 
+    #[cfg(feature = "full")]
     let wes_params = pg_pool.clone().map(|pool| {
         let work_dir = std::env::var("FERRUM_WES_WORK_DIR")
             .map(PathBuf::from)
@@ -382,25 +414,48 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         )
     });
 
+    #[cfg(feature = "full")]
     let tes_params = pg_pool
         .clone()
         .map(|pool| (pool, Some("noop".to_string()), None));
 
-    run(
-        bind,
-        config,
-        drs_state,
-        htsget_state,
-        wes_params,
-        tes_params,
-        pg_pool.clone(),
-        ferrum_pool.clone(),
-        pg_pool.clone(),
-        pg_pool.clone(),
-        pg_pool.clone(),
-        pg_pool,
-    )
-    .await?;
+    #[cfg(feature = "full")]
+    {
+        run(
+            bind,
+            config,
+            drs_state,
+            htsget_state,
+            wes_params,
+            tes_params,
+            pg_pool.clone(),
+            ferrum_pool.clone(),
+            pg_pool.clone(),
+            pg_pool.clone(),
+            pg_pool.clone(),
+            pg_pool,
+        )
+        .await?;
+    }
+
+    #[cfg(not(feature = "full"))]
+    {
+        run(
+            bind,
+            config,
+            drs_state,
+            htsget_state,
+            None,
+            None,
+            None,
+            ferrum_pool.clone(),
+            None,
+            None,
+            None,
+        )
+        .await?;
+    }
+
     Ok(())
 }
 

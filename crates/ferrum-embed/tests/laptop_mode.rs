@@ -67,7 +67,6 @@ async fn spawn_laptop_gateway(
         None,
         None,
         None,
-        None,
         Arc::new(ferrum_gateway::shutdown::ShutdownCoordinator::new()),
         None,
     );

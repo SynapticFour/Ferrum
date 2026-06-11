@@ -6,7 +6,7 @@ This page is the entrypoint for Ferrum deployment paths.
 
 | Scenario | Recommended path | Internet required during install | Main doc |
 |---|---|---|---|
-| Local demo / evaluation | `ferrum demo start --offline` or `deploy/docker-compose.yml` | Optional (Laptop Mode: no) | `docs/INSTALLATION.md` |
+| Local demo / evaluation | `ferrum demo start --offline` or `deploy/docker-compose.yml` | Optional (Laptop Mode: no) | `docs/AFRICA-DEPLOYMENT.md` (laptop) · `docs/INSTALLATION.md` (Docker) |
 | Single-node production (bare metal / VM) | Binary + systemd + external Postgres/S3 | Optional | `docs/INSTALLATION.md` |
 | Distributed HPC | Ansible inventory + playbooks | Usually yes | `docs/INSTALLATION.md` |
 | Kubernetes (AKS/on-prem) | Helm chart in `deploy/helm/` | Usually yes | `docs/INSTALLATION.md` |
@@ -31,6 +31,7 @@ Recommended channels:
 
 ```bash
 ./scripts/deployment_preflight.sh --scenario demo
+./scripts/deployment_preflight.sh --scenario laptop
 ./scripts/deployment_preflight.sh --scenario single-node
 ./scripts/deployment_preflight.sh --scenario hpc
 ./scripts/deployment_preflight.sh --scenario kubernetes
@@ -46,10 +47,8 @@ Operational templates:
 For intermittent connectivity and shared laptops, use **Laptop Mode** (SQLite + local storage):
 
 ```bash
-FERRUM_OFFLINE=1 ferrum-gateway
-# or
 ferrum demo start --offline
 ```
 
-Full guide: [docs/AFRICA-DEPLOYMENT.md](../AFRICA-DEPLOYMENT.md)
+Full guide (one-command start, RAM/disk by platform, Raspberry Pi, macOS, Linux): [docs/AFRICA-DEPLOYMENT.md](../AFRICA-DEPLOYMENT.md)
 

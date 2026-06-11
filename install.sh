@@ -47,19 +47,34 @@ esac
 
 if [ "$OFFLINE" = "1" ]; then
   echo "[ferrum] Offline install mode."
-  if [ -f "./target/release/ferrum-gateway" ]; then
+  if [ -x "./scripts/build-laptop-native.sh" ]; then
+    echo "[ferrum] Building optimized Laptop Mode binary for this machine..."
+    ./scripts/build-laptop-native.sh --install
+    exit 0
+  fi
+  LAPTOP_BIN=""
+  for candidate in \
+    "./target/release-laptop/ferrum-gateway" \
+    "./target/release/ferrum-gateway" \
+    "./target/"*"/release-laptop/ferrum-gateway"; do
+    if [ -f "$candidate" ]; then
+      LAPTOP_BIN="$candidate"
+      break
+    fi
+  done
+  if [ -n "$LAPTOP_BIN" ]; then
     mkdir -p "$INSTALL_DIR"
-    cp "./target/release/ferrum-gateway" "$INSTALL_DIR/$BIN_NAME"
+    cp "$LAPTOP_BIN" "$INSTALL_DIR/$BIN_NAME"
     ln -sf "$INSTALL_DIR/$BIN_NAME" "$INSTALL_DIR/ferrum"
-    echo "Installed local build from ./target/release/ferrum-gateway"
-    echo "Run: FERRUM_OFFLINE=1 ferrum start"
+    echo "Installed local build from $LAPTOP_BIN"
+    echo "Run: ferrum demo start --offline"
     exit 0
   fi
   if [ -f "./ferrum-offline-bundle.tar.gz" ]; then
     echo "Import offline bundle with: ./scripts/import_offline_bundle.sh ./ferrum-offline-bundle.tar.gz"
     exit 0
   fi
-  echo "Error: offline install requires a pre-built binary at ./target/release/ferrum-gateway"
+  echo "Error: offline install requires ./scripts/build-laptop-native.sh, a pre-built binary under ./target/,"
   echo "       or an offline bundle (see docs/deployment/OFFLINE-AIRGAP.md)."
   exit 1
 fi
@@ -116,5 +131,5 @@ echo ""
 echo "Add Ferrum to your PATH:"
 echo '  export PATH="$HOME/.ferrum/bin:$PATH"'
 echo ""
-echo "Laptop / offline mode: FERRUM_OFFLINE=1 ferrum start"
+echo "Laptop / offline mode: ferrum demo start --offline"
 echo ""

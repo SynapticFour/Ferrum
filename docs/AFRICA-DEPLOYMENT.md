@@ -9,22 +9,28 @@ Genomics labs in resource-constrained settings often operate on shared laptops (
 - **Non-fatal startup** when auth endpoints or the network are unavailable
 - **`FERRUM_OFFLINE=1`** shortcut (no config file edit required)
 
-### Quickstart (offline)
+### One command to start (recommended)
+
+After installing the `ferrum` binary (see [INSTALLATION.md](INSTALLATION.md)):
 
 ```bash
-# Build once where network is available
-cargo build --release -p ferrum-gateway
+export PATH="$HOME/.ferrum/bin:$PATH"
+ferrum demo start --offline
+```
 
-# On the laptop (no network required)
-export FERRUM_OFFLINE=1
-./target/release/ferrum-gateway
-# or: ferrum demo start --offline   (ferrum-cli)
+That single command starts **ferrum-gateway** in Laptop Mode with SQLite + local storage. No Docker, PostgreSQL, or MinIO required.
+
+Alternative equivalents:
+
+```bash
+FERRUM_OFFLINE=1 ferrum start          # gateway only (same backends, fewer console hints)
+FERRUM_OFFLINE=1 ferrum-gateway        # if you invoke the binary directly
 ```
 
 Expected console output:
 
 ```
-[ferrum] PostgreSQL not detected. Starting in Laptop Mode (SQLite + local storage).
+[ferrum] Starting in Laptop Mode (SQLite + local storage).
 [ferrum] Data will be stored at ~/.ferrum/
 [ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml
 ```
@@ -33,9 +39,69 @@ Verify:
 
 ```bash
 curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8080/ga4gh/drs/v1/service-info
 # Full offline round-trip (ingest → stream), same as CI:
 sh deploy/scripts/ci-laptop-demo-e2e.sh
 ```
+
+### What Laptop Mode includes (and excludes)
+
+Laptop Mode is a **single-process, embedded stack** — not the full Docker demo.
+
+| Available | Endpoint | Backend |
+|-----------|----------|---------|
+| Health | `/health` | — |
+| DRS (ingest, metadata, stream) | `/ga4gh/drs/v1` | SQLite + local files |
+| Beacon v2 | `/ga4gh/beacon/v2` | SQLite |
+| htsget (when objects are indexed) | `/ga4gh/htsget/v1` | Same SQLite as DRS |
+
+| Not available (requires PostgreSQL) | Typical response |
+|-------------------------------------|------------------|
+| WES, TES, TRS | `503` / service disabled |
+| Passports / OIDC flows | `503` or skipped at startup |
+| Full HelixTest matrix | Use Docker demo or production stack |
+
+For conformance testing and the complete GA4GH surface, use `deploy/docker-compose.yml` or a Postgres-backed deployment — see [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md).
+
+### Resource requirements (realistic expectations)
+
+These numbers set expectations for **Laptop Mode only** (one `ferrum-gateway` process, no Docker stack). They combine design targets from the Africa deep-dive, preflight checks, and typical Rust + SQLite behaviour. **Ferrum does not yet publish formal load-test benchmarks for Laptop Mode**; treat disk and RAM for *your data* as the main scaling factor.
+
+#### By deployment profile
+
+| Profile | RAM | Free disk | CPU | Typical use |
+|---------|-----|-----------|-----|-------------|
+| **Minimum** | 4 GB | 10 GB | 2 cores | Evaluation, small test files, single user |
+| **Recommended** | 8–16 GB | 50 GB+ | 4 cores | Shared lab laptop, modest VCF/BAM working sets |
+| **Heavy data** | 16–32 GB | 100 GB – 1 TB+ | 4+ cores | Larger objects; disk dominates, not the binary |
+
+**Disk:** Ferrum itself is small (binary + SQLite metadata). Genomic objects live under `~/.ferrum/objects/` and grow with your ingest — plan disk from your dataset size, not from Ferrum’s install footprint.
+
+**RAM:** Idle gateway typically uses on the order of **~100–250 MB RSS** (platform-dependent; not CI-gated). Optional cap via `[africa] max_memory_mb` (see below). Leave headroom for OS, browser, and analysis tools on shared laptops.
+
+**CPU:** SQLite allows one writer at a time; Laptop Mode suits **single-user or low-concurrency** lab workflows, not multi-tenant throughput.
+
+**Network:** Not required at **runtime** once the binary is installed. Internet may be needed once for `install.sh` or `cargo build --release`.
+
+#### By platform
+
+| Platform | Laptop Mode | Install path | Notes |
+|----------|-------------|--------------|-------|
+| **Linux x86_64** | Supported | `install.sh`, musl release binary | Primary target; memory cap monitoring via `/proc/self/status` |
+| **Linux ARM64** (Raspberry Pi 4/5, ARM SBCs) | Supported | `install.sh` (`aarch64-unknown-linux-musl`) | **4 GB RAM is tight** — 8 GB recommended; prefer USB SSD over SD card for SQLite + objects |
+| **macOS** (Intel / Apple Silicon) | Supported | `install.sh`, darwin release binary | Memory cap logs are best-effort (no Linux `/proc`); otherwise same as Linux |
+| **Windows (native)** | Not supported | — | No official Windows binary or install script |
+| **Windows (WSL2 Ubuntu)** | Supported | Linux flow inside WSL | Treat as Linux; store data on Linux filesystem (`~/.ferrum/`), not `/mnt/c/` for performance |
+
+#### Preflight check
+
+Before rollout on a target machine:
+
+```bash
+./scripts/deployment_preflight.sh --scenario laptop
+```
+
+Use `--scenario offline` for the **air-gapped Docker bundle** path (heavier: expects Docker and 16 GB RAM). Use `--scenario laptop` for **embedded Laptop Mode** without containers.
 
 ### Configuration
 
@@ -59,12 +125,59 @@ Environment overrides:
 | Mode | Trigger | Database | Storage |
 |---|---|---|---|
 | **Production** | `database.url = postgres://…` in config | PostgreSQL | S3 / MinIO |
-| **Laptop / offline** | `FERRUM_OFFLINE=1`, `[africa] offline_first`, or default sqlite driver without Postgres URL | SQLite | Local path |
+| **Laptop / offline** | `ferrum demo start --offline`, `FERRUM_OFFLINE=1`, `[africa] offline_first`, or default sqlite driver without Postgres URL | SQLite | Local path |
 
 Production PostgreSQL and S3 code paths are unchanged. HelixTest conformance continues to run against the full Postgres stack.
+
+### Native optimized build (recommended)
+
+Ferrum ships a **single optimized binary** for Laptop Mode: DRS + Beacon + htsget + Crypt4GH on SQLite (no WES/TES/TRS/Postgres in the binary). GitHub Releases and `install.sh --offline` use this build.
+
+**Simplest path** — auto-detect OS, CPU, and apply native optimizations:
+
+```bash
+./scripts/build-laptop-native.sh --install
+ferrum demo start --offline
+```
+
+What the script does:
+
+| Step | Behaviour |
+|------|-----------|
+| OS / arch | Linux x86_64, Linux ARM64 (Raspberry Pi), macOS Intel/Apple Silicon |
+| CPU | `-C target-cpu=native` when building **on** the target machine (best performance) |
+| Profile | `release-laptop` — LTO, strip, size-optimized (`opt-level = "s"`) |
+| Features | `--no-default-features --features laptop` — slim embedded stack only |
+
+Flags:
+
+```bash
+./scripts/build-laptop-native.sh --install          # build + install to ~/.ferrum/bin
+./scripts/build-laptop-native.sh --no-native-cpu    # portable binary (same arch, generic CPU)
+./scripts/build-laptop-native.sh --target aarch64-unknown-linux-gnu  # cross-compile hint
+make laptop                                         # same as --install from repo root
+```
+
+At startup, the gateway **auto-detects** RAM and CPU model (Linux `/proc`, macOS `sysctl`) and logs a platform summary. If `[africa] max_memory_mb` is unset, it sets a cap to **80% of detected RAM** to reduce OOM risk on shared laptops.
+
+**Production / Docker stack** still uses the full gateway (`--features full`, default in `cargo build -p ferrum-gateway`). Laptop and full binaries share the same CLI: `ferrum demo start --offline` vs Docker demo.
+
+### Build once, run offline (manual)
+
+On a build machine, then copy `~/.ferrum/bin/ferrum-gateway` to the field laptop:
+
+```bash
+./scripts/build-laptop-native.sh --install
+# or from repo without install:
+./scripts/build-laptop-native.sh
+# Copy target/<triple>/release-laptop/ferrum-gateway to the target machine, then:
+ferrum demo start --offline
+```
+
+See also [OFFLINE-AIRGAP.md](deployment/OFFLINE-AIRGAP.md) for signed bundles.
 
 ### Decision rationale (ADR summary)
 
 Embedded backends trade horizontal scalability for operability: SQLite suits single-user laptop deployments; PostgreSQL remains the production source of truth. Local storage avoids S3 API dependencies while preserving the same `ObjectStorage` trait used by DRS ingest and streaming in production.
 
-See also: [deployment README](deployment/README.md), [OFFLINE-AIRGAP](deployment/OFFLINE-AIRGAP.md).
+See also: [deployment README](deployment/README.md), [INSTALLATION.md](INSTALLATION.md).

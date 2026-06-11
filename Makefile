@@ -4,7 +4,11 @@
 COMPOSE_FILE := deploy/docker-compose.yml
 COMPOSE := docker compose -f $(COMPOSE_FILE)
 
-.PHONY: demo stop clean clean-all logs pull build rebuild rebuild-gateway
+.PHONY: demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop
+
+# Optimized single-binary Laptop Mode (native CPU when possible)
+laptop:
+	./scripts/build-laptop-native.sh --install
 
 # Pull images, build, start stack. Wait for gateway and UI to be reachable; fail with hint if not.
 # Init seeds demo data (workspace, DRS, TRS, Keycloak). Use demo-user when auth is disabled.

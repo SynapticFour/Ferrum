@@ -9,6 +9,33 @@ license = "BUSL-1.1"
 name = "ferrum-gateway"
 path = "src/main.rs"
 
+[features]
+default = ["full"]
+# Slim embedded / Laptop Mode binary: DRS + Beacon + htsget + Crypt4GH on SQLite only.
+laptop = []
+# Full production stack (Postgres-backed WES/TES/TRS/Passports, optional Swagger deps).
+full = [
+    "postgres",
+    "wes",
+    "tes",
+    "trs",
+    "passports",
+    "cohorts",
+    "workspaces",
+    "swagger",
+]
+postgres = ["sqlx/postgres"]
+wes = ["dep:ferrum-wes"]
+tes = ["dep:ferrum-tes"]
+trs = ["dep:ferrum-trs"]
+passports = ["dep:ferrum-passports"]
+cohorts = ["dep:ferrum-cohorts"]
+workspaces = ["dep:ferrum-workspaces"]
+swagger = ["dep:utoipa", "dep:utoipa-swagger-ui"]
+standalone = []
+tes-docker = ["ferrum-tes/docker", "tes"]
+workspaces_email = ["workspaces", "ferrum-workspaces/email"]
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 ferrum-core = { path = "../ferrum-core" }
@@ -16,34 +43,26 @@ ferrum-embed = { path = "../ferrum-embed" }
 ferrum-storage = { path = "../ferrum-storage" }
 ferrum-drs = { path = "../ferrum-drs" }
 ferrum-htsget = { path = "../ferrum-htsget" }
-ferrum-trs = { path = "../ferrum-trs" }
-ferrum-wes = { path = "../ferrum-wes" }
-# `docker` backend is opt-in: build gateway with `--features tes-docker` (see deploy/Dockerfile.gateway).
-ferrum-tes = { path = "../ferrum-tes" }
-ferrum-passports = { path = "../ferrum-passports" }
-ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
 ferrum-beacon = { path = "../ferrum-beacon" }
-ferrum-cohorts = { path = "../ferrum-cohorts" }
-ferrum-workspaces = { path = "../ferrum-workspaces" }
+ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
+ferrum-wes = { path = "../ferrum-wes", optional = true }
+ferrum-tes = { path = "../ferrum-tes", optional = true }
+ferrum-trs = { path = "../ferrum-trs", optional = true }
+ferrum-passports = { path = "../ferrum-passports", optional = true }
+ferrum-cohorts = { path = "../ferrum-cohorts", optional = true }
+ferrum-workspaces = { path = "../ferrum-workspaces", optional = true }
 axum = "0.7"
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "sqlite", "chrono"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "chrono"] }
 tokio = { version = "1", features = ["full"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["trace", "cors", "fs", "set-header"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-utoipa = { version = "4", features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "6", features = ["axum"] }
+utoipa = { version = "4", features = ["axum_extras"], optional = true }
+utoipa-swagger-ui = { version = "6", features = ["axum"], optional = true }
 tokio-util = "0.7"
 http-body-util = "0.1"
 futures-util = "0.3"
-
-[features]
-default = []
-standalone = []
-# Enables Bollard + Docker daemon executor for TES (`FERRUM_TES_BACKEND=docker`). Default image stays Podman/noop-capable.
-tes-docker = ["ferrum-tes/docker"]
-workspaces_email = ["ferrum-workspaces/email"]

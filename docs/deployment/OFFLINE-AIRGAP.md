@@ -10,9 +10,17 @@ and importing them into an offline target environment.
 
 ## 1) Run preflight on target
 
+Choose the scenario that matches your path:
+
 ```bash
+# Embedded Laptop Mode (SQLite, no Docker)
+./scripts/deployment_preflight.sh --scenario laptop
+
+# Air-gapped Docker bundle import (heavier stack)
 ./scripts/deployment_preflight.sh --scenario offline
 ```
+
+One-command Laptop Mode for users: [AFRICA-DEPLOYMENT.md](../AFRICA-DEPLOYMENT.md) (`ferrum demo start --offline`).
 
 ## 2) Create offline bundle (online host)
 

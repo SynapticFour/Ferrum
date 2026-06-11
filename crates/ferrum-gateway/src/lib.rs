@@ -1,6 +1,7 @@
 //! API Gateway: merges all GA4GH service routers under standard paths.
 //! A01: Auth middleware on every request. A05: Security headers, CORS from config.
 
+#[cfg(feature = "full")]
 mod admin;
 pub mod shutdown;
 
@@ -20,6 +21,7 @@ use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 
 /// WES router params: pool, work dir base, optional TES URL, optional TRS register URL, optional provenance store, optional pricing config, optional MultiQC config, optional DRS ingest base URL, allowed_workflow_sources. When None, WES routes return 503.
+#[cfg(feature = "full")]
 pub type WesRouterParams = (
     sqlx::PgPool,
     Option<std::path::PathBuf>,
@@ -31,24 +33,41 @@ pub type WesRouterParams = (
     Option<String>,
     Vec<String>,
 );
+#[cfg(not(feature = "full"))]
+pub type WesRouterParams = ();
 
 /// TES router params: pool, backend name ("podman" | "slurm"), optional work dir. When None, TES routes return 503.
+#[cfg(feature = "full")]
 pub type TesRouterParams = (sqlx::PgPool, Option<String>, Option<std::path::PathBuf>);
+#[cfg(not(feature = "full"))]
+pub type TesRouterParams = ();
 
 /// TRS router params: pool. When None, TRS routes return 503.
+#[cfg(feature = "full")]
 pub type TrsRouterParams = sqlx::PgPool;
+#[cfg(not(feature = "full"))]
+pub type TrsRouterParams = ();
 
 /// Beacon router params: pool. When None, Beacon routes return 503.
 pub type BeaconRouterParams = Option<ferrum_core::FerrumPool>;
 
 /// Passports router params: pool. When None, Passports routes return 503.
+#[cfg(feature = "full")]
 pub type PassportRouterParams = Option<sqlx::PgPool>;
+#[cfg(not(feature = "full"))]
+pub type PassportRouterParams = Option<()>;
 
 /// Cohorts router params: pool. When None, Cohorts routes return 503.
+#[cfg(feature = "full")]
 pub type CohortRouterParams = Option<sqlx::PgPool>;
+#[cfg(not(feature = "full"))]
+pub type CohortRouterParams = Option<()>;
 
 /// Workspaces router params: pool. When None, Workspaces routes return 503.
+#[cfg(feature = "full")]
 pub type WorkspacesRouterParams = Option<sqlx::PgPool>;
+#[cfg(not(feature = "full"))]
+pub type WorkspacesRouterParams = Option<()>;
 
 /// Build the unified gateway app with all GA4GH routes.
 /// Config can be used to enable/disable services via `config.services`.
@@ -57,6 +76,7 @@ pub type WorkspacesRouterParams = Option<sqlx::PgPool>;
 /// When WES is enabled, pass Some(wes_params); None and enable_wes yields 503 for WES routes.
 /// When admin_pool is Some, mounts /admin (token revoke, security events); requires admin auth.
 #[allow(clippy::too_many_arguments)]
+#[cfg_attr(not(feature = "full"), allow(unused_variables))]
 pub fn app(
     config: Option<&ferrum_core::AppConfig>,
     drs_state: Option<ferrum_drs::AppState>,
@@ -68,7 +88,7 @@ pub fn app(
     passport_params: PassportRouterParams,
     cohort_params: CohortRouterParams,
     workspaces_pool: WorkspacesRouterParams,
-    admin_pool: Option<sqlx::PgPool>,
+    #[cfg(feature = "full")] admin_pool: Option<sqlx::PgPool>,
     shutdown_coordinator: Arc<shutdown::ShutdownCoordinator>,
     config_watch_rx: Option<watch::Receiver<Arc<FerrumConfig>>>,
 ) -> Router {
@@ -177,6 +197,7 @@ pub fn app(
             }
         }
     }
+    #[cfg(feature = "full")]
     if hot_reload || cfg.map(|c| c.services.enable_trs).unwrap_or(true) {
         let trs_router = match trs_params {
             Some(pool) => ferrum_trs::router(pool),
@@ -184,6 +205,7 @@ pub fn app(
         };
         app = app.nest("/ga4gh/trs/v2", trs_router);
     }
+    #[cfg(feature = "full")]
     if hot_reload || cfg.map(|c| c.services.enable_wes).unwrap_or(true) {
         let wes_router = match wes_params {
             Some((
@@ -211,6 +233,7 @@ pub fn app(
         };
         app = app.nest("/ga4gh/wes/v1", wes_router);
     }
+    #[cfg(feature = "full")]
     if hot_reload || cfg.map(|c| c.services.enable_tes).unwrap_or(true) {
         let tes_router = match tes_params {
             Some((pool, backend, work_dir)) => ferrum_tes::router(pool, backend, work_dir),
@@ -225,6 +248,7 @@ pub fn app(
         };
         app = app.nest("/ga4gh/beacon/v2", beacon_router);
     }
+    #[cfg(feature = "full")]
     if hot_reload || cfg.map(|c| c.services.enable_passports).unwrap_or(true) {
         let passport_router = match passport_params {
             Some(pool) => ferrum_passports::router(pool),
@@ -242,9 +266,11 @@ pub fn app(
         };
         app = app.nest("/ga4gh/htsget/v1", hts_router);
     }
+    #[cfg(feature = "full")]
     if let Some(pool) = cohort_params {
         app = app.nest("/cohorts/v1", ferrum_cohorts::router(pool));
     }
+    #[cfg(feature = "full")]
     if let Some(pool) = workspaces_pool {
         let (email_sender, invite_base_url) = match cfg.and_then(|c| c.email.as_ref()) {
             Some(email_cfg) => {
@@ -264,6 +290,7 @@ pub fn app(
             ferrum_workspaces::router(pool, email_sender, invite_base_url),
         );
     }
+    #[cfg(feature = "full")]
     if let Some(pool) = admin_pool {
         app = app.nest("/admin", admin::admin_router(pool, cfg));
     }
@@ -344,15 +371,15 @@ pub fn app(
                         {
                             cfg.services.enable_drs
                         } else if path.starts_with("/ga4gh/wes/v1") {
-                            cfg.services.enable_wes
+                            cfg!(feature = "full") && cfg.services.enable_wes
                         } else if path.starts_with("/ga4gh/tes/v1") {
-                            cfg.services.enable_tes
+                            cfg!(feature = "full") && cfg.services.enable_tes
                         } else if path.starts_with("/ga4gh/trs/v2") {
-                            cfg.services.enable_trs
+                            cfg!(feature = "full") && cfg.services.enable_trs
                         } else if path.starts_with("/ga4gh/beacon/v2") {
                             cfg.services.enable_beacon
                         } else if path.starts_with("/passports/v1") {
-                            cfg.services.enable_passports
+                            cfg!(feature = "full") && cfg.services.enable_passports
                         } else if path.starts_with("/ga4gh/crypt4gh/v1") {
                             cfg.services.enable_crypt4gh
                         } else if path.starts_with("/ga4gh/htsget/v1") {
@@ -403,7 +430,7 @@ pub async fn run(
     passport_params: PassportRouterParams,
     cohort_params: CohortRouterParams,
     workspaces_pool: WorkspacesRouterParams,
-    admin_pool: Option<sqlx::PgPool>,
+    #[cfg(feature = "full")] admin_pool: Option<sqlx::PgPool>,
 ) -> Result<(), std::io::Error> {
     let shutdown_coordinator = Arc::new(shutdown::ShutdownCoordinator::new());
     let drain_timeout_secs: u64 = std::env::var("FERRUM_DRAIN_TIMEOUT_SECS")
@@ -454,6 +481,7 @@ pub async fn run(
         passport_params,
         cohort_params,
         workspaces_pool,
+        #[cfg(feature = "full")]
         admin_pool,
         Arc::clone(&shutdown_coordinator),
         config_watch_rx,

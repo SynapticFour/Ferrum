@@ -64,8 +64,10 @@ jobs:
           else
             cargo test -p ferrum-embed
           fi
-      - name: Build laptop mode CLI + gateway
-        run: cargo build -p ferrum-cli -p ferrum-gateway
+      - name: Build optimized laptop gateway + CLI
+        run: |
+          ./scripts/build-laptop-native.sh --no-native-cpu
+          cargo build -p ferrum-cli
       - name: E2E ferrum demo start --offline
         run: sh deploy/scripts/ci-laptop-demo-e2e.sh
 

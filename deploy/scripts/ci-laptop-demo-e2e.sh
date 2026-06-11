@@ -6,14 +6,22 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
-PROFILE="${CARGO_PROFILE:-debug}"
+PROFILE="${CARGO_PROFILE:-release-laptop}"
 TARGET_DIR="$(cargo metadata --format-version 1 --no-deps | python3 -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])')"
-FERRUM_CLI="${FERRUM_CLI_BIN:-$TARGET_DIR/$PROFILE/ferrum}"
-FERRUM_GATEWAY="${FERRUM_GATEWAY_BIN:-$TARGET_DIR/$PROFILE/ferrum-gateway}"
+HOST_TRIPLE="$(rustc -vV 2>/dev/null | awk '/host:/ {print $2}')"
+FERRUM_GATEWAY="${FERRUM_GATEWAY_BIN:-$TARGET_DIR/$HOST_TRIPLE/$PROFILE/ferrum-gateway}"
+if [ ! -x "$FERRUM_GATEWAY" ]; then
+  FERRUM_GATEWAY="$TARGET_DIR/$PROFILE/ferrum-gateway"
+fi
+FERRUM_CLI="${FERRUM_CLI_BIN:-$TARGET_DIR/debug/ferrum}"
 
-if [ ! -x "$FERRUM_CLI" ] || [ ! -x "$FERRUM_GATEWAY" ]; then
-  echo "ci-laptop-demo-e2e: building ferrum-cli and ferrum-gateway ($PROFILE)..." >&2
-  cargo build -p ferrum-cli -p ferrum-gateway
+if [ ! -x "$FERRUM_CLI" ]; then
+  echo "ci-laptop-demo-e2e: building ferrum-cli..." >&2
+  cargo build -p ferrum-cli
+fi
+if [ ! -x "$FERRUM_GATEWAY" ]; then
+  echo "ci-laptop-demo-e2e: building optimized laptop gateway ($PROFILE)..." >&2
+  "$ROOT/scripts/build-laptop-native.sh" --no-native-cpu --profile "$PROFILE"
 fi
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ferrum-laptop-e2e.XXXXXX")"

@@ -80,6 +80,8 @@ graph TD
 | `Sqlite` | `FERRUM_OFFLINE=1`, `[africa] offline_first`, or default sqlite driver | SQLite file | Local path |
 | `Auto` | Resolved from config (default) | — | — |
 
+**Laptop binary:** Release artifacts and `./scripts/build-laptop-native.sh` produce a **slim single binary** (`--features laptop`, profile `release-laptop`) with DRS/Beacon/htsget only. The full Docker/production gateway is built with `--features full` (default for `cargo build -p ferrum-gateway`). See [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md).
+
 ---
 
 ## Provenance and lineage
