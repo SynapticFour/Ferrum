@@ -2,19 +2,30 @@
 
 use crate::error::Result;
 use crate::repo::BeaconRepo;
-use axum::extract::State;
+use axum::extract::{Extension, State};
 use axum::Json;
+use ferrum_core::OutbreakService;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
 pub struct AppState {
     pub repo: Arc<BeaconRepo>,
+    pub outbreak: Option<Arc<OutbreakService>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct BeaconFilter {
     pub id: String,
+    /// PathoGenFilter extension fields (when `id` is `PathoGenFilter`).
+    #[serde(default)]
+    pub organism: Option<String>,
+    #[serde(rename = "amrGene", alias = "amr_gene", default)]
+    pub amr_gene: Option<String>,
+    #[serde(default)]
+    pub serotype: Option<String>,
+    #[serde(rename = "minQscore", alias = "min_qscore", default)]
+    pub min_qscore: Option<f32>,
 }
 
 /// Beacon v2 encodes OR in `query.filters` as nested arrays.
@@ -125,15 +136,30 @@ pub struct BeaconRequestParameters {
     /// Beacon v2 requested granularity (e.g. "count"). For completeness.
     #[serde(rename = "requestedGranularity")]
     pub requested_granularity: Option<String>,
+    /// Multi-pathogen filter: NCBI taxonomy ID or free text organism name.
+    #[serde(default)]
+    pub organism: Option<String>,
+    /// AMR gene symbol filter (e.g. blaNDM-1).
+    #[serde(rename = "amrGene", default)]
+    pub amr_gene: Option<String>,
+    #[serde(default)]
+    pub serotype: Option<String>,
+    #[serde(rename = "minQscore", default)]
+    pub min_qscore: Option<f32>,
 }
 
 fn envelope_to_variant_query_with_filters(
     envelope: BeaconQueryEnvelope,
-) -> (VariantQueryRequest, Vec<BeaconFilterExpr>) {
-    // Destructure to avoid partially-moved `envelope.query.filters`.
+) -> (VariantQueryRequest, Vec<BeaconFilterExpr>, PathogenFilterParams) {
     let BeaconQueryEnvelope { query, .. } = envelope;
     let filters = query.filters.unwrap_or_default();
     let p = query.request_parameters;
+    let pathogen = PathogenFilterParams {
+        organism: p.organism.clone(),
+        amr_gene: p.amr_gene.clone(),
+        serotype: p.serotype.clone(),
+        min_qscore: p.min_qscore,
+    };
     (
         VariantQueryRequest {
             assembly_id: p.assembly_id,
@@ -145,7 +171,16 @@ fn envelope_to_variant_query_with_filters(
             granularity: p.requested_granularity,
         },
         filters,
+        pathogen,
     )
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PathogenFilterParams {
+    pub organism: Option<String>,
+    pub amr_gene: Option<String>,
+    pub serotype: Option<String>,
+    pub min_qscore: Option<f32>,
 }
 
 #[utoipa::path(get, path = "/service-info", responses((status = 200)))]
@@ -182,11 +217,52 @@ pub async fn get_map(State(_state): State<Arc<AppState>>) -> Result<Json<serde_j
 #[utoipa::path(post, path = "/g_variants/query", request_body = VariantQueryRequest, responses((status = 200, body = VariantQueryResponse)))]
 pub async fn query_variants(
     State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(envelope): Json<BeaconQueryEnvelope>,
 ) -> Result<Json<VariantQueryResponse>> {
-    // `meta` is currently informational only; HelixTest validates shape, not usage.
     let _ = &envelope.meta;
-    let (body, filters_exprs) = envelope_to_variant_query_with_filters(envelope);
+    let (body, filters_exprs, pathogen_base) = envelope_to_variant_query_with_filters(envelope);
+    let pathogen = crate::pathogen::merge_pathogen_params(pathogen_base, &filters_exprs);
+
+    if crate::pathogen::has_pathogen_params(&pathogen) {
+        if let (Some(ref outbreak), Some(ref claims)) =
+            (&state.outbreak, auth.as_ref().map(|e| &e.0))
+        {
+            if let (Some(recipient), Some(ref organism)) = (
+                claims.recipient_identity(),
+                pathogen.organism.as_deref(),
+            ) {
+                if outbreak
+                    .emergency_beacon_access(recipient, organism)
+                    .await
+                    .unwrap_or(false)
+                {
+                    let active = outbreak.active_policies().await.unwrap_or_default();
+                    for policy in active {
+                        let _ = outbreak
+                            .audit_beacon_query(
+                                &policy,
+                                claims.sub().unwrap_or("unknown"),
+                                recipient,
+                                organism,
+                                "pathogen_filter",
+                            )
+                            .await;
+                    }
+                }
+            }
+        }
+        return Ok(Json(run_pathogen_query(
+            &state,
+            pathogen.organism.as_deref(),
+            pathogen.amr_gene.as_deref(),
+            pathogen.serotype.as_deref(),
+            pathogen.min_qscore,
+            body.granularity.as_deref(),
+        )
+        .await?));
+    }
+
     let end = body.end.or(body.start);
     let sanitized = crate::query::sanitize::sanitize_query_params(
         body.assembly_id.as_deref(),
@@ -493,6 +569,44 @@ pub async fn query_variants(
                     count: Some(count),
                 },
             }))
+        }
+    }
+}
+
+async fn run_pathogen_query(
+    state: &AppState,
+    organism: Option<&str>,
+    amr_gene: Option<&str>,
+    serotype: Option<&str>,
+    min_qscore: Option<f32>,
+    granularity: Option<&str>,
+) -> Result<VariantQueryResponse> {
+    match parse_granularity(granularity)? {
+        VariantGranularity::Boolean => {
+            let exists = state
+                .repo
+                .pathogen_exists(organism, amr_gene, serotype, min_qscore)
+                .await?;
+            Ok(VariantQueryResponse {
+                meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
+                response: VariantQueryResult {
+                    exists: Some(exists),
+                    count: None,
+                },
+            })
+        }
+        VariantGranularity::Count => {
+            let count = state
+                .repo
+                .pathogen_count(organism, amr_gene, serotype, min_qscore)
+                .await?;
+            Ok(VariantQueryResponse {
+                meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
+                response: VariantQueryResult {
+                    exists: None,
+                    count: Some(count),
+                },
+            })
         }
     }
 }

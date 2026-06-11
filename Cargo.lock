@@ -1746,6 +1746,7 @@ dependencies = [
 name = "ferrum-cli"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "clap 4.5.60",
  "ferrum-core",
  "ferrum-embed",
@@ -1787,6 +1788,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "config",
+ "flate2",
  "jsonwebtoken",
  "noodles-bgzf",
  "notify",
@@ -1796,6 +1798,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "tar",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
@@ -1852,6 +1855,7 @@ dependencies = [
  "chrono",
  "ferrum-core",
  "ferrum-crypt4gh",
+ "ferrum-ont",
  "ferrum-storage",
  "futures-util",
  "hex",
@@ -1862,6 +1866,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "sqlx",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
@@ -1957,6 +1962,28 @@ dependencies = [
  "sha2 0.10.9",
  "tar",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ferrum-ont"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "ferrum-beacon",
+ "ferrum-core",
+ "ferrum-drs",
+ "ferrum-storage",
+ "http 1.4.0",
+ "hyper 1.9.0",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+ "ulid",
 ]
 
 [[package]]

@@ -86,6 +86,29 @@ impl AuthClaims {
         }
     }
 
+    /// True if the token has the ferrum:outbreak_activator role (Passport visa).
+    pub fn is_outbreak_activator(&self) -> bool {
+        match self {
+            AuthClaims::Jwt { .. } => false,
+            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| {
+                v.value == "ferrum:outbreak_activator" || v.value.contains("outbreak_activator")
+            }),
+        }
+    }
+
+    /// Passport issuer (iss claim) when available.
+    pub fn issuer(&self) -> Option<&str> {
+        match self {
+            AuthClaims::Jwt { iss, .. } => iss.as_deref(),
+            AuthClaims::Passport { claims, .. } => claims.iss.as_deref(),
+        }
+    }
+
+    /// Subject or issuer identifier for outbreak emergency recipient matching.
+    pub fn recipient_identity(&self) -> Option<&str> {
+        self.issuer().or_else(|| self.sub())
+    }
+
     /// True if the token has ControlledAccessGrants visa for the given dataset (DRS access control).
     pub fn has_dataset_grant(&self, dataset_id: &str) -> bool {
         match self {

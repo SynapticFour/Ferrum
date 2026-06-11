@@ -181,3 +181,51 @@ See also [OFFLINE-AIRGAP.md](deployment/OFFLINE-AIRGAP.md) for signed bundles.
 Embedded backends trade horizontal scalability for operability: SQLite suits single-user laptop deployments; PostgreSQL remains the production source of truth. Local storage avoids S3 API dependencies while preserving the same `ObjectStorage` trait used by DRS ingest and streaming in production.
 
 See also: [deployment README](deployment/README.md), [INSTALLATION.md](INSTALLATION.md).
+
+## Nanopore Ingestion
+
+Field labs in Africa predominantly use **Oxford Nanopore MinION** sequencers. Ferrum ingests raw ONT files (POD5/FAST5/BLOW5) or pre-basecalled FASTQ via:
+
+```http
+POST /api/v1/ingest/ont
+Content-Type: multipart/form-data
+
+ont_metadata (JSON) + file (binary)
+```
+
+Basecalling runs **externally** (Dorado/Guppy). Ferrum stores the canonical DRS object plus optional `ont_metrics` JSON on `drs_objects.ont_metrics`. Pathogen organism tags are written to `pathogen_annotations` for Beacon queries.
+
+WES workflow template: [`tools/workflows/ont-qc.wdl`](../tools/workflows/ont-qc.wdl) (NanoStat/NanoPlot → metrics back via ingest).
+
+See [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md#ont-nanopore-ingestion).
+
+## Multi-Pathogen Surveillance
+
+Beacon v2 accepts optional pathogen filters in `requestParameters`:
+
+| Field | Example |
+|-------|---------|
+| `organism` | `Mycobacterium_tuberculosis` |
+| `amrGene` | `blaNDM-1` |
+| `serotype` | `O1` |
+| `minQscore` | `10` |
+
+Human genomics queries **without** these fields behave exactly as before. Meta-schema extension: [`crates/ferrum-beacon/schemas/pathogen-extension.json`](../crates/ferrum-beacon/schemas/pathogen-extension.json).
+
+## Outbreak Mode
+
+Policy-based emergency Beacon access for WHO/Africa CDC partners during declared outbreaks. **Disabled by default** — enable in config:
+
+```toml
+[outbreak]
+enabled = true
+
+[[outbreak.policies]]
+name = "mpox_who_emergency"
+trigger_pathogen = "Monkeypox_virus"
+emergency_recipients = ["who.int", "africacdc.org"]
+access_level = "beacon_only"
+gisaid_auto_package = true
+```
+
+Activation requires Passport visa `ferrum:outbreak_activator`. Full reference: [OUTBREAK-MODE.md](OUTBREAK-MODE.md).

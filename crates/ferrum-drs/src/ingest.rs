@@ -175,6 +175,7 @@ pub async fn process_upload_from_parts(
         storage_key: storage_key.clone(),
         is_encrypted: Some(encrypt),
         workspace_id: parsed.workspace_id,
+        ont_metrics: None,
     };
     state
         .repo
@@ -329,6 +330,7 @@ pub async fn ingest_url(
         storage_key: req.url,
         is_encrypted: Some(false),
         workspace_id: req.workspace_id,
+        ont_metrics: None,
     };
     state
         .repo
@@ -408,6 +410,7 @@ pub async fn ingest_batch(
                     storage_key: url,
                     is_encrypted: Some(false),
                     workspace_id: req.workspace_id.clone(),
+                    ont_metrics: None,
                 };
                 let id = state.repo.create_object(&create).await?;
                 if let Some(ref store) = state.provenance_store {
@@ -471,6 +474,7 @@ pub async fn ingest_batch(
                     storage_key: storage_key.clone(),
                     is_encrypted: Some(false),
                     workspace_id: req.workspace_id.clone(),
+                    ont_metrics: None,
                 };
                 let id = state
                     .repo

@@ -2,6 +2,7 @@
 
 pub mod error;
 pub mod handlers;
+pub mod pathogen;
 pub mod query;
 pub mod repo;
 
@@ -46,8 +47,17 @@ pub fn router_unconfigured() -> Router {
 
 /// Returns the Beacon v2 router. Requires a database pool. Mount at /ga4gh/beacon/v2 in gateway.
 pub fn router(pool: ferrum_core::FerrumPool) -> Router {
+    router_with_outbreak(pool, None)
+}
+
+/// Beacon router with optional Outbreak Mode integration for emergency access audit.
+pub fn router_with_outbreak(
+    pool: ferrum_core::FerrumPool,
+    outbreak: Option<std::sync::Arc<ferrum_core::OutbreakService>>,
+) -> Router {
     let state = Arc::new(handlers::AppState {
         repo: Arc::new(BeaconRepo::new(pool)),
+        outbreak,
     });
     Router::new()
         .route("/service-info", get(get_service_info))

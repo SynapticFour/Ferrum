@@ -87,7 +87,14 @@ If the same `client_request_id` was already processed, Ferrum returns the **exis
       "description": "optional",
       "mime_type": "optional",
       "is_encrypted": false,
-      "checksums": [{ "type": "sha-256", "checksum": "..." }]
+      "checksums": [{ "type": "sha-256", "checksum": "..." }],
+      "ont_metadata": {
+        "format": "pod5",
+        "run_id": "run-001",
+        "sample_id": "sample-A",
+        "organism": "Plasmodium_falciparum",
+        "dorado_basecalled": false
+      }
     }
   ]
 }
@@ -95,6 +102,7 @@ If the same `client_request_id` was already processed, Ferrum returns the **exis
 
 - **`url`:** SSRF-checked; creates a DRS object with `storage_backend: url` (no blob copy).
 - **`existing_object`:** **Register / index only** — creates DRS metadata pointing at the given `storage_backend` + `storage_key`. Ferrum does **not** verify that credentials or cluster visibility allow access; operators must align IAM/network with their deployment. Use `kind: "url"` for HTTPS references, not `existing_object` with `storage_backend: url`.
+- **`ont_metadata` (optional on `existing_object`):** Same JSON shape as ONT ingest (`format`, `run_id`, `sample_id`, `organism`, …). Ferrum stores QC in `drs_objects.ont_metrics` and adds a **pathogen annotation** for Beacon when `organism` is set.
 
 **Response (200):**
 
@@ -150,6 +158,61 @@ curl -sS "${HDR[@]}" "$BASE/api/v1/ingest/jobs/<job_id_from_response>"
 ```
 
 Verify DRS: `GET $BASE/ga4gh/drs/v1/objects/<object_id>`.
+
+## ONT (Nanopore) ingestion
+
+| Path | Purpose |
+|------|---------|
+| `POST /api/v1/ingest/ont` | Multipart ingest of POD5/FAST5/BLOW5 or pre-basecalled FASTQ |
+
+**Fields:**
+
+| Part | Content |
+|------|---------|
+| `ont_metadata` | JSON [`OntIngestRequest`](../crates/ferrum-ont/src/types.rs): `format`, `run_id`, `sample_id`, `organism`, `dorado_basecalled`, optional `quality_metrics` |
+| `file` | Raw ONT file bytes (POD5/FAST5/BLOW5) |
+| `fastq_file` | Optional pre-basecalled FASTQ; when present, Ferrum creates a **bundle** (raw member + FASTQ member) |
+
+Example `ont_metadata`:
+
+```json
+{
+  "format": "pod5",
+  "source_path": "/data/run001/sampleA.pod5",
+  "run_id": "run-001",
+  "sample_id": "sample-A",
+  "organism": "Plasmodium_falciparum",
+  "dorado_basecalled": false,
+  "quality_metrics": {
+    "mean_qscore": 11.2,
+    "read_count": 12000,
+    "n50": 14500,
+    "read_length_histogram": [[1000, 400], [2000, 350]]
+  }
+}
+```
+
+Response includes `object_id`, `self_uri`, `organism`, `format`, and `size`. When `fastq_file` is supplied, `bundle_id` and member `self_uris` are also returned. QC metrics are stored in `drs_objects.ont_metrics` (JSONB on PostgreSQL, JSON text on SQLite).
+
+### `POST /api/v1/ingest/ont-metrics`
+
+Update QC metrics on an existing ONT object (e.g. after an external Dorado/WDL workflow):
+
+```json
+{
+  "object_id": "<drs object id>",
+  "quality_metrics": {
+    "mean_qscore": 12.1,
+    "read_count": 15000,
+    "n50": 16000,
+    "read_length_histogram": [[1000, 420]]
+  }
+}
+```
+
+Returns `200` with the updated object summary. Requires the same auth as other ingest routes.
+
+**Note:** Ferrum does **not** run basecalling. Provide `fastq_file` or set `dorado_basecalled: true` only when basecalling was done outside Ferrum.
 
 A minimal end-to-end script (no auth header; use demo gateway) lives at [`scripts/demo_ingest_lab_kit.sh`](../scripts/demo_ingest_lab_kit.sh).
 

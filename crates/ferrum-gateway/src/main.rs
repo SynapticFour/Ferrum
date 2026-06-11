@@ -382,6 +382,12 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             crypt4gh_decrypt_stream,
             ingest,
             object_storage_backend,
+            outbreak: config.as_ref().filter(|c| c.outbreak.enabled).map(|c| {
+                Arc::new(ferrum_core::OutbreakService::new(
+                    pool.clone(),
+                    c.outbreak.clone(),
+                ))
+            }),
         })
     } else {
         None

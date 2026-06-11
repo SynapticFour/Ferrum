@@ -299,8 +299,20 @@ helm install ferrum ./deploy/helm \
 | `[ingest]` | `default_encrypt_upload` | bool | false | Default Crypt4GH on multipart upload when client omits `encrypt` ([INGEST-LAB-KIT.md](INGEST-LAB-KIT.md)) |
 | | `max_upload_bytes` | u64 (optional) | — | Max upload size; unset or `0` → 1 GiB |
 | `[logging]` | `level` | string | `info` | Log level |
+| `[outbreak]` | `enabled` | bool | false | Enable Outbreak Mode API and emergency Beacon/DRS policy ([OUTBREAK-MODE.md](OUTBREAK-MODE.md)) |
+| | `policies` | array | — | Named policies: `trigger_pathogen`, `emergency_recipients`, `access_level`, … |
 
-### Environment-only tuning
+### Passports and roles
+
+When `require_auth = true`, operators issue GA4GH Passports with **Visas** that grant Ferrum-specific scopes. Common visas:
+
+| Visa | Grants |
+|------|--------|
+| `ferrum:admin` | Full administrative access (includes outbreak activation) |
+| `ferrum:outbreak_activator` | Activate/deactivate outbreak policies; approve emergency DRS downloads for WHO/Africa CDC partners |
+
+Outbreak Mode is **off by default** (`[outbreak] enabled = false`). When enabled, only users with `ferrum:outbreak_activator` or `ferrum:admin` may call `/api/v1/outbreak/activate`, `/deactivate`, or `/approve-download/{drs_id}`. Emergency recipients listed in an active policy receive Beacon access without a dataset Visa; DRS byte access still requires an explicit download approval. See [OUTBREAK-MODE.md](OUTBREAK-MODE.md).
+
 
 | Variable | Default | Description |
 |----------|---------|-------------|

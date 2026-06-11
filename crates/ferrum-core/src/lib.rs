@@ -10,6 +10,7 @@ pub mod health;
 pub mod io;
 #[cfg(feature = "libdeflate")]
 pub use noodles_bgzf;
+pub mod outbreak;
 pub mod provenance;
 pub mod security;
 pub mod ssrf;
@@ -22,8 +23,8 @@ pub use auth::{
 };
 pub use config::{
     AfricaProfile, AppConfig, AuthConfig, DatabaseConfig, EncryptionConfig, FerrumConfig,
-    IngestConfig, MultiQCConfig, PricingConfig, PricingTier, SecurityConfig, ServicesConfig,
-    StorageConfig, WesServiceConfig,
+    IngestConfig, MultiQCConfig, OutbreakConfig, OutbreakPolicy, PricingConfig, PricingTier,
+    SecurityConfig, ServicesConfig, StorageConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
 pub use dialect::{
@@ -31,11 +32,15 @@ pub use dialect::{
     sql_beacon_variant_count_exact, sql_beacon_variant_exists_coord, sql_beacon_variant_exists_exact,
     sql_beacon_variant_match_ids, sql_ingest_job_failed, sql_ingest_job_succeeded,
     sql_insert_access_method, sql_insert_drs_object, sql_list_bundle_contents_page, sql_list_objects,
-    sql_update_drs_object,
+    sql_pathogen_count, sql_pathogen_exists, sql_update_drs_object,
 };
 pub use error::{FerrumError, Result};
 pub use pool::{postgres_pool_from_config, DbDialect, FerrumPool};
 pub use health::health_router;
+pub use outbreak::{
+    build_gisaid_package, ActivateRequest, ApproveDownloadRequest, DeactivateRequest, GisaidEntry,
+    OutbreakService, PathogenPackageRow,
+};
 pub use provenance::{
     EdgeType, NodeType, ProvenanceEdge, ProvenanceGraph, ProvenanceNode, ProvenanceStore,
 };

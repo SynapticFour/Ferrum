@@ -33,13 +33,69 @@ pub fn sql_alias_lookup(d: DbDialect) -> &'static str {
 /// INSERT drs_objects with dialect-specific JSON default.
 pub fn sql_insert_drs_object(d: DbDialect) -> String {
     let empty = empty_json_array(d);
+    let null_json = match d {
+        DbDialect::Postgres => "NULL::jsonb",
+        DbDialect::Sqlite => "NULL",
+    };
     let is_bundle_false = match d {
         DbDialect::Postgres => "FALSE",
         DbDialect::Sqlite => "0",
     };
     format!(
-        "INSERT INTO drs_objects (id, name, description, version, mime_type, size, is_bundle, aliases, workspace_id)
-         VALUES ($1, $2, $3, NULL, $4, $5, {is_bundle_false}, COALESCE($6, {empty}), $7)"
+        "INSERT INTO drs_objects (id, name, description, version, mime_type, size, is_bundle, aliases, workspace_id, ont_metrics)
+         VALUES ($1, $2, $3, NULL, $4, $5, {is_bundle_false}, COALESCE($6, {empty}), $7, COALESCE($8, {null_json}))"
+    )
+}
+
+/// Count pathogen annotations matching optional filters.
+pub fn sql_pathogen_count(d: DbDialect) -> String {
+    let count_expr = match d {
+        DbDialect::Postgres => "COUNT(*)::bigint",
+        DbDialect::Sqlite => "COUNT(*)",
+    };
+    let amr_contains = match d {
+        DbDialect::Postgres => "($2::text IS NULL OR amr_genes @> to_jsonb(ARRAY[$2::text]))",
+        DbDialect::Sqlite => "($2 IS NULL OR EXISTS (SELECT 1 FROM json_each(amr_genes) WHERE value = $2))",
+    };
+    let serotype_clause = match d {
+        DbDialect::Postgres => "($3::text IS NULL OR serotype = $3)",
+        DbDialect::Sqlite => "($3 IS NULL OR serotype = $3)",
+    };
+    let qscore_clause = match d {
+        DbDialect::Postgres => "($4::double precision IS NULL OR ont_qscore_min >= $4)",
+        DbDialect::Sqlite => "($4 IS NULL OR ont_qscore_min >= $4)",
+    };
+    format!(
+        "SELECT {count_expr} FROM pathogen_annotations
+         WHERE ($1::text IS NULL OR organism = $1)
+           AND {amr_contains}
+           AND {serotype_clause}
+           AND {qscore_clause}"
+    )
+}
+
+/// Pathogen existence check (returns boolean).
+pub fn sql_pathogen_exists(d: DbDialect) -> String {
+    let amr_contains = match d {
+        DbDialect::Postgres => "($2::text IS NULL OR amr_genes @> to_jsonb(ARRAY[$2::text]))",
+        DbDialect::Sqlite => "($2 IS NULL OR EXISTS (SELECT 1 FROM json_each(amr_genes) WHERE value = $2))",
+    };
+    let serotype_clause = match d {
+        DbDialect::Postgres => "($3::text IS NULL OR serotype = $3)",
+        DbDialect::Sqlite => "($3 IS NULL OR serotype = $3)",
+    };
+    let qscore_clause = match d {
+        DbDialect::Postgres => "($4::double precision IS NULL OR ont_qscore_min >= $4)",
+        DbDialect::Sqlite => "($4 IS NULL OR ont_qscore_min >= $4)",
+    };
+    format!(
+        "SELECT EXISTS (
+            SELECT 1 FROM pathogen_annotations
+            WHERE ($1::text IS NULL OR organism = $1)
+              AND {amr_contains}
+              AND {serotype_clause}
+              AND {qscore_clause}
+         )"
     )
 }
 

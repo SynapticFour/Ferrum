@@ -45,6 +45,7 @@ fn drs_state_for_laptop(
         crypt4gh_decrypt_stream: false,
         ingest: IngestConfig::default(),
         object_storage_backend: "local".to_string(),
+        outbreak: None,
     }
 }
 
@@ -238,6 +239,7 @@ async fn test_drs_repo_sqlite_crud() {
             storage_key: "repo-test-key".into(),
             is_encrypted: Some(false),
             workspace_id: None,
+            ont_metrics: None,
         })
         .await
         .expect("create");

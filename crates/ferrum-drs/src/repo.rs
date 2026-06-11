@@ -265,6 +265,7 @@ impl DrsRepo {
                 .bind(req.size)
                 .bind(aliases)
                 .bind(req.workspace_id.as_deref())
+                .bind(req.ont_metrics.as_ref())
                 .execute(p)
                 .await?;
             for c in &req.checksums {
@@ -791,6 +792,150 @@ impl DrsRepo {
                 .await
                 .map(|_| ())
             })?;
+        }
+        Ok(())
+    }
+
+    /// Insert pathogen annotation linked to a DRS object (multi-pathogen Beacon).
+    pub async fn insert_pathogen_annotation(
+        &self,
+        drs_object_id: &str,
+        organism: &str,
+        amr_genes: &[String],
+        serotype: Option<&str>,
+        virulence_factors: &[String],
+        ont_qscore_min: Option<f32>,
+        dataset_id: Option<&str>,
+    ) -> Result<String> {
+        let id = ulid::Ulid::new().to_string();
+        let amr_json = serde_json::to_value(amr_genes).unwrap_or(serde_json::json!([]));
+        let vf_json =
+            serde_json::to_value(virulence_factors).unwrap_or(serde_json::json!([]));
+        pool_query!(self, |p| {
+            sqlx::query(
+                "INSERT INTO pathogen_annotations (id, dataset_id, drs_object_id, organism, amr_genes, serotype, virulence_factors, ont_qscore_min)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            )
+            .bind(&id)
+            .bind(dataset_id)
+            .bind(drs_object_id)
+            .bind(organism)
+            .bind(amr_json)
+            .bind(serotype)
+            .bind(vf_json)
+            .bind(ont_qscore_min)
+            .execute(p)
+            .await?;
+            Ok::<(), DrsError>(())
+        })?;
+        Ok(id)
+    }
+
+    /// Update ONT metrics JSON on an existing DRS object (e.g. from ont-qc workflow).
+    pub async fn update_ont_metrics(
+        &self,
+        object_id: &str,
+        metrics: &serde_json::Value,
+    ) -> Result<bool> {
+        let sql = if self.dialect == DbDialect::Postgres {
+            "UPDATE drs_objects SET ont_metrics = $1, updated_time = NOW() WHERE id = $2"
+        } else {
+            "UPDATE drs_objects SET ont_metrics = $1, updated_time = datetime('now') WHERE id = $2"
+        };
+        let affected = pool_query!(self, |p| {
+            sqlx::query(sql)
+                .bind(metrics)
+                .bind(object_id)
+                .execute(p)
+                .await
+                .map(|r| r.rows_affected())
+        })?;
+        Ok(affected > 0)
+    }
+
+    /// Pathogen organism tag for a DRS object (if any).
+    pub async fn pathogen_organism(&self, object_id: &str) -> Result<Option<String>> {
+        let row: Option<(String,)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT organism FROM pathogen_annotations WHERE drs_object_id = $1 LIMIT 1",
+            )
+            .bind(object_id)
+            .fetch_optional(p)
+            .await
+        })?;
+        Ok(row.map(|r| r.0))
+    }
+
+    /// Mark object as a bundle and set aggregate size.
+    pub async fn mark_as_bundle(&self, bundle_id: &str, total_size: i64) -> Result<()> {
+        let sql = if self.dialect == DbDialect::Postgres {
+            "UPDATE drs_objects SET is_bundle = TRUE, size = $1, updated_time = NOW() WHERE id = $2"
+        } else {
+            "UPDATE drs_objects SET is_bundle = 1, size = $1, updated_time = datetime('now') WHERE id = $2"
+        };
+        pool_query!(self, |p| {
+            sqlx::query(sql)
+                .bind(total_size)
+                .bind(bundle_id)
+                .execute(p)
+                .await?;
+            Ok::<(), DrsError>(())
+        })?;
+        Ok(())
+    }
+
+    /// Add a member object to a bundle.
+    pub async fn add_bundle_member(
+        &self,
+        bundle_id: &str,
+        object_id: &str,
+        name: &str,
+    ) -> Result<()> {
+        let drs_uri = self.self_uri(object_id);
+        pool_query!(self, |p| {
+            sqlx::query(
+                "INSERT INTO drs_bundle_contents (bundle_id, object_id, name, drs_uri) VALUES ($1, $2, $3, $4)",
+            )
+            .bind(bundle_id)
+            .bind(object_id)
+            .bind(name)
+            .bind(drs_uri)
+            .execute(p)
+            .await?;
+            Ok::<(), DrsError>(())
+        })?;
+        Ok(())
+    }
+
+    /// Create an ONT bundle DRS object wrapping raw (+ optional FASTQ) members.
+    pub async fn create_ont_bundle(
+        &self,
+        bundle_id: &str,
+        name: Option<String>,
+        description: Option<String>,
+        ont_metrics: Option<serde_json::Value>,
+        members: &[(String, String, i64)],
+    ) -> Result<()> {
+        let total_size: i64 = members.iter().map(|(_, _, s)| s).sum();
+        let req = CreateObjectRequest {
+            name,
+            description,
+            mime_type: Some("application/x-ont-bundle".into()),
+            size: total_size,
+            checksums: vec![],
+            aliases: None,
+            storage_backend: "bundle".into(),
+            storage_key: bundle_id.to_string(),
+            is_encrypted: Some(false),
+            workspace_id: None,
+            ont_metrics,
+        };
+        self.create_object_with_id(&req, Some(bundle_id.to_string()))
+            .await?;
+        self.mark_as_bundle(bundle_id, total_size).await?;
+        for (object_id, member_name, _) in members {
+            self.add_bundle_member(bundle_id, object_id, member_name)
+                .await?;
         }
         Ok(())
     }

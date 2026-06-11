@@ -149,6 +149,9 @@ pub enum RegisterItem {
         is_encrypted: Option<bool>,
         #[serde(default)]
         checksums: Option<Vec<ChecksumInput>>,
+        /// Optional ONT metadata (stored as `ont_metrics`; tags pathogen for Beacon).
+        #[serde(default)]
+        ont_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -305,6 +308,7 @@ async fn process_register_items(
                     storage_key: url.clone(),
                     is_encrypted: Some(false),
                     workspace_id: body.workspace_id.clone(),
+                    ont_metrics: None,
                 };
                 state
                     .repo
@@ -338,6 +342,7 @@ async fn process_register_items(
                 mime_type,
                 is_encrypted,
                 checksums,
+                ont_metadata,
             } => {
                 if storage_backend.eq_ignore_ascii_case("url") {
                     return Err(IngestApiError::validation(
@@ -364,12 +369,16 @@ async fn process_register_items(
                     storage_key: storage_key.clone(),
                     is_encrypted: Some(is_encrypted.unwrap_or(false)),
                     workspace_id: body.workspace_id.clone(),
+                    ont_metrics: ont_metadata.clone(),
                 };
                 state
                     .repo
                     .create_object_with_id(&req_create, Some(object_id.clone()))
                     .await
                     .map_err(|e| IngestApiError::internal(e.to_string()))?;
+                if let Some(ref om) = ont_metadata {
+                    apply_ont_side_effects(state, &object_id, om).await?;
+                }
                 let su = format!("drs://{}/{}", state.repo.hostname(), object_id);
                 self_uris.push(su);
                 object_ids.push(object_id);
@@ -472,11 +481,310 @@ pub async fn get_job(
     }
 }
 
+async fn apply_ont_side_effects(
+    state: &AppState,
+    object_id: &str,
+    ont_metadata: &serde_json::Value,
+) -> Result<(), IngestApiError> {
+    if let Some(org) = ont_metadata.get("organism").and_then(|v| v.as_str()) {
+        let qscore = ont_metadata
+            .get("quality")
+            .and_then(|q| q.get("mean_qscore"))
+            .and_then(|v| v.as_f64())
+            .map(|f| f as f32);
+        state
+            .repo
+            .insert_pathogen_annotation(object_id, org, &[], None, &[], qscore, None)
+            .await
+            .map_err(IngestApiError::from_drs)?;
+    }
+    Ok(())
+}
+
+async fn store_uploaded_object(
+    state: &AppState,
+    storage: &Arc<dyn ferrum_storage::ObjectStorage>,
+    data: Vec<u8>,
+    mime_type: Option<String>,
+    fields: ferrum_ont::OntCreateFields,
+) -> Result<(String, i64), IngestApiError> {
+    let object_id = ulid::Ulid::new().to_string();
+    let storage_key = format!("drs/{}", object_id);
+    storage
+        .put_bytes(&storage_key, &data)
+        .await
+        .map_err(|e| IngestApiError::internal(e.to_string()))?;
+    let size = data.len() as i64;
+    let create = CreateObjectRequest {
+        name: fields.name,
+        description: fields.description,
+        mime_type: mime_type.or(fields.mime_type),
+        size,
+        checksums: vec![],
+        aliases: None,
+        storage_backend: fields.storage_backend,
+        storage_key,
+        is_encrypted: Some(false),
+        workspace_id: None,
+        ont_metrics: None,
+    };
+    state
+        .repo
+        .create_object_with_id(&create, Some(object_id.clone()))
+        .await
+        .map_err(IngestApiError::from_drs)?;
+    state
+        .repo
+        .set_checksum_status(&object_id, "pending")
+        .await
+        .map_err(IngestApiError::from_drs)?;
+    Ok((object_id, size))
+}
+
+/// POST /api/v1/ingest/ont-metrics — update QC metrics from ont-qc WES workflow.
+#[derive(Deserialize)]
+pub struct OntMetricsUpdateRequest {
+    pub drs_object_id: String,
+    pub quality_metrics: ferrum_ont::OntQualityMetrics,
+}
+
+pub async fn post_ont_metrics(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<OntMetricsUpdateRequest>,
+) -> impl IntoResponse {
+    match do_ont_metrics_update(state, body).await {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+async fn do_ont_metrics_update(
+    state: Arc<AppState>,
+    body: OntMetricsUpdateRequest,
+) -> Result<serde_json::Value, IngestApiError> {
+    let mut metrics = serde_json::Map::new();
+    metrics.insert(
+        "quality".into(),
+        serde_json::to_value(&body.quality_metrics).unwrap_or_default(),
+    );
+    metrics.insert(
+        "updated_by".into(),
+        serde_json::Value::String("ont-qc".into()),
+    );
+    let value = serde_json::Value::Object(metrics);
+    let ok = state
+        .repo
+        .update_ont_metrics(&body.drs_object_id, &value)
+        .await
+        .map_err(IngestApiError::from_drs)?;
+    if !ok {
+        return Err(IngestApiError {
+            status: StatusCode::NOT_FOUND,
+            code: "not_found",
+            message: format!("unknown drs_object_id {}", body.drs_object_id),
+            details: None,
+        });
+    }
+    Ok(json!({
+        "drs_object_id": body.drs_object_id,
+        "updated": true,
+    }))
+}
+
+/// POST /api/v1/ingest/ont — multipart: `ont_metadata` (JSON) + `file` (binary).
+pub async fn post_ont(
+    State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    mut multipart: Multipart,
+) -> impl IntoResponse {
+    match do_ont_ingest(state, &mut multipart, auth).await {
+        Ok(j) => Json(j).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+async fn do_ont_ingest(
+    state: Arc<AppState>,
+    multipart: &mut Multipart,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<serde_json::Value, IngestApiError> {
+    let storage = state
+        .storage
+        .clone()
+        .ok_or_else(|| IngestApiError::not_configured("ingest not configured: no storage"))?;
+
+    let mut ont_metadata: Option<String> = None;
+    let mut file_data: Vec<u8> = Vec::new();
+    let mut fastq_data: Vec<u8> = Vec::new();
+    let mut file_mime: Option<String> = None;
+    let mut fastq_mime: Option<String> = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| IngestApiError::validation(e.to_string()))?
+    {
+        match field.name().unwrap_or("") {
+            "ont_metadata" => {
+                ont_metadata = Some(
+                    field
+                        .text()
+                        .await
+                        .map_err(|e| IngestApiError::validation(e.to_string()))?,
+                );
+            }
+            "file" => {
+                if let Some(m) = field.content_type().map(|c| c.to_string()) {
+                    file_mime = Some(m);
+                }
+                file_data = field
+                    .bytes()
+                    .await
+                    .map_err(|e| IngestApiError::validation(e.to_string()))?
+                    .to_vec();
+            }
+            "fastq_file" => {
+                if let Some(m) = field.content_type().map(|c| c.to_string()) {
+                    fastq_mime = Some(m);
+                }
+                fastq_data = field
+                    .bytes()
+                    .await
+                    .map_err(|e| IngestApiError::validation(e.to_string()))?
+                    .to_vec();
+            }
+            _ => {}
+        }
+    }
+
+    let meta_str = ont_metadata.ok_or_else(|| {
+        IngestApiError::validation("ont_metadata field is required".to_string())
+    })?;
+    if file_data.is_empty() {
+        return Err(IngestApiError::validation("file field is required".to_string()));
+    }
+
+    let ont_req: ferrum_ont::OntIngestRequest =
+        serde_json::from_str(&meta_str).map_err(|e| {
+            IngestApiError::validation(format!("invalid ont_metadata JSON: {e}"))
+        })?;
+    ferrum_ont::validate_ingest_request(&ont_req).map_err(|e| {
+        IngestApiError::validation(e.to_string())
+    })?;
+
+    let max_bytes = state.ingest.effective_max_upload_bytes();
+    let total_bytes = file_data.len() + fastq_data.len();
+    if total_bytes as u64 > max_bytes {
+        return Err(IngestApiError::validation(format!(
+            "upload exceeds ingest.max_upload_bytes ({max_bytes})"
+        )));
+    }
+
+    let backend = state.object_storage_backend.clone();
+    let raw_fields = ferrum_ont::build_create_request(
+        &ont_req,
+        file_data.len() as i64,
+        &backend,
+        "pending",
+    );
+    let (raw_id, raw_size) = store_uploaded_object(
+        &state,
+        &storage,
+        file_data,
+        file_mime,
+        raw_fields,
+    )
+    .await?;
+
+    let mut members: Vec<(String, String, i64)> = vec![(raw_id.clone(), "raw".into(), raw_size)];
+    if !fastq_data.is_empty() {
+        let mut fastq_req = ont_req.clone();
+        fastq_req.format = ferrum_ont::OntFormat::Fastq;
+        fastq_req.dorado_basecalled = true;
+        let fq_fields = ferrum_ont::build_create_request(
+            &fastq_req,
+            fastq_data.len() as i64,
+            &backend,
+            "pending",
+        );
+        let (fq_id, fq_size) = store_uploaded_object(
+            &state,
+            &storage,
+            fastq_data,
+            fastq_mime.or(Some("application/x-fastq".into())),
+            fq_fields,
+        )
+        .await?;
+        members.push((fq_id, "fastq".into(), fq_size));
+    }
+
+    let bundle_fields = ferrum_ont::build_create_request(
+        &ont_req,
+        members.iter().map(|(_, _, s)| s).sum(),
+        &backend,
+        "bundle",
+    );
+    let qscore = ont_req.quality_metrics.as_ref().map(|q| q.mean_qscore);
+
+    let canonical_id = if members.len() > 1 {
+        let bundle_id = ulid::Ulid::new().to_string();
+        state
+            .repo
+            .create_ont_bundle(
+                &bundle_id,
+                bundle_fields.name,
+                bundle_fields.description,
+                bundle_fields.ont_metrics,
+                &members,
+            )
+            .await
+            .map_err(IngestApiError::from_drs)?;
+        bundle_id
+    } else {
+        if let Some(ref metrics) = bundle_fields.ont_metrics {
+            state
+                .repo
+                .update_ont_metrics(&raw_id, metrics)
+                .await
+                .map_err(IngestApiError::from_drs)?;
+        }
+        raw_id
+    };
+
+    state
+        .repo
+        .insert_pathogen_annotation(
+            &canonical_id,
+            &ont_req.organism,
+            &[],
+            None,
+            &[],
+            qscore,
+            None,
+        )
+        .await
+        .map_err(IngestApiError::from_drs)?;
+
+    let _ = auth;
+
+    Ok(json!({
+        "object_id": canonical_id,
+        "self_uri": format!("drs://{}/{}", state.repo.hostname(), canonical_id),
+        "organism": ont_req.organism,
+        "format": ont_req.format,
+        "bundle": members.len() > 1,
+        "member_ids": members.iter().map(|(id, name, _)| json!({"name": name, "id": id})).collect::<Vec<_>>(),
+        "size": members.iter().map(|(_, _, s)| s).sum::<i64>(),
+    }))
+}
+
 /// Mount at `/api/v1/ingest` (gateway nests this router).
 pub fn ingest_api_v1_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/register", post(post_register))
         .route("/upload", post(post_upload))
+        .route("/ont", post(post_ont))
+        .route("/ont-metrics", post(post_ont_metrics))
         .route("/jobs/:job_id", get(get_job))
         .with_state(state)
 }
@@ -488,6 +796,8 @@ pub fn ingest_api_v1_router_unconfigured() -> Router {
     Router::new()
         .route("/register", post(no))
         .route("/upload", post(no))
+        .route("/ont", post(no))
+        .route("/ont-metrics", post(no))
         .route("/jobs/:job_id", get(no))
 }
 

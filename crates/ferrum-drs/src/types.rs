@@ -77,6 +77,9 @@ pub struct CreateObjectRequest {
     pub is_encrypted: Option<bool>,
     /// Optional workspace ID (caller must be workspace editor/owner).
     pub workspace_id: Option<String>,
+    /// ONT quality metrics (JSON) for Nanopore ingest.
+    #[serde(default)]
+    pub ont_metrics: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

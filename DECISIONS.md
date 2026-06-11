@@ -12,6 +12,16 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-11 - ADR-013: Outbreak Mode (policy-based emergency sharing)
+
+- **Status:** Accepted
+- **Context:** Countries sharing pathogen genomics quickly during outbreaks may face punitive travel or trade responses. Operators need selective, auditable sharing—not binary share-everything or share-nothing.
+- **Decision:** Config-driven **policies** (not ad-hoc manual grants) with explicit activation/deactivation, `outbreak_audit` append-only logging, and two access tiers: **`beacon_only`** (emergency yes/no Beacon bypass for listed recipients) vs **`full`** (Beacon bypass plus separate per-object download approval). GISAID packages generated offline via CLI, not an HTTP endpoint.
+- **Consequences:** Requires explicit `[outbreak] enabled = true` and Passport visa `ferrum:outbreak_activator`. Human genomics Beacon paths unchanged when pathogen filters absent. Download approval endpoint prevents silent full-data exfiltration even under emergency policies.
+- **Alternatives considered:** Permanent open Beacon for pathogen data (rejected: no audit, no revocation); manual DAC exceptions per query (rejected: not scalable in outbreak timelines).
+
+---
+
 ### 2026-06-11 - ADR-012: Embedded backends for resource-constrained deployments
 
 - **Status:** Accepted

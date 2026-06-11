@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **`ferrum-ont` crate** — ONT types (`OntFormat`, `OntIngestRequest`, `OntQualityMetrics`), validation, DRS field mapping; synthetic POD5 stub for tests.
+- **`POST /api/v1/ingest/ont`** — Multipart Nanopore ingest (POD5/FAST5/BLOW5/FASTQ); stores `drs_objects.ont_metrics` and `pathogen_annotations`.
+- **Multi-pathogen Beacon** — Optional `organism`, `amrGene`, `serotype`, `minQscore` filters; schema [`crates/ferrum-beacon/schemas/pathogen-extension.json`](crates/ferrum-beacon/schemas/pathogen-extension.json); human genomics queries unchanged without pathogen fields.
+- **Outbreak Mode** — `[outbreak]` config, `/api/v1/outbreak/{activate,deactivate,approve-download}`, `outbreak_audit` table, CLI `ferrum outbreak package`.
+- **WES template** — [`tools/workflows/ont-qc.wdl`](tools/workflows/ont-qc.wdl) (NanoStat/NanoPlot QC workflow stub).
+- **Docs** — [OUTBREAK-MODE.md](docs/OUTBREAK-MODE.md); Nanopore / multi-pathogen / outbreak sections in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); ONT section in [INGEST-LAB-KIT.md](docs/INGEST-LAB-KIT.md); ADR-013 in [DECISIONS.md](DECISIONS.md).
 - **`ferrum-embed` crate** — Embedded SQLite + local storage backends for offline-first / Laptop Mode deployments (`EmbedMode`, `SqliteStorage`, `PostgresStorage`, `Database` trait).
 - **`[africa]` config profile** — `offline_first`, `max_memory_mb`, `sqlite_path`, `objects_path`; `FERRUM_OFFLINE=1` env shortcut.
 - **Laptop Mode quickstart** — `ferrum demo start --offline` (CLI + gateway); auto-fallback when PostgreSQL is unavailable.

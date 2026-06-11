@@ -3,6 +3,7 @@
 
 #[cfg(feature = "full")]
 mod admin;
+mod outbreak;
 pub mod shutdown;
 
 use axum::http::header;
@@ -242,11 +243,23 @@ pub fn app(
         app = app.nest("/ga4gh/tes/v1", tes_router);
     }
     if hot_reload || cfg.map(|c| c.services.enable_beacon).unwrap_or(true) {
+        let outbreak_service = cfg
+            .filter(|c| c.outbreak.enabled)
+            .zip(beacon_params.clone())
+            .map(|(c, pool)| {
+                Arc::new(ferrum_core::OutbreakService::new(
+                    pool,
+                    c.outbreak.clone(),
+                ))
+            });
         let beacon_router = match beacon_params {
-            Some(pool) => ferrum_beacon::router(pool),
+            Some(pool) => ferrum_beacon::router_with_outbreak(pool, outbreak_service.clone()),
             None => ferrum_beacon::router_unconfigured(),
         };
         app = app.nest("/ga4gh/beacon/v2", beacon_router);
+        if let Some(svc) = outbreak_service {
+            app = app.nest("/api/v1/outbreak", outbreak::outbreak_router(svc));
+        }
     }
     #[cfg(feature = "full")]
     if hot_reload || cfg.map(|c| c.services.enable_passports).unwrap_or(true) {

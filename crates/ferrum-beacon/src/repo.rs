@@ -2,7 +2,7 @@ use crate::error::Result;
 use ferrum_core::{
     chromosomes_json, sql_beacon_variant_count_coord, sql_beacon_variant_count_exact,
     sql_beacon_variant_exists_coord, sql_beacon_variant_exists_exact, sql_beacon_variant_match_ids,
-    DbDialect, FerrumPool,
+    sql_pathogen_count, sql_pathogen_exists, DbDialect, FerrumPool,
 };
 
 pub struct BeaconRepo {
@@ -239,5 +239,114 @@ impl BeaconRepo {
             }
         };
         Ok(rows)
+    }
+
+    /// Pathogen annotation existence (multi-organism Beacon).
+    pub async fn pathogen_exists(
+        &self,
+        organism: Option<&str>,
+        amr_gene: Option<&str>,
+        serotype: Option<&str>,
+        min_qscore: Option<f32>,
+    ) -> Result<bool> {
+        let row: (bool,) = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query_as(&sql_pathogen_exists(DbDialect::Postgres))
+                    .bind(organism)
+                    .bind(amr_gene)
+                    .bind(serotype)
+                    .bind(min_qscore)
+                    .fetch_one(p)
+                    .await?
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query_as(&sql_pathogen_exists(DbDialect::Sqlite))
+                    .bind(organism)
+                    .bind(amr_gene)
+                    .bind(serotype)
+                    .bind(min_qscore)
+                    .fetch_one(p)
+                    .await?
+            }
+        };
+        Ok(row.0)
+    }
+
+    /// Pathogen annotation count.
+    pub async fn pathogen_count(
+        &self,
+        organism: Option<&str>,
+        amr_gene: Option<&str>,
+        serotype: Option<&str>,
+        min_qscore: Option<f32>,
+    ) -> Result<i64> {
+        let row: (i64,) = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query_as(&sql_pathogen_count(DbDialect::Postgres))
+                    .bind(organism)
+                    .bind(amr_gene)
+                    .bind(serotype)
+                    .bind(min_qscore)
+                    .fetch_one(p)
+                    .await?
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query_as(&sql_pathogen_count(DbDialect::Sqlite))
+                    .bind(organism)
+                    .bind(amr_gene)
+                    .bind(serotype)
+                    .bind(min_qscore)
+                    .fetch_one(p)
+                    .await?
+            }
+        };
+        Ok(row.0)
+    }
+
+    /// Insert pathogen annotation (tests and ingest helpers).
+    pub async fn insert_pathogen_annotation(
+        &self,
+        id: &str,
+        organism: &str,
+        amr_genes: &[String],
+        serotype: Option<&str>,
+        ont_qscore_min: Option<f32>,
+        drs_object_id: Option<&str>,
+        dataset_id: Option<&str>,
+    ) -> Result<()> {
+        let amr_json = serde_json::to_value(amr_genes).unwrap_or(serde_json::json!([]));
+        match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query(
+                    "INSERT INTO pathogen_annotations (id, dataset_id, drs_object_id, organism, amr_genes, serotype, virulence_factors, ont_qscore_min)
+                     VALUES ($1, $2, $3, $4, $5, $6, '[]', $7)",
+                )
+                .bind(id)
+                .bind(dataset_id)
+                .bind(drs_object_id)
+                .bind(organism)
+                .bind(amr_json)
+                .bind(serotype)
+                .bind(ont_qscore_min)
+                .execute(p)
+                .await?;
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query(
+                    "INSERT INTO pathogen_annotations (id, dataset_id, drs_object_id, organism, amr_genes, serotype, virulence_factors, ont_qscore_min)
+                     VALUES ($1, $2, $3, $4, $5, $6, '[]', $7)",
+                )
+                .bind(id)
+                .bind(dataset_id)
+                .bind(drs_object_id)
+                .bind(organism)
+                .bind(amr_json)
+                .bind(serotype)
+                .bind(ont_qscore_min)
+                .execute(p)
+                .await?;
+            }
+        }
+        Ok(())
     }
 }

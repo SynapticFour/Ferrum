@@ -7,7 +7,7 @@
 
 use crate::presign::S3Presigner;
 use crate::repo::DrsRepo;
-use ferrum_core::{IngestConfig, ProvenanceStore};
+use ferrum_core::{IngestConfig, OutbreakService, ProvenanceStore};
 use ferrum_storage::ObjectStorage;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -29,4 +29,6 @@ pub struct AppState {
     pub ingest: IngestConfig,
     /// Value stored in `storage_references.storage_backend` for bytes written via ingest (e.g. `local`, `s3`).
     pub object_storage_backend: String,
+    /// Outbreak Mode download approval (optional; set by gateway when `[outbreak] enabled`).
+    pub outbreak: Option<Arc<OutbreakService>>,
 }

@@ -44,6 +44,11 @@ enum Commands {
         #[command(subcommand)]
         action: MiiAction,
     },
+    /// Outbreak Mode: GISAID packages and policy helpers
+    Outbreak {
+        #[command(subcommand)]
+        action: OutbreakAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -96,6 +101,19 @@ enum MiiAction {
         /// Report format: text, json, sarif
         #[arg(long, default_value = "text")]
         format: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum OutbreakAction {
+    /// Build a GISAID-compatible submission archive for an outbreak policy
+    Package {
+        #[arg(long)]
+        policy: String,
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long)]
+        config: Option<PathBuf>,
     },
 }
 
@@ -275,7 +293,77 @@ async fn run_cli() -> Result<(), CliExit> {
                 }
             }
         },
+        Commands::Outbreak { action } => match action {
+            OutbreakAction::Package {
+                policy,
+                output,
+                config,
+            } => {
+                outbreak_package(&policy, &output, config.as_deref())
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+        },
     }
+    Ok(())
+}
+
+async fn outbreak_package(
+    policy_name: &str,
+    output: &PathBuf,
+    config_path: Option<&std::path::Path>,
+) -> Result<(), String> {
+    use ferrum_core::{build_gisaid_package, GisaidEntry, OutbreakService};
+
+    let cfg = config_path
+        .and_then(|p| ferrum_core::FerrumConfig::load_from_path(p).ok())
+        .or_else(|| ferrum_core::FerrumConfig::load().ok())
+        .ok_or_else(|| "no config found".to_string())?;
+
+    let policy = cfg
+        .outbreak
+        .policy_by_name(policy_name)
+        .ok_or_else(|| format!("unknown outbreak policy '{policy_name}'"))?;
+
+    let db = ferrum_core::DatabasePool::from_config(&cfg.database)
+        .await
+        .map_err(|e| e.to_string())?;
+    let pool = match db {
+        ferrum_core::DatabasePool::Postgres(p) => ferrum_core::FerrumPool::Postgres(p),
+        ferrum_core::DatabasePool::Sqlite(p) => ferrum_core::FerrumPool::Sqlite(p),
+    };
+
+    let svc = OutbreakService::new(pool, cfg.outbreak.clone());
+    let rows = svc
+        .pathogen_drs_objects(&policy.trigger_pathogen)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let entries: Vec<GisaidEntry> = rows
+        .into_iter()
+        .enumerate()
+        .map(|(i, row)| GisaidEntry {
+            virus_name: format!("hCoV-19/Ferrum/{}/{}", row.organism, i + 1),
+            organism: row.organism,
+            collection_date: chrono::Utc::now().format("%Y-%m-%d").to_string(),
+            location: "Africa/lab".into(),
+            sequence: "NNNNATCGATCG".into(),
+        })
+        .collect();
+
+    if entries.is_empty() {
+        return Err(format!(
+            "no pathogen objects found for {}",
+            policy.trigger_pathogen
+        ));
+    }
+
+    let archive = build_gisaid_package(policy_name, &entries).map_err(|e| e.to_string())?;
+    if let Some(parent) = output.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(output, archive).map_err(|e| e.to_string())?;
+    println!("Wrote GISAID package to {}", output.display());
     Ok(())
 }
 

@@ -36,6 +36,9 @@ pub struct FerrumConfig {
     /// Resource-constrained / offline-first deployment profile (Africa laptop mode).
     #[serde(default)]
     pub africa: Option<AfricaProfile>,
+    /// Outbreak Mode: policy-based emergency Beacon access (opt-in, disabled by default).
+    #[serde(default)]
+    pub outbreak: OutbreakConfig,
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].
@@ -317,6 +320,51 @@ pub struct AfricaProfile {
     /// Path for local object storage root. Default: ~/.ferrum/objects/
     #[serde(default)]
     pub objects_path: Option<PathBuf>,
+}
+
+/// Outbreak Mode configuration (opt-in; disabled by default).
+#[derive(Debug, Clone, Deserialize)]
+pub struct OutbreakConfig {
+    /// Master switch. Must be explicitly enabled.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Policy definitions loaded from config (not stored in DB).
+    #[serde(default)]
+    pub policies: Vec<OutbreakPolicy>,
+}
+
+impl Default for OutbreakConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            policies: Vec::new(),
+        }
+    }
+}
+
+/// A single outbreak sharing policy (config-driven).
+#[derive(Debug, Clone, Deserialize)]
+pub struct OutbreakPolicy {
+    pub name: String,
+    pub trigger_pathogen: String,
+    /// Passport issuer domains or explicit recipient identifiers.
+    #[serde(default)]
+    pub emergency_recipients: Vec<String>,
+    /// `beacon_only` or `full` (full still requires per-object download approval).
+    #[serde(default = "default_outbreak_access_level")]
+    pub access_level: String,
+    #[serde(default)]
+    pub gisaid_auto_package: bool,
+}
+
+fn default_outbreak_access_level() -> String {
+    "beacon_only".to_string()
+}
+
+impl OutbreakConfig {
+    pub fn policy_by_name(&self, name: &str) -> Option<&OutbreakPolicy> {
+        self.policies.iter().find(|p| p.name == name)
+    }
 }
 
 /// Database configuration.

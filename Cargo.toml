@@ -17,6 +17,7 @@ members = [
     "crates/ferrum-htsget",
     "crates/ferrum-mii-connect",
     "crates/ferrum-embed",
+    "crates/ferrum-ont",
     "tools/ferrum-cli",
     "crates/ferrum-bench",
 ]
