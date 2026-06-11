@@ -61,19 +61,11 @@ async fn spawn_laptop_gateway(
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let drs_state = drs_state_for_laptop(pool.clone(), objects_dir);
-    let app = ferrum_gateway::app(
+    let app = ferrum_gateway::app_laptop_embed(
         Some(cfg),
         Some(drs_state),
-        None,
-        None,
-        None,
-        None,
         Some(pool),
-        None,
-        None,
-        None,
         Arc::new(ferrum_gateway::shutdown::ShutdownCoordinator::new()),
-        None,
     );
     tokio::spawn(async move {
         axum::serve(listener, app).await.ok();

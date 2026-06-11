@@ -460,6 +460,31 @@ pub fn app(
     app
 }
 
+/// Minimal gateway app for laptop/embed integration tests (hides full vs laptop `app` arg differences).
+pub fn app_laptop_embed(
+    config: Option<&ferrum_core::AppConfig>,
+    drs_state: Option<ferrum_drs::AppState>,
+    beacon_params: BeaconRouterParams,
+    shutdown_coordinator: Arc<shutdown::ShutdownCoordinator>,
+) -> Router {
+    app(
+        config,
+        drs_state,
+        None,
+        None,
+        None,
+        None,
+        beacon_params,
+        None,
+        None,
+        None,
+        #[cfg(feature = "full")]
+        None,
+        shutdown_coordinator,
+        None,
+    )
+}
+
 async fn ui_placeholder() -> &'static str {
     "UI not built. Add frontend to services/ui and rebuild."
 }
