@@ -21,13 +21,124 @@ wait_for "${POSTGRES_HOST:-postgres}" "${POSTGRES_PORT:-5432}" "PostgreSQL"
 wait_for "${MINIO_HOST:-minio}" "${MINIO_PORT:-9000}" "MinIO"
 wait_for "${KEYCLOAK_HOST:-keycloak}" "${KEYCLOAK_PORT:-8080}" "Keycloak"
 
-# --- 1. Run DB migrations ---
+# --- 1. Run DB migrations (journal-tracked; safe on partial / re-used volumes) ---
+# Demo gateway sets FERRUM_DATABASE__RUN_MIGRATIONS=false and relies on this init job.
+# Re-running every *.up.sql blindly fails when later migrations use plain CREATE TABLE
+# (e.g. passport_visa_grants) on an already-initialised volume. Track applied files in
+# _ferrum_init_migrations; bootstrap from _sqlx_migrations or existing schema when upgrading.
 echo "Running database migrations..."
 MIGRATIONS_DIR="${MIGRATIONS_DIR:-/migrations}"
+PGHOST="${POSTGRES_HOST:-postgres}"
+PGPORT="${POSTGRES_PORT:-5432}"
+PGUSER="${POSTGRES_USER:-ferrum}"
+PGDATABASE="${POSTGRES_DB:-ferrum}"
+export PGPASSWORD="${POSTGRES_PASSWORD}"
+
+psql_init() {
+  psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -v ON_ERROR_STOP=1 "$@"
+}
+
+migration_version() {
+  basename "$1" | cut -d_ -f1
+}
+
+migration_applied() {
+  psql_init -t -A -c "SELECT COUNT(*) FROM _ferrum_init_migrations WHERE version = $1;" 2>/dev/null | tr -d ' '
+}
+
+record_migration() {
+  psql_init -c "INSERT INTO _ferrum_init_migrations (version, filename)
+    VALUES ($1, '$2')
+    ON CONFLICT (version) DO NOTHING;"
+}
+
+migration_legacy_applied() {
+  version="$1"
+  case "$version" in
+    20250611000004)
+      psql_init -t -A -c "SELECT CASE WHEN to_regclass('public.reference_genomes') IS NOT NULL THEN 1 ELSE 0 END;"
+      ;;
+    *)
+      # Base demo schema through passports (and earlier Africa migrations) share this marker.
+      psql_init -t -A -c "SELECT CASE WHEN to_regclass('public.passport_visa_grants') IS NOT NULL THEN 1 ELSE 0 END;"
+      ;;
+  esac
+}
+
+ensure_migration_journal() {
+  psql_init <<'SQL'
+CREATE TABLE IF NOT EXISTS _ferrum_init_migrations (
+    version BIGINT PRIMARY KEY,
+    filename TEXT NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+SQL
+}
+
+bootstrap_migration_journal() {
+  ensure_migration_journal
+
+  if [ "${FERRUM_INIT_RESET_MIGRATIONS:-0}" = "1" ]; then
+    echo "  WARNING: FERRUM_INIT_RESET_MIGRATIONS=1 — clearing migration journal (dev only)" >&2
+    psql_init -c "TRUNCATE _ferrum_init_migrations;"
+    return 0
+  fi
+
+  journal_count="$(psql_init -t -A -c "SELECT COUNT(*) FROM _ferrum_init_migrations;" 2>/dev/null | tr -d ' ')"
+  if [ "${journal_count:-0}" != "0" ]; then
+    return 0
+  fi
+
+  sqlx_table="$(psql_init -t -A -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '_sqlx_migrations';" 2>/dev/null | tr -d ' ')"
+  if [ "${sqlx_table:-0}" = "1" ]; then
+    echo "  Bootstrapping migration journal from _sqlx_migrations..."
+    psql_init <<'SQL'
+INSERT INTO _ferrum_init_migrations (version, filename)
+SELECT version, description
+FROM _sqlx_migrations
+WHERE success = true
+ON CONFLICT (version) DO NOTHING;
+SQL
+    journal_count="$(psql_init -t -A -c "SELECT COUNT(*) FROM _ferrum_init_migrations;" 2>/dev/null | tr -d ' ')"
+    if [ "${journal_count:-0}" != "0" ]; then
+      return 0
+    fi
+  fi
+
+  passport_exists="$(psql_init -t -A -c "SELECT CASE WHEN to_regclass('public.passport_visa_grants') IS NOT NULL THEN 1 ELSE 0 END;" 2>/dev/null | tr -d ' ')"
+  if [ "${passport_exists:-0}" != "1" ]; then
+    return 0
+  fi
+
+  echo "  Existing schema detected without journal — marking prior migrations applied (no destructive re-apply)..."
+  for f in $(ls -1 "$MIGRATIONS_DIR"/*.up.sql 2>/dev/null | sort); do
+    [ -f "$f" ] || continue
+    version="$(migration_version "$f")"
+    filename="$(basename "$f")"
+    legacy="$(migration_legacy_applied "$version" | tr -d ' ')"
+    if [ "${legacy:-0}" = "1" ]; then
+      echo "    Bootstrapped skip: $filename"
+      record_migration "$version" "$filename"
+    else
+      echo "    Pending (schema marker missing): $filename"
+    fi
+  done
+}
+
+bootstrap_migration_journal
+
 for f in $(ls -1 "$MIGRATIONS_DIR"/*.up.sql 2>/dev/null | sort); do
   [ -f "$f" ] || continue
-  echo "  Applying $(basename "$f")"
-  PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 -f "$f" || { echo "Migration failed: $f" >&2; exit 1; }
+  version="$(migration_version "$f")"
+  filename="$(basename "$f")"
+  applied="$(migration_applied "$version")"
+  if [ "${applied:-0}" = "1" ]; then
+    echo "  Skipping $filename (already applied)"
+    continue
+  fi
+  echo "  Applying $filename"
+  psql_init -f "$f" || { echo "Migration failed: $f" >&2; exit 1; }
+  record_migration "$version" "$filename"
 done
 
 # --- 2. Create MinIO bucket ---

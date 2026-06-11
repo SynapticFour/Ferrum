@@ -70,6 +70,7 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Optional dev-only: FERRUM_INIT_RESET_MIGRATIONS=1 clears _ferrum_init_migrations (see init-demo.sh)
     depends_on:
       postgres: { condition: service_healthy }
       minio: { condition: service_started }

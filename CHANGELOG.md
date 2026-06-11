@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file. The format 
 
 - **`ferrum-reference` crate** — Pluggable reference genome registry (`reference_genomes` table); `/api/v1/references` HTTP API; WES `REFERENCE_MISMATCH` warnings; Beacon `meta.referenceGenome`.
 - **HelixTest Africa mode** — `--mode ferrum-africa --africa-profile {offline,ont,outbreak,federation,all}` (opt-in; standard `--mode ferrum` unchanged).
-- **Docs** — [REFERENCE-GENOMES.md](docs/REFERENCE-GENOMES.md); Africa Mode in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md); reference genomes section in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); ADR-016 in [DECISIONS.md](DECISIONS.md).
+- **Docs** — [REFERENCE-GENOMES.md](docs/REFERENCE-GENOMES.md); Africa Mode in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md); reference genomes section in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); [TEST-COVERAGE-GAPS.md](docs/TEST-COVERAGE-GAPS.md); ADR-016 in [DECISIONS.md](DECISIONS.md).
 - **CI** — `.github/workflows/africa-conformance.yml` (additive Africa HelixTest profiles).
 - **`ferrum-federation` crate** — P2P federated Beacon fan-out (`FerrumPeer`, `FederationConfig`, rate limits); `GET /ga4gh/beacon/v2/g_variants?federate=true`.
 - **Bandwidth-adaptive DRS** — `BandwidthMonitor`, `transfer_checkpoints`, `resume_token` on access, optional `Content-Encoding: zstd` on low-bandwidth streams.
@@ -35,6 +35,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
+- **Demo init / partial DB volumes** — `deploy/scripts/init-demo.sh` records applied migrations in `_ferrum_init_migrations`, bootstraps from `_sqlx_migrations` or existing schema, and skips destructive re-apply on re-init; only pending `.up.sql` files run. Documented in [TEST-COVERAGE-GAPS.md](docs/TEST-COVERAGE-GAPS.md) and [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
 - **WES → TES** — Cancel uses **`POST …/tasks/{id}/cancel`** (Ferrum TES route), not `…:cancel`.
 - **DRS /stream** — `storage.get` **NotFound** maps to **404** (not opaque 500). **Init microbench:** `deploy/scripts/init-demo.sh` seeds **`microbench-plain-v1` last** (after DRS/TRS URL seeds), **UPSERT**s Postgres rows (repairs `ON CONFLICT DO NOTHING` partials), re-`mc alias set` + retried `mc cp`/`mc stat`, and **fails init** if `storage_references` count ≠ 1. Conformance **verify** waits on **`GET …/objects/microbench-plain-v1`**; **`ci-drs-microbench-stream.sh`** prints metadata on stream failure.
 - **Gateway / DRS** — Object storage init merges **`FERRUM_STORAGE__*`** env into the loaded `StorageConfig` so **`S3_ENDPOINT` / bucket / keys** are never dropped (without MinIO endpoint the AWS SDK targets **real S3** → **`GET …/stream` 404** while metadata **200**). **`minio`** backend treated like **`s3`**. **S3 init errors** are logged (no longer silent). DRS router: **`/stream`** (and other sub-routes) registered **before** **`/objects/:object_id`**. Stream path **trims** `storage_key`.

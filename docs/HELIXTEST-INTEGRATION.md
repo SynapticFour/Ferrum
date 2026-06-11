@@ -83,6 +83,10 @@ Fixtures: `HelixTest/helixtest/fixtures/africa/` (ONT stub, example TOML configs
 
 Ferrum CI runs Africa conformance via [`.github/workflows/africa-conformance.yml`](../.github/workflows/africa-conformance.yml) (additive; [conformance.yml](../.github/workflows/conformance.yml) unchanged).
 
+**Coverage gaps** (Rust vs HelixTest, demo-stack limits, CI follow-ups): [TEST-COVERAGE-GAPS.md](TEST-COVERAGE-GAPS.md).
+
+**Demo DB init (re-runs / partial volumes):** `ferrum-init` runs [`deploy/scripts/init-demo.sh`](../deploy/scripts/init-demo.sh), which tracks applied migrations in `_ferrum_init_migrations` and skips already-applied `.up.sql` files. Upgrading an existing volume applies only pending migrations; idempotent seed steps still run. Full reset: `docker compose -f deploy/docker-compose.yml down -v`. Dev-only journal wipe: `FERRUM_INIT_RESET_MIGRATIONS=1` (re-applies destructive early migrations — do not use on data you need).
+
 ---
 
 ### TRS descriptor path (GA4GH OpenAPI)

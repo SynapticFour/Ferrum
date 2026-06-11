@@ -74,6 +74,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [SECURITY.md](../SECURITY.md) | Supported versions, reporting vulnerabilities, security model, operator considerations. |
 | [COMPLIANCE.md](COMPLIANCE.md) | Regulatory compliance: GDPR, BDSG, Gaia-X, NIS2, EHDS, GA4GH |
 | [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md) | **Conformance & QA:** what HelixTest exercises in CI (WES, TES, DRS, TRS, Beacon, htsget, E2E, auth, Crypt4GH), URL mapping, demo object IDs, local runs, CI jobs. |
+| [TEST-COVERAGE-GAPS.md](TEST-COVERAGE-GAPS.md) | **Coverage matrix:** Rust tests vs HelixTest standard/Africa profiles; Docker init re-run behaviour; recommended follow-ups. |
 | [deployment/UPDATE-SOP.md](deployment/UPDATE-SOP.md) | SOP template for controlled updates/bugfixes and rollback. |
 | [deployment/RELEASE-CHECKLIST.md](deployment/RELEASE-CHECKLIST.md) | 10 required checks before release/hotfix rollout. |
 
