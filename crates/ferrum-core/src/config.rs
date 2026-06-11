@@ -39,6 +39,15 @@ pub struct FerrumConfig {
     /// Outbreak Mode: policy-based emergency Beacon access (opt-in, disabled by default).
     #[serde(default)]
     pub outbreak: OutbreakConfig,
+    /// P2P federated Beacon (opt-in, disabled by default).
+    #[serde(default)]
+    pub federation: FederationConfig,
+    /// Solar/battery-aware operating modes.
+    #[serde(default)]
+    pub power: PowerConfig,
+    /// Bandwidth-adaptive transfer thresholds.
+    #[serde(default)]
+    pub bandwidth: BandwidthConfig,
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].
@@ -365,6 +374,128 @@ impl OutbreakConfig {
     pub fn policy_by_name(&self, name: &str) -> Option<&OutbreakPolicy> {
         self.policies.iter().find(|p| p.name == name)
     }
+}
+
+/// P2P federated Beacon configuration (opt-in; disabled by default).
+#[derive(Debug, Clone, Deserialize)]
+pub struct FederationConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub peers: Vec<FerrumPeerConfig>,
+    #[serde(default = "default_true")]
+    pub fan_out_parallel: bool,
+    #[serde(default)]
+    pub aggregate_strategy: AggregateStrategy,
+    #[serde(default = "default_peer_requests_per_minute")]
+    pub peer_requests_per_minute: u32,
+}
+
+impl Default for FederationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            peers: Vec::new(),
+            fan_out_parallel: true,
+            aggregate_strategy: AggregateStrategy::default(),
+            peer_requests_per_minute: default_peer_requests_per_minute(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct FerrumPeerConfig {
+    pub name: String,
+    pub beacon_endpoint: String,
+    #[serde(default)]
+    pub public_key: Option<String>,
+    #[serde(default = "default_peer_timeout_ms")]
+    pub timeout_ms: u64,
+    #[serde(default)]
+    pub service_token: Option<String>,
+}
+
+fn default_peer_timeout_ms() -> u64 {
+    3000
+}
+
+fn default_peer_requests_per_minute() -> u32 {
+    10
+}
+
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AggregateStrategy {
+    #[default]
+    Union,
+    Intersection,
+    LocalFirst,
+}
+
+/// Solar/battery power monitoring configuration.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PowerConfig {
+    #[serde(default = "default_power_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_low_power_threshold")]
+    pub low_power_threshold: u8,
+    #[serde(default = "default_emergency_threshold")]
+    pub emergency_threshold: u8,
+}
+
+impl Default for PowerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_power_enabled(),
+            low_power_threshold: default_low_power_threshold(),
+            emergency_threshold: default_emergency_threshold(),
+        }
+    }
+}
+
+fn default_power_enabled() -> bool {
+    cfg!(target_os = "linux")
+}
+
+fn default_low_power_threshold() -> u8 {
+    50
+}
+
+fn default_emergency_threshold() -> u8 {
+    10
+}
+
+/// Bandwidth classification thresholds (bits per second).
+#[derive(Debug, Clone, Deserialize)]
+pub struct BandwidthConfig {
+    #[serde(default = "default_high_bps")]
+    pub high_bps: u64,
+    #[serde(default = "default_medium_bps")]
+    pub medium_bps: u64,
+    #[serde(default = "default_low_bps")]
+    pub low_bps: u64,
+}
+
+impl Default for BandwidthConfig {
+    fn default() -> Self {
+        Self {
+            high_bps: default_high_bps(),
+            medium_bps: default_medium_bps(),
+            low_bps: default_low_bps(),
+        }
+    }
+}
+
+fn default_high_bps() -> u64 {
+    10_000_000
+}
+
+fn default_medium_bps() -> u64 {
+    1_000_000
+}
+
+fn default_low_bps() -> u64 {
+    100_000
 }
 
 /// Database configuration.

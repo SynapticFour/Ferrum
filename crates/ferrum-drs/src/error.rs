@@ -14,6 +14,8 @@ pub enum DrsError {
     Forbidden(String),
     #[error("validation: {0}")]
     Validation(String),
+    #[error("transfer queued: {0}")]
+    TransferQueued(String),
     #[error("database: {0}")]
     Database(#[from] sqlx::Error),
     #[error("{0}")]
@@ -26,6 +28,7 @@ impl From<DrsError> for FerrumError {
             DrsError::NotFound(s) => FerrumError::NotFound(s),
             DrsError::Forbidden(s) => FerrumError::Forbidden(s),
             DrsError::Validation(s) => FerrumError::ValidationError(s),
+            DrsError::TransferQueued(s) => FerrumError::ValidationError(s),
             DrsError::Database(se) => FerrumError::DatabaseError(se),
             DrsError::Other(o) => FerrumError::Internal(o),
         }
@@ -40,6 +43,21 @@ impl From<FerrumError> for DrsError {
 
 impl From<DrsError> for axum::response::Response {
     fn from(e: DrsError) -> Self {
+        if let DrsError::TransferQueued(msg) = &e {
+            let mut res = (
+                axum::http::StatusCode::TOO_MANY_REQUESTS,
+                axum::Json(serde_json::json!({
+                    "error": "transfer_queued",
+                    "message": msg,
+                })),
+            )
+                .into_response();
+            res.headers_mut().insert(
+                axum::http::header::RETRY_AFTER,
+                axum::http::HeaderValue::from_static("60"),
+            );
+            return res;
+        }
         FerrumError::from(e).into_response()
     }
 }

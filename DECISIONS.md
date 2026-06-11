@@ -12,6 +12,26 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-11 - ADR-015: Append-only chained residency audit log
+
+- **Status:** Accepted
+- **Context:** African operators need tamper-evident proof of where genomic data went (downloads, federation queries, outbreak events) without relying on external SIEM for baseline compliance.
+- **Decision:** `residency_audit` table with per-row `prev_hash` / `entry_hash` over canonical JSON; SQL triggers block UPDATE/DELETE; HTTP query + verify endpoints; no delete API.
+- **Consequences:** Chain verification is O(n) over entry count; tampering any row invalidates `chain_valid`. Works on SQLite and PostgreSQL.
+- **Alternatives considered:** External blockchain (rejected: operational overhead); mutable application logs (rejected: not tamper-evident).
+
+---
+
+### 2026-06-11 - ADR-014: P2P federated Beacon (no central coordinator)
+
+- **Status:** Accepted
+- **Context:** Cross-site pathogen surveillance in Africa often lacks a always-on central Beacon aggregator; sites already trust bilateral peering.
+- **Decision:** Config-driven peer list per Ferrum node; opt-in `federate=true` on `GET /g_variants`; parallel fan-out with non-fatal peer failures; union/intersection/local_first aggregation; per-peer rate limits.
+- **Consequences:** No HelixTest change when `federate` omitted. Operators must configure peer URLs and optional service tokens. Amplification mitigated by `peer_requests_per_minute`.
+- **Alternatives considered:** Central federation hub (rejected: single point of failure); always-on background sync (rejected: bandwidth cost).
+
+---
+
 ### 2026-06-11 - ADR-013: Outbreak Mode (policy-based emergency sharing)
 
 - **Status:** Accepted

@@ -9,6 +9,9 @@ license = "BUSL-1.1"
 default = []
 opendal = ["dep:opendal"]
 
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+
 [dependencies]
 anyhow = "1"
 ferrum-core = { path = "../ferrum-core" }

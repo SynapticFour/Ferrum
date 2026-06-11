@@ -8,6 +8,7 @@ use axum::{
     Json,
 };
 use ferrum_crypt4gh::KeyStore;
+use ferrum_storage::TransferDirection;
 use sha2::{Digest, Sha256, Sha512};
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
@@ -24,6 +25,12 @@ pub struct ParsedMultipartUpload {
     pub expected_sha256: Option<String>,
     pub workspace_id: Option<String>,
     pub client_request_id: Option<String>,
+    /// Resumable chunked upload: token from the first chunk response.
+    pub upload_token: Option<String>,
+    /// Byte offset for this chunk (must match checkpoint `completed_bytes`).
+    pub chunk_offset: Option<i64>,
+    /// Total file size for chunked upload sessions.
+    pub total_bytes: Option<i64>,
     pub data: Vec<u8>,
 }
 
@@ -78,6 +85,28 @@ pub async fn parse_multipart_upload(multipart: &mut Multipart) -> Result<ParsedM
                     out.expected_sha256 = Some(v.trim().to_string());
                 }
             }
+            "upload_token" | "resume_token" => {
+                if let Ok(v) = field.text().await {
+                    let t = v.trim().to_string();
+                    if !t.is_empty() {
+                        out.upload_token = Some(t);
+                    }
+                }
+            }
+            "chunk_offset" => {
+                if let Ok(v) = field.text().await {
+                    if let Ok(n) = v.trim().parse::<i64>() {
+                        out.chunk_offset = Some(n);
+                    }
+                }
+            }
+            "total_bytes" => {
+                if let Ok(v) = field.text().await {
+                    if let Ok(n) = v.trim().parse::<i64>() {
+                        out.total_bytes = Some(n);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -94,6 +123,23 @@ pub async fn process_upload_from_parts(
         .storage
         .clone()
         .ok_or_else(|| DrsError::Validation("ingest not configured: no storage".into()))?;
+    if let (Some(ref tq), Some(ref bw)) = (&state.transfer_queue, &state.bandwidth) {
+        if tq.should_queue(parsed.data.len() as u64, bw.as_ref()) {
+            tq.enqueue(
+                parsed
+                    .explicit_name
+                    .clone()
+                    .or(parsed.file_name.clone())
+                    .unwrap_or_else(|| "pending-upload".into()),
+                parsed.data.len() as u64,
+                TransferDirection::Upload,
+            );
+            return Err(DrsError::TransferQueued(format!(
+                "large upload deferred on very low bandwidth (size={} bytes)",
+                parsed.data.len()
+            )));
+        }
+    }
     let object_name = parsed.explicit_name.or(parsed.file_name);
     if parsed.data.is_empty() {
         return Err(DrsError::Validation("no file in multipart".into()));
@@ -182,15 +228,69 @@ pub async fn process_upload_from_parts(
         .create_object_with_id(&req, Some(object_id.clone()))
         .await?;
 
+    if let Some(ref audit) = state.residency_audit {
+        let requester = auth.and_then(|c| c.sub());
+        let _ = audit
+            .append(
+                "data_uploaded",
+                Some(&object_id),
+                requester,
+                None,
+                false,
+                Some(size),
+            )
+            .await;
+    }
+
     state
         .repo
         .set_checksum_status(&object_id, "pending")
         .await?;
 
-    let repo = Arc::clone(&state.repo);
+    spawn_checksum_job(
+        Arc::clone(&state),
+        Arc::clone(&state.repo),
+        storage,
+        object_id.clone(),
+        storage_key,
+    );
+
+    Ok(IngestFileResponse {
+        id: object_id,
+        size,
+        checksums: vec![],
+    })
+}
+
+pub fn spawn_checksum_job(
+    state: Arc<AppState>,
+    repo: Arc<crate::repo::DrsRepo>,
+    storage: Arc<dyn ferrum_storage::ObjectStorage>,
+    object_id: String,
+    storage_key: String,
+) {
+    if state
+        .background_gate
+        .as_ref()
+        .is_some_and(|g| !g.allows_background_work())
+    {
+        tracing::info!(
+            object_id = %object_id,
+            "deferring checksum computation while Ferrum is in low-power mode"
+        );
+        let repo_bg = repo.clone();
+        let object_id_bg = object_id.clone();
+        tokio::spawn(async move {
+            let _ = repo_bg
+                .set_checksum_status(&object_id_bg, "deferred_low_power")
+                .await;
+        });
+        return;
+    }
+
     let storage_key_bg = storage_key.clone();
     let object_id_bg = object_id.clone();
-    let storage_bg = Arc::clone(&storage);
+    let storage_bg = storage;
     tokio::spawn(async move {
         let mut reader = match storage_bg.get(&storage_key_bg).await {
             Ok(r) => r,
@@ -247,12 +347,6 @@ pub async fn process_upload_from_parts(
 
         let _ = repo.set_checksum_status(&object_id_bg, "computed").await;
     });
-
-    Ok(IngestFileResponse {
-        id: object_id,
-        size,
-        checksums: vec![],
-    })
 }
 
 /// Multipart file upload; computes checksums, stores file, creates DRS object. Optional encrypt=true.

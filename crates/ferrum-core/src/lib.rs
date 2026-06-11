@@ -11,7 +11,9 @@ pub mod io;
 #[cfg(feature = "libdeflate")]
 pub use noodles_bgzf;
 pub mod outbreak;
+pub mod power;
 pub mod provenance;
+pub mod residency;
 pub mod security;
 pub mod ssrf;
 pub mod types;
@@ -22,8 +24,9 @@ pub use auth::{
     PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
 };
 pub use config::{
-    AfricaProfile, AppConfig, AuthConfig, DatabaseConfig, EncryptionConfig, FerrumConfig,
-    IngestConfig, MultiQCConfig, OutbreakConfig, OutbreakPolicy, PricingConfig, PricingTier,
+    AfricaProfile, AppConfig, AuthConfig, BandwidthConfig, DatabaseConfig, EncryptionConfig,
+    FerrumConfig, FederationConfig, FerrumPeerConfig, AggregateStrategy, IngestConfig,
+    MultiQCConfig, OutbreakConfig, OutbreakPolicy, PowerConfig, PricingConfig, PricingTier,
     SecurityConfig, ServicesConfig, StorageConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
@@ -40,6 +43,16 @@ pub use health::health_router;
 pub use outbreak::{
     build_gisaid_package, ActivateRequest, ApproveDownloadRequest, DeactivateRequest, GisaidEntry,
     OutbreakService, PathogenPackageRow,
+};
+pub use power::{
+    allows_background_work, checkpoint_path, default_power_monitor, max_concurrent_requests,
+    resolve_power_mode, write_emergency_checkpoint, AcpiPowerMonitor, BackgroundWorkGate,
+    FerrumPowerMode, LinuxPowerMonitor, MacOsPowerMonitor, PowerLevel, PowerMonitor, PowerSource,
+    StubPowerMonitor,
+};
+pub use residency::{
+    last_transaction_id, residency_delete_blocked, verify_chain, ResidencyAuditEntry,
+    ResidencyAuditLog, ResidencyAuditQueryResult, ResidencyVerifyResult, GENESIS_HASH,
 };
 pub use provenance::{
     EdgeType, NodeType, ProvenanceEdge, ProvenanceGraph, ProvenanceNode, ProvenanceStore,

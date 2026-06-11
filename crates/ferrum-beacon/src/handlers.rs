@@ -2,9 +2,11 @@
 
 use crate::error::Result;
 use crate::repo::BeaconRepo;
-use axum::extract::{Extension, State};
+use axum::extract::{Extension, Query, State};
 use axum::Json;
 use ferrum_core::OutbreakService;
+use ferrum_core::ResidencyAuditLog;
+use ferrum_federation::FederationClient;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -12,6 +14,8 @@ use utoipa::ToSchema;
 pub struct AppState {
     pub repo: Arc<BeaconRepo>,
     pub outbreak: Option<Arc<OutbreakService>>,
+    pub federation: Option<Arc<FederationClient>>,
+    pub residency_audit: Option<Arc<ResidencyAuditLog>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -221,6 +225,12 @@ pub async fn query_variants(
     Json(envelope): Json<BeaconQueryEnvelope>,
 ) -> Result<Json<VariantQueryResponse>> {
     let _ = &envelope.meta;
+    if let Some(ref audit) = state.residency_audit {
+        let requester = auth.as_ref().and_then(|a| a.0.sub());
+        let _ = audit
+            .append("beacon_query", None, requester, None, false, None)
+            .await;
+    }
     let (body, filters_exprs, pathogen_base) = envelope_to_variant_query_with_filters(envelope);
     let pathogen = crate::pathogen::merge_pathogen_params(pathogen_base, &filters_exprs);
 
@@ -607,6 +617,151 @@ async fn run_pathogen_query(
                     count: Some(count),
                 },
             })
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GetVariantsQuery {
+    #[serde(default)]
+    pub federate: Option<bool>,
+    #[serde(rename = "assemblyId")]
+    pub assembly_id: Option<String>,
+    #[serde(rename = "referenceName")]
+    pub reference_name: Option<String>,
+    pub start: Option<i64>,
+    pub end: Option<i64>,
+    #[serde(rename = "referenceBases")]
+    pub reference_bases: Option<String>,
+    #[serde(rename = "alternateBases")]
+    pub alternate_bases: Option<String>,
+    #[serde(rename = "requestedGranularity")]
+    pub requested_granularity: Option<String>,
+    pub organism: Option<String>,
+    #[serde(rename = "amrGene")]
+    pub amr_gene: Option<String>,
+    pub serotype: Option<String>,
+    #[serde(rename = "minQscore")]
+    pub min_qscore: Option<f32>,
+}
+
+#[utoipa::path(get, path = "/g_variants", responses((status = 200, body = VariantQueryResponse)))]
+pub async fn get_g_variants(
+    State(state): State<Arc<AppState>>,
+    Query(q): Query<GetVariantsQuery>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<Json<VariantQueryResponse>> {
+    let federate = q.federate.unwrap_or(false);
+    let requester = auth.as_ref().and_then(|a| a.0.sub());
+
+    if let Some(ref audit) = state.residency_audit {
+        let _ = audit
+            .append("beacon_query", None, requester, None, false, None)
+            .await;
+    }
+
+    let (local_exists, local_count) =
+        local_variant_result(&state, &q, q.requested_granularity.as_deref()).await?;
+
+    let params = ferrum_federation::BeaconQueryParams {
+        assembly_id: q.assembly_id.clone(),
+        reference_name: q.reference_name.clone(),
+        start: q.start,
+        end: q.end.or(q.start),
+        reference_bases: q.reference_bases.clone(),
+        alternate_bases: q.alternate_bases.clone(),
+        granularity: q.requested_granularity.clone(),
+        organism: q.organism.clone(),
+        amr_gene: q.amr_gene.clone(),
+        serotype: q.serotype.clone(),
+        min_qscore: q.min_qscore,
+    };
+
+    Ok(Json(
+        crate::federation::maybe_federate_get(
+            &state,
+            params,
+            federate,
+            local_exists,
+            local_count,
+            requester,
+        )
+        .await,
+    ))
+}
+
+async fn local_variant_result(
+    state: &AppState,
+    q: &GetVariantsQuery,
+    granularity: Option<&str>,
+) -> Result<(Option<bool>, Option<i64>)> {
+    let pathogen = PathogenFilterParams {
+        organism: q.organism.clone(),
+        amr_gene: q.amr_gene.clone(),
+        serotype: q.serotype.clone(),
+        min_qscore: q.min_qscore,
+    };
+    if crate::pathogen::has_pathogen_params(&pathogen) {
+        let resp = run_pathogen_query(
+            state,
+            pathogen.organism.as_deref(),
+            pathogen.amr_gene.as_deref(),
+            pathogen.serotype.as_deref(),
+            pathogen.min_qscore,
+            granularity,
+        )
+        .await?;
+        return Ok((resp.response.exists, resp.response.count));
+    }
+
+    let end = q.end.or(q.start);
+    let sanitized = crate::query::sanitize::sanitize_query_params(
+        q.assembly_id.as_deref(),
+        q.reference_name.as_deref(),
+        q.start,
+        end,
+    )?;
+    let dataset_id = match sanitized.assembly_id.as_deref() {
+        Some(aid) => state
+            .repo
+            .dataset_id_for_assembly(aid)
+            .await?
+            .ok_or_else(|| {
+                crate::error::BeaconError::Validation(format!("invalid assembly_id '{aid}'"))
+            })?,
+        None => "default".to_string(),
+    };
+    let reference = crate::query::sanitize::sanitize_bases(q.reference_bases.as_deref())?;
+    let alternate = crate::query::sanitize::sanitize_bases(q.alternate_bases.as_deref())?;
+
+    match parse_granularity(granularity)? {
+        VariantGranularity::Boolean => {
+            let exists = state
+                .repo
+                .variant_exists(
+                    &dataset_id,
+                    &sanitized.reference_name,
+                    sanitized.start,
+                    sanitized.end,
+                    reference.as_deref(),
+                    alternate.as_deref(),
+                )
+                .await?;
+            Ok((Some(exists), None))
+        }
+        VariantGranularity::Count => {
+            let count = state
+                .repo
+                .variant_count(
+                    &dataset_id,
+                    &sanitized.reference_name,
+                    sanitized.start,
+                    sanitized.end,
+                    reference.as_deref(),
+                    alternate.as_deref(),
+                )
+                .await?;
+            Ok((None, Some(count)))
         }
     }
 }

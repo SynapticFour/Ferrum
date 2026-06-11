@@ -238,6 +238,8 @@ impl DrsRepo {
             url,
             headers,
             expires_at: None,
+            resume_token: None,
+            bytes_completed: None,
         }))
     }
 

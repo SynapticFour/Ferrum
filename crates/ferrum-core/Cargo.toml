@@ -37,12 +37,14 @@ notify = "8.2.0"
 rayon = "1.10"
 flate2 = "1"
 tar = "0.4"
+sha2 = "0.10"
+hex = "0.4"
 noodles-bgzf = { version = "0.46", optional = true, default-features = false, features = [
     "libdeflate",
 ] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "postgres", "migrate"] }
 flate2 = "1"
 tar = "0.4"

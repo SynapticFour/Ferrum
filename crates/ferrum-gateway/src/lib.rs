@@ -3,9 +3,10 @@
 
 #[cfg(feature = "full")]
 mod admin;
-mod outbreak;
+pub mod audit;
+pub mod outbreak;
+pub mod power;
 pub mod shutdown;
-
 use axum::http::header;
 use axum::response::IntoResponse;
 use axum::{routing::get, Router};
@@ -252,13 +253,38 @@ pub fn app(
                     c.outbreak.clone(),
                 ))
             });
+        let residency_audit = beacon_params.clone().map(|pool| {
+            Arc::new(ferrum_core::ResidencyAuditLog::new(pool))
+        });
+        let federation = cfg
+            .zip(beacon_params.clone())
+            .and_then(|(c, _)| {
+                if !c.federation.enabled {
+                    return None;
+                }
+                ferrum_federation::FederationRuntime::from_config(&c.federation)
+                    .ok()
+                    .map(ferrum_federation::FederationClient::new)
+                    .map(Arc::new)
+            });
         let beacon_router = match beacon_params {
-            Some(pool) => ferrum_beacon::router_with_outbreak(pool, outbreak_service.clone()),
+            Some(pool) => ferrum_beacon::router_with_services(
+                pool,
+                outbreak_service.clone(),
+                federation,
+                residency_audit.clone(),
+            ),
             None => ferrum_beacon::router_unconfigured(),
         };
         app = app.nest("/ga4gh/beacon/v2", beacon_router);
         if let Some(svc) = outbreak_service {
-            app = app.nest("/api/v1/outbreak", outbreak::outbreak_router(svc));
+            app = app.nest(
+                "/api/v1/outbreak",
+                outbreak::outbreak_router(svc, residency_audit.clone()),
+            );
+        }
+        if let Some(audit) = residency_audit {
+            app = app.nest("/api/v1/audit", audit::audit_router(audit));
         }
     }
     #[cfg(feature = "full")]
@@ -483,6 +509,42 @@ pub async fn run(
         }
     }
 
+    let power_cfg = config.as_ref().map(|c| c.power.clone()).unwrap_or_default();
+    let power_state = Arc::new(tokio::sync::Mutex::new(power::PowerState::new(power_cfg)));
+    let background_gate = drs_state
+        .as_ref()
+        .and_then(|s| s.background_gate.clone());
+    power::spawn_power_watcher(
+        Arc::clone(&power_state),
+        beacon_params.clone(),
+        background_gate.clone(),
+    );
+
+    if let Some(ref ds) = drs_state {
+        if let (Some(bw), Some(tq), Some(gate)) = (
+            ds.bandwidth.clone(),
+            ds.transfer_queue.clone(),
+            ds.background_gate.clone(),
+        ) {
+            tokio::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(60));
+                loop {
+                    interval.tick().await;
+                    if !gate.allows_background_work() {
+                        continue;
+                    }
+                    let drained = tq.drain_if_ready(bw.as_ref());
+                    if !drained.is_empty() {
+                        tracing::info!(
+                            count = drained.len(),
+                            "transfer queue drained (client should retry deferred transfers)"
+                        );
+                    }
+                }
+            });
+        }
+    }
+
     let app = app(
         config.as_ref(),
         drs_state,
@@ -499,6 +561,12 @@ pub async fn run(
         Arc::clone(&shutdown_coordinator),
         config_watch_rx,
     );
+
+    let app = app.layer(axum::middleware::from_fn(move |req, next| {
+        let ps = Arc::clone(&power_state);
+        async move { power::power_limit_middleware(ps, req, next).await }
+    }));
+
     let listener = tokio::net::TcpListener::bind(bind).await?;
     tracing::info!("Gateway listening on {}", bind);
 

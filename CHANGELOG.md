@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **`ferrum-federation` crate** — P2P federated Beacon fan-out (`FerrumPeer`, `FederationConfig`, rate limits); `GET /ga4gh/beacon/v2/g_variants?federate=true`.
+- **Bandwidth-adaptive DRS** — `BandwidthMonitor`, `transfer_checkpoints`, `resume_token` on access, optional `Content-Encoding: zstd` on low-bandwidth streams.
+- **Solar/battery mode** — `PowerMonitor`, `FerrumPowerMode`, emergency checkpoint at `~/.ferrum/CHECKPOINT`, concurrency limits via gateway middleware.
+- **Data residency audit** — Chained `residency_audit` table; `GET /api/v1/audit/residency` and `/verify`; append-only triggers.
+- **Docs** — [FEDERATION.md](docs/FEDERATION.md), [DATA-RESIDENCY-AUDIT.md](docs/DATA-RESIDENCY-AUDIT.md); Africa sections in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); ADR-014/015 in [DECISIONS.md](DECISIONS.md).
 - **`ferrum-ont` crate** — ONT types (`OntFormat`, `OntIngestRequest`, `OntQualityMetrics`), validation, DRS field mapping; synthetic POD5 stub for tests.
 - **`POST /api/v1/ingest/ont`** — Multipart Nanopore ingest (POD5/FAST5/BLOW5/FASTQ); stores `drs_objects.ont_metrics` and `pathogen_annotations`.
 - **Multi-pathogen Beacon** — Optional `organism`, `amrGene`, `serotype`, `minQscore` filters; schema [`crates/ferrum-beacon/schemas/pathogen-extension.json`](crates/ferrum-beacon/schemas/pathogen-extension.json); human genomics queries unchanged without pathogen fields.

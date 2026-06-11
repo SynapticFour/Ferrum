@@ -50,6 +50,12 @@ pub struct AccessUrl {
     /// Optional expiry timestamp (ISO 8601) for signed URLs.
     /// Not part of the base GA4GH schema, but useful for clients.
     pub expires_at: Option<String>,
+    /// Resume token for chunked / bandwidth-adaptive transfers.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resume_token: Option<String>,
+    /// Bytes already transferred when resuming.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bytes_completed: Option<i64>,
 }
 
 /// List objects query (admin).

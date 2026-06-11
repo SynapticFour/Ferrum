@@ -1,6 +1,7 @@
 //! DRS HTTP handlers.
 
 use crate::access::{check_object_byte_access, check_object_metadata_access};
+use crate::checkpoint::{create_checkpoint, load_checkpoint, update_checkpoint_progress};
 use crate::error::{DrsError, Result};
 use crate::state::AppState;
 use crate::types::*;
@@ -13,8 +14,10 @@ use axum::{
 };
 use bytes::Bytes;
 use ferrum_core::{FerrumError, Organization, ServiceInfo, ServiceType};
+use ferrum_storage::{BandwidthClass, TransferDirection};
 use ferrum_crypt4gh::{stream_decrypt, KeyStore, LocalKeyStore};
 use futures_util::stream::StreamExt;
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::future::Future;
 use std::pin::Pin;
@@ -26,6 +29,16 @@ use tokio::io::{AsyncReadExt, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use utoipa::ToSchema;
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct AccessQuery {
+    pub resume_token: Option<String>,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct StreamQuery {
+    pub resume_token: Option<String>,
+}
 
 /// GA4GH service-info (DRS).
 #[utoipa::path(get, path = "/service-info", responses((status = 200, body = ferrum_core::ServiceInfo)))]
@@ -197,6 +210,7 @@ pub async fn list_bundle_contents(
 pub async fn get_access(
     State(state): State<Arc<AppState>>,
     Path((object_id, access_id)): Path<(String, String)>,
+    Query(access_query): Query<AccessQuery>,
     headers: HeaderMap,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<AccessUrl>> {
@@ -247,6 +261,47 @@ pub async fn get_access(
             client_ip.as_deref(),
         )
         .await;
+
+    let mut resume_token = access_query.resume_token.clone();
+    let mut bytes_completed = None;
+    if let Some(ref token) = access_query.resume_token {
+        if let Some(cp) = load_checkpoint(state.repo.pool(), token).await? {
+            bytes_completed = Some(cp.completed_bytes);
+            resume_token = Some(cp.resume_token);
+        }
+    } else if let (Some(bw), Some(obj)) = (&state.bandwidth, state.repo.get_object(&canonical, false).await?) {
+        let class = bw.classify();
+        let cp = create_checkpoint(
+            state.repo.pool(),
+            &canonical,
+            "download",
+            obj.size,
+            class,
+        )
+        .await?;
+        resume_token = Some(cp.resume_token);
+        bytes_completed = Some(0);
+    }
+
+    if let Some(ref audit) = state.residency_audit {
+        let requester = auth
+            .as_ref()
+            .and_then(|a| a.0.sub())
+            .or(client_ip.as_deref());
+        let _ = audit
+            .append(
+                "data_accessed",
+                Some(&canonical),
+                requester,
+                client_ip.as_deref(),
+                false,
+                None,
+            )
+            .await;
+    }
+
+    url.resume_token = resume_token;
+    url.bytes_completed = bytes_completed;
     Ok(Json(url))
 }
 
@@ -452,6 +507,7 @@ impl AsyncWrite for BoundedBodyWriter {
 pub async fn get_object_stream(
     State(state): State<Arc<AppState>>,
     Path(object_id): Path<String>,
+    Query(stream_query): Query<StreamQuery>,
     headers: HeaderMap,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Response> {
@@ -491,6 +547,20 @@ pub async fn get_object_stream(
         .as_deref()
         .unwrap_or("application/octet-stream");
 
+    if let (Some(ref tq), Some(ref bw)) = (&state.transfer_queue, &state.bandwidth) {
+        if tq.should_queue(obj.size as u64, bw.as_ref()) {
+            tq.enqueue(
+                canonical.clone(),
+                obj.size as u64,
+                TransferDirection::Download,
+            );
+            return Err(DrsError::TransferQueued(format!(
+                "large download deferred on very low bandwidth (object={}, size={} bytes)",
+                canonical, obj.size
+            )));
+        }
+    }
+
     let reader = storage.get(key.as_str()).await.map_err(|e| match e {
         FerrumError::NotFound(msg) => DrsError::NotFound(format!(
             "storage object missing (backend={} key={}): {msg}",
@@ -504,6 +574,33 @@ pub async fn get_object_stream(
         .or_else(|| headers.get("x-real-ip"))
         .and_then(|v| v.to_str().ok())
         .map(|s| s.split(',').next().unwrap_or(s).trim().to_string());
+
+    let skip_bytes = if let Some(ref token) = stream_query.resume_token {
+        load_checkpoint(state.repo.pool(), token)
+            .await?
+            .map(|cp| cp.completed_bytes as u64)
+            .unwrap_or(0)
+    } else {
+        0
+    };
+
+    if let Some(ref audit) = state.residency_audit {
+        let requester = auth
+            .as_ref()
+            .and_then(|a| a.0.sub())
+            .or(client_ip.as_deref());
+        let _ = audit
+            .append(
+                "data_downloaded",
+                Some(&canonical),
+                requester,
+                client_ip.as_deref(),
+                true,
+                Some(obj.size),
+            )
+            .await;
+    }
+
     let _ = state
         .repo
         .log_access(&canonical, None, "GET/stream", 200, client_ip.as_deref())
@@ -518,6 +615,53 @@ pub async fn get_object_stream(
         event = "drs.stream.started",
     );
 
+    let use_zstd = !is_encrypted
+        && state
+            .bandwidth
+            .as_ref()
+            .map(|b| b.classify().use_zstd_compression())
+            .unwrap_or(false);
+
+    if !is_encrypted && use_zstd {
+        let mut reader = reader;
+        let mut body = Vec::new();
+        reader
+            .read_to_end(&mut body)
+            .await
+            .map_err(|e| DrsError::Other(e.into()))?;
+        if skip_bytes as usize >= body.len() {
+            body.clear();
+        } else {
+            body.drain(0..skip_bytes as usize);
+        }
+        let compressed = zstd::encode_all(body.as_slice(), 3)
+            .map_err(|e| DrsError::Other(e.into()))?;
+        if let Some(ref bw) = state.bandwidth {
+            bw.record_transfer(compressed.len() as u64, 100);
+        }
+        if let Some(ref token) = stream_query.resume_token {
+            let _ = update_checkpoint_progress(
+                state.repo.pool(),
+                token,
+                obj.size,
+            )
+            .await;
+        }
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header(CONTENT_TYPE, HeaderValue::from_str(mime).unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")))
+            .header(
+                HeaderName::from_static("content-encoding"),
+                HeaderValue::from_static("zstd"),
+            )
+            .header(
+                HeaderName::from_static("x-ferrum-drs-stream-path"),
+                HeaderValue::from_static("plaintext_zstd"),
+            )
+            .body(Body::from(compressed))
+            .map_err(|e| DrsError::Other(e.into()));
+    }
+
     if !is_encrypted {
         // Lesson 4: bounded channel between storage read and HTTP body — backpressure on slow clients.
         // Source: Zellij/OneUptime postmortems; unbounded buffering can OOM on TB-scale streams.
@@ -529,8 +673,27 @@ pub async fn get_object_stream(
         let bytes_from_storage = Arc::new(AtomicU64::new(0));
         let bytes_counter = bytes_from_storage.clone();
         let oid_plain = canonical.clone();
+        let resume_for_task = stream_query.resume_token.clone();
+        let pool_for_task = state.repo.pool().clone();
+        let bw_for_task = state.bandwidth.clone();
+        let total_size = obj.size;
         tokio::spawn(async move {
             let mut reader = reader;
+            if skip_bytes > 0 {
+                let mut remaining = skip_bytes;
+                let mut scratch = vec![0u8; READ_CHUNK];
+                while remaining > 0 {
+                    let to_read = scratch.len().min(remaining as usize);
+                    match reader.read(&mut scratch[..to_read]).await {
+                        Ok(0) => break,
+                        Ok(n) => remaining -= n as u64,
+                        Err(e) => {
+                            tracing::error!(error = %e, "resume skip read failed");
+                            break;
+                        }
+                    }
+                }
+            }
             let mut buf = vec![0u8; READ_CHUNK];
             loop {
                 let read_fut = reader.read(&mut buf);
@@ -550,6 +713,13 @@ pub async fn get_object_stream(
                 if tx.send(Bytes::copy_from_slice(&buf[..n])).await.is_err() {
                     break;
                 }
+            }
+            let transferred = skip_bytes + bytes_counter.load(Ordering::Relaxed);
+            if let Some(ref bw) = bw_for_task {
+                bw.record_transfer(transferred, 100);
+            }
+            if let Some(token) = resume_for_task {
+                let _ = update_checkpoint_progress(&pool_for_task, &token, transferred as i64).await;
             }
             tracing::info!(
                 target: "ferrum_drs::stream",

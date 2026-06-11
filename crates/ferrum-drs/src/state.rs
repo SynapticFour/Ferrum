@@ -7,8 +7,8 @@
 
 use crate::presign::S3Presigner;
 use crate::repo::DrsRepo;
-use ferrum_core::{IngestConfig, OutbreakService, ProvenanceStore};
-use ferrum_storage::ObjectStorage;
+use ferrum_core::{BackgroundWorkGate, IngestConfig, OutbreakService, ResidencyAuditLog, ProvenanceStore};
+use ferrum_storage::{BandwidthMonitor, ObjectStorage, TransferQueue};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -31,4 +31,12 @@ pub struct AppState {
     pub object_storage_backend: String,
     /// Outbreak Mode download approval (optional; set by gateway when `[outbreak] enabled`).
     pub outbreak: Option<Arc<OutbreakService>>,
+    /// Rolling bandwidth estimation for adaptive chunk sizes and compression.
+    pub bandwidth: Option<Arc<BandwidthMonitor>>,
+    /// Large transfer deferral queue for VeryLow bandwidth links.
+    pub transfer_queue: Option<Arc<TransferQueue>>,
+    /// Append-only residency audit log (optional; set by gateway).
+    pub residency_audit: Option<Arc<ResidencyAuditLog>>,
+    /// Solar/battery gate for pausing background checksum/index work (optional; set by gateway).
+    pub background_gate: Option<Arc<BackgroundWorkGate>>,
 }

@@ -372,6 +372,15 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             .map(|c| c.encryption.crypt4gh_decrypt_stream)
             .unwrap_or(true);
 
+        let bandwidth_cfg = config
+            .as_ref()
+            .map(|c| c.bandwidth.clone())
+            .unwrap_or_default();
+        let bandwidth = Arc::new(ferrum_storage::BandwidthMonitor::new(bandwidth_cfg));
+        let transfer_queue = Arc::new(ferrum_storage::TransferQueue::new(300));
+        let residency_audit = Arc::new(ferrum_core::ResidencyAuditLog::new(pool.clone()));
+        let background_gate = Arc::new(ferrum_core::BackgroundWorkGate::default());
+
         Some(ferrum_drs::AppState {
             repo,
             storage,
@@ -388,6 +397,10 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
                     c.outbreak.clone(),
                 ))
             }),
+            bandwidth: Some(bandwidth),
+            transfer_queue: Some(transfer_queue),
+            residency_audit: Some(residency_audit),
+            background_gate: Some(background_gate),
         })
     } else {
         None

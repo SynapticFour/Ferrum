@@ -229,3 +229,52 @@ gisaid_auto_package = true
 ```
 
 Activation requires Passport visa `ferrum:outbreak_activator`. Full reference: [OUTBREAK-MODE.md](OUTBREAK-MODE.md).
+
+## Federated Beacon
+
+P2P federated queries without a central coordinator. **Disabled by default** — requires `federate=true`:
+
+```http
+GET /ga4gh/beacon/v2/g_variants?federate=true&referenceName=1&start=1000&referenceBases=A&alternateBases=T
+```
+
+Configure peers under `[federation]` in config. Full reference: [FEDERATION.md](FEDERATION.md).
+
+## Bandwidth-Adaptive Transfer
+
+DRS transfers adapt to measured link quality:
+
+- Rolling bandwidth estimate (last 10 transfers, EMA) → `High` / `Medium` / `Low` / `VeryLow`.
+- Chunk sizes: 64 MB / 16 MB / 4 MB / 512 KB.
+- `transfer_checkpoints` table + `resume_token` on access responses; resume via `GET …/access?resume_token=…`.
+- **VeryLow** links: large uploads queued (gateway `TransferQueue`); DRS may emit `Content-Encoding: zstd` on non-Crypt4GH streams.
+- Resumable uploads: `POST /api/v1/ingest/upload/chunk` with `total_bytes`, `chunk_offset`, optional `upload_token`; chunk sizes follow `BandwidthClass`.
+
+Thresholds configurable under `[bandwidth]` in `config.toml`.
+
+## Solar / Battery Mode
+
+Reads Linux `/sys/class/power_supply/` (macOS: `pmset`) when `[power] enabled = true` (default on Linux):
+
+| Mode | Trigger | Effect |
+|------|---------|--------|
+| `HighPerformance` | AC power | All features |
+| `LowPower` | Battery &lt; 50% | Max 4 concurrent requests; background checksum/index work paused |
+| `Emergency` | Battery &lt; 10% | Refuse new connections; write `~/.ferrum/CHECKPOINT`; exit after 30s drain |
+
+Override: `FERRUM_POWER_MODE=low_power|emergency|high_performance`.
+
+## Data Residency Audit
+
+Append-only SHA-256 chained log of accesses, downloads, Beacon queries, and federation fan-out.
+
+```http
+GET /api/v1/audit/residency?from=…&to=…
+GET /api/v1/audit/residency/verify
+```
+
+Full reference: [DATA-RESIDENCY-AUDIT.md](DATA-RESIDENCY-AUDIT.md).
+
+---
+
+*[← Documentation index](README.md)*

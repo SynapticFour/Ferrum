@@ -94,6 +94,10 @@ async fn outbreak_drs_state() -> AppState {
         ingest: Default::default(),
         object_storage_backend: "local".into(),
         outbreak: Some(outbreak),
+        bandwidth: None,
+        transfer_queue: None,
+        residency_audit: None,
+        background_gate: None,
     }
 }
 

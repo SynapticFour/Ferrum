@@ -18,6 +18,7 @@ members = [
     "crates/ferrum-mii-connect",
     "crates/ferrum-embed",
     "crates/ferrum-ont",
+    "crates/ferrum-federation",
     "tools/ferrum-cli",
     "crates/ferrum-bench",
 ]

@@ -1720,6 +1720,7 @@ dependencies = [
  "axum",
  "chrono",
  "ferrum-core",
+ "ferrum-federation",
  "http 1.4.0",
  "hyper 1.9.0",
  "serde",
@@ -1789,6 +1790,7 @@ dependencies = [
  "chrono",
  "config",
  "flate2",
+ "hex",
  "jsonwebtoken",
  "noodles-bgzf",
  "notify",
@@ -1797,6 +1799,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "tar",
  "thiserror 1.0.69",
@@ -1859,6 +1862,7 @@ dependencies = [
  "ferrum-storage",
  "futures-util",
  "hex",
+ "http 1.4.0",
  "md5",
  "noodles-bam",
  "reqwest",
@@ -1876,6 +1880,7 @@ dependencies = [
  "ulid",
  "utoipa",
  "utoipa-swagger-ui 6.0.0",
+ "zstd",
 ]
 
 [[package]]
@@ -1902,6 +1907,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferrum-federation"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "ferrum-beacon",
+ "ferrum-core",
+ "http 1.4.0",
+ "hyper 1.9.0",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "ferrum-gateway"
 version = "0.1.0"
 dependencies = [
@@ -1914,6 +1939,7 @@ dependencies = [
  "ferrum-crypt4gh",
  "ferrum-drs",
  "ferrum-embed",
+ "ferrum-federation",
  "ferrum-htsget",
  "ferrum-passports",
  "ferrum-storage",
@@ -1922,10 +1948,12 @@ dependencies = [
  "ferrum-wes",
  "ferrum-workspaces",
  "futures-util",
+ "http 1.4.0",
  "http-body-util",
  "serde",
  "serde_json",
  "sqlx",
+ "tempfile",
  "tokio",
  "tokio-util",
  "tower 0.4.13",

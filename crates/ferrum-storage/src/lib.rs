@@ -1,11 +1,15 @@
 //! Object storage backends: [`ObjectStorage`], [`LocalStorage`], [`S3Storage`].
 
+mod bandwidth;
+mod transfer_queue;
 mod local;
 #[cfg(feature = "opendal")]
 mod opendal_store;
 mod parts;
 mod s3;
 
+pub use bandwidth::{BandwidthClass, BandwidthMonitor};
+pub use transfer_queue::{QueuedTransfer, TransferDirection, TransferQueue};
 pub use local::LocalStorage;
 #[cfg(feature = "opendal")]
 pub use opendal_store::OpenDalStorage;
@@ -14,7 +18,7 @@ pub use s3::S3Storage;
 
 use async_trait::async_trait;
 use ferrum_core::error::Result;
-use tokio::io::AsyncRead;
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 /// Object storage backend: put_bytes, get, delete, exists, size.
 /// Only [`ObjectStorage::put_bytes`] is used (no generic put) so the trait is object-safe for `Arc<dyn ObjectStorage>`.
@@ -29,4 +33,20 @@ pub trait ObjectStorage: Send + Sync {
     async fn exists(&self, key: &str) -> Result<bool>;
 
     async fn size(&self, key: &str) -> Result<u64>;
+
+    /// Append bytes to an object (creates the key when missing).
+    async fn append_bytes(&self, key: &str, data: &[u8]) -> Result<()> {
+        let mut buf = if self.exists(key).await? {
+            let mut reader = self.get(key).await?;
+            let mut existing = Vec::new();
+            reader.read_to_end(&mut existing).await.map_err(|e| {
+                ferrum_core::FerrumError::StorageError(anyhow::anyhow!("append read: {e}"))
+            })?;
+            existing
+        } else {
+            Vec::new()
+        };
+        buf.extend_from_slice(data);
+        self.put_bytes(key, &buf).await
+    }
 }

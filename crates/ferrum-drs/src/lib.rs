@@ -3,9 +3,11 @@
 pub mod access;
 pub mod access_url;
 pub mod api_v1;
+pub mod checkpoint;
 pub mod error;
 pub mod handlers;
 pub mod ingest;
+pub mod ingest_chunk;
 pub mod presign;
 pub mod repo;
 pub mod state;
@@ -128,7 +130,7 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/objects/:object_id/stream",
             get(
-                |s, p, h, auth| async move { StreamResult(get_object_stream(s, p, h, auth).await) },
+                |s, p, q, h, auth| async move { StreamResult(get_object_stream(s, p, q, h, auth).await) },
             ),
         )
         .route(
@@ -143,7 +145,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/objects/:object_id/access/:access_id",
-            get(|s, p, h, auth| async move { JsonResult(get_access(s, p, h, auth).await) }),
+            get(|s, p, q, h, auth| async move { JsonResult(get_access(s, p, q, h, auth).await) }),
         )
         .route(
             "/objects/:object_id/view",

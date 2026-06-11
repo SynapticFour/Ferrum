@@ -46,6 +46,10 @@ fn drs_state_for_laptop(
         ingest: IngestConfig::default(),
         object_storage_backend: "local".to_string(),
         outbreak: None,
+        bandwidth: None,
+        transfer_queue: None,
+        residency_audit: None,
+        background_gate: None,
     }
 }
 

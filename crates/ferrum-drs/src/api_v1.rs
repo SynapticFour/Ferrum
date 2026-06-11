@@ -3,6 +3,7 @@
 
 use crate::error::DrsError;
 use crate::ingest::{parse_multipart_upload, process_upload_from_parts};
+use crate::ingest_chunk::process_chunked_upload_from_parts;
 use crate::state::AppState;
 use crate::types::{ChecksumInput, CreateObjectRequest};
 use crate::uri;
@@ -78,6 +79,12 @@ impl IngestApiError {
             },
             DrsError::Forbidden(m) => Self::forbidden(m),
             DrsError::Validation(m) => Self::validation(m),
+            DrsError::TransferQueued(m) => Self {
+                status: StatusCode::TOO_MANY_REQUESTS,
+                code: "transfer_queued",
+                message: m,
+                details: None,
+            },
             DrsError::Database(se) => Self {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 code: "database_error",
@@ -386,6 +393,31 @@ async fn process_register_items(
         }
     }
     Ok(())
+}
+
+pub async fn post_upload_chunk(
+    State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    mut multipart: Multipart,
+) -> impl IntoResponse {
+    match do_upload_chunk(state, auth, &mut multipart).await {
+        Ok(j) => Json(j).into_response(),
+        Err(e) => e.into_response(),
+    }
+}
+
+async fn do_upload_chunk(
+    state: Arc<AppState>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    multipart: &mut Multipart,
+) -> Result<crate::ingest_chunk::ChunkUploadResponse, IngestApiError> {
+    let parsed = parse_multipart_upload(multipart)
+        .await
+        .map_err(IngestApiError::from_drs)?;
+    let claims = auth.as_ref().map(|e| &e.0);
+    process_chunked_upload_from_parts(state, claims, parsed)
+        .await
+        .map_err(IngestApiError::from_drs)
 }
 
 pub async fn post_upload(
@@ -783,6 +815,7 @@ pub fn ingest_api_v1_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/register", post(post_register))
         .route("/upload", post(post_upload))
+        .route("/upload/chunk", post(post_upload_chunk))
         .route("/ont", post(post_ont))
         .route("/ont-metrics", post(post_ont_metrics))
         .route("/jobs/:job_id", get(get_job))
@@ -796,6 +829,7 @@ pub fn ingest_api_v1_router_unconfigured() -> Router {
     Router::new()
         .route("/register", post(no))
         .route("/upload", post(no))
+        .route("/upload/chunk", post(no))
         .route("/ont", post(no))
         .route("/ont-metrics", post(no))
         .route("/jobs/:job_id", get(no))
