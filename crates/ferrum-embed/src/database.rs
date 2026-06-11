@@ -102,13 +102,3 @@ impl Database for PostgresStorage {
         Ok(())
     }
 }
-
-/// Open the appropriate [`Database`] backend for the resolved embed mode.
-pub async fn open_database(cfg: &FerrumConfig, mode: super::EmbedMode) -> Result<Box<dyn Database>> {
-    match mode {
-        super::EmbedMode::Full => Ok(Box::new(PostgresStorage::connect(cfg).await?)),
-        super::EmbedMode::Sqlite | super::EmbedMode::Auto => {
-            Ok(Box::new(SqliteStorage::connect(cfg).await?))
-        }
-    }
-}

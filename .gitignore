@@ -13,6 +13,11 @@ services/ui/*.tsbuildinfo
 
 # Local clones / tooling checkouts
 helixtest-repo/
+.helixtest-checkout/
+
+# TypeScript emit artifacts (source: vite.config.ts)
+services/ui/vite.config.js
+services/ui/vite.config.d.ts
 
 # MII FHIR package mirrors (from `ferrum mii sync-manifest`)
 profiles/mii/package-cache/
