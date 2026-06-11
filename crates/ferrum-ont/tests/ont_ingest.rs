@@ -26,9 +26,8 @@ async fn sqlite_pool() -> FerrumPool {
 #[tokio::test]
 async fn test_pod5_ingest_round_trip() {
     let pool = sqlite_pool().await;
-    let storage = Arc::new(
-        LocalStorage::new(tempfile::tempdir().unwrap().path()).expect("local storage"),
-    );
+    let storage =
+        Arc::new(LocalStorage::new(tempfile::tempdir().unwrap().path()).expect("local storage"));
     let repo = Arc::new(DrsRepo::new(pool.clone(), "localhost".into()));
     let pod5 = ferrum_ont::synthetic_pod5_bytes("sample-A");
     let ont_req = OntIngestRequest {
@@ -51,12 +50,8 @@ async fn test_pod5_ingest_round_trip() {
     let storage_key = format!("drs/{object_id}");
     storage.put_bytes(&storage_key, &pod5).await.expect("put");
 
-    let fields = ferrum_ont::build_create_request(
-        &ont_req,
-        pod5.len() as i64,
-        "local",
-        &storage_key,
-    );
+    let fields =
+        ferrum_ont::build_create_request(&ont_req, pod5.len() as i64, "local", &storage_key);
     let create = CreateObjectRequest {
         name: fields.name,
         description: fields.description,
@@ -86,13 +81,12 @@ async fn test_pod5_ingest_round_trip() {
     .await
     .expect("pathogen annotation");
 
-    let row: (Option<String>,) = sqlx::query_as(
-        "SELECT ont_metrics FROM drs_objects WHERE id = $1",
-    )
-    .bind(&object_id)
-    .fetch_one(repo.pool().as_sqlite().expect("sqlite"))
-    .await
-    .expect("fetch ont_metrics");
+    let row: (Option<String>,) =
+        sqlx::query_as("SELECT ont_metrics FROM drs_objects WHERE id = $1")
+            .bind(&object_id)
+            .fetch_one(repo.pool().as_sqlite().expect("sqlite"))
+            .await
+            .expect("fetch ont_metrics");
 
     let metrics = row.0.expect("ont_metrics set");
     assert!(metrics.contains("Plasmodium_falciparum"));
@@ -104,17 +98,9 @@ async fn test_ont_beacon_filter() {
     let pool = sqlite_pool().await;
     let repo = Arc::new(ferrum_beacon::repo::BeaconRepo::new(pool.clone()));
 
-    repo.insert_pathogen_annotation(
-        "pa1",
-        "Plasmodium_falciparum",
-        &[],
-        None,
-        None,
-        None,
-        None,
-    )
-    .await
-    .expect("malaria");
+    repo.insert_pathogen_annotation("pa1", "Plasmodium_falciparum", &[], None, None, None, None)
+        .await
+        .expect("malaria");
     repo.insert_pathogen_annotation(
         "pa2",
         "Mycobacterium_tuberculosis",

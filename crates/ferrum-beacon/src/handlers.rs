@@ -155,7 +155,11 @@ pub struct BeaconRequestParameters {
 
 fn envelope_to_variant_query_with_filters(
     envelope: BeaconQueryEnvelope,
-) -> (VariantQueryRequest, Vec<BeaconFilterExpr>, PathogenFilterParams) {
+) -> (
+    VariantQueryRequest,
+    Vec<BeaconFilterExpr>,
+    PathogenFilterParams,
+) {
     let BeaconQueryEnvelope { query, .. } = envelope;
     let filters = query.filters.unwrap_or_default();
     let p = query.request_parameters;
@@ -239,10 +243,9 @@ pub async fn query_variants(
         if let (Some(ref outbreak), Some(ref claims)) =
             (&state.outbreak, auth.as_ref().map(|e| &e.0))
         {
-            if let (Some(recipient), Some(ref organism)) = (
-                claims.recipient_identity(),
-                pathogen.organism.as_deref(),
-            ) {
+            if let (Some(recipient), Some(ref organism)) =
+                (claims.recipient_identity(), pathogen.organism.as_deref())
+            {
                 if outbreak
                     .emergency_beacon_access(recipient, organism)
                     .await
@@ -263,15 +266,17 @@ pub async fn query_variants(
                 }
             }
         }
-        return Ok(Json(run_pathogen_query(
-            &state,
-            pathogen.organism.as_deref(),
-            pathogen.amr_gene.as_deref(),
-            pathogen.serotype.as_deref(),
-            pathogen.min_qscore,
-            body.granularity.as_deref(),
-        )
-        .await?));
+        return Ok(Json(
+            run_pathogen_query(
+                &state,
+                pathogen.organism.as_deref(),
+                pathogen.amr_gene.as_deref(),
+                pathogen.serotype.as_deref(),
+                pathogen.min_qscore,
+                body.granularity.as_deref(),
+            )
+            .await?,
+        ));
     }
 
     let end = body.end.or(body.start);
@@ -633,12 +638,7 @@ async fn beacon_meta_with_reference(
         return meta;
     };
     let ref_id = if let Some(aid) = assembly_id {
-        registry
-            .get(aid)
-            .await
-            .ok()
-            .flatten()
-            .map(|r| r.id)
+        registry.get(aid).await.ok().flatten().map(|r| r.id)
     } else if let Some(org) = organism {
         registry
             .list()

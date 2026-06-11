@@ -1,7 +1,7 @@
 //! Federated Beacon query helpers.
 
 use crate::handlers::{AppState, VariantQueryResponse, VariantQueryResult};
-use ferrum_federation::{FederationClient, query_envelope_from_params, BeaconQueryParams};
+use ferrum_federation::{query_envelope_from_params, BeaconQueryParams, FederationClient};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -62,8 +62,7 @@ pub async fn maybe_federate_get(
         }
     }
 
-    let (exists, count, warnings) =
-        federation.aggregate(local_exists, local_count, &peer_results);
+    let (exists, count, warnings) = federation.aggregate(local_exists, local_count, &peer_results);
 
     if !warnings.is_empty() {
         meta["warnings"] = json!(warnings);
@@ -85,9 +84,6 @@ pub async fn maybe_federate_get(
 
     VariantQueryResponse {
         meta,
-        response: VariantQueryResult {
-            exists,
-            count,
-        },
+        response: VariantQueryResult { exists, count },
     }
 }

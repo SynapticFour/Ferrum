@@ -65,7 +65,10 @@ pub async fn create_checkpoint(
     })
 }
 
-pub async fn load_checkpoint(pool: &FerrumPool, resume_token: &str) -> Result<Option<TransferCheckpoint>> {
+pub async fn load_checkpoint(
+    pool: &FerrumPool,
+    resume_token: &str,
+) -> Result<Option<TransferCheckpoint>> {
     let sql = "SELECT id, object_id, direction, total_bytes, chunk_size, completed_bytes, resume_token, checksum_sha256
                FROM transfer_checkpoints WHERE resume_token = $1";
     let row = match pool {

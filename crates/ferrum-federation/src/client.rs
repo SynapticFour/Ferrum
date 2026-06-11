@@ -61,9 +61,7 @@ impl FederationClient {
         } else {
             let mut results = Vec::new();
             for peer in &self.runtime.peers {
-                results.push(
-                    query_one_peer(&self.http, &self.rate_limiter, peer, envelope).await,
-                );
+                results.push(query_one_peer(&self.http, &self.rate_limiter, peer, envelope).await);
             }
             results
         }
@@ -163,12 +161,8 @@ async fn query_one_peer(
     match req.send().await {
         Ok(resp) if resp.status().is_success() => match resp.json::<Value>().await {
             Ok(body) => {
-                let exists = body
-                    .pointer("/response/exists")
-                    .and_then(|v| v.as_bool());
-                let count = body
-                    .pointer("/response/count")
-                    .and_then(|v| v.as_i64());
+                let exists = body.pointer("/response/exists").and_then(|v| v.as_bool());
+                let count = body.pointer("/response/count").and_then(|v| v.as_i64());
                 PeerQueryResult {
                     peer_name: peer.name.clone(),
                     exists,

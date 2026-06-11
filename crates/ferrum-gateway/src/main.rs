@@ -1,12 +1,12 @@
 //! Ferrum API Gateway binary: single entrypoint for all GA4GH services.
 
 use clap::{Parser, Subcommand};
+#[cfg(feature = "full")]
+use ferrum_embed::PostgresStorage;
 use ferrum_embed::{
     ensure_data_dirs, log_platform_startup, probe_auth_endpoints, Database, EmbedMode,
     MemoryCapGuard, MemoryCapState, SqliteStorage,
 };
-#[cfg(feature = "full")]
-use ferrum_embed::PostgresStorage;
 use ferrum_gateway::run;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -70,11 +70,8 @@ fn postgres_available() -> bool {
 }
 
 fn minio_available() -> bool {
-    std::net::TcpStream::connect_timeout(
-        &"127.0.0.1:9000".parse().unwrap(),
-        Duration::from_secs(2),
-    )
-    .is_ok()
+    std::net::TcpStream::connect_timeout(&"127.0.0.1:9000".parse().unwrap(), Duration::from_secs(2))
+        .is_ok()
 }
 
 async fn start_laptop_mode() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -82,9 +79,7 @@ async fn start_laptop_mode() -> Result<(), Box<dyn std::error::Error + Send + Sy
     if let Some(home) = ferrum_embed::default_ferrum_home() {
         println!("[ferrum] Data will be stored at {}/", home.display());
     }
-    println!(
-        "[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml"
-    );
+    println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
     std::env::set_var("FERRUM_OFFLINE", "1");
     run_gateway_server().await
 }
@@ -310,7 +305,9 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     #[cfg(feature = "full")]
     let pg_pool: Option<sqlx::PgPool> = if embed_mode == EmbedMode::Full {
         if let Some(ref cfg) = config {
-            ferrum_core::postgres_pool_from_config(&cfg.database).await.ok()
+            ferrum_core::postgres_pool_from_config(&cfg.database)
+                .await
+                .ok()
         } else if let Ok(url) = std::env::var("FERRUM_DATABASE__URL") {
             sqlx::PgPool::connect(&url).await.ok()
         } else {

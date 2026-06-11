@@ -149,22 +149,18 @@ impl ResidencyAuditLog {
         let sql = "SELECT id, timestamp, event_type, drs_id, requester, destination, data_left_node, bytes_transferred, prev_hash, entry_hash
                    FROM residency_audit ORDER BY id ASC";
         let rows: Vec<ResidencyAuditEntry> = match &self.pool {
-            FerrumPool::Postgres(p) => {
-                sqlx::query_as::<_, ResidencyRow>(sql)
-                    .fetch_all(p)
-                    .await?
-                    .into_iter()
-                    .map(ResidencyAuditEntry::from)
-                    .collect()
-            }
-            FerrumPool::Sqlite(p) => {
-                sqlx::query_as::<_, ResidencyRowSqlite>(sql)
-                    .fetch_all(p)
-                    .await?
-                    .into_iter()
-                    .map(ResidencyAuditEntry::from)
-                    .collect()
-            }
+            FerrumPool::Postgres(p) => sqlx::query_as::<_, ResidencyRow>(sql)
+                .fetch_all(p)
+                .await?
+                .into_iter()
+                .map(ResidencyAuditEntry::from)
+                .collect(),
+            FerrumPool::Sqlite(p) => sqlx::query_as::<_, ResidencyRowSqlite>(sql)
+                .fetch_all(p)
+                .await?
+                .into_iter()
+                .map(ResidencyAuditEntry::from)
+                .collect(),
         };
         Ok(rows)
     }
@@ -296,7 +292,5 @@ pub async fn last_transaction_id(pool: &FerrumPool) -> Result<Option<i64>> {
 }
 
 pub fn residency_delete_blocked() -> FerrumError {
-    FerrumError::ValidationError(
-        "residency_audit is append-only; DELETE not allowed".into(),
-    )
+    FerrumError::ValidationError("residency_audit is append-only; DELETE not allowed".into())
 }

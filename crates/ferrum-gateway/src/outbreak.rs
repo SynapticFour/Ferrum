@@ -31,10 +31,7 @@ pub fn outbreak_router(
     Router::new()
         .route("/activate", post(post_activate))
         .route("/deactivate", post(post_deactivate))
-        .route(
-            "/approve-download/:drs_id",
-            post(post_approve_download),
-        )
+        .route("/approve-download/:drs_id", post(post_approve_download))
         .with_state(OutbreakRouterState {
             service,
             residency_audit,
@@ -54,20 +51,15 @@ async fn post_activate(
             "outbreak mode is disabled in configuration".to_string(),
         ));
     }
-    let record = state.service.activate(&body).await.map_err(|e| {
-        api_error(StatusCode::BAD_REQUEST, "activation_failed", e.to_string())
-    })?;
+    let record = state
+        .service
+        .activate(&body)
+        .await
+        .map_err(|e| api_error(StatusCode::BAD_REQUEST, "activation_failed", e.to_string()))?;
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.as_ref().and_then(|a| a.0.sub());
         let _ = audit
-            .append(
-                "outbreak_activated",
-                None,
-                requester,
-                None,
-                false,
-                None,
-            )
+            .append("outbreak_activated", None, requester, None, false, None)
             .await;
     }
     Ok(Json(serde_json::json!({
@@ -84,22 +76,17 @@ async fn post_deactivate(
     Json(body): Json<DeactivateRequest>,
 ) -> Result<Json<serde_json::Value>, Response> {
     let actor = activator_sub(auth.as_ref())?;
-    state
-        .service
-        .deactivate(&body, &actor)
-        .await
-        .map_err(|e| api_error(StatusCode::BAD_REQUEST, "deactivation_failed", e.to_string()))?;
+    state.service.deactivate(&body, &actor).await.map_err(|e| {
+        api_error(
+            StatusCode::BAD_REQUEST,
+            "deactivation_failed",
+            e.to_string(),
+        )
+    })?;
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.as_ref().and_then(|a| a.0.sub());
         let _ = audit
-            .append(
-                "outbreak_deactivated",
-                None,
-                requester,
-                None,
-                false,
-                None,
-            )
+            .append("outbreak_deactivated", None, requester, None, false, None)
             .await;
     }
     Ok(Json(serde_json::json!({
@@ -176,20 +163,9 @@ fn activator_sub(auth: Option<&Extension<AuthClaims>>) -> Result<String, Respons
             "outbreak_activator role required".to_string(),
         ));
     }
-    Ok(claims
-        .0
-        .sub()
-        .unwrap_or("unknown")
-        .to_string())
+    Ok(claims.0.sub().unwrap_or("unknown").to_string())
 }
 
 fn api_error(status: StatusCode, code: &'static str, message: String) -> Response {
-    (
-        status,
-        Json(ApiError {
-            code,
-            message,
-        }),
-    )
-        .into_response()
+    (status, Json(ApiError { code, message })).into_response()
 }

@@ -14,8 +14,8 @@ use axum::{
 };
 use bytes::Bytes;
 use ferrum_core::{FerrumError, Organization, ServiceInfo, ServiceType};
-use ferrum_storage::{BandwidthClass, TransferDirection};
 use ferrum_crypt4gh::{stream_decrypt, KeyStore, LocalKeyStore};
+use ferrum_storage::{BandwidthClass, TransferDirection};
 use futures_util::stream::StreamExt;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -269,16 +269,13 @@ pub async fn get_access(
             bytes_completed = Some(cp.completed_bytes);
             resume_token = Some(cp.resume_token);
         }
-    } else if let (Some(bw), Some(obj)) = (&state.bandwidth, state.repo.get_object(&canonical, false).await?) {
+    } else if let (Some(bw), Some(obj)) = (
+        &state.bandwidth,
+        state.repo.get_object(&canonical, false).await?,
+    ) {
         let class = bw.classify();
-        let cp = create_checkpoint(
-            state.repo.pool(),
-            &canonical,
-            "download",
-            obj.size,
-            class,
-        )
-        .await?;
+        let cp =
+            create_checkpoint(state.repo.pool(), &canonical, "download", obj.size, class).await?;
         resume_token = Some(cp.resume_token);
         bytes_completed = Some(0);
     }
@@ -634,22 +631,21 @@ pub async fn get_object_stream(
         } else {
             body.drain(0..skip_bytes as usize);
         }
-        let compressed = zstd::encode_all(body.as_slice(), 3)
-            .map_err(|e| DrsError::Other(e.into()))?;
+        let compressed =
+            zstd::encode_all(body.as_slice(), 3).map_err(|e| DrsError::Other(e.into()))?;
         if let Some(ref bw) = state.bandwidth {
             bw.record_transfer(compressed.len() as u64, 100);
         }
         if let Some(ref token) = stream_query.resume_token {
-            let _ = update_checkpoint_progress(
-                state.repo.pool(),
-                token,
-                obj.size,
-            )
-            .await;
+            let _ = update_checkpoint_progress(state.repo.pool(), token, obj.size).await;
         }
         return Response::builder()
             .status(StatusCode::OK)
-            .header(CONTENT_TYPE, HeaderValue::from_str(mime).unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")))
+            .header(
+                CONTENT_TYPE,
+                HeaderValue::from_str(mime)
+                    .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
+            )
             .header(
                 HeaderName::from_static("content-encoding"),
                 HeaderValue::from_static("zstd"),
@@ -719,7 +715,8 @@ pub async fn get_object_stream(
                 bw.record_transfer(transferred, 100);
             }
             if let Some(token) = resume_for_task {
-                let _ = update_checkpoint_progress(&pool_for_task, &token, transferred as i64).await;
+                let _ =
+                    update_checkpoint_progress(&pool_for_task, &token, transferred as i64).await;
             }
             tracing::info!(
                 target: "ferrum_drs::stream",

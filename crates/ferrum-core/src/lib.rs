@@ -5,9 +5,9 @@ pub mod config;
 pub mod db;
 pub mod dialect;
 pub mod error;
-pub mod pool;
 pub mod health;
 pub mod io;
+pub mod pool;
 #[cfg(feature = "libdeflate")]
 pub use noodles_bgzf;
 pub mod outbreak;
@@ -24,38 +24,39 @@ pub use auth::{
     PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
 };
 pub use config::{
-    AfricaProfile, AppConfig, AuthConfig, BandwidthConfig, DatabaseConfig, EncryptionConfig,
-    FerrumConfig, FederationConfig, FerrumPeerConfig, AggregateStrategy, IngestConfig,
+    AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, BandwidthConfig, DatabaseConfig,
+    EncryptionConfig, FederationConfig, FerrumConfig, FerrumPeerConfig, IngestConfig,
     MultiQCConfig, OutbreakConfig, OutbreakPolicy, PowerConfig, PricingConfig, PricingTier,
     SecurityConfig, ServicesConfig, StorageConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
 pub use dialect::{
     chromosomes_json, empty_json_array, now, sql_alias_lookup, sql_beacon_variant_count_coord,
-    sql_beacon_variant_count_exact, sql_beacon_variant_exists_coord, sql_beacon_variant_exists_exact,
-    sql_beacon_variant_match_ids, sql_ingest_job_failed, sql_ingest_job_succeeded,
-    sql_insert_access_method, sql_insert_drs_object, sql_list_bundle_contents_page, sql_list_objects,
-    sql_pathogen_count, sql_pathogen_exists, sql_update_drs_object,
+    sql_beacon_variant_count_exact, sql_beacon_variant_exists_coord,
+    sql_beacon_variant_exists_exact, sql_beacon_variant_match_ids, sql_ingest_job_failed,
+    sql_ingest_job_succeeded, sql_insert_access_method, sql_insert_drs_object,
+    sql_list_bundle_contents_page, sql_list_objects, sql_pathogen_count, sql_pathogen_exists,
+    sql_update_drs_object,
 };
 pub use error::{FerrumError, Result};
-pub use pool::{postgres_pool_from_config, DbDialect, FerrumPool};
 pub use health::health_router;
 pub use outbreak::{
     build_gisaid_package, ActivateRequest, ApproveDownloadRequest, DeactivateRequest, GisaidEntry,
     OutbreakService, PathogenPackageRow,
 };
+pub use pool::{postgres_pool_from_config, DbDialect, FerrumPool};
 pub use power::{
     allows_background_work, checkpoint_path, default_power_monitor, max_concurrent_requests,
     resolve_power_mode, write_emergency_checkpoint, AcpiPowerMonitor, BackgroundWorkGate,
     FerrumPowerMode, LinuxPowerMonitor, MacOsPowerMonitor, PowerLevel, PowerMonitor, PowerSource,
     StubPowerMonitor,
 };
+pub use provenance::{
+    EdgeType, NodeType, ProvenanceEdge, ProvenanceGraph, ProvenanceNode, ProvenanceStore,
+};
 pub use residency::{
     last_transaction_id, residency_delete_blocked, verify_chain, ResidencyAuditEntry,
     ResidencyAuditLog, ResidencyAuditQueryResult, ResidencyVerifyResult, GENESIS_HASH,
-};
-pub use provenance::{
-    EdgeType, NodeType, ProvenanceEdge, ProvenanceGraph, ProvenanceNode, ProvenanceStore,
 };
 pub use security::{
     safe_join, validate_drs_name, ResourceAuthorizer, SecurityEvent, SecurityEventLogger,

@@ -50,18 +50,11 @@ pub fn params_suggest_african_origin(params: &serde_json::Value) -> bool {
     false
 }
 
-pub async fn drs_object_suggests_african_origin(
-    pool: &FerrumPool,
-    drs_id: &str,
-) -> Result<bool> {
+pub async fn drs_object_suggests_african_origin(pool: &FerrumPool, drs_id: &str) -> Result<bool> {
     let sql = "SELECT name, description FROM drs_objects WHERE id = $1";
     let row: Option<(Option<String>, Option<String>)> = match pool {
-        FerrumPool::Postgres(p) => {
-            sqlx::query_as(sql).bind(drs_id).fetch_optional(p).await?
-        }
-        FerrumPool::Sqlite(p) => {
-            sqlx::query_as(sql).bind(drs_id).fetch_optional(p).await?
-        }
+        FerrumPool::Postgres(p) => sqlx::query_as(sql).bind(drs_id).fetch_optional(p).await?,
+        FerrumPool::Sqlite(p) => sqlx::query_as(sql).bind(drs_id).fetch_optional(p).await?,
     };
     if let Some((name, description)) = row {
         if text_suggests_african_origin(name.as_deref()) {

@@ -689,20 +689,18 @@ async fn do_ont_ingest(
         }
     }
 
-    let meta_str = ont_metadata.ok_or_else(|| {
-        IngestApiError::validation("ont_metadata field is required".to_string())
-    })?;
+    let meta_str = ont_metadata
+        .ok_or_else(|| IngestApiError::validation("ont_metadata field is required".to_string()))?;
     if file_data.is_empty() {
-        return Err(IngestApiError::validation("file field is required".to_string()));
+        return Err(IngestApiError::validation(
+            "file field is required".to_string(),
+        ));
     }
 
-    let ont_req: ferrum_ont::OntIngestRequest =
-        serde_json::from_str(&meta_str).map_err(|e| {
-            IngestApiError::validation(format!("invalid ont_metadata JSON: {e}"))
-        })?;
-    ferrum_ont::validate_ingest_request(&ont_req).map_err(|e| {
-        IngestApiError::validation(e.to_string())
-    })?;
+    let ont_req: ferrum_ont::OntIngestRequest = serde_json::from_str(&meta_str)
+        .map_err(|e| IngestApiError::validation(format!("invalid ont_metadata JSON: {e}")))?;
+    ferrum_ont::validate_ingest_request(&ont_req)
+        .map_err(|e| IngestApiError::validation(e.to_string()))?;
 
     let max_bytes = state.ingest.effective_max_upload_bytes();
     let total_bytes = file_data.len() + fastq_data.len();
@@ -713,20 +711,10 @@ async fn do_ont_ingest(
     }
 
     let backend = state.object_storage_backend.clone();
-    let raw_fields = ferrum_ont::build_create_request(
-        &ont_req,
-        file_data.len() as i64,
-        &backend,
-        "pending",
-    );
-    let (raw_id, raw_size) = store_uploaded_object(
-        &state,
-        &storage,
-        file_data,
-        file_mime,
-        raw_fields,
-    )
-    .await?;
+    let raw_fields =
+        ferrum_ont::build_create_request(&ont_req, file_data.len() as i64, &backend, "pending");
+    let (raw_id, raw_size) =
+        store_uploaded_object(&state, &storage, file_data, file_mime, raw_fields).await?;
 
     let mut members: Vec<(String, String, i64)> = vec![(raw_id.clone(), "raw".into(), raw_size)];
     if !fastq_data.is_empty() {
@@ -801,6 +789,7 @@ async fn do_ont_ingest(
 
     Ok(json!({
         "object_id": canonical_id,
+        "drs_object_id": canonical_id,
         "self_uri": format!("drs://{}/{}", state.repo.hostname(), canonical_id),
         "organism": ont_req.organism,
         "format": ont_req.format,

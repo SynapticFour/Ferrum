@@ -42,12 +42,7 @@ impl TransferQueue {
         size_bytes > 10 * 1024 * 1024 && bandwidth.classify() == BandwidthClass::VeryLow
     }
 
-    pub fn enqueue(
-        &self,
-        object_id: String,
-        size_bytes: u64,
-        direction: TransferDirection,
-    ) {
+    pub fn enqueue(&self, object_id: String, size_bytes: u64, direction: TransferDirection) {
         self.queue
             .lock()
             .expect("transfer queue lock")

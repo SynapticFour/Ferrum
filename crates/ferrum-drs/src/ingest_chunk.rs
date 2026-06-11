@@ -50,9 +50,7 @@ pub async fn process_chunked_upload_from_parts(
     }
 
     let bw = state.bandwidth.as_ref();
-    let class = bw
-        .map(|b| b.classify())
-        .unwrap_or(BandwidthClass::Medium);
+    let class = bw.map(|b| b.classify()).unwrap_or(BandwidthClass::Medium);
     let max_chunk = class.chunk_size_bytes() as i64;
     if parsed.data.len() as i64 > max_chunk {
         return Err(DrsError::Validation(format!(
@@ -142,7 +140,10 @@ pub async fn process_chunked_upload_from_parts(
         )));
     }
 
-    let mut reader = storage.get(&temp_key).await.map_err(|e| DrsError::Other(e.into()))?;
+    let mut reader = storage
+        .get(&temp_key)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
     let mut body = Vec::new();
     tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut body)
         .await

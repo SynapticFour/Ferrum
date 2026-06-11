@@ -59,12 +59,7 @@ async fn test_low_power_semaphore_enforces_four_concurrent() {
     )));
     let mut guards = Vec::new();
     for _ in 0..4 {
-        guards.push(
-            sem.clone()
-                .acquire_owned()
-                .await
-                .expect("low-power permit"),
-        );
+        guards.push(sem.clone().acquire_owned().await.expect("low-power permit"));
     }
     assert!(sem.try_acquire().is_err());
 }

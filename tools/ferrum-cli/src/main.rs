@@ -186,7 +186,9 @@ async fn run_cli() -> Result<(), CliExit> {
         }
         Commands::Demo { action } => match action {
             DemoAction::Start { offline } => {
-                demo_start(offline).await.map_err(|e| CliExit::RuntimeFailed(e))?;
+                demo_start(offline)
+                    .await
+                    .map_err(|e| CliExit::RuntimeFailed(e))?;
             }
         },
         Commands::Mii { action } => match action {
@@ -471,7 +473,9 @@ async fn demo_start(offline: bool) -> Result<(), String> {
         }
         println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
     } else if !postgres_reachable() {
-        println!("[ferrum] PostgreSQL not detected. Starting in Laptop Mode (SQLite + local storage).");
+        println!(
+            "[ferrum] PostgreSQL not detected. Starting in Laptop Mode (SQLite + local storage)."
+        );
         if let Some(home) = ferrum_embed::default_ferrum_home() {
             println!("[ferrum] Data will be stored at {}/", home.display());
         }
@@ -484,8 +488,8 @@ async fn demo_start(offline: bool) -> Result<(), String> {
         );
     }
 
-    let gateway = std::env::var("FERRUM_GATEWAY_BIN")
-        .unwrap_or_else(|_| "ferrum-gateway".to_string());
+    let gateway =
+        std::env::var("FERRUM_GATEWAY_BIN").unwrap_or_else(|_| "ferrum-gateway".to_string());
     let status = tokio::process::Command::new(gateway)
         .status()
         .await

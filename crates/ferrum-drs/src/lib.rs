@@ -129,9 +129,9 @@ pub fn router(state: AppState) -> Router {
         // Register specific `/objects/:id/...` routes before `/objects/:object_id` so matchers stay unambiguous.
         .route(
             "/objects/:object_id/stream",
-            get(
-                |s, p, q, h, auth| async move { StreamResult(get_object_stream(s, p, q, h, auth).await) },
-            ),
+            get(|s, p, q, h, auth| async move {
+                StreamResult(get_object_stream(s, p, q, h, auth).await)
+            }),
         )
         .route(
             "/objects/:object_id/contents",

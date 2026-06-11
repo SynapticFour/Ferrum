@@ -247,29 +247,26 @@ pub fn app(
         let outbreak_service = cfg
             .filter(|c| c.outbreak.enabled)
             .zip(beacon_params.clone())
-            .map(|(c, pool)| {
-                Arc::new(ferrum_core::OutbreakService::new(
-                    pool,
-                    c.outbreak.clone(),
-                ))
-            });
-        let residency_audit = beacon_params.clone().map(|pool| {
-            Arc::new(ferrum_core::ResidencyAuditLog::new(pool))
+            .map(|(c, pool)| Arc::new(ferrum_core::OutbreakService::new(pool, c.outbreak.clone())));
+        let residency_audit = beacon_params
+            .clone()
+            .map(|pool| Arc::new(ferrum_core::ResidencyAuditLog::new(pool)));
+        let federation = cfg.zip(beacon_params.clone()).and_then(|(c, _)| {
+            if !c.federation.enabled {
+                return None;
+            }
+            ferrum_federation::FederationRuntime::from_config(&c.federation)
+                .ok()
+                .map(ferrum_federation::FederationClient::new)
+                .map(Arc::new)
         });
-        let federation = cfg
-            .zip(beacon_params.clone())
-            .and_then(|(c, _)| {
-                if !c.federation.enabled {
-                    return None;
-                }
-                ferrum_federation::FederationRuntime::from_config(&c.federation)
-                    .ok()
-                    .map(ferrum_federation::FederationClient::new)
-                    .map(Arc::new)
-            });
         let reference_registry = drs_state
             .as_ref()
-            .map(|ds| Arc::new(ferrum_reference::ReferenceRegistry::new(ds.repo.pool().clone())))
+            .map(|ds| {
+                Arc::new(ferrum_reference::ReferenceRegistry::new(
+                    ds.repo.pool().clone(),
+                ))
+            })
             .or_else(|| {
                 beacon_params
                     .clone()
@@ -551,9 +548,7 @@ pub async fn run(
 
     let power_cfg = config.as_ref().map(|c| c.power.clone()).unwrap_or_default();
     let power_state = Arc::new(tokio::sync::Mutex::new(power::PowerState::new(power_cfg)));
-    let background_gate = drs_state
-        .as_ref()
-        .and_then(|s| s.background_gate.clone());
+    let background_gate = drs_state.as_ref().and_then(|s| s.background_gate.clone());
     power::spawn_power_watcher(
         Arc::clone(&power_state),
         beacon_params.clone(),

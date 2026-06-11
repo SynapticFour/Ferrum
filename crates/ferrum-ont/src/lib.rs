@@ -8,5 +8,8 @@ pub mod ingest;
 pub mod types;
 
 pub use error::{OntError, Result};
-pub use ingest::{build_create_request, mime_for_format, synthetic_pod5_bytes, validate_ingest_request, OntCreateFields};
+pub use ingest::{
+    build_create_request, mime_for_format, synthetic_pod5_bytes, validate_ingest_request,
+    OntCreateFields,
+};
 pub use types::{OntFormat, OntIngestRequest, OntQualityMetrics};

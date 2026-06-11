@@ -1,20 +1,20 @@
 //! Object storage backends: [`ObjectStorage`], [`LocalStorage`], [`S3Storage`].
 
 mod bandwidth;
-mod transfer_queue;
 mod local;
 #[cfg(feature = "opendal")]
 mod opendal_store;
 mod parts;
 mod s3;
+mod transfer_queue;
 
 pub use bandwidth::{BandwidthClass, BandwidthMonitor};
-pub use transfer_queue::{QueuedTransfer, TransferDirection, TransferQueue};
 pub use local::LocalStorage;
 #[cfg(feature = "opendal")]
 pub use opendal_store::OpenDalStorage;
 pub use parts::{split_file_part_ranges, split_into_part_ranges};
 pub use s3::S3Storage;
+pub use transfer_queue::{QueuedTransfer, TransferDirection, TransferQueue};
 
 use async_trait::async_trait;
 use ferrum_core::error::Result;

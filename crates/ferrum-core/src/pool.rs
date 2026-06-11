@@ -138,8 +138,7 @@ fn database_url(cfg: &DatabaseConfig) -> Result<String> {
         }
         return Ok(format!("sqlite://{}", cfg.sqlite_path));
     }
-    if cfg.driver.eq_ignore_ascii_case("postgres")
-        || cfg.driver.eq_ignore_ascii_case("postgresql")
+    if cfg.driver.eq_ignore_ascii_case("postgres") || cfg.driver.eq_ignore_ascii_case("postgresql")
     {
         let host = cfg.postgres_host.as_deref().unwrap_or("localhost");
         let port = cfg.postgres_port;

@@ -97,18 +97,9 @@ fn format_label(format: OntFormat) -> &'static str {
 
 fn ont_metrics_json(req: &OntIngestRequest) -> Option<Value> {
     let mut obj = serde_json::Map::new();
-    obj.insert(
-        "run_id".into(),
-        Value::String(req.run_id.clone()),
-    );
-    obj.insert(
-        "sample_id".into(),
-        Value::String(req.sample_id.clone()),
-    );
-    obj.insert(
-        "organism".into(),
-        Value::String(req.organism.clone()),
-    );
+    obj.insert("run_id".into(), Value::String(req.run_id.clone()));
+    obj.insert("sample_id".into(), Value::String(req.sample_id.clone()));
+    obj.insert("organism".into(), Value::String(req.organism.clone()));
     obj.insert(
         "format".into(),
         Value::String(format!("{:?}", req.format).to_lowercase()),

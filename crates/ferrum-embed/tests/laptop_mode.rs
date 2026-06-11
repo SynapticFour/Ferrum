@@ -2,7 +2,9 @@
 
 use ferrum_core::{FerrumConfig, FerrumPool, IngestConfig};
 use ferrum_drs::repo::DrsRepo;
-use ferrum_embed::{EmbedMode, MemoryCapGuard, MemoryCapLevel, MemoryCapState, SqliteStorage, Database};
+use ferrum_embed::{
+    Database, EmbedMode, MemoryCapGuard, MemoryCapLevel, MemoryCapState, SqliteStorage,
+};
 use ferrum_storage::{LocalStorage, ObjectStorage};
 use std::sync::Arc;
 use std::time::Duration;
@@ -30,10 +32,7 @@ fn laptop_config(dir: &TempDir) -> FerrumConfig {
     cfg
 }
 
-fn drs_state_for_laptop(
-    pool: FerrumPool,
-    objects_dir: &std::path::Path,
-) -> ferrum_drs::AppState {
+fn drs_state_for_laptop(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum_drs::AppState {
     let local = LocalStorage::new(objects_dir).expect("local storage");
     ferrum_drs::AppState {
         repo: Arc::new(DrsRepo::new(pool, "localhost".to_string())),
@@ -207,7 +206,9 @@ async fn test_sqlite_full_lifecycle() {
     assert!(miss_resp.status().is_success());
     let miss_json: serde_json::Value = miss_resp.json().await.expect("beacon miss json");
     assert_eq!(
-        miss_json.pointer("/response/exists").and_then(|x| x.as_bool()),
+        miss_json
+            .pointer("/response/exists")
+            .and_then(|x| x.as_bool()),
         Some(false)
     );
 }
@@ -240,7 +241,11 @@ async fn test_drs_repo_sqlite_crud() {
         .await
         .expect("create");
 
-    let obj = repo.get_object(&id, false).await.expect("get").expect("found");
+    let obj = repo
+        .get_object(&id, false)
+        .await
+        .expect("get")
+        .expect("found");
     assert_eq!(obj.name.as_deref(), Some("repo-test"));
     assert!(repo.delete_object(&id).await.expect("delete"));
 }
@@ -292,8 +297,14 @@ async fn test_memory_cap_warning() {
     }
 
     for handle in handles {
-        let resp = handle.await.expect("join health task").expect("health request");
-        assert!(resp.status().is_success(), "gateway must stay healthy under load");
+        let resp = handle
+            .await
+            .expect("join health task")
+            .expect("health request");
+        assert!(
+            resp.status().is_success(),
+            "gateway must stay healthy under load"
+        );
     }
 
     if let Some(rss_mb) = state.check_and_update() {

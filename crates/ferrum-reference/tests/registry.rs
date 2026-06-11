@@ -2,8 +2,8 @@
 
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
-use ferrum_reference::{reference_api_v1_router, LoadReferenceRequest, ReferenceRegistry};
 use ferrum_core::FerrumPool;
+use ferrum_reference::{reference_api_v1_router, LoadReferenceRequest, ReferenceRegistry};
 use http_body_util::BodyExt;
 use std::sync::Arc;
 use tower::ServiceExt;

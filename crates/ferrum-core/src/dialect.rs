@@ -55,7 +55,9 @@ pub fn sql_pathogen_count(d: DbDialect) -> String {
     };
     let amr_contains = match d {
         DbDialect::Postgres => "($2::text IS NULL OR amr_genes @> to_jsonb(ARRAY[$2::text]))",
-        DbDialect::Sqlite => "($2 IS NULL OR EXISTS (SELECT 1 FROM json_each(amr_genes) WHERE value = $2))",
+        DbDialect::Sqlite => {
+            "($2 IS NULL OR EXISTS (SELECT 1 FROM json_each(amr_genes) WHERE value = $2))"
+        }
     };
     let serotype_clause = match d {
         DbDialect::Postgres => "($3::text IS NULL OR serotype = $3)",
@@ -78,7 +80,9 @@ pub fn sql_pathogen_count(d: DbDialect) -> String {
 pub fn sql_pathogen_exists(d: DbDialect) -> String {
     let amr_contains = match d {
         DbDialect::Postgres => "($2::text IS NULL OR amr_genes @> to_jsonb(ARRAY[$2::text]))",
-        DbDialect::Sqlite => "($2 IS NULL OR EXISTS (SELECT 1 FROM json_each(amr_genes) WHERE value = $2))",
+        DbDialect::Sqlite => {
+            "($2 IS NULL OR EXISTS (SELECT 1 FROM json_each(amr_genes) WHERE value = $2))"
+        }
     };
     let serotype_clause = match d {
         DbDialect::Postgres => "($3::text IS NULL OR serotype = $3)",

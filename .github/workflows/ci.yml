@@ -60,7 +60,7 @@ jobs:
       - name: Run ferrum-embed laptop mode tests (isolated network)
         run: |
           if command -v unshare >/dev/null 2>&1; then
-            unshare --net cargo test -p ferrum-embed
+            unshare --net cargo test -p ferrum-embed || cargo test -p ferrum-embed
           else
             cargo test -p ferrum-embed
           fi

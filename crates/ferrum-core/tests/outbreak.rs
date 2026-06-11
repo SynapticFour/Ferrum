@@ -41,11 +41,10 @@ async fn test_outbreak_activate_deactivate() {
     .await
     .expect("activate");
 
-    assert!(
-        svc.emergency_beacon_access("who.int", "Monkeypox_virus")
-            .await
-            .expect("access")
-    );
+    assert!(svc
+        .emergency_beacon_access("who.int", "Monkeypox_virus")
+        .await
+        .expect("access"));
 
     svc.deactivate(
         &DeactivateRequest {
@@ -57,11 +56,10 @@ async fn test_outbreak_activate_deactivate() {
     .await
     .expect("deactivate");
 
-    assert!(
-        !svc.emergency_beacon_access("who.int", "Monkeypox_virus")
-            .await
-            .expect("access")
-    );
+    assert!(!svc
+        .emergency_beacon_access("who.int", "Monkeypox_virus")
+        .await
+        .expect("access"));
 }
 
 #[tokio::test]

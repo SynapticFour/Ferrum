@@ -7,7 +7,9 @@
 
 use crate::presign::S3Presigner;
 use crate::repo::DrsRepo;
-use ferrum_core::{BackgroundWorkGate, IngestConfig, OutbreakService, ResidencyAuditLog, ProvenanceStore};
+use ferrum_core::{
+    BackgroundWorkGate, IngestConfig, OutbreakService, ProvenanceStore, ResidencyAuditLog,
+};
 use ferrum_storage::{BandwidthMonitor, ObjectStorage, TransferQueue};
 use std::path::PathBuf;
 use std::sync::Arc;

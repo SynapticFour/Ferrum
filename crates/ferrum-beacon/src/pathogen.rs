@@ -39,8 +39,5 @@ fn merge_from_beacon_filter(out: &mut PathogenFilterParams, f: &BeaconFilter) {
 }
 
 pub fn has_pathogen_params(p: &PathogenFilterParams) -> bool {
-    p.organism.is_some()
-        || p.amr_gene.is_some()
-        || p.serotype.is_some()
-        || p.min_qscore.is_some()
+    p.organism.is_some() || p.amr_gene.is_some() || p.serotype.is_some() || p.min_qscore.is_some()
 }

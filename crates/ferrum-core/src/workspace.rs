@@ -11,18 +11,22 @@ pub async fn get_workspace_member_role(
 ) -> Result<Option<String>> {
     let row: Option<(String,)> = match pool {
         FerrumPool::Postgres(p) => {
-            sqlx::query_as("SELECT role FROM workspace_members WHERE workspace_id = $1 AND sub = $2")
-                .bind(workspace_id)
-                .bind(sub)
-                .fetch_optional(p)
-                .await?
+            sqlx::query_as(
+                "SELECT role FROM workspace_members WHERE workspace_id = $1 AND sub = $2",
+            )
+            .bind(workspace_id)
+            .bind(sub)
+            .fetch_optional(p)
+            .await?
         }
         FerrumPool::Sqlite(p) => {
-            sqlx::query_as("SELECT role FROM workspace_members WHERE workspace_id = $1 AND sub = $2")
-                .bind(workspace_id)
-                .bind(sub)
-                .fetch_optional(p)
-                .await?
+            sqlx::query_as(
+                "SELECT role FROM workspace_members WHERE workspace_id = $1 AND sub = $2",
+            )
+            .bind(workspace_id)
+            .bind(sub)
+            .fetch_optional(p)
+            .await?
         }
     };
     Ok(row.map(|r| r.0))

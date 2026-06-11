@@ -1,7 +1,7 @@
 //! HTTP API for the reference genome registry (`/api/v1/references`).
 
 use crate::registry::ReferenceRegistry;
-use crate::types::{LoadReferenceRequest, RegisterReferenceRequest, ReferenceGenome};
+use crate::types::{LoadReferenceRequest, ReferenceGenome, RegisterReferenceRequest};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -21,11 +21,7 @@ pub fn reference_api_v1_router(registry: Arc<ReferenceRegistry>) -> Router {
 async fn list_references(
     State(registry): State<Arc<ReferenceRegistry>>,
 ) -> Result<Json<Vec<ReferenceGenome>>, Response> {
-    registry
-        .list()
-        .await
-        .map(Json)
-        .map_err(map_err)
+    registry.list().await.map(Json).map_err(map_err)
 }
 
 async fn get_reference(
@@ -54,7 +50,11 @@ async fn load_reference(
     Path(id): Path<String>,
     Json(req): Json<LoadReferenceRequest>,
 ) -> Result<Json<ReferenceGenome>, Response> {
-    registry.load_fasta(&id, &req).await.map(Json).map_err(map_err)
+    registry
+        .load_fasta(&id, &req)
+        .await
+        .map(Json)
+        .map_err(map_err)
 }
 
 fn map_err(e: FerrumError) -> Response {

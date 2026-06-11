@@ -98,9 +98,9 @@ pub async fn list_runs(
             ws_id,
             sub,
         )
-            .await
-            .map_err(|e| WesError::Other(e.into()))?
-            .is_some();
+        .await
+        .map_err(|e| WesError::Other(e.into()))?
+        .is_some();
         if !is_member {
             return Err(WesError::Forbidden("not a member of this workspace".into()));
         }
@@ -329,8 +329,8 @@ pub async fn post_runs(
             ws_id,
             sub,
         )
-            .await
-            .map_err(|e| WesError::Other(e.into()))?;
+        .await
+        .map_err(|e| WesError::Other(e.into()))?;
         if !ok {
             return Err(WesError::Forbidden(
                 "not a workspace editor or owner".into(),
@@ -380,10 +380,7 @@ pub async fn post_runs(
         app.run_manager
             .register_synthetic_helixtest_error(run_id.clone())
             .await;
-        return Ok(Json(RunIdResponse {
-            run_id,
-            warnings,
-        }));
+        return Ok(Json(RunIdResponse { run_id, warnings }));
     }
 
     if let Some(ref store) = app.provenance_store {
@@ -418,10 +415,7 @@ pub async fn post_runs(
         });
     }
 
-    Ok(Json(RunIdResponse {
-        run_id,
-        warnings,
-    }))
+    Ok(Json(RunIdResponse { run_id, warnings }))
 }
 
 fn extract_multipart_boundary(headers: &axum::http::HeaderMap) -> Option<String> {

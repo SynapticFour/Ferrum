@@ -102,9 +102,9 @@ impl CohortRepo {
                 ws_id,
                 sub,
             )
-                .await
-                .map_err(|e| crate::error::CohortError::Other(e.into()))?
-                .is_some()
+            .await
+            .map_err(|e| crate::error::CohortError::Other(e.into()))?
+            .is_some()
             {
                 return Ok(true);
             }

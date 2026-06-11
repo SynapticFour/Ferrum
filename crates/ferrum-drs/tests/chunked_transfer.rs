@@ -6,11 +6,13 @@ use ferrum_drs::handlers::get_object_stream;
 use ferrum_drs::ingest::{process_upload_from_parts, ParsedMultipartUpload};
 use ferrum_drs::ingest_chunk::process_chunked_upload_from_parts;
 use ferrum_drs::state::AppState;
+use ferrum_storage::{
+    BandwidthClass, BandwidthMonitor, LocalStorage, ObjectStorage, TransferQueue,
+};
 use http::{Method, Request, StatusCode};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use tower::ServiceExt;
-use ferrum_storage::{BandwidthClass, BandwidthMonitor, LocalStorage, ObjectStorage, TransferQueue};
 
 const PAYLOAD: &[u8] = b"0123456789abcdef0123456789abcdef";
 
@@ -24,7 +26,10 @@ async fn drs_test_state() -> (AppState, tempfile::TempDir) {
         .await
         .expect("migrate");
     let fp = FerrumPool::Sqlite(pool.clone());
-    let repo = Arc::new(ferrum_drs::repo::DrsRepo::new(fp.clone(), "localhost".into()));
+    let repo = Arc::new(ferrum_drs::repo::DrsRepo::new(
+        fp.clone(),
+        "localhost".into(),
+    ));
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(LocalStorage::new(tmp.path()).expect("storage"));
     storage.put_bytes("drs/obj1", PAYLOAD).await.unwrap();
@@ -113,7 +118,10 @@ async fn test_chunked_resume_http_interrupt_and_sha256() {
 
     let req2 = Request::builder()
         .method(Method::GET)
-        .uri(format!("/objects/obj1/stream?resume_token={}", cp.resume_token))
+        .uri(format!(
+            "/objects/obj1/stream?resume_token={}",
+            cp.resume_token
+        ))
         .body(axum::body::Body::empty())
         .unwrap();
     let resp2 = app.oneshot(req2).await.unwrap();
@@ -137,11 +145,7 @@ async fn test_chunked_resume_http_interrupt_and_sha256() {
 #[tokio::test]
 async fn test_low_bandwidth_compression_flag() {
     let (mut state, _tmp) = drs_test_state().await;
-    state
-        .bandwidth
-        .as_ref()
-        .unwrap()
-        .inject_mock_bps(50_000);
+    state.bandwidth.as_ref().unwrap().inject_mock_bps(50_000);
     let class = state.bandwidth.as_ref().unwrap().classify();
     assert!(class.use_zstd_compression());
 }
@@ -149,11 +153,7 @@ async fn test_low_bandwidth_compression_flag() {
 #[tokio::test]
 async fn test_low_bandwidth_compression() {
     let (mut state, _tmp) = drs_test_state().await;
-    state
-        .bandwidth
-        .as_ref()
-        .unwrap()
-        .inject_mock_bps(50_000);
+    state.bandwidth.as_ref().unwrap().inject_mock_bps(50_000);
     let app = axum::Router::new()
         .route(
             "/objects/:object_id/stream",
@@ -168,7 +168,9 @@ async fn test_low_bandwidth_compression() {
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     assert_eq!(
-        resp.headers().get("content-encoding").and_then(|v| v.to_str().ok()),
+        resp.headers()
+            .get("content-encoding")
+            .and_then(|v| v.to_str().ok()),
         Some("zstd")
     );
 }
@@ -176,11 +178,7 @@ async fn test_low_bandwidth_compression() {
 #[tokio::test]
 async fn test_transfer_queue_defers_large_download() {
     let (mut state, _tmp) = drs_test_state().await;
-    state
-        .bandwidth
-        .as_ref()
-        .unwrap()
-        .inject_mock_bps(50_000);
+    state.bandwidth.as_ref().unwrap().inject_mock_bps(50_000);
     let large = vec![0u8; 11 * 1024 * 1024];
     state
         .storage
@@ -223,20 +221,13 @@ async fn test_transfer_queue_defers_large_download() {
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
-    assert_eq!(
-        state.transfer_queue.as_ref().unwrap().len(),
-        1
-    );
+    assert_eq!(state.transfer_queue.as_ref().unwrap().len(), 1);
 }
 
 #[tokio::test]
 async fn test_transfer_queue_defers_large_upload() {
     let (mut state, _tmp) = drs_test_state().await;
-    state
-        .bandwidth
-        .as_ref()
-        .unwrap()
-        .inject_mock_bps(50_000);
+    state.bandwidth.as_ref().unwrap().inject_mock_bps(50_000);
     let large = vec![1u8; 11 * 1024 * 1024];
     let err = process_upload_from_parts(
         Arc::new(state.clone()),
@@ -310,10 +301,6 @@ async fn test_checksum_deferred_in_low_power() {
     .await
     .unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    let status = state
-        .repo
-        .get_checksum_status(&resp.id)
-        .await
-        .unwrap();
+    let status = state.repo.get_checksum_status(&resp.id).await.unwrap();
     assert_eq!(status.as_deref(), Some("deferred_low_power"));
 }

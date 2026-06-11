@@ -208,10 +208,7 @@ pub fn default_power_monitor() -> Arc<dyn PowerMonitor> {
     }
 }
 
-pub fn resolve_power_mode(
-    config: &PowerConfig,
-    monitor: &dyn PowerMonitor,
-) -> FerrumPowerMode {
+pub fn resolve_power_mode(config: &PowerConfig, monitor: &dyn PowerMonitor) -> FerrumPowerMode {
     if let Ok(mode) = std::env::var("FERRUM_POWER_MODE") {
         return match mode.trim().to_lowercase().as_str() {
             "low_power" | "low-power" => FerrumPowerMode::LowPower,
@@ -285,9 +282,11 @@ impl Default for BackgroundWorkGate {
 }
 
 pub fn checkpoint_path() -> Option<std::path::PathBuf> {
-    std::env::var("HOME")
-        .ok()
-        .map(|h| std::path::PathBuf::from(h).join(".ferrum").join("CHECKPOINT"))
+    std::env::var("HOME").ok().map(|h| {
+        std::path::PathBuf::from(h)
+            .join(".ferrum")
+            .join("CHECKPOINT")
+    })
 }
 
 pub async fn write_emergency_checkpoint(last_tx_id: Option<i64>) -> std::io::Result<()> {
@@ -303,6 +302,9 @@ pub async fn write_emergency_checkpoint(last_tx_id: Option<i64>) -> std::io::Res
         "message": "FERRUM_EMERGENCY_SHUTDOWN: checkpoint written",
     });
     std::fs::write(&path, serde_json::to_string_pretty(&payload).unwrap())?;
-    eprintln!("FERRUM_EMERGENCY_SHUTDOWN: checkpoint written to {}", path.display());
+    eprintln!(
+        "FERRUM_EMERGENCY_SHUTDOWN: checkpoint written to {}",
+        path.display()
+    );
     Ok(())
 }

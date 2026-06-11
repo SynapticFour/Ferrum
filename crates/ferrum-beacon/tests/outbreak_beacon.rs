@@ -1,9 +1,9 @@
-use ferrum_beacon::{router_with_outbreak, repo::BeaconRepo};
-use ferrum_core::{
-    auth::AuthClaims, auth::PassportClaims, ActivateRequest, OutbreakConfig,
-    OutbreakPolicy, OutbreakService,
-};
+use ferrum_beacon::{repo::BeaconRepo, router_with_outbreak};
 use ferrum_core::FerrumPool;
+use ferrum_core::{
+    auth::AuthClaims, auth::PassportClaims, ActivateRequest, OutbreakConfig, OutbreakPolicy,
+    OutbreakService,
+};
 use http::{Method, Request, StatusCode};
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -19,17 +19,9 @@ async fn outbreak_beacon_app() -> axum::Router {
         .expect("migrate");
     let fp = FerrumPool::Sqlite(pool.clone());
     let repo = BeaconRepo::new(fp.clone());
-    repo.insert_pathogen_annotation(
-        "mpox1",
-        "Monkeypox_virus",
-        &[],
-        None,
-        None,
-        None,
-        None,
-    )
-    .await
-    .expect("insert");
+    repo.insert_pathogen_annotation("mpox1", "Monkeypox_virus", &[], None, None, None, None)
+        .await
+        .expect("insert");
 
     let outbreak = Arc::new(OutbreakService::new(
         fp.clone(),
@@ -88,9 +80,7 @@ async fn test_outbreak_emergency_recipient_beacon_http() {
         .uri("/g_variants/query")
         .header("content-type", "application/json")
         .extension(who_passport_claims())
-        .body(axum::body::Body::from(
-            serde_json::to_vec(&body).unwrap(),
-        ))
+        .body(axum::body::Body::from(serde_json::to_vec(&body).unwrap()))
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);

@@ -100,7 +100,11 @@ impl ReferenceRegistry {
             .ok_or_else(|| FerrumError::Internal(anyhow::anyhow!("reference insert failed")))
     }
 
-    pub async fn load_fasta(&self, id: &str, req: &LoadReferenceRequest) -> Result<ReferenceGenome> {
+    pub async fn load_fasta(
+        &self,
+        id: &str,
+        req: &LoadReferenceRequest,
+    ) -> Result<ReferenceGenome> {
         if !self.drs_object_exists(&req.fasta_drs_id).await? {
             return Err(FerrumError::ValidationError(format!(
                 "unknown fasta_drs_id {}",
@@ -116,24 +120,20 @@ impl ReferenceRegistry {
         }
         let sql = "UPDATE reference_genomes SET fasta_drs_id = $2, index_drs_id = $3 WHERE id = $1";
         let updated = match &self.pool {
-            FerrumPool::Postgres(p) => {
-                sqlx::query(sql)
-                    .bind(id)
-                    .bind(&req.fasta_drs_id)
-                    .bind(&req.index_drs_id)
-                    .execute(p)
-                    .await?
-                    .rows_affected()
-            }
-            FerrumPool::Sqlite(p) => {
-                sqlx::query(sql)
-                    .bind(id)
-                    .bind(&req.fasta_drs_id)
-                    .bind(&req.index_drs_id)
-                    .execute(p)
-                    .await?
-                    .rows_affected()
-            }
+            FerrumPool::Postgres(p) => sqlx::query(sql)
+                .bind(id)
+                .bind(&req.fasta_drs_id)
+                .bind(&req.index_drs_id)
+                .execute(p)
+                .await?
+                .rows_affected(),
+            FerrumPool::Sqlite(p) => sqlx::query(sql)
+                .bind(id)
+                .bind(&req.fasta_drs_id)
+                .bind(&req.index_drs_id)
+                .execute(p)
+                .await?
+                .rows_affected(),
         };
         if updated == 0 {
             return Err(FerrumError::NotFound(format!("reference {id} not found")));
@@ -186,12 +186,8 @@ impl ReferenceRegistry {
     async fn drs_object_exists(&self, id: &str) -> Result<bool> {
         let sql = "SELECT 1 FROM drs_objects WHERE id = $1 LIMIT 1";
         let row: Option<i32> = match &self.pool {
-            FerrumPool::Postgres(p) => {
-                sqlx::query_scalar(sql).bind(id).fetch_optional(p).await?
-            }
-            FerrumPool::Sqlite(p) => {
-                sqlx::query_scalar(sql).bind(id).fetch_optional(p).await?
-            }
+            FerrumPool::Postgres(p) => sqlx::query_scalar(sql).bind(id).fetch_optional(p).await?,
+            FerrumPool::Sqlite(p) => sqlx::query_scalar(sql).bind(id).fetch_optional(p).await?,
         };
         Ok(row.is_some())
     }

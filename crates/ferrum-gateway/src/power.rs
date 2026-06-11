@@ -1,10 +1,10 @@
 //! Solar/battery power mode middleware and emergency shutdown watcher.
 
+use axum::response::IntoResponse;
 use ferrum_core::{
     default_power_monitor, last_transaction_id, max_concurrent_requests, resolve_power_mode,
     write_emergency_checkpoint, FerrumPool, FerrumPowerMode, PowerConfig, PowerMonitor,
 };
-use axum::response::IntoResponse;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::sync::Semaphore;

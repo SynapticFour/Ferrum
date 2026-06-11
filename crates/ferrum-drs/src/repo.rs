@@ -210,8 +210,9 @@ impl DrsRepo {
         object_id: &str,
         access_id: &str,
     ) -> Result<Option<AccessUrl>> {
-        let row: Option<(Option<serde_json::Value>, Option<serde_json::Value>)> =
-            pool_query!(self, |p| {
+        let row: Option<(Option<serde_json::Value>, Option<serde_json::Value>)> = pool_query!(
+            self,
+            |p| {
                 sqlx::query_as(
                     "SELECT access_url, headers FROM drs_access_methods WHERE object_id = $1 AND access_id = $2",
                 )
@@ -219,7 +220,8 @@ impl DrsRepo {
                 .bind(access_id)
                 .fetch_optional(p)
                 .await
-            })?;
+            }
+        )?;
         let (access_url, headers) = match row {
             Some(r) => r,
             None => return Ok(None),
@@ -811,8 +813,7 @@ impl DrsRepo {
     ) -> Result<String> {
         let id = ulid::Ulid::new().to_string();
         let amr_json = serde_json::to_value(amr_genes).unwrap_or(serde_json::json!([]));
-        let vf_json =
-            serde_json::to_value(virulence_factors).unwrap_or(serde_json::json!([]));
+        let vf_json = serde_json::to_value(virulence_factors).unwrap_or(serde_json::json!([]));
         pool_query!(self, |p| {
             sqlx::query(
                 "INSERT INTO pathogen_annotations (id, dataset_id, drs_object_id, organism, amr_genes, serotype, virulence_factors, ont_qscore_min)

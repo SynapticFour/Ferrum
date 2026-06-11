@@ -19,8 +19,13 @@ pub async fn check_object_byte_access(
             return Err(DrsError::Forbidden("dataset access not granted".into()));
         }
     }
-    enforce_outbreak_download(state.outbreak.as_ref(), &state.repo, canonical_object_id, auth)
-        .await
+    enforce_outbreak_download(
+        state.outbreak.as_ref(),
+        &state.repo,
+        canonical_object_id,
+        auth,
+    )
+    .await
 }
 
 /// Metadata GET uses the same rules as stream/download for controlled objects.

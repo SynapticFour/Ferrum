@@ -112,11 +112,7 @@ impl OutbreakService {
     }
 
     /// Deactivate an active policy.
-    pub async fn deactivate(
-        &self,
-        req: &DeactivateRequest,
-        actor: &str,
-    ) -> Result<()> {
+    pub async fn deactivate(&self, req: &DeactivateRequest, actor: &str) -> Result<()> {
         if !self.config.enabled {
             return Err(FerrumError::ValidationError(
                 "outbreak mode is disabled in configuration".into(),
@@ -128,28 +124,25 @@ impl OutbreakService {
         let sql = "UPDATE outbreak_activations SET active = FALSE, deactivated_at = NOW(),
                    deactivated_by = $1, deactivation_reason = $2
                    WHERE policy_name = $3 AND active = TRUE";
-        let sql_sqlite = "UPDATE outbreak_activations SET active = 0, deactivated_at = datetime('now'),
+        let sql_sqlite =
+            "UPDATE outbreak_activations SET active = 0, deactivated_at = datetime('now'),
                           deactivated_by = $1, deactivation_reason = $2
                           WHERE policy_name = $3 AND active = 1";
         let affected = match &self.pool {
-            FerrumPool::Postgres(p) => {
-                sqlx::query(sql)
-                    .bind(actor)
-                    .bind(&req.reason)
-                    .bind(&req.policy)
-                    .execute(p)
-                    .await?
-                    .rows_affected()
-            }
-            FerrumPool::Sqlite(p) => {
-                sqlx::query(sql_sqlite)
-                    .bind(actor)
-                    .bind(&req.reason)
-                    .bind(&req.policy)
-                    .execute(p)
-                    .await?
-                    .rows_affected()
-            }
+            FerrumPool::Postgres(p) => sqlx::query(sql)
+                .bind(actor)
+                .bind(&req.reason)
+                .bind(&req.policy)
+                .execute(p)
+                .await?
+                .rows_affected(),
+            FerrumPool::Sqlite(p) => sqlx::query(sql_sqlite)
+                .bind(actor)
+                .bind(&req.reason)
+                .bind(&req.policy)
+                .execute(p)
+                .await?
+                .rows_affected(),
         };
         if affected == 0 {
             return Err(FerrumError::ValidationError(format!(
@@ -381,11 +374,13 @@ impl OutbreakService {
         };
         Ok(rows
             .into_iter()
-            .map(|(drs_object_id, organism, storage_key)| PathogenPackageRow {
-                drs_object_id,
-                organism,
-                storage_key,
-            })
+            .map(
+                |(drs_object_id, organism, storage_key)| PathogenPackageRow {
+                    drs_object_id,
+                    organism,
+                    storage_key,
+                },
+            )
             .collect())
     }
 
@@ -458,10 +453,7 @@ fn recipient_matches(configured: &str, issuer: &str) -> bool {
 }
 
 /// Build GISAID EpiCoV-style submission archive (CSV + FASTA) from local FASTA bytes.
-pub fn build_gisaid_package(
-    policy_name: &str,
-    entries: &[GisaidEntry],
-) -> Result<Vec<u8>> {
+pub fn build_gisaid_package(policy_name: &str, entries: &[GisaidEntry]) -> Result<Vec<u8>> {
     let mut csv = String::from(
         "submitter,virus name,type,passage details/history,collection date,location,host,patient age,gender,clade,sequencing technology\n",
     );
@@ -490,7 +482,9 @@ pub fn build_gisaid_package(
         ("sequences.fasta", fasta_bytes.as_slice()),
     ] {
         let mut header = tar::Header::new_gnu();
-        header.set_path(name).map_err(|e| FerrumError::Internal(e.into()))?;
+        header
+            .set_path(name)
+            .map_err(|e| FerrumError::Internal(e.into()))?;
         header.set_size(data.len() as u64);
         header.set_mode(0o644);
         header.set_cksum();
@@ -498,9 +492,10 @@ pub fn build_gisaid_package(
             .map_err(|e| FerrumError::Internal(e.into()))?;
     }
 
-    tar.finish()
+    tar.finish().map_err(|e| FerrumError::Internal(e.into()))?;
+    let enc = tar
+        .into_inner()
         .map_err(|e| FerrumError::Internal(e.into()))?;
-    let enc = tar.into_inner().map_err(|e| FerrumError::Internal(e.into()))?;
     let bytes = enc.finish().map_err(|e| FerrumError::Internal(e.into()))?;
     Ok(bytes)
 }

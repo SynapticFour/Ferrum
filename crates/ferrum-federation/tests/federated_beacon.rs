@@ -13,7 +13,13 @@ use tower::ServiceExt;
 
 static PEER_CALLS: AtomicUsize = AtomicUsize::new(0);
 
-async fn seed_variant(pool: &sqlx::SqlitePool, chr: &str, start: i64, reference: &str, alternate: &str) {
+async fn seed_variant(
+    pool: &sqlx::SqlitePool,
+    chr: &str,
+    start: i64,
+    reference: &str,
+    alternate: &str,
+) {
     sqlx::query(
         "INSERT OR IGNORE INTO beacon_datasets (id, name, description, assembly_id)
          VALUES ('default', 'default', 'default', 'GRCh38')",
@@ -110,9 +116,12 @@ async fn test_peer_timeout_non_fatal() {
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value =
-        serde_json::from_slice(&axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap())
-            .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     assert!(v["meta"]["warnings"].is_array());
 }
 
@@ -176,9 +185,12 @@ async fn test_federated_beacon_union() {
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value =
-        serde_json::from_slice(&axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap())
-            .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     assert_eq!(v["response"]["exists"], true);
 }
 
@@ -299,10 +311,7 @@ async fn test_federation_peer_rate_limiting() {
 
     let second = federation.query_peers(&envelope).await;
     assert_eq!(second.len(), 1);
-    assert_eq!(
-        second[0].error.as_deref(),
-        Some("rate limit exceeded")
-    );
+    assert_eq!(second[0].error.as_deref(), Some("rate limit exceeded"));
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 }
 
@@ -321,9 +330,7 @@ async fn test_federated_beacon_intersection_e2e() {
     seed_variant(&peer_pool, "1", 1000, "A", "T").await;
     let peer_app = Router::new().route(
         "/ga4gh/beacon/g_variants/query",
-        post(|| async {
-            Json(serde_json::json!({"response": {"exists": true}}))
-        }),
+        post(|| async { Json(serde_json::json!({"response": {"exists": true}})) }),
     );
     tokio::spawn(async move {
         axum::serve(peer_listener, peer_app).await.unwrap();
@@ -372,8 +379,11 @@ async fn test_federated_beacon_intersection_e2e() {
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value =
-        serde_json::from_slice(&axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap())
-            .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     assert_eq!(v["response"]["exists"], false);
 }

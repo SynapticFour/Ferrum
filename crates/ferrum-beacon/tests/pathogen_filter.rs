@@ -62,9 +62,7 @@ fn beacon_query(body: serde_json::Value) -> Request<axum::body::Body> {
         .method(Method::POST)
         .uri("/g_variants/query")
         .header("content-type", "application/json")
-        .body(axum::body::Body::from(
-            serde_json::to_vec(&body).unwrap(),
-        ))
+        .body(axum::body::Body::from(serde_json::to_vec(&body).unwrap()))
         .unwrap()
 }
 
@@ -83,9 +81,12 @@ async fn test_pathogen_filter_amr() {
     });
     let resp = app.oneshot(beacon_query(body)).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let v: serde_json::Value =
-        serde_json::from_slice(&axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap())
-            .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     assert_eq!(v["response"]["exists"], true);
 }
 
@@ -103,9 +104,12 @@ async fn test_pathogen_filter_type_in_filters_array() {
         }
     });
     let resp = app.oneshot(beacon_query(body)).await.unwrap();
-    let v: serde_json::Value =
-        serde_json::from_slice(&axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap())
-            .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     assert_eq!(v["response"]["exists"], true);
 }
 
@@ -168,8 +172,11 @@ async fn test_human_query_without_pathogen_fields_unchanged_negative() {
         }
     });
     let resp = app.oneshot(beacon_query(body)).await.unwrap();
-    let v: serde_json::Value =
-        serde_json::from_slice(&axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap())
-            .unwrap();
+    let v: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     assert_eq!(v["response"]["exists"], false);
 }

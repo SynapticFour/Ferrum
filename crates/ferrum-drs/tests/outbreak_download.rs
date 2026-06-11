@@ -2,8 +2,8 @@
 
 use ferrum_core::{
     auth::{AuthClaims, PassportClaims},
-    ActivateRequest, ApproveDownloadRequest, OutbreakConfig, OutbreakPolicy, OutbreakService,
-    FerrumPool,
+    ActivateRequest, ApproveDownloadRequest, FerrumPool, OutbreakConfig, OutbreakPolicy,
+    OutbreakService,
 };
 use ferrum_drs::access::check_object_byte_access;
 use ferrum_drs::repo::DrsRepo;
@@ -50,17 +50,9 @@ async fn outbreak_drs_state() -> AppState {
     .await
     .expect("create");
 
-    repo.insert_pathogen_annotation(
-        &object_id,
-        "Monkeypox_virus",
-        &[],
-        None,
-        &[],
-        None,
-        None,
-    )
-    .await
-    .expect("anno");
+    repo.insert_pathogen_annotation(&object_id, "Monkeypox_virus", &[], None, &[], None, None)
+        .await
+        .expect("anno");
 
     let outbreak = Arc::new(OutbreakService::new(
         fp,

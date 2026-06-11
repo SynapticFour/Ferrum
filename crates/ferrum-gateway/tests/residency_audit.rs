@@ -3,8 +3,8 @@
 use axum::http::{Method, Request, StatusCode};
 use ferrum_core::{
     auth::{AuthClaims, PassportClaims},
-    ActivateRequest, FerrumPool, OutbreakConfig, OutbreakPolicy,
-    OutbreakService, ResidencyAuditLog,
+    ActivateRequest, FerrumPool, OutbreakConfig, OutbreakPolicy, OutbreakService,
+    ResidencyAuditLog,
 };
 use ferrum_drs::ingest::{process_upload_from_parts, ParsedMultipartUpload};
 use ferrum_drs::repo::DrsRepo;
@@ -144,5 +144,7 @@ async fn test_outbreak_activate_deactivate_audit_events() {
 
     let entries = audit.query_range(None, None).await.unwrap().entries;
     assert!(entries.iter().any(|e| e.event_type == "outbreak_activated"));
-    assert!(entries.iter().any(|e| e.event_type == "outbreak_deactivated"));
+    assert!(entries
+        .iter()
+        .any(|e| e.event_type == "outbreak_deactivated"));
 }

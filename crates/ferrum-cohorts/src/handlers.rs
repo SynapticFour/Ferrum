@@ -61,9 +61,9 @@ pub async fn list_cohorts(
             ws_id,
             sub,
         )
-            .await
-            .map_err(|e| CohortError::Other(e.into()))?
-            .ok_or_else(|| CohortError::Forbidden("not a member of this workspace".into()))?;
+        .await
+        .map_err(|e| CohortError::Other(e.into()))?
+        .ok_or_else(|| CohortError::Forbidden("not a member of this workspace".into()))?;
     }
     let limit = q.limit.unwrap_or(50).min(100);
     let offset = q.offset.unwrap_or(0);
@@ -142,8 +142,8 @@ pub async fn create_cohort(
             ws_id,
             sub,
         )
-            .await
-            .map_err(|e| CohortError::Other(e.into()))?;
+        .await
+        .map_err(|e| CohortError::Other(e.into()))?;
         if !ok {
             return Err(CohortError::Forbidden(
                 "not a workspace editor or owner".into(),
