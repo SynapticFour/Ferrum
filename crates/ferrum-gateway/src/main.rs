@@ -1,11 +1,16 @@
 //! Ferrum API Gateway binary: single entrypoint for all GA4GH services.
 
 use clap::{Parser, Subcommand};
+use ferrum_embed::{
+    ensure_data_dirs, probe_auth_endpoints, Database, EmbedMode, MemoryCapGuard, MemoryCapState,
+    PostgresStorage, SqliteStorage,
+};
 use ferrum_gateway::run;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[derive(Parser)]
@@ -28,8 +33,12 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum DemoAction {
-    /// Start the full demo stack (PostgreSQL + Gateway + UI)
-    Start,
+    /// Start the full demo stack (PostgreSQL + Gateway + UI), or Laptop Mode when unavailable
+    Start {
+        /// Force embedded SQLite + local storage (no Docker)
+        #[arg(long)]
+        offline: bool,
+    },
     /// Stop the demo stack
     Stop,
     /// Show demo stack status
@@ -47,8 +56,38 @@ fn demo_dir() -> PathBuf {
         .join("demo")
 }
 
+fn postgres_available() -> bool {
+    std::process::Command::new("pg_isready")
+        .arg("-h")
+        .arg("127.0.0.1")
+        .arg("-p")
+        .arg("5432")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+fn minio_available() -> bool {
+    std::net::TcpStream::connect_timeout(
+        &"127.0.0.1:9000".parse().unwrap(),
+        Duration::from_secs(2),
+    )
+    .is_ok()
+}
+
+async fn start_laptop_mode() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    println!("[ferrum] PostgreSQL not detected. Starting in Laptop Mode (SQLite + local storage).");
+    if let Some(home) = ferrum_embed::default_ferrum_home() {
+        println!("[ferrum] Data will be stored at {}/", home.display());
+    }
+    println!(
+        "[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml"
+    );
+    std::env::set_var("FERRUM_OFFLINE", "1");
+    run_gateway_server().await
+}
+
 /// Merge `FERRUM_STORAGE__*` env into storage config so Docker/CI never lose nested fields
-/// (e.g. `S3_ENDPOINT` missing from deserialized config → SDK defaults to real AWS and DRS /stream 404s on MinIO).
 fn merged_storage_config(base: Option<&ferrum_core::StorageConfig>) -> ferrum_core::StorageConfig {
     let mut s = base.cloned().unwrap_or_default();
     if let Ok(v) = std::env::var("FERRUM_STORAGE__BACKEND") {
@@ -176,31 +215,7 @@ async fn build_object_storage(
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let cli = Cli::parse();
-
-    match cli.command {
-        Some(Commands::Demo { action }) => {
-            let demo = demo_dir();
-            let status = match action {
-                DemoAction::Start => {
-                    println!("\n  🧬 Ferrum Demo\n");
-                    Command::new("sh").arg(demo.join("start.sh")).status()?
-                }
-                DemoAction::Stop => Command::new("sh").arg(demo.join("stop.sh")).status()?,
-                DemoAction::Status => Command::new("docker")
-                    .arg("compose")
-                    .arg("-f")
-                    .arg(demo.join("docker-compose.demo.yml"))
-                    .arg("ps")
-                    .status()?,
-            };
-            std::process::exit(status.code().unwrap_or(1));
-        }
-        Some(Commands::Start) | None => {}
-    }
-
+async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::registry()
         .with(
             EnvFilter::try_from_default_env()
@@ -209,66 +224,82 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let config = ferrum_core::FerrumConfig::load().ok();
+    let mut config = ferrum_core::FerrumConfig::load().ok();
+    if let Some(ref mut cfg) = config {
+        cfg.apply_embedded_defaults();
+        let _ = ensure_data_dirs(cfg);
+    }
+
+    let offline_first = config.as_ref().is_some_and(|c| c.is_offline_first());
+    let embed_mode = config
+        .as_ref()
+        .map(EmbedMode::resolve)
+        .unwrap_or(EmbedMode::Sqlite);
+
+    if embed_mode == EmbedMode::Sqlite {
+        tracing::info!("starting in embedded laptop mode (SQLite + local storage)");
+    }
+
+    if let Some(ref cfg) = config {
+        probe_auth_endpoints(cfg, offline_first).await;
+    }
+
+    let _memory_guard = config
+        .as_ref()
+        .and_then(|c| c.africa.as_ref())
+        .and_then(|a| a.max_memory_mb)
+        .map(|mb| MemoryCapGuard::spawn_monitor(MemoryCapState::new(mb)));
+
     let bind: SocketAddr = config
         .as_ref()
         .and_then(|c| c.bind.parse().ok())
         .unwrap_or_else(|| "0.0.0.0:8080".parse().unwrap());
 
-    // When database is configured (from config or FERRUM_DATABASE__URL), create a pool for Cohorts, Workspaces, Beacon, Passports, and Admin.
-    let pg_pool: Option<sqlx::PgPool> = if let Some(ref cfg) = config {
-        match ferrum_core::DatabasePool::from_config(&cfg.database).await {
-            Ok(ferrum_core::DatabasePool::Postgres(p)) => Some(p),
-            _ => None,
-        }
+    let ferrum_pool: Option<ferrum_core::FerrumPool> = if let Some(ref cfg) = config {
+        let result = match embed_mode {
+            EmbedMode::Full => {
+                let storage = PostgresStorage::connect(cfg).await?;
+                if cfg.database.run_migrations {
+                    storage.migrate().await?;
+                }
+                Some(storage.pool().clone())
+            }
+            EmbedMode::Sqlite | EmbedMode::Auto => {
+                let storage = SqliteStorage::connect(cfg).await?;
+                if cfg.database.run_migrations {
+                    storage.migrate().await?;
+                }
+                Some(storage.pool().clone())
+            }
+        };
+        result
     } else {
         None
     };
-    let pg_pool: Option<sqlx::PgPool> = if pg_pool.is_some() {
-        pg_pool
-    } else if let Ok(url) = std::env::var("FERRUM_DATABASE__URL") {
-        match ferrum_core::DatabasePool::from_url(&url).await {
-            Ok(ferrum_core::DatabasePool::Postgres(p)) => Some(p),
-            _ => None,
+
+    let pg_pool: Option<sqlx::PgPool> = if embed_mode == EmbedMode::Full {
+        if let Some(ref cfg) = config {
+            ferrum_core::postgres_pool_from_config(&cfg.database).await.ok()
+        } else if let Ok(url) = std::env::var("FERRUM_DATABASE__URL") {
+            sqlx::PgPool::connect(&url).await.ok()
+        } else {
+            None
         }
     } else {
         None
     };
 
-    // Startup diagnostics for demo/CI: confirm gateway sees seeded data.
-    if let Some(ref pool) = pg_pool {
-        let run_migrations_env = std::env::var("FERRUM_DATABASE__RUN_MIGRATIONS")
-            .unwrap_or_else(|_| "<unset>".to_string());
-        let db_url =
-            std::env::var("FERRUM_DATABASE__URL").unwrap_or_else(|_| "<unset>".to_string());
-        tracing::info!(run_migrations_env = %run_migrations_env, db_url = %db_url, "Gateway database config (env)");
-        let drs_count: Result<i64, _> = sqlx::query_scalar("SELECT COUNT(*) FROM drs_objects")
-            .fetch_one(pool)
-            .await;
-        match drs_count {
-            Ok(n) => tracing::info!(drs_objects = n, "Gateway sees drs_objects rows"),
-            Err(e) => {
-                tracing::warn!(error = %e, "Gateway could not query drs_objects (schema missing?)")
-            }
-        }
-        let has_test_object: Result<bool, _> = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM drs_objects WHERE id = 'test-object-1')",
-        )
-        .fetch_one(pool)
-        .await;
-        if let Ok(exists) = has_test_object {
-            tracing::info!(test_object_1_exists = exists, "Gateway DRS seed presence");
-        }
-        let ids: Result<Vec<String>, _> =
-            sqlx::query_scalar("SELECT id FROM drs_objects ORDER BY id LIMIT 5")
-                .fetch_all(pool)
-                .await;
-        if let Ok(ids) = ids {
-            tracing::info!(sample_drs_ids = ?ids, "Gateway sample DRS IDs");
+    if let Some(ref pool) = ferrum_pool {
+        let drs_count: Result<i64, _> = ferrum_core::ferrum_db!(pool, |p| {
+            sqlx::query_scalar("SELECT COUNT(*) FROM drs_objects")
+                .fetch_one(p)
+                .await
+        });
+        if let Ok(n) = drs_count {
+            tracing::info!(drs_objects = n, dialect = ?pool.dialect(), "Gateway database ready");
         }
     }
 
-    // Public URL for htsget tickets (DRS stream links). Override for local HTTP, e.g. http://127.0.0.1:8080
     let drs_hostname =
         std::env::var("FERRUM_DRS_HOSTNAME").unwrap_or_else(|_| "localhost".to_string());
     let public_base_url = std::env::var("FERRUM_PUBLIC_BASE_URL")
@@ -279,20 +310,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .trim_end_matches('/')
         .to_string();
 
-    // DRS: when we have a pool, build state so list/get (and ingest when storage is configured) work.
-    let drs_state: Option<ferrum_drs::AppState> = if let Some(ref pool) = pg_pool {
+    let drs_state: Option<ferrum_drs::AppState> = if let Some(ref pool) = ferrum_pool {
         let repo = Arc::new(ferrum_drs::repo::DrsRepo::new(
             pool.clone(),
             drs_hostname.clone(),
         ));
         let merged_storage = merged_storage_config(config.as_ref().map(|c| &c.storage));
         let object_storage_backend = merged_storage.backend.clone();
-
         let ingest = config
             .as_ref()
             .map(|c| c.ingest.clone())
             .unwrap_or_default();
-
         let storage: Option<Arc<dyn ferrum_storage::ObjectStorage>> =
             build_object_storage(&merged_storage).await;
         let crypt4gh_key_dir = std::env::var("FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR")
@@ -335,9 +363,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         })
     });
 
-    // WES: when we have a pool, enable list/submit with a work dir (demo: /tmp/wes-runs or FERRUM_WES_WORK_DIR).
-    // For demo/CI we always route WES runs via the local TES endpoint so that execution can use the configured TES backend
-    // (e.g. the noop executor on GitHub Actions) instead of requiring local workflow engines like nextflow or cwltool.
     let wes_params = pg_pool.clone().map(|pool| {
         let work_dir = std::env::var("FERRUM_WES_WORK_DIR")
             .map(PathBuf::from)
@@ -357,7 +382,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         )
     });
 
-    // TES: enable when we have a pool. In demo/CI use a no-op backend (podman isn't available on GitHub runners).
     let tes_params = pg_pool
         .clone()
         .map(|pool| (pool, Some("noop".to_string()), None));
@@ -369,13 +393,53 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         htsget_state,
         wes_params,
         tes_params,
-        pg_pool.clone(), // trs_params
-        pg_pool.clone(), // beacon_params
-        pg_pool.clone(), // passport_params
-        pg_pool.clone(), // cohort_params
-        pg_pool.clone(), // workspaces_pool
-        pg_pool,         // admin_pool
+        pg_pool.clone(),
+        ferrum_pool.clone(),
+        pg_pool.clone(),
+        pg_pool.clone(),
+        pg_pool.clone(),
+        pg_pool,
     )
     .await?;
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let cli = Cli::parse();
+
+    match cli.command {
+        Some(Commands::Demo { action }) => {
+            let demo = demo_dir();
+            let status = match action {
+                DemoAction::Start { offline } => {
+                    if offline || (!postgres_available() && !minio_available()) {
+                        if !offline && !postgres_available() {
+                            return start_laptop_mode().await;
+                        }
+                        if offline {
+                            return start_laptop_mode().await;
+                        }
+                    }
+                    println!("\n  🧬 Ferrum Demo\n");
+                    if !postgres_available() {
+                        return start_laptop_mode().await;
+                    }
+                    Command::new("sh").arg(demo.join("start.sh")).status()?
+                }
+                DemoAction::Stop => Command::new("sh").arg(demo.join("stop.sh")).status()?,
+                DemoAction::Status => Command::new("docker")
+                    .arg("compose")
+                    .arg("-f")
+                    .arg(demo.join("docker-compose.demo.yml"))
+                    .arg("ps")
+                    .status()?,
+            };
+            std::process::exit(status.code().unwrap_or(1));
+        }
+        Some(Commands::Start) | None => {
+            run_gateway_server().await?;
+        }
+    }
     Ok(())
 }

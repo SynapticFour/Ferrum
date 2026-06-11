@@ -136,6 +136,8 @@ export FERRUM_PUBLIC_BASE_URL=http://localhost:8080       # htsget ticket → DR
    cd /path/to/Ferrum
    make demo
    # or: docker compose -f deploy/docker-compose.yml up -d
+   # or (one command, core + htsget): ./deploy/scripts/run-helixtest-local.sh
+   # full suite: ./deploy/scripts/run-helixtest-local.sh --full
    ```
 
 2. **Clone and run HelixTest** (from a separate directory):

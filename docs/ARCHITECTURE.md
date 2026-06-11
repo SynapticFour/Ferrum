@@ -20,11 +20,14 @@ graph TD
     BEACON[ferrum-beacon]
     PASS[ferrum-passports]
     C4[ferrum-crypt4gh]
+    EMBED[ferrum-embed]
   end
 
   subgraph External["External"]
     PG[(PostgreSQL)]
+    SQLITE[(SQLite file)]
     MINIO[MinIO / S3]
+    LOCAL[Local FS]
     KC[Keycloak]
   end
 
@@ -46,10 +49,15 @@ graph TD
   PASS --> CORE
   C4 --> CORE
   GW --> CORE
+  GW --> EMBED
+  EMBED --> SQLITE
+  EMBED --> LOCAL
 
   HTSGET --> DRS
 
   DRS --> PG
+  BEACON --> PG
+  BEACON --> SQLITE
   WES --> PG
   TES --> PG
   TRS --> PG
@@ -62,7 +70,15 @@ graph TD
   PASS --> KC
 ```
 
-**ferrum-core** is the foundation: config, database, auth, shared errors/types, and **provenance** (optional lineage store and recursive lineage view). **Object storage** (`LocalStorage`, `S3Storage`, optional OpenDAL) lives in **`ferrum-storage`**; DRS and the gateway depend on it for ingest and streaming. See [STORAGE-BACKENDS.md](STORAGE-BACKENDS.md) and [PERFORMANCE.md](../PERFORMANCE.md).
+**ferrum-core** is the foundation: config, database, auth, shared errors/types, and **provenance** (optional lineage store and recursive lineage view). **ferrum-embed** selects embedded **SQLite** + **LocalStorage** vs production **PostgreSQL** + **S3** based on `[africa]` config, `FERRUM_OFFLINE=1`, or absent `database.url`. See [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md). **Object storage** (`LocalStorage`, `S3Storage`, optional OpenDAL) lives in **`ferrum-storage`**; DRS and the gateway depend on it for ingest and streaming. See [STORAGE-BACKENDS.md](STORAGE-BACKENDS.md) and [PERFORMANCE.md](../PERFORMANCE.md).
+
+### Backend selection (Laptop Mode)
+
+| `EmbedMode` | When | Database | Object storage |
+|---|---|---|---|
+| `Full` | `database.url` is PostgreSQL | PostgreSQL | S3 / MinIO |
+| `Sqlite` | `FERRUM_OFFLINE=1`, `[africa] offline_first`, or default sqlite driver | SQLite file | Local path |
+| `Auto` | Resolved from config (default) | — | — |
 
 ---
 

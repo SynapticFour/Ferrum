@@ -16,12 +16,13 @@ tower = "0.4"
 utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "6", features = ["axum"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "sqlite"] }
 chrono = "0.4"
 thiserror = "1"
 anyhow = "1"
 
 [dev-dependencies]
+ferrum-core = { path = "../ferrum-core" }
 http = "1"
 tower = { version = "0.4", features = ["util"] }
 hyper = "1"

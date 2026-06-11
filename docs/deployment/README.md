@@ -6,7 +6,7 @@ This page is the entrypoint for Ferrum deployment paths.
 
 | Scenario | Recommended path | Internet required during install | Main doc |
 |---|---|---|---|
-| Local demo / evaluation | `ferrum demo start` or `deploy/docker-compose.yml` | Yes | `docs/INSTALLATION.md` |
+| Local demo / evaluation | `ferrum demo start --offline` or `deploy/docker-compose.yml` | Optional (Laptop Mode: no) | `docs/INSTALLATION.md` |
 | Single-node production (bare metal / VM) | Binary + systemd + external Postgres/S3 | Optional | `docs/INSTALLATION.md` |
 | Distributed HPC | Ansible inventory + playbooks | Usually yes | `docs/INSTALLATION.md` |
 | Kubernetes (AKS/on-prem) | Helm chart in `deploy/helm/` | Usually yes | `docs/INSTALLATION.md` |
@@ -40,4 +40,16 @@ Recommended channels:
 Operational templates:
 - Update SOP: `docs/deployment/UPDATE-SOP.md`
 - Release checklist: `docs/deployment/RELEASE-CHECKLIST.md`
+
+## Laptop Mode / Offline Deployment
+
+For intermittent connectivity and shared laptops, use **Laptop Mode** (SQLite + local storage):
+
+```bash
+FERRUM_OFFLINE=1 ferrum-gateway
+# or
+ferrum demo start --offline
+```
+
+Full guide: [docs/AFRICA-DEPLOYMENT.md](../AFRICA-DEPLOYMENT.md)
 

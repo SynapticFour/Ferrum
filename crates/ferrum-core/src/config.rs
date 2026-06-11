@@ -33,6 +33,9 @@ pub struct FerrumConfig {
     /// MII Connect (FHIR MII-KDS conformance checks).
     #[serde(default)]
     pub mii_connect: MiiConnectConfig,
+    /// Resource-constrained / offline-first deployment profile (Africa laptop mode).
+    #[serde(default)]
+    pub africa: Option<AfricaProfile>,
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].
@@ -156,6 +159,30 @@ mod ingest_config_tests {
     }
 
     #[test]
+    fn database_url_from_env_enables_postgres_mode() {
+        let home = std::env::temp_dir().join("ferrum-config-env-test-home");
+        let _ = fs::create_dir_all(&home);
+        std::env::set_var("HOME", home.as_os_str());
+        std::env::set_var(
+            "FERRUM_DATABASE__URL",
+            "postgres://ferrum:ferrum@postgres:5432/ferrum",
+        );
+        std::env::set_var("FERRUM_DATABASE__RUN_MIGRATIONS", "false");
+        std::env::set_var("FERRUM_STORAGE__BACKEND", "s3");
+
+        let cfg = FerrumConfig::load().expect("load config from env");
+        assert_eq!(
+            cfg.database.url.as_deref(),
+            Some("postgres://ferrum:ferrum@postgres:5432/ferrum")
+        );
+        assert!(!cfg.is_offline_first());
+
+        std::env::remove_var("FERRUM_DATABASE__URL");
+        std::env::remove_var("FERRUM_DATABASE__RUN_MIGRATIONS");
+        std::env::remove_var("FERRUM_STORAGE__BACKEND");
+    }
+
+    #[test]
     fn mii_connect_loads_from_file() {
         let file = std::env::temp_dir().join("ferrum-config-mii-test.toml");
         let mut f = fs::File::create(&file).expect("create temp config");
@@ -272,6 +299,24 @@ fn default_storage_gb_month() -> f64 {
 
 fn default_bind() -> String {
     "0.0.0.0:8080".to_string()
+}
+
+/// Offline-first / laptop deployment profile for resource-constrained environments.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct AfricaProfile {
+    /// Enable offline-first mode. Default: false.
+    /// When true: SQLite backend, local storage, no external auth probing.
+    #[serde(default)]
+    pub offline_first: bool,
+    /// Maximum RAM Ferrum may use in MB. Default: unlimited.
+    #[serde(default)]
+    pub max_memory_mb: Option<u64>,
+    /// Path for SQLite database file. Default: ~/.ferrum/ferrum.db
+    #[serde(default)]
+    pub sqlite_path: Option<PathBuf>,
+    /// Path for local object storage root. Default: ~/.ferrum/objects/
+    #[serde(default)]
+    pub objects_path: Option<PathBuf>,
 }
 
 /// Database configuration.
@@ -636,6 +681,7 @@ impl FerrumConfig {
 
         builder = builder.add_source(
             Environment::with_prefix("FERRUM")
+                .prefix_separator("_")
                 .separator("__")
                 .try_parsing(true),
         );
@@ -648,6 +694,7 @@ impl FerrumConfig {
         let c = Self::build_builder(None)?;
         let mut cfg: Self = c.try_deserialize()?;
         cfg.resolve_file_secrets();
+        cfg.apply_embedded_defaults();
         Ok(cfg)
     }
 
@@ -657,7 +704,67 @@ impl FerrumConfig {
         let c = Self::build_builder(Some(path))?;
         let mut cfg: Self = c.try_deserialize()?;
         cfg.resolve_file_secrets();
+        cfg.apply_embedded_defaults();
         Ok(cfg)
+    }
+
+    /// True when embedded (SQLite + local storage) backends should be used.
+    pub fn uses_embedded_backends(&self) -> bool {
+        self.is_offline_first()
+    }
+
+    /// Offline-first: explicit profile, `FERRUM_OFFLINE=1`, or SQLite without explicit Postgres URL.
+    pub fn is_offline_first(&self) -> bool {
+        if std::env::var("FERRUM_OFFLINE")
+            .ok()
+            .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        {
+            return true;
+        }
+        if self.africa.as_ref().is_some_and(|a| a.offline_first) {
+            return true;
+        }
+        if let Some(ref url) = self.database.url {
+            let lower = url.split('?').next().unwrap_or(url).to_lowercase();
+            return lower.starts_with("sqlite:") || lower.starts_with("sqlite://");
+        }
+        self.database.driver.eq_ignore_ascii_case("sqlite")
+    }
+
+    /// Apply Africa / laptop profile defaults to database and storage when embedded mode is active.
+    pub fn apply_embedded_defaults(&mut self) {
+        if !self.is_offline_first() {
+            return;
+        }
+        if self.database.url.is_none() {
+            self.database.driver = "sqlite".to_string();
+            if let Some(ref africa) = self.africa {
+                if let Some(ref p) = africa.sqlite_path {
+                    self.database.sqlite_path = p.to_string_lossy().into_owned();
+                }
+            }
+            if self.database.sqlite_path == "ferrum.db" {
+                if let Some(home) = default_ferrum_home() {
+                    self.database.sqlite_path =
+                        home.join("ferrum.db").to_string_lossy().into_owned();
+                }
+            }
+        }
+        if !self.storage.backend.eq_ignore_ascii_case("s3")
+            && !self.storage.backend.eq_ignore_ascii_case("minio")
+        {
+            self.storage.backend = "local".to_string();
+            if self.storage.base_path.is_none() {
+                let objects = self
+                    .africa
+                    .as_ref()
+                    .and_then(|a| a.objects_path.clone())
+                    .or_else(|| default_ferrum_home().map(|h| h.join("objects")));
+                if let Some(p) = objects {
+                    self.storage.base_path = Some(p.to_string_lossy().into_owned());
+                }
+            }
+        }
     }
 
     /// A02: Resolve file:// references in secret fields (Docker/K8s secrets pattern).
@@ -694,6 +801,12 @@ fn resolve_file_secret(value: &str) -> Option<String> {
     std::fs::read_to_string(path)
         .ok()
         .map(|s| s.trim().to_string())
+}
+
+fn default_ferrum_home() -> Option<PathBuf> {
+    std::env::var("HOME")
+        .ok()
+        .map(|h| PathBuf::from(h).join(".ferrum"))
 }
 
 /// Backward-compatible alias.

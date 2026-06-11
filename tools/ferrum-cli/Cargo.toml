@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 ferrum-core = { path = "../../crates/ferrum-core" }
+ferrum-embed = { path = "../../crates/ferrum-embed" }
 ferrum-mii-connect = { path = "../../crates/ferrum-mii-connect" }
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive"] }

@@ -3,7 +3,9 @@
 pub mod auth;
 pub mod config;
 pub mod db;
+pub mod dialect;
 pub mod error;
+pub mod pool;
 pub mod health;
 pub mod io;
 #[cfg(feature = "libdeflate")]
@@ -19,12 +21,20 @@ pub use auth::{
     PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
 };
 pub use config::{
-    AppConfig, AuthConfig, DatabaseConfig, EncryptionConfig, FerrumConfig, IngestConfig,
-    MultiQCConfig, PricingConfig, PricingTier, SecurityConfig, ServicesConfig, StorageConfig,
-    WesServiceConfig,
+    AfricaProfile, AppConfig, AuthConfig, DatabaseConfig, EncryptionConfig, FerrumConfig,
+    IngestConfig, MultiQCConfig, PricingConfig, PricingTier, SecurityConfig, ServicesConfig,
+    StorageConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
+pub use dialect::{
+    chromosomes_json, empty_json_array, now, sql_alias_lookup, sql_beacon_variant_count_coord,
+    sql_beacon_variant_count_exact, sql_beacon_variant_exists_coord, sql_beacon_variant_exists_exact,
+    sql_beacon_variant_match_ids, sql_ingest_job_failed, sql_ingest_job_succeeded,
+    sql_insert_access_method, sql_insert_drs_object, sql_list_bundle_contents_page, sql_list_objects,
+    sql_update_drs_object,
+};
 pub use error::{FerrumError, Result};
+pub use pool::{postgres_pool_from_config, DbDialect, FerrumPool};
 pub use health::health_router;
 pub use provenance::{
     EdgeType, NodeType, ProvenanceEdge, ProvenanceGraph, ProvenanceNode, ProvenanceStore,

@@ -4,6 +4,15 @@ set -e
 REPO="SynapticFour/Ferrum"
 BIN_NAME="ferrum-gateway"
 INSTALL_DIR="$HOME/.ferrum/bin"
+OFFLINE=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --offline)
+      OFFLINE=1
+      ;;
+  esac
+done
 
 # Detect platform
 OS="$(uname -s)"
@@ -36,50 +45,76 @@ case "$OS" in
     ;;
 esac
 
+if [ "$OFFLINE" = "1" ]; then
+  echo "[ferrum] Offline install mode."
+  if [ -f "./target/release/ferrum-gateway" ]; then
+    mkdir -p "$INSTALL_DIR"
+    cp "./target/release/ferrum-gateway" "$INSTALL_DIR/$BIN_NAME"
+    ln -sf "$INSTALL_DIR/$BIN_NAME" "$INSTALL_DIR/ferrum"
+    echo "Installed local build from ./target/release/ferrum-gateway"
+    echo "Run: FERRUM_OFFLINE=1 ferrum start"
+    exit 0
+  fi
+  if [ -f "./ferrum-offline-bundle.tar.gz" ]; then
+    echo "Import offline bundle with: ./scripts/import_offline_bundle.sh ./ferrum-offline-bundle.tar.gz"
+    exit 0
+  fi
+  echo "Error: offline install requires a pre-built binary at ./target/release/ferrum-gateway"
+  echo "       or an offline bundle (see docs/deployment/OFFLINE-AIRGAP.md)."
+  exit 1
+fi
+
 # Get latest release tag from GitHub API
 echo "Fetching latest Ferrum release..."
-LATEST=$(curl -sSf "https://api.github.com/repos/$REPO/releases/latest" \
+if ! LATEST=$(curl -sSf --connect-timeout 5 "https://api.github.com/repos/$REPO/releases/latest" \
   | grep '"tag_name"' \
-  | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
+  | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/'); then
+  echo "Error: Could not reach GitHub API (offline?)."
+  echo "Use: ./install.sh --offline after building locally or importing an offline bundle."
+  exit 1
+fi
 
 if [ -z "$LATEST" ]; then
   echo "Error: Could not determine latest release."
-  echo "Check https://github.com/$REPO/releases"
+  echo "Check https://github.com/$REPO/releases or use --offline"
   exit 1
 fi
 
 echo "Latest release: $LATEST"
 
-# Download URL
 URL="https://github.com/$REPO/releases/download/$LATEST/$TARGET.tar.gz"
 
 echo "Downloading $TARGET..."
-curl -sSfL "$URL" -o /tmp/ferrum-download.tar.gz
+if ! curl -sSfL --connect-timeout 10 "$URL" -o /tmp/ferrum-download.tar.gz; then
+  echo "Error: download failed. If you are offline, use ./install.sh --offline"
+  exit 1
+fi
 
-# Extract
 mkdir -p "$INSTALL_DIR"
 tar -xzf /tmp/ferrum-download.tar.gz -C "$INSTALL_DIR"
 chmod +x "$INSTALL_DIR/$BIN_NAME"
 ln -sf "$INSTALL_DIR/$BIN_NAME" "$INSTALL_DIR/ferrum"
 
-# Copy demo scripts
 DEMO_INSTALL_DIR="$HOME/.ferrum/demo"
 mkdir -p "$DEMO_INSTALL_DIR"
-curl -sSfL "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/docker-compose.demo.yml" \
-  -o "$DEMO_INSTALL_DIR/docker-compose.demo.yml"
-curl -sSfL "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/start.sh" \
-  -o "$DEMO_INSTALL_DIR/start.sh"
-curl -sSfL "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/stop.sh" \
-  -o "$DEMO_INSTALL_DIR/stop.sh"
-chmod +x "$DEMO_INSTALL_DIR/start.sh" "$DEMO_INSTALL_DIR/stop.sh"
+if curl -sSfL --connect-timeout 5 "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/docker-compose.demo.yml" \
+  -o "$DEMO_INSTALL_DIR/docker-compose.demo.yml" 2>/dev/null; then
+  curl -sSfL --connect-timeout 5 "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/start.sh" \
+    -o "$DEMO_INSTALL_DIR/start.sh" || true
+  curl -sSfL --connect-timeout 5 "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/stop.sh" \
+    -o "$DEMO_INSTALL_DIR/stop.sh" || true
+  chmod +x "$DEMO_INSTALL_DIR/start.sh" "$DEMO_INSTALL_DIR/stop.sh" 2>/dev/null || true
+else
+  echo "[ferrum] Demo scripts not downloaded (offline). Use ferrum demo start --offline for Laptop Mode."
+fi
 
-rm /tmp/ferrum-download.tar.gz
+rm -f /tmp/ferrum-download.tar.gz
 
 echo ""
 echo "Ferrum installed to $INSTALL_DIR/$BIN_NAME"
 echo ""
-echo "Add Ferrum to your PATH by adding this to your ~/.zshrc or ~/.bashrc:"
-echo ""
+echo "Add Ferrum to your PATH:"
 echo '  export PATH="$HOME/.ferrum/bin:$PATH"'
 echo ""
-echo "Then run: ferrum --version"
+echo "Laptop / offline mode: FERRUM_OFFLINE=1 ferrum start"
+echo ""

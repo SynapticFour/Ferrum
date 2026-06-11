@@ -1,4 +1,5 @@
 use ferrum_beacon::router;
+use ferrum_core::FerrumPool;
 use http::{Method, Request, StatusCode};
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -163,7 +164,7 @@ async fn beacon_variants_exists_positive_and_negative() {
     seed_fixtures(&pool).await;
 
     // Build the real router (no mocking).
-    let app = router(pool.clone());
+    let app = router(FerrumPool::Postgres(pool.clone()));
 
     // Positive: referenceName=1, start=1000, referenceBases=A, alternateBases=T
     let positive_params = serde_json::json!({
@@ -216,7 +217,7 @@ async fn beacon_rejects_invalid_inputs() {
 
     seed_fixtures(&pool).await;
 
-    let app = router(pool.clone());
+    let app = router(FerrumPool::Postgres(pool.clone()));
 
     // invalid assemblyId -> 400
     let params = serde_json::json!({
@@ -262,7 +263,7 @@ async fn beacon_variants_count_and_end_defaulting() {
     };
     let pool = PgPool::connect(&database_url).await.expect("connect pool");
     seed_fixtures(&pool).await;
-    let app = router(pool.clone());
+    let app = router(FerrumPool::Postgres(pool.clone()));
 
     let params = serde_json::json!({
         "assemblyId": "GRCh38",
@@ -325,7 +326,7 @@ async fn beacon_sanitizes_and_rejects_record_granularity() {
     };
     let pool = PgPool::connect(&database_url).await.expect("connect pool");
     seed_fixtures(&pool).await;
-    let app = router(pool.clone());
+    let app = router(FerrumPool::Postgres(pool.clone()));
 
     let params = serde_json::json!({
         "assemblyId": "GRCh38",
@@ -357,7 +358,7 @@ async fn beacon_routes_and_shapes() {
     };
     let pool = PgPool::connect(&database_url).await.expect("connect pool");
     seed_fixtures(&pool).await;
-    let app = router(pool.clone());
+    let app = router(FerrumPool::Postgres(pool.clone()));
 
     let params = serde_json::json!({
         "assemblyId": "GRCh38",
@@ -415,7 +416,7 @@ async fn beacon_fixture_bulk_positive_and_negative_queries() {
     };
     let pool = PgPool::connect(&database_url).await.expect("connect pool");
     seed_fixtures(&pool).await;
-    let app = router(pool.clone());
+    let app = router(FerrumPool::Postgres(pool.clone()));
 
     // Best-effort: validate that seeded fixtures cover multiple positive coords
     // and that missing coords report exists=false.
@@ -468,7 +469,7 @@ async fn beacon_integration_matrix_min_20_checks() {
     };
     let pool = PgPool::connect(&database_url).await.expect("connect pool");
     seed_fixtures(&pool).await;
-    let app = router(pool.clone());
+    let app = router(FerrumPool::Postgres(pool.clone()));
 
     // 1) Known variant exists (chr1 + allele match).
     let (status, json) = post_json(
@@ -778,7 +779,7 @@ async fn beacon_or_filter_boolean_and_count_semantics_minimal() {
     };
     let pool = PgPool::connect(&database_url).await.expect("connect pool");
     seed_fixtures(&pool).await;
-    let app = router(pool.clone());
+    let app = router(FerrumPool::Postgres(pool.clone()));
 
     let request_parameters = serde_json::json!({
         "assemblyId": "GRCh38",

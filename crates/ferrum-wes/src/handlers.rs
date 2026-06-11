@@ -93,7 +93,11 @@ pub async fn list_runs(
     let (filter_owner, workspace_id) = if let Some(ref ws_id) = q.workspace_id {
         let sub = owner_sub
             .ok_or_else(|| WesError::Forbidden("workspace_id requires authentication".into()))?;
-        let is_member = ferrum_core::get_workspace_member_role(app.repo.pool(), ws_id, sub)
+        let is_member = ferrum_core::get_workspace_member_role(
+            &ferrum_core::FerrumPool::Postgres(app.repo.pool().clone()),
+            ws_id,
+            sub,
+        )
             .await
             .map_err(|e| WesError::Other(e.into()))?
             .is_some();
@@ -306,7 +310,11 @@ pub async fn post_runs(
             .as_ref()
             .and_then(|c| c.sub())
             .ok_or_else(|| WesError::Forbidden("workspace_id requires authentication".into()))?;
-        let ok = ferrum_core::is_workspace_editor_or_owner(app.repo.pool(), ws_id, sub)
+        let ok = ferrum_core::is_workspace_editor_or_owner(
+            &ferrum_core::FerrumPool::Postgres(app.repo.pool().clone()),
+            ws_id,
+            sub,
+        )
             .await
             .map_err(|e| WesError::Other(e.into()))?;
         if !ok {

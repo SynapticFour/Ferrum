@@ -1,19 +1,22 @@
 use crate::error::Result;
-use sqlx::PgPool;
+use ferrum_core::{
+    chromosomes_json, sql_beacon_variant_count_coord, sql_beacon_variant_count_exact,
+    sql_beacon_variant_exists_coord, sql_beacon_variant_exists_exact, sql_beacon_variant_match_ids,
+    DbDialect, FerrumPool,
+};
 
 pub struct BeaconRepo {
-    pool: PgPool,
+    pool: FerrumPool,
+    dialect: DbDialect,
 }
 
 impl BeaconRepo {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: FerrumPool) -> Self {
+        let dialect = pool.dialect();
+        Self { pool, dialect }
     }
 
     fn chromosome_candidates(chromosome: &str) -> Vec<String> {
-        // HelixTest semantics use raw referenceName like "1" and our internal normalization
-        // may store chromosomes either as "chr1" or "1" depending on seed/import.
-        // Best-effort: try both.
         let mut out = vec![chromosome.to_string()];
         if let Some(tail) = chromosome.strip_prefix("chr") {
             if !tail.is_empty() {
@@ -38,47 +41,57 @@ impl BeaconRepo {
     ) -> Result<bool> {
         let candidates = Self::chromosome_candidates(chromosome);
 
-        // 1) Prefer exact reference/alternate match when provided.
         if let (Some(reference), Some(alternate)) = (reference, alternate) {
-            let row: (bool,) = sqlx::query_as(
-                "SELECT EXISTS(SELECT 1 FROM beacon_variants \
-                 WHERE dataset_id = $1 \
-                 AND chromosome = ANY($2) \
-                 AND start <= $3 \
-                 AND \"end\" >= $4 \
-                 AND reference = $5 \
-                 AND alternate = $6 \
-                 LIMIT 1)",
-            )
-            .bind(dataset_id)
-            .bind(&candidates)
-            .bind(end)
-            .bind(start)
-            .bind(reference)
-            .bind(alternate)
-            .fetch_one(&self.pool)
-            .await?;
+            let row: (bool,) = match &self.pool {
+                FerrumPool::Postgres(p) => {
+                    sqlx::query_as(&sql_beacon_variant_exists_exact(DbDialect::Postgres))
+                        .bind(dataset_id)
+                        .bind(&candidates)
+                        .bind(end)
+                        .bind(start)
+                        .bind(reference)
+                        .bind(alternate)
+                        .fetch_one(p)
+                        .await?
+                }
+                FerrumPool::Sqlite(p) => {
+                    sqlx::query_as(&sql_beacon_variant_exists_exact(DbDialect::Sqlite))
+                        .bind(dataset_id)
+                        .bind(chromosomes_json(&candidates))
+                        .bind(end)
+                        .bind(start)
+                        .bind(reference)
+                        .bind(alternate)
+                        .fetch_one(p)
+                        .await?
+                }
+            };
 
             if row.0 {
                 return Ok(true);
             }
         }
 
-        // 2) Fallback: coordinate-only match (best-effort conformance).
-        let row: (bool,) = sqlx::query_as(
-            "SELECT EXISTS(SELECT 1 FROM beacon_variants \
-             WHERE dataset_id = $1 \
-             AND chromosome = ANY($2) \
-             AND start <= $3 \
-             AND \"end\" >= $4 \
-             LIMIT 1)",
-        )
-        .bind(dataset_id)
-        .bind(&candidates)
-        .bind(end)
-        .bind(start)
-        .fetch_one(&self.pool)
-        .await?;
+        let row: (bool,) = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query_as(&sql_beacon_variant_exists_coord(DbDialect::Postgres))
+                    .bind(dataset_id)
+                    .bind(&candidates)
+                    .bind(end)
+                    .bind(start)
+                    .fetch_one(p)
+                    .await?
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query_as(&sql_beacon_variant_exists_coord(DbDialect::Sqlite))
+                    .bind(dataset_id)
+                    .bind(chromosomes_json(&candidates))
+                    .bind(end)
+                    .bind(start)
+                    .fetch_one(p)
+                    .await?
+            }
+        };
         Ok(row.0)
     }
 
@@ -93,52 +106,60 @@ impl BeaconRepo {
     ) -> Result<i64> {
         let candidates = Self::chromosome_candidates(chromosome);
 
-        // 1) Exact match for allele columns when provided.
         if let (Some(reference), Some(alternate)) = (reference, alternate) {
-            let row: (i64,) = sqlx::query_as(
-                "SELECT COUNT(*)::bigint FROM beacon_variants \
-                 WHERE dataset_id = $1 \
-                 AND chromosome = ANY($2) \
-                 AND start <= $3 \
-                 AND \"end\" >= $4 \
-                 AND reference = $5 \
-                 AND alternate = $6",
-            )
-            .bind(dataset_id)
-            .bind(&candidates)
-            .bind(end)
-            .bind(start)
-            .bind(reference)
-            .bind(alternate)
-            .fetch_one(&self.pool)
-            .await?;
+            let row: (i64,) = match &self.pool {
+                FerrumPool::Postgres(p) => {
+                    sqlx::query_as(&sql_beacon_variant_count_exact(DbDialect::Postgres))
+                        .bind(dataset_id)
+                        .bind(&candidates)
+                        .bind(end)
+                        .bind(start)
+                        .bind(reference)
+                        .bind(alternate)
+                        .fetch_one(p)
+                        .await?
+                }
+                FerrumPool::Sqlite(p) => {
+                    sqlx::query_as(&sql_beacon_variant_count_exact(DbDialect::Sqlite))
+                        .bind(dataset_id)
+                        .bind(chromosomes_json(&candidates))
+                        .bind(end)
+                        .bind(start)
+                        .bind(reference)
+                        .bind(alternate)
+                        .fetch_one(p)
+                        .await?
+                }
+            };
 
             if row.0 > 0 {
                 return Ok(row.0);
             }
         }
 
-        // 2) Fallback coordinate-only count.
-        let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*)::bigint FROM beacon_variants \
-             WHERE dataset_id = $1 \
-             AND chromosome = ANY($2) \
-             AND start <= $3 \
-             AND \"end\" >= $4",
-        )
-        .bind(dataset_id)
-        .bind(&candidates)
-        .bind(end)
-        .bind(start)
-        .fetch_one(&self.pool)
-        .await?;
+        let row: (i64,) = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query_as(&sql_beacon_variant_count_coord(DbDialect::Postgres))
+                    .bind(dataset_id)
+                    .bind(&candidates)
+                    .bind(end)
+                    .bind(start)
+                    .fetch_one(p)
+                    .await?
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query_as(&sql_beacon_variant_count_coord(DbDialect::Sqlite))
+                    .bind(dataset_id)
+                    .bind(chromosomes_json(&candidates))
+                    .bind(end)
+                    .bind(start)
+                    .fetch_one(p)
+                    .await?
+            }
+        };
         Ok(row.0)
     }
 
-    /// Return matching variant row IDs for additional in-Rust filter evaluation.
-    ///
-    /// This enables correct OR semantics (union + dedup) when Beacon `query.filters`
-    /// contains OR groups represented as nested arrays.
     #[allow(clippy::too_many_arguments)]
     pub async fn variant_match_ids(
         &self,
@@ -152,45 +173,71 @@ impl BeaconRepo {
     ) -> Result<Vec<i64>> {
         let candidates = Self::chromosome_candidates(chromosome);
 
-        let rows: Vec<(i64,)> = sqlx::query_as(
-            "SELECT id::bigint FROM beacon_variants
-             WHERE dataset_id = $1
-               AND chromosome = ANY($2)
-               AND start <= $3
-               AND \"end\" >= $4
-               AND ($5::text IS NULL OR reference = $5)
-               AND ($6::text IS NULL OR alternate = $6)
-               AND ($7::text IS NULL OR variant_type = $7)",
-        )
-        .bind(dataset_id)
-        .bind(&candidates)
-        .bind(end)
-        .bind(start)
-        .bind(reference)
-        .bind(alternate)
-        .bind(variant_type)
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<(i64,)> = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query_as(&sql_beacon_variant_match_ids(DbDialect::Postgres))
+                    .bind(dataset_id)
+                    .bind(&candidates)
+                    .bind(end)
+                    .bind(start)
+                    .bind(reference)
+                    .bind(alternate)
+                    .bind(variant_type)
+                    .fetch_all(p)
+                    .await?
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query_as(&sql_beacon_variant_match_ids(DbDialect::Sqlite))
+                    .bind(dataset_id)
+                    .bind(chromosomes_json(&candidates))
+                    .bind(end)
+                    .bind(start)
+                    .bind(reference)
+                    .bind(alternate)
+                    .bind(variant_type)
+                    .fetch_all(p)
+                    .await?
+            }
+        };
 
         Ok(rows.into_iter().map(|(id,)| id).collect())
     }
 
-    /// Resolve dataset id for a given assembly_id.
     pub async fn dataset_id_for_assembly(&self, assembly_id: &str) -> Result<Option<String>> {
-        let row: Option<(String,)> =
-            sqlx::query_as("SELECT id FROM beacon_datasets WHERE assembly_id = $1 LIMIT 1")
-                .bind(assembly_id)
-                .fetch_optional(&self.pool)
-                .await?;
+        let row: Option<(String,)> = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query_as("SELECT id FROM beacon_datasets WHERE assembly_id = $1 LIMIT 1")
+                    .bind(assembly_id)
+                    .fetch_optional(p)
+                    .await?
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query_as("SELECT id FROM beacon_datasets WHERE assembly_id = $1 LIMIT 1")
+                    .bind(assembly_id)
+                    .fetch_optional(p)
+                    .await?
+            }
+        };
         Ok(row.map(|r| r.0))
     }
 
     pub async fn list_datasets(&self) -> Result<Vec<(String, Option<String>, Option<String>)>> {
-        let rows = sqlx::query_as::<_, (String, Option<String>, Option<String>)>(
-            "SELECT id, name, assembly_id FROM beacon_datasets ORDER BY id",
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let rows = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query_as::<_, (String, Option<String>, Option<String>)>(
+                    "SELECT id, name, assembly_id FROM beacon_datasets ORDER BY id",
+                )
+                .fetch_all(p)
+                .await?
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query_as::<_, (String, Option<String>, Option<String>)>(
+                    "SELECT id, name, assembly_id FROM beacon_datasets ORDER BY id",
+                )
+                .fetch_all(p)
+                .await?
+            }
+        };
         Ok(rows)
     }
 }

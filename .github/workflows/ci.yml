@@ -51,6 +51,24 @@ jobs:
           name: mii-conformance-report
           path: mii-conformance-report.json
 
+  test-laptop-mode:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run ferrum-embed laptop mode tests (isolated network)
+        run: |
+          if command -v unshare >/dev/null 2>&1; then
+            unshare --net cargo test -p ferrum-embed
+          else
+            cargo test -p ferrum-embed
+          fi
+      - name: Build laptop mode CLI + gateway
+        run: cargo build -p ferrum-cli -p ferrum-gateway
+      - name: E2E ferrum demo start --offline
+        run: sh deploy/scripts/ci-laptop-demo-e2e.sh
+
   # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
   bench-and-features:
     if: github.actor != 'dependabot[bot]'

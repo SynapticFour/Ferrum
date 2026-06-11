@@ -44,8 +44,8 @@ pub fn router_unconfigured() -> Router {
     })
 }
 
-/// Returns the Beacon v2 router. Requires a PostgreSQL pool. Mount at /ga4gh/beacon/v2 in gateway.
-pub fn router(pool: sqlx::PgPool) -> Router {
+/// Returns the Beacon v2 router. Requires a database pool. Mount at /ga4gh/beacon/v2 in gateway.
+pub fn router(pool: ferrum_core::FerrumPool) -> Router {
     let state = Arc::new(handlers::AppState {
         repo: Arc::new(BeaconRepo::new(pool)),
     });

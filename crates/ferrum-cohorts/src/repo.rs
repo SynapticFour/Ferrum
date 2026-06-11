@@ -97,7 +97,11 @@ impl CohortRepo {
             return Ok(true);
         }
         if let Some(ref ws_id) = workspace_id {
-            if ferrum_core::get_workspace_member_role(&self.pool, ws_id, sub)
+            if ferrum_core::get_workspace_member_role(
+                &ferrum_core::FerrumPool::Postgres(self.pool.clone()),
+                ws_id,
+                sub,
+            )
                 .await
                 .map_err(|e| crate::error::CohortError::Other(e.into()))?
                 .is_some()

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **`ferrum-embed` crate** — Embedded SQLite + local storage backends for offline-first / Laptop Mode deployments (`EmbedMode`, `SqliteStorage`, `PostgresStorage`, `Database` trait).
+- **`[africa]` config profile** — `offline_first`, `max_memory_mb`, `sqlite_path`, `objects_path`; `FERRUM_OFFLINE=1` env shortcut.
+- **Laptop Mode quickstart** — `ferrum demo start --offline` (CLI + gateway); auto-fallback when PostgreSQL is unavailable.
+- **Laptop Mode E2E** — `deploy/scripts/ci-laptop-demo-e2e.sh` (CI job `test-laptop-mode`): health, DRS ingest, metadata, `/stream` round-trip via `ferrum demo start --offline`.
+- **Local HelixTest** — `deploy/scripts/run-helixtest-local.sh` (Docker stack + core or `--full` suite).
+- **Startup hardening** — Auth endpoint probes wrapped in 5s timeout; non-fatal in offline-first mode.
+- **Memory cap** — Optional `africa.max_memory_mb` with Linux VmRSS monitoring.
+- **Docs** — [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); deployment README Laptop Mode section.
+- **CI** — `test-laptop-mode` job (`cargo test -p ferrum-embed` with network namespace isolation where available).
+- **`install.sh --offline`** — Install from local build or offline bundle without GitHub/network calls.
+
 ### Fixed
 
 - **WES → TES** — Cancel uses **`POST …/tasks/{id}/cancel`** (Ferrum TES route), not `…:cancel`.

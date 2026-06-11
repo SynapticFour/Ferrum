@@ -1748,6 +1748,7 @@ version = "0.1.0"
 dependencies = [
  "clap 4.5.60",
  "ferrum-core",
+ "ferrum-embed",
  "ferrum-mii-connect",
  "reqwest",
  "serde_json",
@@ -1873,6 +1874,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferrum-embed"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "ferrum-beacon",
+ "ferrum-core",
+ "ferrum-drs",
+ "ferrum-gateway",
+ "ferrum-storage",
+ "http-body-util",
+ "hyper 1.9.0",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+]
+
+[[package]]
 name = "ferrum-gateway"
 version = "0.1.0"
 dependencies = [
@@ -1884,6 +1908,7 @@ dependencies = [
  "ferrum-core",
  "ferrum-crypt4gh",
  "ferrum-drs",
+ "ferrum-embed",
  "ferrum-htsget",
  "ferrum-passports",
  "ferrum-storage",

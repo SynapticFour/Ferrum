@@ -1,23 +1,41 @@
-//! Database repository for DRS objects (PostgreSQL).
+//! Database repository for DRS objects (PostgreSQL and SQLite).
 
 use crate::error::{DrsError, Result};
 use crate::types::{
     AccessUrl, ContentsObject, CreateObjectRequest, DrsObject, UpdateObjectRequest,
 };
 use base64::Engine;
-use ferrum_core::{AccessMethod, AccessType, Checksum};
-use sqlx::PgPool;
+use ferrum_core::{
+    sql_alias_lookup, sql_ingest_job_failed, sql_ingest_job_succeeded, sql_insert_access_method,
+    sql_insert_drs_object, sql_list_bundle_contents_page, sql_list_objects, sql_update_drs_object,
+    AccessMethod, AccessType, Checksum, DbDialect, FerrumPool,
+};
+
+macro_rules! pool_query {
+    ($self:expr, |$p:ident| $body:expr) => {
+        match &$self.pool {
+            FerrumPool::Postgres($p) => $body,
+            FerrumPool::Sqlite($p) => $body,
+        }
+    };
+}
 
 pub struct DrsRepo {
-    pool: PgPool,
+    pool: FerrumPool,
+    dialect: DbDialect,
     hostname: String,
 }
 
 impl DrsRepo {
     const CHECKSUM_STATUS_META_KEY: &'static str = "checksum_status";
 
-    pub fn new(pool: PgPool, hostname: String) -> Self {
-        Self { pool, hostname }
+    pub fn new(pool: FerrumPool, hostname: String) -> Self {
+        let dialect = pool.dialect();
+        Self {
+            pool,
+            dialect,
+            hostname,
+        }
     }
 
     /// Hostname for DRS URIs (drs://hostname/object_id).
@@ -25,8 +43,12 @@ impl DrsRepo {
         &self.hostname
     }
 
-    pub fn pool(&self) -> &PgPool {
+    pub fn pool(&self) -> &FerrumPool {
         &self.pool
+    }
+
+    pub fn postgres_pool(&self) -> Option<&sqlx::PgPool> {
+        self.pool.as_postgres()
     }
 
     fn self_uri(&self, id: &str) -> String {
@@ -54,41 +76,46 @@ impl DrsRepo {
 
     /// Resolve alias or ID to canonical object ID.
     pub async fn resolve_id(&self, id_or_alias: &str) -> Result<Option<String>> {
-        let row: Option<(String,)> = sqlx::query_as("SELECT id FROM drs_objects WHERE id = $1")
-            .bind(id_or_alias)
-            .fetch_optional(&self.pool)
-            .await?;
+        let row: Option<(String,)> = pool_query!(self, |p| {
+            sqlx::query_as("SELECT id FROM drs_objects WHERE id = $1")
+                .bind(id_or_alias)
+                .fetch_optional(p)
+                .await
+        })?;
         if let Some((id,)) = row {
             return Ok(Some(id));
         }
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT id FROM drs_objects WHERE aliases @> jsonb_build_array($1::text) LIMIT 1",
-        )
-        .bind(id_or_alias)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<(String,)> = pool_query!(self, |p| {
+            sqlx::query_as(sql_alias_lookup(self.dialect))
+                .bind(id_or_alias)
+                .fetch_optional(p)
+                .await
+        })?;
         Ok(row.map(|r| r.0))
     }
 
     /// Dataset ID for access control (ControlledAccessGrants visa). None = no restriction.
     pub async fn get_dataset_id(&self, object_id: &str) -> Result<Option<String>> {
-        let row: Option<(Option<String>,)> =
+        let row: Option<(Option<String>,)> = pool_query!(self, |p| {
             sqlx::query_as("SELECT dataset_id FROM drs_objects WHERE id = $1")
                 .bind(object_id)
-                .fetch_optional(&self.pool)
-                .await?;
+                .fetch_optional(p)
+                .await
+        })?;
         Ok(row.and_then(|r| r.0))
     }
 
     /// Get object by canonical ID, optionally expand bundle contents.
     pub async fn get_object(&self, id: &str, expand: bool) -> Result<Option<DrsObject>> {
-        let row: Option<DrsObjectRow> = sqlx::query_as(
-            r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id
-               FROM drs_objects WHERE id = $1"#,
-        )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<DrsObjectRow> = pool_query!(self, |p| {
+            sqlx::query_as(
+                r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id
+                   FROM drs_objects WHERE id = $1"#,
+            )
+            .bind(id)
+            .fetch_optional(p)
+            .await
+        })?;
 
         let row = match row {
             Some(r) => r,
@@ -129,11 +156,12 @@ impl DrsRepo {
     }
 
     async fn get_checksums(&self, object_id: &str) -> Result<Vec<Checksum>> {
-        let rows: Vec<(String, String)> =
+        let rows: Vec<(String, String)> = pool_query!(self, |p| {
             sqlx::query_as("SELECT type, checksum FROM drs_checksums WHERE object_id = $1")
                 .bind(object_id)
-                .fetch_all(&self.pool)
-                .await?;
+                .fetch_all(p)
+                .await
+        })?;
         Ok(rows
             .into_iter()
             .map(|(r#type, checksum)| Checksum { r#type, checksum })
@@ -141,12 +169,14 @@ impl DrsRepo {
     }
 
     async fn get_access_methods(&self, object_id: &str) -> Result<Vec<AccessMethod>> {
-        let rows: Vec<AccessMethodRow> = sqlx::query_as(
-            r#"SELECT type, access_id, access_url, region, headers FROM drs_access_methods WHERE object_id = $1"#,
-        )
-        .bind(object_id)
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<AccessMethodRow> = pool_query!(self, |p| {
+            sqlx::query_as(
+                r#"SELECT type, access_id, access_url, region, headers FROM drs_access_methods WHERE object_id = $1"#,
+            )
+            .bind(object_id)
+            .fetch_all(p)
+            .await
+        })?;
         let mut out = Vec::new();
         for r in rows {
             let access_type = match r.r#type.as_str() {
@@ -180,13 +210,16 @@ impl DrsRepo {
         object_id: &str,
         access_id: &str,
     ) -> Result<Option<AccessUrl>> {
-        let row: Option<(Option<serde_json::Value>, Option<serde_json::Value>)> = sqlx::query_as(
-            "SELECT access_url, headers FROM drs_access_methods WHERE object_id = $1 AND access_id = $2",
-        )
-        .bind(object_id)
-        .bind(access_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<(Option<serde_json::Value>, Option<serde_json::Value>)> =
+            pool_query!(self, |p| {
+                sqlx::query_as(
+                    "SELECT access_url, headers FROM drs_access_methods WHERE object_id = $1 AND access_id = $2",
+                )
+                .bind(object_id)
+                .bind(access_id)
+                .fetch_optional(p)
+                .await
+            })?;
         let (access_url, headers) = match row {
             Some(r) => r,
             None => return Ok(None),
@@ -223,48 +256,46 @@ impl DrsRepo {
             .aliases
             .as_ref()
             .map(|a| serde_json::to_value(a).unwrap_or(serde_json::Value::Array(vec![])));
-        sqlx::query(
-            r#"INSERT INTO drs_objects (id, name, description, version, mime_type, size, is_bundle, aliases, workspace_id)
-               VALUES ($1, $2, $3, NULL, $4, $5, FALSE, COALESCE($6, '[]'::jsonb), $7)"#,
-        )
-        .bind(&id)
-        .bind(&req.name)
-        .bind(&req.description)
-        .bind(&req.mime_type)
-        .bind(req.size)
-        .bind(aliases)
-        .bind(req.workspace_id.as_deref())
-        .execute(&self.pool)
-        .await?;
-        for c in &req.checksums {
+        pool_query!(self, |p| {
+            sqlx::query(&sql_insert_drs_object(self.dialect))
+                .bind(&id)
+                .bind(&req.name)
+                .bind(&req.description)
+                .bind(&req.mime_type)
+                .bind(req.size)
+                .bind(aliases)
+                .bind(req.workspace_id.as_deref())
+                .execute(p)
+                .await?;
+            for c in &req.checksums {
+                sqlx::query(
+                    "INSERT INTO drs_checksums (object_id, type, checksum) VALUES ($1, $2, $3)",
+                )
+                .bind(&id)
+                .bind(&c.r#type)
+                .bind(&c.checksum)
+                .execute(p)
+                .await?;
+            }
             sqlx::query(
-                "INSERT INTO drs_checksums (object_id, type, checksum) VALUES ($1, $2, $3)",
+                "INSERT INTO storage_references (object_id, storage_backend, storage_key, is_encrypted) VALUES ($1, $2, $3, $4)",
             )
             .bind(&id)
-            .bind(&c.r#type)
-            .bind(&c.checksum)
-            .execute(&self.pool)
+            .bind(&req.storage_backend)
+            .bind(&req.storage_key)
+            .bind(req.is_encrypted.unwrap_or(false))
+            .execute(p)
             .await?;
-        }
-        sqlx::query(
-            "INSERT INTO storage_references (object_id, storage_backend, storage_key, is_encrypted) VALUES ($1, $2, $3, $4)",
-        )
-        .bind(&id)
-        .bind(&req.storage_backend)
-        .bind(&req.storage_key)
-        .bind(req.is_encrypted.unwrap_or(false))
-        .execute(&self.pool)
-        .await?;
-        let access_id = format!("access-{}", id);
-        let access_url_json = serde_json::json!({"url": format!("https://{}/ga4gh/drs/v1/objects/{}/access/{}", self.hostname, id, access_id)});
-        sqlx::query(
-            "INSERT INTO drs_access_methods (object_id, type, access_id, access_url, headers) VALUES ($1, 'https', $2, $3, '[]'::jsonb)",
-        )
-        .bind(&id)
-        .bind(&access_id)
-        .bind(access_url_json)
-        .execute(&self.pool)
-        .await?;
+            let access_id = format!("access-{}", id);
+            let access_url_json = serde_json::json!({"url": format!("https://{}/ga4gh/drs/v1/objects/{}/access/{}", self.hostname, id, access_id)});
+            sqlx::query(&sql_insert_access_method(self.dialect))
+                .bind(&id)
+                .bind(&access_id)
+                .bind(access_url_json)
+                .execute(p)
+                .await?;
+            Ok::<(), DrsError>(())
+        })?;
         Ok(id)
     }
 
@@ -274,44 +305,50 @@ impl DrsRepo {
             .aliases
             .as_ref()
             .map(|a| serde_json::to_value(a).unwrap_or(serde_json::Value::Array(vec![])));
-        let r = sqlx::query(
-            r#"UPDATE drs_objects SET updated_time = NOW(), name = COALESCE($2, name), description = COALESCE($3, description),
-               mime_type = COALESCE($4, mime_type), size = COALESCE($5, size), aliases = COALESCE($6, aliases) WHERE id = $1"#,
-        )
-        .bind(id)
-        .bind(&req.name)
-        .bind(&req.description)
-        .bind(&req.mime_type)
-        .bind(req.size)
-        .bind(aliases_json)
-        .execute(&self.pool)
-        .await?;
+        let affected = pool_query!(self, |p| {
+            sqlx::query(&sql_update_drs_object(self.dialect))
+                .bind(id)
+                .bind(&req.name)
+                .bind(&req.description)
+                .bind(&req.mime_type)
+                .bind(req.size)
+                .bind(aliases_json)
+                .execute(p)
+                .await
+                .map(|r| r.rows_affected())
+        })?;
         if let Some(checksums) = &req.checksums {
-            sqlx::query("DELETE FROM drs_checksums WHERE object_id = $1")
-                .bind(id)
-                .execute(&self.pool)
-                .await?;
-            for c in checksums {
-                sqlx::query(
-                    "INSERT INTO drs_checksums (object_id, type, checksum) VALUES ($1, $2, $3)",
-                )
-                .bind(id)
-                .bind(&c.r#type)
-                .bind(&c.checksum)
-                .execute(&self.pool)
-                .await?;
-            }
+            pool_query!(self, |p| {
+                sqlx::query("DELETE FROM drs_checksums WHERE object_id = $1")
+                    .bind(id)
+                    .execute(p)
+                    .await?;
+                for c in checksums {
+                    sqlx::query(
+                        "INSERT INTO drs_checksums (object_id, type, checksum) VALUES ($1, $2, $3)",
+                    )
+                    .bind(id)
+                    .bind(&c.r#type)
+                    .bind(&c.checksum)
+                    .execute(p)
+                    .await?;
+                }
+                Ok::<(), DrsError>(())
+            })?;
         }
-        Ok(r.rows_affected() > 0)
+        Ok(affected > 0)
     }
 
     /// Delete object (admin).
     pub async fn delete_object(&self, id: &str) -> Result<bool> {
-        let r = sqlx::query("DELETE FROM drs_objects WHERE id = $1")
-            .bind(id)
-            .execute(&self.pool)
-            .await?;
-        Ok(r.rows_affected() > 0)
+        let affected = pool_query!(self, |p| {
+            sqlx::query("DELETE FROM drs_objects WHERE id = $1")
+                .bind(id)
+                .execute(p)
+                .await
+                .map(|r| r.rows_affected())
+        })?;
+        Ok(affected > 0)
     }
 
     /// List objects with pagination and filters.
@@ -325,23 +362,17 @@ impl DrsRepo {
         workspace_id: Option<&str>,
     ) -> Result<Vec<DrsObject>> {
         let limit = limit.min(1000);
-        let rows: Vec<DrsObjectRow> = sqlx::query_as(
-            r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id
-               FROM drs_objects
-               WHERE ($1::text IS NULL OR mime_type = $1)
-                 AND ($2::bigint IS NULL OR size >= $2)
-                 AND ($3::bigint IS NULL OR size <= $3)
-                 AND ($6::text IS NULL OR workspace_id = $6)
-               ORDER BY created_time DESC LIMIT $4 OFFSET $5"#,
-        )
-        .bind(mime_type)
-        .bind(min_size)
-        .bind(max_size)
-        .bind(limit as i64)
-        .bind(offset as i64)
-        .bind(workspace_id)
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<DrsObjectRow> = pool_query!(self, |p| {
+            sqlx::query_as(&sql_list_objects(self.dialect))
+                .bind(mime_type)
+                .bind(min_size)
+                .bind(max_size)
+                .bind(limit as i64)
+                .bind(offset as i64)
+                .bind(workspace_id)
+                .fetch_all(p)
+                .await
+        })?;
         let mut out = Vec::new();
         for row in rows {
             if let Some(obj) = self.get_object(&row.id, false).await? {
@@ -353,12 +384,14 @@ impl DrsRepo {
 
     /// Storage ref for object (backend, key, is_encrypted).
     pub async fn get_storage_ref(&self, object_id: &str) -> Result<Option<(String, String, bool)>> {
-        let row: Option<(String, String, bool)> = sqlx::query_as(
-            "SELECT storage_backend, storage_key, is_encrypted FROM storage_references WHERE object_id = $1",
-        )
-        .bind(object_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<(String, String, bool)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT storage_backend, storage_key, is_encrypted FROM storage_references WHERE object_id = $1",
+            )
+            .bind(object_id)
+            .fetch_optional(p)
+            .await
+        })?;
         Ok(row)
     }
 
@@ -371,16 +404,19 @@ impl DrsRepo {
         status: u16,
         client_ip: Option<&str>,
     ) -> Result<()> {
-        sqlx::query(
-            "INSERT INTO drs_access_log (object_id, access_id, method, status, client_ip) VALUES ($1, $2, $3, $4, $5)",
-        )
-        .bind(object_id)
-        .bind(access_id)
-        .bind(method)
-        .bind(status as i32)
-        .bind(client_ip)
-        .execute(&self.pool)
-        .await?;
+        pool_query!(self, |p| {
+            sqlx::query(
+                "INSERT INTO drs_access_log (object_id, access_id, method, status, client_ip) VALUES ($1, $2, $3, $4, $5)",
+            )
+            .bind(object_id)
+            .bind(access_id)
+            .bind(method)
+            .bind(status as i32)
+            .bind(client_ip)
+            .execute(p)
+            .await
+            .map(|_| ())
+        })?;
         Ok(())
     }
 
@@ -391,24 +427,28 @@ impl DrsRepo {
         &self,
         client_request_id: &str,
     ) -> Result<Option<DrsIngestJobRow>> {
-        let row: Option<DrsIngestJobRow> = sqlx::query_as(
-            r#"SELECT id, client_request_id, job_type, status, created_at, updated_at, result_json, error_json
-               FROM drs_ingest_jobs WHERE client_request_id = $1"#,
-        )
-        .bind(client_request_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<DrsIngestJobRow> = pool_query!(self, |p| {
+            sqlx::query_as(
+                r#"SELECT id, client_request_id, job_type, status, created_at, updated_at, result_json, error_json
+                   FROM drs_ingest_jobs WHERE client_request_id = $1"#,
+            )
+            .bind(client_request_id)
+            .fetch_optional(p)
+            .await
+        })?;
         Ok(row)
     }
 
     pub async fn ingest_job_get(&self, id: &str) -> Result<Option<DrsIngestJobRow>> {
-        let row: Option<DrsIngestJobRow> = sqlx::query_as(
-            r#"SELECT id, client_request_id, job_type, status, created_at, updated_at, result_json, error_json
-               FROM drs_ingest_jobs WHERE id = $1"#,
-        )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<DrsIngestJobRow> = pool_query!(self, |p| {
+            sqlx::query_as(
+                r#"SELECT id, client_request_id, job_type, status, created_at, updated_at, result_json, error_json
+                   FROM drs_ingest_jobs WHERE id = $1"#,
+            )
+            .bind(id)
+            .fetch_optional(p)
+            .await
+        })?;
         Ok(row)
     }
 
@@ -419,16 +459,19 @@ impl DrsRepo {
         job_type: &str,
         status: &str,
     ) -> Result<()> {
-        sqlx::query(
-            r#"INSERT INTO drs_ingest_jobs (id, client_request_id, job_type, status)
-               VALUES ($1, $2, $3, $4)"#,
-        )
-        .bind(id)
-        .bind(client_request_id)
-        .bind(job_type)
-        .bind(status)
-        .execute(&self.pool)
-        .await?;
+        pool_query!(self, |p| {
+            sqlx::query(
+                r#"INSERT INTO drs_ingest_jobs (id, client_request_id, job_type, status)
+                   VALUES ($1, $2, $3, $4)"#,
+            )
+            .bind(id)
+            .bind(client_request_id)
+            .bind(job_type)
+            .bind(status)
+            .execute(p)
+            .await
+            .map(|_| ())
+        })?;
         Ok(())
     }
 
@@ -437,14 +480,14 @@ impl DrsRepo {
         id: &str,
         result: &serde_json::Value,
     ) -> Result<()> {
-        sqlx::query(
-            r#"UPDATE drs_ingest_jobs SET status = 'succeeded', result_json = $2, error_json = NULL, updated_at = NOW()
-               WHERE id = $1"#,
-        )
-        .bind(id)
-        .bind(result)
-        .execute(&self.pool)
-        .await?;
+        pool_query!(self, |p| {
+            sqlx::query(&sql_ingest_job_succeeded(self.dialect))
+                .bind(id)
+                .bind(result)
+                .execute(p)
+                .await
+                .map(|_| ())
+        })?;
         Ok(())
     }
 
@@ -453,13 +496,14 @@ impl DrsRepo {
         id: &str,
         error: &serde_json::Value,
     ) -> Result<()> {
-        sqlx::query(
-            r#"UPDATE drs_ingest_jobs SET status = 'failed', error_json = $2, updated_at = NOW() WHERE id = $1"#,
-        )
-        .bind(id)
-        .bind(error)
-        .execute(&self.pool)
-        .await?;
+        pool_query!(self, |p| {
+            sqlx::query(&sql_ingest_job_failed(self.dialect))
+                .bind(id)
+                .bind(error)
+                .execute(p)
+                .await
+                .map(|_| ())
+        })?;
         Ok(())
     }
 }
@@ -518,15 +562,17 @@ impl DrsRepo {
         let mut by_bundle: std::collections::HashMap<String, Vec<Item>> =
             std::collections::HashMap::new();
         while let Some((bid, depth)) = to_expand.pop() {
-            let rows: Vec<(String, String, Option<String>, bool)> = sqlx::query_as(
-                r#"SELECT c.object_id, c.name, c.drs_uri, o.is_bundle
-                   FROM drs_bundle_contents c
-                   JOIN drs_objects o ON o.id = c.object_id
-                   WHERE c.bundle_id = $1"#,
-            )
-            .bind(&bid)
-            .fetch_all(&self.pool)
-            .await?;
+            let rows: Vec<(String, String, Option<String>, bool)> = pool_query!(self, |p| {
+                sqlx::query_as(
+                    r#"SELECT c.object_id, c.name, c.drs_uri, o.is_bundle
+                       FROM drs_bundle_contents c
+                       JOIN drs_objects o ON o.id = c.object_id
+                       WHERE c.bundle_id = $1"#,
+                )
+                .bind(&bid)
+                .fetch_all(p)
+                .await
+            })?;
             let items: Vec<Item> = rows
                 .into_iter()
                 .map(|(object_id, name, drs_uri, is_bundle)| Item {
@@ -631,28 +677,19 @@ impl DrsRepo {
             None
         };
 
-        // Fetch page_size + 1 to decide whether a next token exists.
         let limit = (page_size as i64) + 1;
 
-        let mut rows: Vec<(String, String, Option<String>)> = sqlx::query_as(
-            r#"
-            SELECT c.object_id, c.name, c.drs_uri
-            FROM drs_bundle_contents c
-            WHERE c.bundle_id = $1
-              AND ($2::text IS NULL OR c.object_id > $2::text)
-            ORDER BY c.object_id
-            LIMIT $3
-            "#,
-        )
-        .bind(bundle_id)
-        .bind(last_seen.as_deref())
-        .bind(limit)
-        .fetch_all(&self.pool)
-        .await?;
+        let mut rows: Vec<(String, String, Option<String>)> = pool_query!(self, |p| {
+            sqlx::query_as(&sql_list_bundle_contents_page(self.dialect))
+                .bind(bundle_id)
+                .bind(last_seen.as_deref())
+                .bind(limit)
+                .fetch_all(p)
+                .await
+        })?;
 
         let next_page_token = if rows.len() as u32 > page_size {
             let last_in_page = rows[page_size as usize - 1].clone();
-            // Drop the extra element; `contents` should contain exactly `page_size` rows.
             let _extra = rows.pop();
             let cursor = Cursor {
                 bundle_id: bundle_id.to_string(),
@@ -684,11 +721,12 @@ impl DrsRepo {
 
     /// Get metadata key-value pairs for an object.
     pub async fn get_metadata(&self, object_id: &str) -> Result<Vec<(String, String)>> {
-        let rows: Vec<(String, Option<String>)> =
+        let rows: Vec<(String, Option<String>)> = pool_query!(self, |p| {
             sqlx::query_as("SELECT key, value FROM drs_object_metadata WHERE object_id = $1")
                 .bind(object_id)
-                .fetch_all(&self.pool)
-                .await?;
+                .fetch_all(p)
+                .await
+        })?;
         Ok(rows
             .into_iter()
             .filter_map(|(k, v)| v.map(|v| (k, v)))
@@ -697,32 +735,32 @@ impl DrsRepo {
 
     /// Set a single metadata key-value for an object (upsert).
     pub async fn set_metadata(&self, object_id: &str, key: &str, value: &str) -> Result<()> {
-        sqlx::query(
-            "INSERT INTO drs_object_metadata (object_id, key, value) VALUES ($1, $2, $3)
-             ON CONFLICT (object_id, key) DO UPDATE SET value = $3",
-        )
-        .bind(object_id)
-        .bind(key)
-        .bind(value)
-        .execute(&self.pool)
-        .await?;
+        pool_query!(self, |p| {
+            sqlx::query(
+                "INSERT INTO drs_object_metadata (object_id, key, value) VALUES ($1, $2, $3)
+                 ON CONFLICT (object_id, key) DO UPDATE SET value = $3",
+            )
+            .bind(object_id)
+            .bind(key)
+            .bind(value)
+            .execute(p)
+            .await
+            .map(|_| ())
+        })?;
         Ok(())
     }
 
     /// Returns checksum compute status stored in `drs_object_metadata`.
-    ///
-    /// Values follow Ferrum's async checksum model:
-    /// - `pending`
-    /// - `computed`
-    /// - `failed:<reason>` (best-effort)
     pub async fn get_checksum_status(&self, object_id: &str) -> Result<Option<String>> {
-        let row: Option<(String,)> = sqlx::query_as(
-            "SELECT value FROM drs_object_metadata WHERE object_id = $1 AND key = $2",
-        )
-        .bind(object_id)
-        .bind(Self::CHECKSUM_STATUS_META_KEY)
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<(String,)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT value FROM drs_object_metadata WHERE object_id = $1 AND key = $2",
+            )
+            .bind(object_id)
+            .bind(Self::CHECKSUM_STATUS_META_KEY)
+            .fetch_optional(p)
+            .await
+        })?;
         Ok(row.map(|r| r.0))
     }
 
@@ -739,17 +777,20 @@ impl DrsRepo {
         checksums: &[(&str, &str)],
     ) -> Result<()> {
         for (typ, checksum) in checksums {
-            sqlx::query(
-                "INSERT INTO drs_checksums (object_id, type, checksum)
-                 VALUES ($1, $2, $3)
-                 ON CONFLICT (object_id, type)
-                 DO UPDATE SET checksum = EXCLUDED.checksum",
-            )
-            .bind(object_id)
-            .bind(typ)
-            .bind(checksum)
-            .execute(&self.pool)
-            .await?;
+            pool_query!(self, |p| {
+                sqlx::query(
+                    "INSERT INTO drs_checksums (object_id, type, checksum)
+                     VALUES ($1, $2, $3)
+                     ON CONFLICT (object_id, type)
+                     DO UPDATE SET checksum = EXCLUDED.checksum",
+                )
+                .bind(object_id)
+                .bind(typ)
+                .bind(checksum)
+                .execute(p)
+                .await
+                .map(|_| ())
+            })?;
         }
         Ok(())
     }

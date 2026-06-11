@@ -56,7 +56,11 @@ pub async fn list_cohorts(
         let sub = caller_sub
             .ok_or_else(|| CohortError::Forbidden("workspace_id requires authentication".into()))?;
         let ws_id = q.workspace_id.as_deref().unwrap();
-        let _role = ferrum_core::get_workspace_member_role(state.repo.pool(), ws_id, sub)
+        let _role = ferrum_core::get_workspace_member_role(
+            &ferrum_core::FerrumPool::Postgres(state.repo.pool().clone()),
+            ws_id,
+            sub,
+        )
             .await
             .map_err(|e| CohortError::Other(e.into()))?
             .ok_or_else(|| CohortError::Forbidden("not a member of this workspace".into()))?;
@@ -133,7 +137,11 @@ pub async fn create_cohort(
             .as_ref()
             .and_then(|c| c.sub())
             .ok_or_else(|| CohortError::Forbidden("workspace_id requires authentication".into()))?;
-        let ok = ferrum_core::is_workspace_editor_or_owner(state.repo.pool(), ws_id, sub)
+        let ok = ferrum_core::is_workspace_editor_or_owner(
+            &ferrum_core::FerrumPool::Postgres(state.repo.pool().clone()),
+            ws_id,
+            sub,
+        )
             .await
             .map_err(|e| CohortError::Other(e.into()))?;
         if !ok {

@@ -2,7 +2,7 @@
 //! A01: Auth middleware on every request. A05: Security headers, CORS from config.
 
 mod admin;
-mod shutdown;
+pub mod shutdown;
 
 use axum::http::header;
 use axum::response::IntoResponse;
@@ -39,7 +39,7 @@ pub type TesRouterParams = (sqlx::PgPool, Option<String>, Option<std::path::Path
 pub type TrsRouterParams = sqlx::PgPool;
 
 /// Beacon router params: pool. When None, Beacon routes return 503.
-pub type BeaconRouterParams = Option<sqlx::PgPool>;
+pub type BeaconRouterParams = Option<ferrum_core::FerrumPool>;
 
 /// Passports router params: pool. When None, Passports routes return 503.
 pub type PassportRouterParams = Option<sqlx::PgPool>;

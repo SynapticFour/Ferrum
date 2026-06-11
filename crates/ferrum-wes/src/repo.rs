@@ -129,7 +129,12 @@ impl WesRepo {
                 return Ok(true);
             }
             if let Some(ref ws_id) = workspace_id {
-                let role = ferrum_core::get_workspace_member_role(&self.pool, ws_id, sub).await?;
+                let role = ferrum_core::get_workspace_member_role(
+                    &ferrum_core::FerrumPool::Postgres(self.pool.clone()),
+                    ws_id,
+                    sub,
+                )
+                .await?;
                 if role.is_some() {
                     return Ok(true);
                 }

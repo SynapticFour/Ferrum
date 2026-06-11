@@ -34,10 +34,25 @@ enum Commands {
         #[arg(long)]
         path: Option<std::path::PathBuf>,
     },
+    /// Demo / laptop mode helpers
+    Demo {
+        #[command(subcommand)]
+        action: DemoAction,
+    },
     /// MII-KDS conformance commands
     Mii {
         #[command(subcommand)]
         action: MiiAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum DemoAction {
+    /// Start Ferrum (Docker demo or Laptop Mode fallback)
+    Start {
+        /// Force embedded SQLite + local storage
+        #[arg(long)]
+        offline: bool,
     },
 }
 
@@ -151,6 +166,11 @@ async fn run_cli() -> Result<(), CliExit> {
                 None => println!("No config found"),
             }
         }
+        Commands::Demo { action } => match action {
+            DemoAction::Start { offline } => {
+                demo_start(offline).await.map_err(|e| CliExit::RuntimeFailed(e))?;
+            }
+        },
         Commands::Mii { action } => match action {
             MiiAction::SyncManifest {
                 spec,
@@ -352,6 +372,48 @@ fn to_sarif(report: &ConformanceReport) -> serde_json::Value {
 
 fn should_fail_validation(has_errors: bool, has_gaps: bool, strict_mode: bool) -> bool {
     has_errors || (strict_mode && has_gaps)
+}
+
+async fn demo_start(offline: bool) -> Result<(), String> {
+    if offline {
+        std::env::set_var("FERRUM_OFFLINE", "1");
+        println!("[ferrum] Starting in Laptop Mode (SQLite + local storage).");
+        if let Some(home) = ferrum_embed::default_ferrum_home() {
+            println!("[ferrum] Data will be stored at {}/", home.display());
+        }
+        println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
+    } else if !postgres_reachable() {
+        println!("[ferrum] PostgreSQL not detected. Starting in Laptop Mode (SQLite + local storage).");
+        if let Some(home) = ferrum_embed::default_ferrum_home() {
+            println!("[ferrum] Data will be stored at {}/", home.display());
+        }
+        println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
+        std::env::set_var("FERRUM_OFFLINE", "1");
+    } else {
+        return Err(
+            "Docker demo not implemented in ferrum-cli; use ferrum-gateway demo start or --offline"
+                .to_string(),
+        );
+    }
+
+    let gateway = std::env::var("FERRUM_GATEWAY_BIN")
+        .unwrap_or_else(|_| "ferrum-gateway".to_string());
+    let status = tokio::process::Command::new(gateway)
+        .status()
+        .await
+        .map_err(|e| format!("failed to spawn gateway: {e}"))?;
+    if !status.success() {
+        return Err(format!("gateway exited with {status}"));
+    }
+    Ok(())
+}
+
+fn postgres_reachable() -> bool {
+    std::net::TcpStream::connect_timeout(
+        &"127.0.0.1:5432".parse().unwrap(),
+        std::time::Duration::from_secs(2),
+    )
+    .is_ok()
 }
 
 #[cfg(test)]
