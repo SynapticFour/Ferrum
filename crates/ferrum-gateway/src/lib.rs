@@ -267,12 +267,21 @@ pub fn app(
                     .map(ferrum_federation::FederationClient::new)
                     .map(Arc::new)
             });
+        let reference_registry = drs_state
+            .as_ref()
+            .map(|ds| Arc::new(ferrum_reference::ReferenceRegistry::new(ds.repo.pool().clone())))
+            .or_else(|| {
+                beacon_params
+                    .clone()
+                    .map(|pool| Arc::new(ferrum_reference::ReferenceRegistry::new(pool)))
+            });
         let beacon_router = match beacon_params {
             Some(pool) => ferrum_beacon::router_with_services(
                 pool,
                 outbreak_service.clone(),
                 federation,
                 residency_audit.clone(),
+                reference_registry.clone(),
             ),
             None => ferrum_beacon::router_unconfigured(),
         };
@@ -285,6 +294,12 @@ pub fn app(
         }
         if let Some(audit) = residency_audit {
             app = app.nest("/api/v1/audit", audit::audit_router(audit));
+        }
+        if let Some(registry) = reference_registry {
+            app = app.nest(
+                "/api/v1/references",
+                ferrum_reference::reference_api_v1_router(registry),
+            );
         }
     }
     #[cfg(feature = "full")]

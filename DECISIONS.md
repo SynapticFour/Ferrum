@@ -12,6 +12,16 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-11 - ADR-016: Pluggable reference genome registry
+
+- **Status:** Accepted
+- **Context:** African deployments need H3Africa/AWI-GEN and pathogen references as first-class options; hard-coding GRCh38 in WES/Beacon couples Ferrum to a single global reference and hides population-specific accuracy trade-offs.
+- **Decision:** `reference_genomes` table with seeded metadata (no auto-download); HTTP registry at `/api/v1/references`; WES `REFERENCE_MISMATCH` warnings for African-origin inputs with global references; Beacon `meta.referenceGenome` for pathogen queries.
+- **Consequences:** Operators must ingest and associate FASTA files explicitly. Registry entries are portable across SQLite and PostgreSQL. HelixTest Africa mode validates registry and related paths without changing standard Ferrum conformance.
+- **Alternatives considered:** Bundled reference FASTA (rejected: gigabyte repo size); silent auto-selection of African reference (rejected: operator must choose explicitly).
+
+---
+
 ### 2026-06-11 - ADR-015: Append-only chained residency audit log
 
 - **Status:** Accepted

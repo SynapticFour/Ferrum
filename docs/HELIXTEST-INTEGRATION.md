@@ -59,6 +59,32 @@ For a **customer-facing summary**, the [root README](../README.md#conformance-he
 
 ---
 
+## Africa Mode (`--mode ferrum-africa`)
+
+Africa-specific conformance is **opt-in** and does not change `--mode ferrum --all` behaviour.
+
+```bash
+helixtest --all --mode ferrum-africa --africa-profile offline
+helixtest --all --mode ferrum-africa --africa-profile ont
+helixtest --all --mode ferrum-africa --africa-profile outbreak
+helixtest --all --mode ferrum-africa --africa-profile federation   # needs FERRUM_AFRICA_PEER_URL
+helixtest --all --mode ferrum-africa --africa-profile all
+```
+
+| Profile | What it exercises |
+|---------|-------------------|
+| **offline** | Gateway health, DRS/Beacon service-info, reference registry seeds |
+| **ont** | `POST /api/v1/ingest/ont`, `ont_metrics`, pathogen Beacon query |
+| **outbreak** | Outbreak activate/deactivate, residency audit chain verify |
+| **federation** | `federate=true` Beacon query (peer URL via `FERRUM_AFRICA_PEER_URL`) |
+| **all** | All profiles in sequence |
+
+Fixtures: `HelixTest/helixtest/fixtures/africa/` (ONT stub, example TOML configs).
+
+Ferrum CI runs Africa conformance via [`.github/workflows/africa-conformance.yml`](../.github/workflows/africa-conformance.yml) (additive; [conformance.yml](../.github/workflows/conformance.yml) unchanged).
+
+---
+
 ### TRS descriptor path (GA4GH OpenAPI)
 
 HelixTest follows the official TRS OpenAPI path:

@@ -1721,6 +1721,7 @@ dependencies = [
  "chrono",
  "ferrum-core",
  "ferrum-federation",
+ "ferrum-reference",
  "http 1.4.0",
  "hyper 1.9.0",
  "serde",
@@ -1942,6 +1943,7 @@ dependencies = [
  "ferrum-federation",
  "ferrum-htsget",
  "ferrum-passports",
+ "ferrum-reference",
  "ferrum-storage",
  "ferrum-tes",
  "ferrum-trs",
@@ -2043,6 +2045,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferrum-reference"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "ferrum-beacon",
+ "ferrum-core",
+ "ferrum-drs",
+ "ferrum-wes",
+ "http 1.4.0",
+ "http-body-util",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower 0.4.13",
+ "url",
+]
+
+[[package]]
 name = "ferrum-security-tests"
 version = "0.1.0"
 dependencies = [
@@ -2128,6 +2151,7 @@ dependencies = [
  "axum",
  "chrono",
  "ferrum-core",
+ "ferrum-reference",
  "futures-util",
  "hex",
  "http-body-util",
@@ -6119,6 +6143,7 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+ "serde_derive",
 ]
 
 [[package]]

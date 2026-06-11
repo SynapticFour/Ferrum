@@ -1,0 +1,92 @@
+# Africa Conformance (HelixTest ferrum-africa mode)
+# Additive workflow — standard conformance.yml is unchanged.
+
+name: Africa Conformance
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  HELIXTEST_REF: main
+  GATEWAY_BASE: http://localhost:8080
+  FERRUM_PUBLIC_BASE_URL: http://localhost:8080
+  RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1.91.1-bookworm
+  DEBIAN_RUNTIME_IMAGE: public.ecr.aws/docker/library/debian:bookworm-slim
+
+jobs:
+  africa-offline:
+    if: github.actor != 'dependabot[bot]'
+    name: HelixTest Africa (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Clone HelixTest
+        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Start Ferrum offline (Laptop Mode)
+        run: |
+          cargo build -p ferrum-gateway --release --features laptop
+          FERRUM_OFFLINE=1 ./target/release/ferrum-gateway &
+          for i in $(seq 1 30); do
+            curl -sf ${{ env.GATEWAY_BASE }}/health && break
+            sleep 2
+          done
+
+      - name: Run HelixTest Africa offline profile
+        working-directory: helixtest-repo
+        env:
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          TES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/tes/v1
+          TRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2
+          AUTH_URL: ${{ env.GATEWAY_BASE }}/passports/v1
+        run: |
+          cargo run --bin helixtest --release -- \
+            --all --mode ferrum-africa --africa-profile offline --fail-level 1
+
+  africa-ont:
+    if: github.actor != 'dependabot[bot]'
+    name: HelixTest Africa (ont)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Clone HelixTest
+        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Start Ferrum offline
+        run: |
+          cargo build -p ferrum-gateway --release --features laptop
+          FERRUM_OFFLINE=1 ./target/release/ferrum-gateway &
+          for i in $(seq 1 30); do
+            curl -sf ${{ env.GATEWAY_BASE }}/health && break
+            sleep 2
+          done
+
+      - name: Run HelixTest Africa ont profile
+        working-directory: helixtest-repo
+        env:
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+        run: |
+          cargo run --bin helixtest --release -- \
+            --all --mode ferrum-africa --africa-profile ont --fail-level 1
+
+  africa-reference-tests:
+    if: github.actor != 'dependabot[bot]'
+    name: Ferrum reference registry tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test -p ferrum-reference

@@ -57,7 +57,7 @@ async fn test_federation_disabled_by_default() {
         .run(&pool)
         .await
         .unwrap();
-    let app = router_with_services(FerrumPool::Sqlite(pool), None, None, None);
+    let app = router_with_services(FerrumPool::Sqlite(pool), None, None, None, None);
 
     let req = Request::builder()
         .method(Method::GET)
@@ -101,6 +101,7 @@ async fn test_peer_timeout_non_fatal() {
         None,
         Some(Arc::new(federation)),
         None,
+        None,
     );
     let req = Request::builder()
         .method(Method::GET)
@@ -128,7 +129,7 @@ async fn test_federated_beacon_union() {
         .await
         .unwrap();
     seed_variant(&peer_pool, "1", 3000, "G", "C").await;
-    let peer_app = router_with_services(FerrumPool::Sqlite(peer_pool), None, None, None);
+    let peer_app = router_with_services(FerrumPool::Sqlite(peer_pool), None, None, None, None);
     tokio::spawn(async move {
         axum::serve(peer_listener, peer_app).await.unwrap();
     });
@@ -164,6 +165,7 @@ async fn test_federated_beacon_union() {
         FerrumPool::Sqlite(local_pool),
         None,
         Some(Arc::new(federation)),
+        None,
         None,
     );
 
@@ -359,6 +361,7 @@ async fn test_federated_beacon_intersection_e2e() {
         FerrumPool::Sqlite(local_pool),
         None,
         Some(Arc::new(federation)),
+        None,
         None,
     );
 

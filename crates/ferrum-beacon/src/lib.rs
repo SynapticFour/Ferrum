@@ -47,7 +47,7 @@ pub fn router_unconfigured() -> Router {
 
 /// Returns the Beacon v2 router. Requires a database pool. Mount at /ga4gh/beacon/v2 in gateway.
 pub fn router(pool: ferrum_core::FerrumPool) -> Router {
-    router_with_services(pool, None, None, None)
+    router_with_services(pool, None, None, None, None)
 }
 
 /// Beacon router with optional Outbreak Mode integration for emergency access audit.
@@ -55,21 +55,23 @@ pub fn router_with_outbreak(
     pool: ferrum_core::FerrumPool,
     outbreak: Option<std::sync::Arc<OutbreakService>>,
 ) -> Router {
-    router_with_services(pool, outbreak, None, None)
+    router_with_services(pool, outbreak, None, None, None)
 }
 
-/// Beacon router with outbreak, federation, and residency audit integration.
+/// Beacon router with outbreak, federation, residency audit, and reference registry integration.
 pub fn router_with_services(
     pool: ferrum_core::FerrumPool,
     outbreak: Option<std::sync::Arc<OutbreakService>>,
     federation: Option<std::sync::Arc<FederationClient>>,
     residency_audit: Option<std::sync::Arc<ResidencyAuditLog>>,
+    reference_registry: Option<std::sync::Arc<ferrum_reference::ReferenceRegistry>>,
 ) -> Router {
     let state = Arc::new(handlers::AppState {
         repo: Arc::new(BeaconRepo::new(pool)),
         outbreak,
         federation,
         residency_audit,
+        reference_registry,
     });
     Router::new()
         .route("/service-info", get(handlers::get_service_info))

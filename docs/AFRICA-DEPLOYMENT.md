@@ -275,6 +275,28 @@ GET /api/v1/audit/residency/verify
 
 Full reference: [DATA-RESIDENCY-AUDIT.md](DATA-RESIDENCY-AUDIT.md).
 
+## Community African Reference Genomes
+
+Ferrum ships a **pluggable reference registry** (`reference_genomes` table) with seeded entries for GRCh38, T2T-CHM13, H3Africa_v1, AWI-GEN_panel, Pf3D7_v3, and MTB_H37Rv. FASTA files are **not bundled** — the registry records metadata and optional DRS object IDs after operator ingest.
+
+- **List references:** `GET /api/v1/references`
+- **Load FASTA:** ingest via DRS, then `PUT /api/v1/references/{id}/load`
+- **WES warnings:** GRCh38 + African-origin inputs → `REFERENCE_MISMATCH` warning (non-blocking)
+- **Beacon:** pathogen queries include `meta.referenceGenome` when matched
+
+Full reference: [REFERENCE-GENOMES.md](REFERENCE-GENOMES.md).
+
+## HelixTest Africa Mode
+
+Opt-in conformance for Africa-specific features without changing standard `--mode ferrum`:
+
+```bash
+helixtest --all --mode ferrum-africa --africa-profile offline
+helixtest --all --mode ferrum-africa --africa-profile all
+```
+
+Profiles: `offline`, `ont`, `outbreak`, `federation`, `all`. See [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md).
+
 ---
 
 *[← Documentation index](README.md)*

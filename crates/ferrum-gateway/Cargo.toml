@@ -45,6 +45,7 @@ ferrum-drs = { path = "../ferrum-drs" }
 ferrum-htsget = { path = "../ferrum-htsget" }
 ferrum-beacon = { path = "../ferrum-beacon" }
 ferrum-federation = { path = "../ferrum-federation" }
+ferrum-reference = { path = "../ferrum-reference" }
 ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
 ferrum-wes = { path = "../ferrum-wes", optional = true }
 ferrum-tes = { path = "../ferrum-tes", optional = true }

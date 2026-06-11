@@ -16,6 +16,7 @@ pub struct AppState {
     pub outbreak: Option<Arc<OutbreakService>>,
     pub federation: Option<Arc<FederationClient>>,
     pub residency_audit: Option<Arc<ResidencyAuditLog>>,
+    pub reference_registry: Option<Arc<ferrum_reference::ReferenceRegistry>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -591,6 +592,7 @@ async fn run_pathogen_query(
     min_qscore: Option<f32>,
     granularity: Option<&str>,
 ) -> Result<VariantQueryResponse> {
+    let meta = beacon_meta_with_reference(state, None, organism).await;
     match parse_granularity(granularity)? {
         VariantGranularity::Boolean => {
             let exists = state
@@ -598,7 +600,7 @@ async fn run_pathogen_query(
                 .pathogen_exists(organism, amr_gene, serotype, min_qscore)
                 .await?;
             Ok(VariantQueryResponse {
-                meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
+                meta,
                 response: VariantQueryResult {
                     exists: Some(exists),
                     count: None,
@@ -611,7 +613,7 @@ async fn run_pathogen_query(
                 .pathogen_count(organism, amr_gene, serotype, min_qscore)
                 .await?;
             Ok(VariantQueryResponse {
-                meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
+                meta,
                 response: VariantQueryResult {
                     exists: None,
                     count: Some(count),
@@ -619,6 +621,37 @@ async fn run_pathogen_query(
             })
         }
     }
+}
+
+async fn beacon_meta_with_reference(
+    state: &AppState,
+    assembly_id: Option<&str>,
+    organism: Option<&str>,
+) -> serde_json::Value {
+    let mut meta = serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" });
+    let Some(ref registry) = state.reference_registry else {
+        return meta;
+    };
+    let ref_id = if let Some(aid) = assembly_id {
+        registry
+            .get(aid)
+            .await
+            .ok()
+            .flatten()
+            .map(|r| r.id)
+    } else if let Some(org) = organism {
+        registry
+            .list()
+            .await
+            .ok()
+            .and_then(|all| all.into_iter().find(|r| r.organism == org).map(|r| r.id))
+    } else {
+        None
+    };
+    if let Some(id) = ref_id {
+        meta["referenceGenome"] = serde_json::json!(id);
+    }
+    meta
 }
 
 #[derive(Debug, Deserialize)]

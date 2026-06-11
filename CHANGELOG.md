@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **`ferrum-reference` crate** — Pluggable reference genome registry (`reference_genomes` table); `/api/v1/references` HTTP API; WES `REFERENCE_MISMATCH` warnings; Beacon `meta.referenceGenome`.
+- **HelixTest Africa mode** — `--mode ferrum-africa --africa-profile {offline,ont,outbreak,federation,all}` (opt-in; standard `--mode ferrum` unchanged).
+- **Docs** — [REFERENCE-GENOMES.md](docs/REFERENCE-GENOMES.md); Africa Mode in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md); reference genomes section in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); ADR-016 in [DECISIONS.md](DECISIONS.md).
+- **CI** — `.github/workflows/africa-conformance.yml` (additive Africa HelixTest profiles).
 - **`ferrum-federation` crate** — P2P federated Beacon fan-out (`FerrumPeer`, `FederationConfig`, rate limits); `GET /ga4gh/beacon/v2/g_variants?federate=true`.
 - **Bandwidth-adaptive DRS** — `BandwidthMonitor`, `transfer_checkpoints`, `resume_token` on access, optional `Content-Encoding: zstd` on low-bandwidth streams.
 - **Solar/battery mode** — `PowerMonitor`, `FerrumPowerMode`, emergency checkpoint at `~/.ferrum/CHECKPOINT`, concurrency limits via gateway middleware.

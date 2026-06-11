@@ -138,6 +138,8 @@ struct RunRequestJson {
     tags: serde_json::Value,
     #[serde(default)]
     workspace_id: Option<String>,
+    #[serde(default)]
+    reference_genome: Option<String>,
 }
 
 /// POST /runs (multipart or application/json: workflow_type, workflow_type_version, workflow_url, etc.)
@@ -168,6 +170,7 @@ pub async fn post_runs(
         workflow_engine_params,
         tags,
         workspace_id,
+        reference_genome,
     ) = if ct.trim().to_lowercase().starts_with("application/json") {
         let j: RunRequestJson = serde_json::from_slice(&bytes)
             .map_err(|e| WesError::Validation(format!("Invalid JSON body: {}", e)))?;
@@ -194,6 +197,7 @@ pub async fn post_runs(
             engine,
             tags_val,
             j.workspace_id.filter(|s| !s.is_empty()),
+            j.reference_genome.filter(|s| !s.is_empty()),
         )
     } else {
         let boundary = extract_multipart_boundary(&headers)
@@ -217,6 +221,7 @@ pub async fn post_runs(
         let mut workflow_engine_params = serde_json::Value::Object(serde_json::Map::new());
         let mut tags = serde_json::Value::Object(serde_json::Map::new());
         let mut workspace_id = None::<String>;
+        let mut reference_genome = None::<String>;
 
         while let Some(field) = multipart
             .next_field()
@@ -254,6 +259,14 @@ pub async fn post_runs(
                         tags = serde_json::from_str(&text).unwrap_or(tags);
                     }
                 }
+                "reference_genome" => {
+                    if let Ok(t) = field.text().await {
+                        let t = t.trim().to_string();
+                        if !t.is_empty() {
+                            reference_genome = Some(t);
+                        }
+                    }
+                }
                 "workflow_attachment" => {
                     let _ = field.bytes().await;
                 }
@@ -270,6 +283,7 @@ pub async fn post_runs(
             workflow_engine_params,
             tags,
             workspace_id,
+            reference_genome,
         )
     };
 
@@ -331,6 +345,19 @@ pub async fn post_runs(
 
     let run_id = ulid::Ulid::new().to_string();
     let owner_sub = auth.as_ref().and_then(|c| c.sub()).unwrap_or("anonymous");
+
+    let reference_registry = ferrum_reference::ReferenceRegistry::new(
+        ferrum_core::FerrumPool::Postgres(app.repo.pool().clone()),
+    );
+    let mismatch_warning = ferrum_reference::check_reference_mismatch(
+        &reference_registry,
+        reference_genome.as_deref(),
+        &workflow_params,
+    )
+    .await
+    .map_err(|e| WesError::Other(e.into()))?;
+    let warnings = mismatch_warning.map(|w| vec![w]);
+
     app.repo
         .create_run(
             &run_id,
@@ -353,7 +380,10 @@ pub async fn post_runs(
         app.run_manager
             .register_synthetic_helixtest_error(run_id.clone())
             .await;
-        return Ok(Json(RunIdResponse { run_id }));
+        return Ok(Json(RunIdResponse {
+            run_id,
+            warnings,
+        }));
     }
 
     if let Some(ref store) = app.provenance_store {
@@ -388,7 +418,10 @@ pub async fn post_runs(
         });
     }
 
-    Ok(Json(RunIdResponse { run_id }))
+    Ok(Json(RunIdResponse {
+        run_id,
+        warnings,
+    }))
 }
 
 fn extract_multipart_boundary(headers: &axum::http::HeaderMap) -> Option<String> {
@@ -663,7 +696,10 @@ pub async fn cancel_run(
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
     app.run_manager.cancel(&run_id).await?;
-    Ok(Json(RunIdResponse { run_id }))
+    Ok(Json(RunIdResponse {
+        run_id,
+        warnings: None,
+    }))
 }
 
 /// GET /runs/{run_id}/tasks (paginated task logs)

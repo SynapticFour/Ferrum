@@ -185,6 +185,8 @@ pub struct RunRequestRef {
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct RunIdResponse {
     pub run_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warnings: Option<Vec<ferrum_reference::WesReferenceWarning>>,
 }
 
 /// Workflow type version (supported versions for a type).

@@ -19,7 +19,7 @@ async fn test_post_query_logs_beacon_query_residency() {
         .unwrap();
     let fp = FerrumPool::Sqlite(pool);
     let audit = Arc::new(ResidencyAuditLog::new(fp.clone()));
-    let app = router_with_services(fp, None, None, Some(audit.clone()));
+    let app = router_with_services(fp, None, None, Some(audit.clone()), None);
 
     let body = serde_json::json!({
         "meta": { "apiVersion": "v2.0.0" },
