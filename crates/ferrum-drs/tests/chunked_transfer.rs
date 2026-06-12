@@ -46,6 +46,7 @@ async fn drs_test_state() -> (AppState, tempfile::TempDir) {
             is_encrypted: Some(false),
             workspace_id: None,
             ont_metrics: None,
+            gisaid_metadata: None,
         },
         Some("obj1".into()),
     )
@@ -202,6 +203,7 @@ async fn test_transfer_queue_defers_large_download() {
                 is_encrypted: Some(false),
                 workspace_id: None,
                 ont_metrics: None,
+                gisaid_metadata: None,
             },
             Some("large1".into()),
         )

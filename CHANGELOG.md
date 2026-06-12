@@ -2,10 +2,18 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.2.0] — 2026-06-11 — Africa resilience release
 
 ### Added
 
+- **GISAID metadata at ingest** — optional `gisaid_metadata` on `/api/v1/ingest/register`; stored on `drs_objects.gisaid_metadata`; outbreak activation returns `gisaid_warnings` when `gisaid_auto_package` objects lack required fields; `ferrum outbreak package` reads stored metadata.
+- **CLI localisation** — `FERRUM_LANG=fr|de` for Ferrum CLI user-facing strings; documented in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md).
+- **RO-Crate completeness** — exports include `ont_metrics`, `pathogen_annotations`, and WES `reference_genome` when present.
+- **Beacon v2 `$schema`** — all Beacon responses include `meta.$schema`; `/info` and `/service-info` advertise `PathoGenFilter` in `filteringTerms`.
+- **Email operations** — [docs/OPERATIONS.md](docs/OPERATIONS.md) and `scripts/check_email_auth.sh` for SPF/DKIM checks on `synapticfour.com`.
+- **ARM64 CI** — `build-arm64` job compiles `aarch64-unknown-linux-gnu` release build (Raspberry Pi / ARM server smoke check).
+- **Demo start hardening** — 30s production service wait, Laptop Mode fallback, `--force-production` flag.
+- **Table security** — PostgreSQL RLS on governance tables; residency audit HTTP filtering for non-admin callers; [COMPLIANCE.md](docs/COMPLIANCE.md) sensitive-table section.
 - **`ferrum-reference` crate** — Pluggable reference genome registry (`reference_genomes` table); `/api/v1/references` HTTP API; WES `REFERENCE_MISMATCH` warnings; Beacon `meta.referenceGenome`.
 - **HelixTest Africa mode** — `--mode ferrum-africa --africa-profile {offline,ont,outbreak,federation,all}` (opt-in; standard `--mode ferrum` unchanged).
 - **Docs** — [REFERENCE-GENOMES.md](docs/REFERENCE-GENOMES.md); Africa Mode in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md); reference genomes section in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); [TEST-COVERAGE-GAPS.md](docs/TEST-COVERAGE-GAPS.md); ADR-016 in [DECISIONS.md](DECISIONS.md).
@@ -40,17 +48,20 @@ All notable changes to this project will be documented in this file. The format 
 - **ONT ingest API** — response includes `drs_object_id` alias alongside `object_id` for HelixTest Africa ONT profile.
 - **DRS GET** — `ont_metrics` included on object metadata when present (laptop/SQLite and Postgres).
 - **WES → TES** — Cancel uses **`POST …/tasks/{id}/cancel`** (Ferrum TES route), not `…:cancel`.
-- **DRS /stream** — `storage.get` **NotFound** maps to **404** (not opaque 500). **Init microbench:** `deploy/scripts/init-demo.sh` seeds **`microbench-plain-v1` last** (after DRS/TRS URL seeds), **UPSERT**s Postgres rows (repairs `ON CONFLICT DO NOTHING` partials), re-`mc alias set` + retried `mc cp`/`mc stat`, and **fails init** if `storage_references` count ≠ 1. Conformance **verify** waits on **`GET …/objects/microbench-plain-v1`**; **`ci-drs-microbench-stream.sh`** prints metadata on stream failure.
-- **Gateway / DRS** — Object storage init merges **`FERRUM_STORAGE__*`** env into the loaded `StorageConfig` so **`S3_ENDPOINT` / bucket / keys** are never dropped (without MinIO endpoint the AWS SDK targets **real S3** → **`GET …/stream` 404** while metadata **200**). **`minio`** backend treated like **`s3`**. **S3 init errors** are logged (no longer silent). DRS router: **`/stream`** (and other sub-routes) registered **before** **`/objects/:object_id`**. Stream path **trims** `storage_key`.
-- **DRS** — `GET .../access/{access_id}` resolves `access_url` stored as JSON **`{"url": "…"}`** (same shape as create/ingest writes), not only a plain JSON string.
-- **TES** — Optional **`executors[].entrypoint`** for Docker (Bollard), Podman CLI, and Slurm-wrapped `podman run`; documents shell/ENTRYPOINT pitfalls in **`docs/TES-DOCKER-BACKEND.md`**.
-- htsget routing reliability: compose router/state so ticket endpoints don’t 404 with empty bodies (HelixTest htsget suite).
-- CI reliability: build the gateway using an official mirror (ECR public) and retry gateway Docker builds when registries are temporarily flaky.
+- **DRS /stream** — `storage.get` **NotFound** maps to **404** (not opaque 500).
+- **Gateway / DRS** — Object storage init merges **`FERRUM_STORAGE__*`** env; **`minio`** backend treated like **`s3`**; DRS router registers **`/stream`** before **`/objects/:object_id`**.
 
 ### Changed
 
-- **Docs** — [docs/README.md](docs/README.md): **Licensing, compliance, and disclaimers**. [docs/GA4GH.md](docs/GA4GH.md): **If you already work with GA4GH APIs** (service-info / API base pattern, Passports, `drs://`, OpenAPI, HelixTest); corrected **`drs://` interoperability** example.
-- **Docs / legal clarity** — [BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md): LICENSE prevails, jurisdiction, no implied warranty. [COMPLIANCE.md](docs/COMPLIANCE.md): frameworks non-exhaustive. [SECURITY.md](SECURITY.md): Crypt4GH when configured. [CONTRIBUTING.md](CONTRIBUTING.md): employer permission, tests/docs. [README.md](README.md): licensing in legal notice.
+- **Docs** — [docs/README.md](docs/README.md): licensing/compliance; [docs/GA4GH.md](docs/GA4GH.md): GA4GH interoperability guidance.
+
+## [Unreleased]
+
+### Added
+
+- *(none yet)*
+
+## [0.1.0] and earlier
 
 ### Added
 

@@ -116,6 +116,10 @@ fn test_gisaid_package_generation() {
             organism: "Monkeypox_virus".into(),
             collection_date: "2024-01-15".into(),
             location: "Africa/NG".into(),
+            host: "Human".into(),
+            submitting_lab: "Test Lab".into(),
+            submitting_lab_address: "Test City".into(),
+            originating_lab: "Test Reference Lab".into(),
             sequence: "ATCGATCG".into(),
         },
         GisaidEntry {
@@ -123,6 +127,10 @@ fn test_gisaid_package_generation() {
             organism: "Monkeypox_virus".into(),
             collection_date: "2024-02-01".into(),
             location: "Africa/KE".into(),
+            host: "Human".into(),
+            submitting_lab: "Test Lab".into(),
+            submitting_lab_address: "Test City".into(),
+            originating_lab: "Test Reference Lab".into(),
             sequence: "GGCCTTAA".into(),
         },
         GisaidEntry {
@@ -130,6 +138,10 @@ fn test_gisaid_package_generation() {
             organism: "Monkeypox_virus".into(),
             collection_date: "2024-02-10".into(),
             location: "Africa/ZA".into(),
+            host: "Human".into(),
+            submitting_lab: "Test Lab".into(),
+            submitting_lab_address: "Test City".into(),
+            originating_lab: "Test Reference Lab".into(),
             sequence: "NNNNNNNN".into(),
         },
     ];

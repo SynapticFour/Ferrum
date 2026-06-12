@@ -23,6 +23,9 @@ pub struct DrsObject {
     /// ONT QC metrics (Ferrum extension; stored on `drs_objects.ont_metrics`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ont_metrics: Option<serde_json::Value>,
+    /// GISAID submission metadata (Ferrum extension; stored on `drs_objects.gisaid_metadata`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gisaid_metadata: Option<serde_json::Value>,
 }
 
 impl DrsObject {
@@ -89,6 +92,9 @@ pub struct CreateObjectRequest {
     /// ONT quality metrics (JSON) for Nanopore ingest.
     #[serde(default)]
     pub ont_metrics: Option<serde_json::Value>,
+    /// GISAID submission metadata (JSON) captured at ingest.
+    #[serde(default)]
+    pub gisaid_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

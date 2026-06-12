@@ -56,6 +56,22 @@ async fn post_activate(
         .activate(&body)
         .await
         .map_err(|e| api_error(StatusCode::BAD_REQUEST, "activation_failed", e.to_string()))?;
+    let policy = state
+        .service
+        .config()
+        .policy_by_name(&record.policy_name)
+        .ok_or_else(|| {
+            api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "policy_missing",
+                "activated policy not found in config".to_string(),
+            )
+        })?;
+    let gisaid_warnings = state
+        .service
+        .gisaid_packaging_warnings(policy)
+        .await
+        .unwrap_or_default();
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.as_ref().and_then(|a| a.0.sub());
         let _ = audit
@@ -67,6 +83,7 @@ async fn post_activate(
         "policy": record.policy_name,
         "trigger_pathogen": record.trigger_pathogen,
         "active": record.active,
+        "gisaid_warnings": gisaid_warnings,
     })))
 }
 

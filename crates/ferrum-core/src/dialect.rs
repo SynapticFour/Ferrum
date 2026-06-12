@@ -42,8 +42,8 @@ pub fn sql_insert_drs_object(d: DbDialect) -> String {
         DbDialect::Sqlite => "0",
     };
     format!(
-        "INSERT INTO drs_objects (id, name, description, version, mime_type, size, is_bundle, aliases, workspace_id, ont_metrics)
-         VALUES ($1, $2, $3, NULL, $4, $5, {is_bundle_false}, COALESCE($6, {empty}), $7, COALESCE($8, {null_json}))"
+        "INSERT INTO drs_objects (id, name, description, version, mime_type, size, is_bundle, aliases, workspace_id, ont_metrics, gisaid_metadata)
+         VALUES ($1, $2, $3, NULL, $4, $5, {is_bundle_false}, COALESCE($6, {empty}), $7, COALESCE($8, {null_json}), COALESCE($9, {null_json}))"
     )
 }
 

@@ -358,6 +358,14 @@ pub async fn post_runs(
     .map_err(|e| WesError::Other(e.into()))?;
     let warnings = mismatch_warning.map(|w| vec![w]);
 
+    let mut workflow_engine_params = workflow_engine_params;
+    if let Some(ref refg) = reference_genome {
+        if let serde_json::Value::Object(ref mut map) = workflow_engine_params {
+            map.entry("reference_genome".to_string())
+                .or_insert_with(|| serde_json::Value::String(refg.clone()));
+        }
+    }
+
     app.repo
         .create_run(
             &run_id,
@@ -914,7 +922,7 @@ pub async fn export_ro_crate(
         workflow_type,
         _version,
         _params,
-        _ep,
+        workflow_engine_params,
         _tags,
         _state_str,
         start_time,
@@ -925,32 +933,41 @@ pub async fn export_ro_crate(
         _,
         _,
     ) = row;
+    let reference_genome =
+        crate::ro_crate::reference_genome_from_engine_params(&workflow_engine_params);
     let date_published = end_time
         .or(start_time)
         .map(|t| t.to_rfc3339())
         .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
     let mut input_parts: Vec<serde_json::Value> = Vec::new();
     let mut output_parts: Vec<serde_json::Value> = Vec::new();
+    let pool = app.repo.pool();
+    async fn enrich_part(
+        pool: &sqlx::PgPool,
+        id: &str,
+    ) -> crate::error::Result<serde_json::Value> {
+        let base = serde_json::json!({
+            "@id": format!("drs://ferrum/{}", id),
+            "@type": "File",
+            "identifier": id
+        });
+        let ext = crate::ro_crate::load_drs_extensions(pool, id)
+            .await
+            .map_err(|e| crate::error::WesError::Other(e.into()))?;
+        Ok(crate::ro_crate::enrich_file_node(base, &ext))
+    }
     if let Some(ref store) = app.provenance_store {
         let graph = store.run_lineage(&run_id).await?;
         for e in &graph.edges {
             if matches!(e.edge_type, ferrum_core::EdgeType::Input)
                 && matches!(e.from_type, ferrum_core::NodeType::DrsObject)
             {
-                input_parts.push(serde_json::json!({
-                    "@id": format!("drs://ferrum/{}", e.from_id),
-                    "@type": "File",
-                    "identifier": e.from_id
-                }));
+                input_parts.push(enrich_part(pool, &e.from_id).await?);
             }
             if matches!(e.edge_type, ferrum_core::EdgeType::Output)
                 && matches!(e.to_type, ferrum_core::NodeType::DrsObject)
             {
-                output_parts.push(serde_json::json!({
-                    "@id": format!("drs://ferrum/{}", e.to_id),
-                    "@type": "File",
-                    "identifier": e.to_id
-                }));
+                output_parts.push(enrich_part(pool, &e.to_id).await?);
             }
         }
     }
@@ -958,11 +975,7 @@ pub async fn export_ro_crate(
         if let Some(obj) = outputs.get("output_files").and_then(|v| v.as_array()) {
             for o in obj {
                 if let Some(id) = o.get("file_id").and_then(|v| v.as_str()) {
-                    output_parts.push(serde_json::json!({
-                        "@id": format!("drs://ferrum/{}", id),
-                        "@type": "File",
-                        "identifier": id
-                    }));
+                    output_parts.push(enrich_part(pool, id).await?);
                 }
             }
         }
@@ -984,7 +997,7 @@ pub async fn export_ro_crate(
         "result": output_parts,
         "instrument": { "@id": "#workflow" }
     });
-    let graph_vec = vec![
+    let mut graph_vec = vec![
         serde_json::json!({
             "@type": "CreativeWork",
             "@id": "ro-crate-metadata.json",
@@ -1001,6 +1014,9 @@ pub async fn export_ro_crate(
         workflow_app,
         create_action,
     ];
+    if let Some(ref rg) = reference_genome {
+        graph_vec.push(crate::ro_crate::reference_genome_entity(rg));
+    }
     let ro_crate = serde_json::json!({
         "@context": "https://w3id.org/ro/crate/1.1/context",
         "@graph": graph_vec

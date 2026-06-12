@@ -111,11 +111,32 @@ impl ResidencyAuditLog {
         from: Option<DateTime<Utc>>,
         to: Option<DateTime<Utc>>,
     ) -> Result<ResidencyAuditQueryResult> {
+        self.query_range_for_requester(from, to, None, true).await
+    }
+
+    /// Query audit entries; non-admin callers only see rows matching `requester`.
+    pub async fn query_range_for_requester(
+        &self,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        requester: Option<&str>,
+        is_admin: bool,
+    ) -> Result<ResidencyAuditQueryResult> {
         let entries = self.fetch_all_ordered().await?;
         let filtered: Vec<_> = entries
             .into_iter()
             .filter(|e| from.map(|f| e.timestamp >= f).unwrap_or(true))
             .filter(|e| to.map(|t| e.timestamp <= t).unwrap_or(true))
+            .filter(|e| {
+                if is_admin {
+                    return true;
+                }
+                match (requester, e.requester.as_deref()) {
+                    (Some(r), Some(entry_r)) => entry_r == r,
+                    (Some(_), None) => false,
+                    (None, _) => true,
+                }
+            })
             .collect();
         let chain_valid = verify_chain(&filtered);
         Ok(ResidencyAuditQueryResult {

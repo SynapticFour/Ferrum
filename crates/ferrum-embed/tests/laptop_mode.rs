@@ -237,6 +237,7 @@ async fn test_drs_repo_sqlite_crud() {
             is_encrypted: Some(false),
             workspace_id: None,
             ont_metrics: None,
+            gisaid_metadata: None,
         })
         .await
         .expect("create");

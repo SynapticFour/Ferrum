@@ -1,6 +1,8 @@
 //! Ferrum CLI for management and operations.
 
-use clap::{Parser, Subcommand};
+mod i18n;
+
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use ferrum_mii_connect::{
     build_manifest_from_sync_inputs, download_package_bytes, fhir_package_download_url,
     load_manifest, load_sync_spec, read_payload_from_input, validate_payload, ConformanceReport,
@@ -58,6 +60,9 @@ enum DemoAction {
         /// Force embedded SQLite + local storage
         #[arg(long)]
         offline: bool,
+        /// Fail hard when PostgreSQL/MinIO are unavailable
+        #[arg(long)]
+        force_production: bool,
     },
 }
 
@@ -137,6 +142,10 @@ enum CliExit {
 }
 
 async fn run_cli() -> Result<(), CliExit> {
+    let lang = i18n::current_lang();
+    let matches = Cli::command().about(i18n::about(lang)).get_matches();
+    let cli = Cli::from_arg_matches(&matches).map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
@@ -144,7 +153,6 @@ async fn run_cli() -> Result<(), CliExit> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let cli = Cli::parse();
     match cli.command {
         Commands::Health { base_url } => {
             let url = format!("{}/health", base_url.trim_end_matches('/'));
@@ -172,7 +180,7 @@ async fn run_cli() -> Result<(), CliExit> {
             db.run_migrations()
                 .await
                 .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
-            println!("Database migrations applied successfully.");
+            println!("{}", i18n::migrations_ok(i18n::current_lang()));
         }
         Commands::Config { path } => {
             let cfg = path
@@ -185,8 +193,13 @@ async fn run_cli() -> Result<(), CliExit> {
             }
         }
         Commands::Demo { action } => match action {
-            DemoAction::Start { offline } => {
-                demo_start(offline).await.map_err(CliExit::RuntimeFailed)?;
+            DemoAction::Start {
+                offline,
+                force_production,
+            } => {
+                demo_start(offline, force_production)
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
             }
         },
         Commands::Mii { action } => match action {
@@ -342,13 +355,7 @@ async fn outbreak_package(
     let entries: Vec<GisaidEntry> = rows
         .into_iter()
         .enumerate()
-        .map(|(i, row)| GisaidEntry {
-            virus_name: format!("hCoV-19/Ferrum/{}/{}", row.organism, i + 1),
-            organism: row.organism,
-            collection_date: chrono::Utc::now().format("%Y-%m-%d").to_string(),
-            location: "Africa/lab".into(),
-            sequence: "NNNNATCGATCG".into(),
-        })
+        .map(|(i, row)| GisaidEntry::from_package_row(&row, i, "NNNNATCGATCG"))
         .collect();
 
     if entries.is_empty() {
@@ -462,29 +469,33 @@ fn should_fail_validation(has_errors: bool, has_gaps: bool, strict_mode: bool) -
     has_errors || (strict_mode && has_gaps)
 }
 
-async fn demo_start(offline: bool) -> Result<(), String> {
+async fn demo_start(offline: bool, force_production: bool) -> Result<(), String> {
+    let lang = i18n::current_lang();
     if offline {
-        std::env::set_var("FERRUM_OFFLINE", "1");
-        println!("[ferrum] Starting in Laptop Mode (SQLite + local storage).");
-        if let Some(home) = ferrum_embed::default_ferrum_home() {
-            println!("[ferrum] Data will be stored at {}/", home.display());
-        }
-        println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
-    } else if !postgres_reachable() {
+        return start_laptop_mode(lang).await;
+    }
+
+    let ready = wait_for_production_services(std::time::Duration::from_secs(30)).await;
+    if ready {
+        return Err(i18n::docker_not_implemented(lang).to_string());
+    }
+    if force_production {
+        return Err(i18n::production_timeout(lang).to_string());
+    }
+    eprintln!("{}", i18n::production_fallback(lang));
+    start_laptop_mode(lang).await
+}
+
+async fn start_laptop_mode(lang: i18n::Lang) -> Result<(), String> {
+    std::env::set_var("FERRUM_OFFLINE", "1");
+    println!("{}", i18n::laptop_start(lang));
+    if let Some(home) = ferrum_embed::default_ferrum_home() {
         println!(
-            "[ferrum] PostgreSQL not detected. Starting in Laptop Mode (SQLite + local storage)."
-        );
-        if let Some(home) = ferrum_embed::default_ferrum_home() {
-            println!("[ferrum] Data will be stored at {}/", home.display());
-        }
-        println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
-        std::env::set_var("FERRUM_OFFLINE", "1");
-    } else {
-        return Err(
-            "Docker demo not implemented in ferrum-cli; use ferrum-gateway demo start or --offline"
-                .to_string(),
+            "{}",
+            i18n::laptop_data_dir(lang, &home.display().to_string())
         );
     }
+    println!("{}", i18n::production_config_hint(lang));
 
     let gateway =
         std::env::var("FERRUM_GATEWAY_BIN").unwrap_or_else(|_| "ferrum-gateway".to_string());
@@ -498,6 +509,25 @@ async fn demo_start(offline: bool) -> Result<(), String> {
     Ok(())
 }
 
+async fn wait_for_production_services(timeout: std::time::Duration) -> bool {
+    let start = std::time::Instant::now();
+    while start.elapsed() < timeout {
+        if postgres_reachable() && minio_reachable() {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+    false
+}
+
+fn minio_reachable() -> bool {
+    std::net::TcpStream::connect_timeout(
+        &"127.0.0.1:9000".parse().unwrap(),
+        std::time::Duration::from_secs(1),
+    )
+    .is_ok()
+}
+
 fn postgres_reachable() -> bool {
     std::net::TcpStream::connect_timeout(
         &"127.0.0.1:5432".parse().unwrap(),
@@ -508,7 +538,20 @@ fn postgres_reachable() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::should_fail_validation;
+    use super::{postgres_reachable, should_fail_validation};
+
+    #[test]
+    fn test_demo_timeout_fallback() {
+        assert!(
+            !postgres_reachable() || !super::minio_reachable(),
+            "test assumes production stack is not fully up"
+        );
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let ready = rt.block_on(super::wait_for_production_services(
+            std::time::Duration::from_millis(100),
+        ));
+        assert!(!ready);
+    }
 
     #[test]
     fn fail_when_errors_present() {

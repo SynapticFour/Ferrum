@@ -1,6 +1,8 @@
 //! Federated Beacon query helpers.
 
-use crate::handlers::{AppState, VariantQueryResponse, VariantQueryResult};
+use crate::handlers::{
+    AppState, VariantQueryResponse, VariantQueryResult, BEACON_RESPONSE_META_SCHEMA,
+};
 use ferrum_federation::{query_envelope_from_params, BeaconQueryParams};
 use serde_json::{json, Value};
 
@@ -12,7 +14,11 @@ pub async fn maybe_federate_get(
     local_count: Option<i64>,
     requester: Option<&str>,
 ) -> VariantQueryResponse {
-    let mut meta = json!({ "apiVersion": "v2.0.0" });
+    let mut meta = json!({
+        "$schema": BEACON_RESPONSE_META_SCHEMA,
+        "apiVersion": "v2.0.0",
+        "requestedSchemas": [],
+    });
     if !federate {
         return VariantQueryResponse {
             meta,

@@ -301,6 +301,57 @@ Profiles: `offline`, `ont`, `outbreak`, `federation`, `all`. See [HELIXTEST-INTE
 
 **Demo stack:** after upgrading Ferrum on an existing Postgres volume, `ferrum-init` applies only migrations not recorded in `_ferrum_init_migrations` (see init script). Use `docker compose down -v` only when you need a completely fresh database.
 
+## GISAID Metadata
+
+Outbreak Mode can auto-build GISAID submission archives when `gisaid_auto_package = true` in an outbreak policy. Capture metadata at ingest so packaging is complete:
+
+```json
+POST /api/v1/ingest/register
+{
+  "items": [{
+    "kind": "existing_object",
+    "storage_backend": "local",
+    "storage_key": "drs/seq-1",
+    "size": 4096,
+    "gisaid_metadata": {
+      "collection_date": "2025-11-01",
+      "location": "Liberia/Margibi",
+      "host": "Human",
+      "submitting_lab": "NPHIL",
+      "submitting_lab_address": "Monrovia, Liberia",
+      "originating_lab": "NPHIL National Reference Laboratory"
+    }
+  }]
+}
+```
+
+Metadata is stored on `drs_objects.gisaid_metadata`. On outbreak activation, Ferrum returns `gisaid_warnings` when tagged pathogen objects are missing required fields. Build archives with `ferrum outbreak package --policy <name>`.
+
+## Localisation
+
+The Ferrum CLI supports English (default), French, and German via `FERRUM_LANG`:
+
+```bash
+export FERRUM_LANG=fr   # or de
+ferrum --help
+ferrum demo start --offline
+```
+
+User-facing CLI messages (help text, demo start, migration status) are translated. API responses remain English unless a future locale layer is added.
+
+## Deployment models and pricing
+
+Ferrum is designed for **flexible deployment** rather than a single SaaS shape:
+
+| Model | Typical use | Notes |
+|-------|-------------|--------|
+| **Laptop Mode** | Field labs, intermittent connectivity | Single binary, SQLite, local disk; no cloud dependency |
+| **Institutional server** | National public-health nodes | Postgres + object storage on-prem; full GA4GH stack |
+| **Federated network** | Cross-border surveillance | Beacon federation with residency audit |
+| **Managed hosting** | Partners / integrators | Operator-run; pricing negotiated (support, SLA, training) |
+
+Synaptic Four does **not** publish fixed per-country prices in this repository. Commercial terms, support tiers, and institutional agreements are described narratively in [BUSINESS-MODEL.md](BUSINESS-MODEL.md). Pilot outreach email authentication: [OPERATIONS.md](OPERATIONS.md).
+
 ---
 
 *[← Documentation index](README.md)*

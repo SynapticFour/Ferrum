@@ -11,6 +11,29 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
 
+/// GA4GH Beacon v2 response meta schema URL.
+pub const BEACON_RESPONSE_META_SCHEMA: &str =
+    "https://raw.githubusercontent.com/ga4gh-beacon/beacon-v2/main/framework/json/schemas/beaconResponseMeta.json";
+
+fn beacon_meta_base() -> serde_json::Value {
+    serde_json::json!({
+        "$schema": BEACON_RESPONSE_META_SCHEMA,
+        "requestedSchemas": [],
+        "apiVersion": "v2.0"
+    })
+}
+
+fn pathogen_filtering_terms() -> serde_json::Value {
+    serde_json::json!([
+        {
+            "id": "PathoGenFilter",
+            "label": "Pathogen surveillance filter",
+            "scope": "beacon",
+            "query": "organism,amrGene,serotype,minQscore"
+        }
+    ])
+}
+
 pub struct AppState {
     pub repo: Arc<BeaconRepo>,
     pub outbreak: Option<Arc<OutbreakService>>,
@@ -195,19 +218,23 @@ pub struct PathogenFilterParams {
 #[utoipa::path(get, path = "/service-info", responses((status = 200)))]
 pub async fn get_service_info() -> Json<serde_json::Value> {
     Json(serde_json::json!({
+        "meta": beacon_meta_base(),
         "id": "ferrum-beacon",
         "name": "Ferrum Beacon v2",
-        "version": env!("CARGO_PKG_VERSION")
+        "version": env!("CARGO_PKG_VERSION"),
+        "filteringTerms": pathogen_filtering_terms(),
     }))
 }
 
 #[utoipa::path(get, path = "/info", responses((status = 200, body = BeaconInfoResponse)))]
-pub async fn get_info() -> Json<BeaconInfoResponse> {
-    Json(BeaconInfoResponse {
-        id: "ferrum-beacon".to_string(),
-        name: "Ferrum Beacon".to_string(),
-        api_version: "v2.0".to_string(),
-    })
+pub async fn get_info() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "meta": beacon_meta_base(),
+        "id": "ferrum-beacon",
+        "name": "Ferrum Beacon",
+        "api_version": "v2.0",
+        "filteringTerms": pathogen_filtering_terms(),
+    }))
 }
 
 #[utoipa::path(get, path = "/map", responses((status = 200)))]
@@ -443,7 +470,7 @@ pub async fn query_variants(
                 current.map(|s| !s.is_empty()).unwrap_or(false)
             };
             Ok(Json(VariantQueryResponse {
-                meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
+                meta: beacon_meta_base(),
                 response: VariantQueryResult {
                     exists: Some(exists),
                     count: None,
@@ -577,7 +604,7 @@ pub async fn query_variants(
                 current.map(|s| s.len() as i64).unwrap_or(0)
             };
             Ok(Json(VariantQueryResponse {
-                meta: serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" }),
+                meta: beacon_meta_base(),
                 response: VariantQueryResult {
                     exists: None,
                     count: Some(count),
@@ -631,7 +658,7 @@ async fn beacon_meta_with_reference(
     assembly_id: Option<&str>,
     organism: Option<&str>,
 ) -> serde_json::Value {
-    let mut meta = serde_json::json!({ "requestedSchemas": [], "apiVersion": "v2.0" });
+    let mut meta = beacon_meta_base();
     let Some(ref registry) = state.reference_registry else {
         return meta;
     };
@@ -826,7 +853,7 @@ mod tests {
 #[utoipa::path(post, path = "/individuals/query", responses((status = 200)))]
 pub async fn query_individuals() -> Json<serde_json::Value> {
     Json(serde_json::json!({
-        "meta": { "apiVersion": "v2.0" },
+        "meta": beacon_meta_base(),
         "response": { "individuals": [] }
     }))
 }
@@ -834,7 +861,7 @@ pub async fn query_individuals() -> Json<serde_json::Value> {
 #[utoipa::path(post, path = "/biosamples/query", responses((status = 200)))]
 pub async fn query_biosamples() -> Json<serde_json::Value> {
     Json(serde_json::json!({
-        "meta": { "apiVersion": "v2.0" },
+        "meta": beacon_meta_base(),
         "response": { "biosamples": [] }
     }))
 }

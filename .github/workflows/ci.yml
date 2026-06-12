@@ -85,3 +85,13 @@ jobs:
       - run: cargo check -p ferrum-core --features libdeflate
       - run: cargo check -p ferrum-drs --features bam-lazy-ingest
       - run: cargo check -p ferrum-mii-connect
+
+  build-arm64:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - run: cargo build --target aarch64-unknown-linux-gnu --release

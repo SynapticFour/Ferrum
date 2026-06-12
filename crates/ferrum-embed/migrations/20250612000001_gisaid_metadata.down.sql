@@ -1,0 +1,1 @@
+-- SQLite cannot DROP COLUMN on all versions; column left in place on downgrade.

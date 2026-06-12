@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-security-tests"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "OWASP security integration tests (A01, A03, A07, A10, etc.)"
 license = "BUSL-1.1"

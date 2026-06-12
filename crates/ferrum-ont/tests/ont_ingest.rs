@@ -64,6 +64,7 @@ async fn test_pod5_ingest_round_trip() {
         is_encrypted: Some(false),
         workspace_id: None,
         ont_metrics: fields.ont_metrics.clone(),
+        gisaid_metadata: None,
     };
     repo.create_object_with_id(&create, Some(object_id.clone()))
         .await

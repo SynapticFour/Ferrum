@@ -1,12 +1,12 @@
 //! Data residency audit HTTP API (`/api/v1/audit/residency`).
 
-use axum::extract::{Query, State};
+use axum::extract::{Extension, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
-use ferrum_core::{residency_delete_blocked, ResidencyAuditLog};
+use ferrum_core::{residency_delete_blocked, AuthClaims, ResidencyAuditLog};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -31,11 +31,17 @@ pub fn audit_router(audit: Arc<ResidencyAuditLog>) -> Router {
 
 async fn get_residency(
     State(audit): State<Arc<ResidencyAuditLog>>,
+    auth: Option<Extension<AuthClaims>>,
     Query(q): Query<ResidencyQuery>,
 ) -> Result<Json<serde_json::Value>, Response> {
     let from = parse_ts(q.from.as_deref())?;
     let to = parse_ts(q.to.as_deref())?;
-    let result = audit.query_range(from, to).await.map_err(internal)?;
+    let is_admin = auth.as_ref().is_some_and(|c| c.0.is_admin());
+    let requester = auth.as_ref().and_then(|c| c.0.sub());
+    let result = audit
+        .query_range_for_requester(from, to, requester, is_admin)
+        .await
+        .map_err(internal)?;
     Ok(Json(serde_json::json!({
         "entries": result.entries,
         "chain_valid": result.chain_valid,

@@ -14,6 +14,7 @@ pub mod output_sampling;
 pub mod process_sampler;
 pub mod provenance_helpers;
 pub mod repo;
+pub mod ro_crate;
 pub mod run_manager;
 pub mod state;
 pub mod types;

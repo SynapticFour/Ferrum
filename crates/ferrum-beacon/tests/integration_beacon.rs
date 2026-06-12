@@ -879,3 +879,55 @@ async fn beacon_or_filter_boolean_and_count_semantics_minimal() {
         Some(1)
     );
 }
+
+const BEACON_META_SCHEMA: &str =
+    "https://raw.githubusercontent.com/ga4gh-beacon/beacon-v2/main/framework/json/schemas/beaconResponseMeta.json";
+
+fn assert_beacon_meta_schema(json: &serde_json::Value) {
+    assert_eq!(
+        json.pointer("/meta/$schema").and_then(|v| v.as_str()),
+        Some(BEACON_META_SCHEMA),
+        "missing meta.$schema in {json}"
+    );
+}
+
+#[tokio::test]
+async fn test_beacon_schema_field() {
+    let database_url = match std::env::var("DATABASE_URL") {
+        Ok(v) => v,
+        Err(_) => return,
+    };
+    let pool = PgPool::connect(&database_url).await.expect("connect pool");
+    seed_fixtures(&pool).await;
+    let app = router(FerrumPool::Postgres(pool.clone()));
+
+    let (status, json) = get_json(&app, "/service-info").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_beacon_meta_schema(&json);
+
+    let (status, json) = get_json(&app, "/info").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_beacon_meta_schema(&json);
+
+    let positive_params = serde_json::json!({
+        "assemblyId": "GRCh38",
+        "referenceName": "1",
+        "start": 1000,
+        "referenceBases": "A",
+        "alternateBases": "T"
+    });
+    let (status, json) = post_json(
+        &app,
+        "/query",
+        beacon_variant_query_envelope(positive_params),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_beacon_meta_schema(&json);
+
+    let terms = json.get("filteringTerms").and_then(|v| v.as_array());
+    assert!(terms.is_some_and(|t| {
+        t.iter()
+            .any(|f| f.get("id").and_then(|id| id.as_str()) == Some("PathoGenFilter"))
+    }));
+}

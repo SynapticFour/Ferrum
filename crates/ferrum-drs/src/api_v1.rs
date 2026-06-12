@@ -127,6 +127,9 @@ pub struct RegisterRequest {
     pub client_request_id: Option<String>,
     #[serde(default)]
     pub workspace_id: Option<String>,
+    /// Optional GISAID metadata applied to all registered objects unless overridden per item.
+    #[serde(default)]
+    pub gisaid_metadata: Option<serde_json::Value>,
     pub items: Vec<RegisterItem>,
 }
 
@@ -159,6 +162,9 @@ pub enum RegisterItem {
         /// Optional ONT metadata (stored as `ont_metrics`; tags pathogen for Beacon).
         #[serde(default)]
         ont_metadata: Option<serde_json::Value>,
+        /// Optional GISAID submission metadata (stored on `drs_objects.gisaid_metadata`).
+        #[serde(default)]
+        gisaid_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -289,7 +295,16 @@ async fn process_register_items(
     self_uris: &mut Vec<String>,
 ) -> Result<(), IngestApiError> {
     let policy = ferrum_core::SsrfPolicy::default();
+    if let Some(ref gm) = body.gisaid_metadata {
+        ferrum_core::validate_gisaid_metadata(gm)
+            .map_err(|e| IngestApiError::validation(e.to_string()))?;
+    }
     for item in &body.items {
+        let gisaid_metadata = resolve_gisaid_metadata(body, item);
+        if let Some(ref gm) = gisaid_metadata {
+            ferrum_core::validate_gisaid_metadata(gm)
+                .map_err(|e| IngestApiError::validation(e.to_string()))?;
+        }
         match item {
             RegisterItem::Url {
                 url,
@@ -316,6 +331,7 @@ async fn process_register_items(
                     is_encrypted: Some(false),
                     workspace_id: body.workspace_id.clone(),
                     ont_metrics: None,
+                    gisaid_metadata: gisaid_metadata.clone(),
                 };
                 state
                     .repo
@@ -350,6 +366,7 @@ async fn process_register_items(
                 is_encrypted,
                 checksums,
                 ont_metadata,
+                gisaid_metadata: item_gisaid,
             } => {
                 if storage_backend.eq_ignore_ascii_case("url") {
                     return Err(IngestApiError::validation(
@@ -377,6 +394,7 @@ async fn process_register_items(
                     is_encrypted: Some(is_encrypted.unwrap_or(false)),
                     workspace_id: body.workspace_id.clone(),
                     ont_metrics: ont_metadata.clone(),
+                    gisaid_metadata: item_gisaid.clone().or(gisaid_metadata),
                 };
                 state
                     .repo
@@ -393,6 +411,20 @@ async fn process_register_items(
         }
     }
     Ok(())
+}
+
+fn resolve_gisaid_metadata(
+    body: &RegisterRequest,
+    item: &RegisterItem,
+) -> Option<serde_json::Value> {
+    match item {
+        RegisterItem::Url { .. } => body.gisaid_metadata.clone(),
+        RegisterItem::ExistingObject {
+            gisaid_metadata, ..
+        } => gisaid_metadata
+            .clone()
+            .or_else(|| body.gisaid_metadata.clone()),
+    }
 }
 
 pub async fn post_upload_chunk(
@@ -559,6 +591,7 @@ async fn store_uploaded_object(
         is_encrypted: Some(false),
         workspace_id: None,
         ont_metrics: None,
+        gisaid_metadata: None,
     };
     state
         .repo

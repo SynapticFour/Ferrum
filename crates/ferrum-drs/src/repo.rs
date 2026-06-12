@@ -125,6 +125,7 @@ impl DrsRepo {
         let checksums = self.get_checksums(id).await?;
         let access_methods = self.get_access_methods(id).await?;
         let ont_metrics = self.get_ont_metrics(id).await?;
+        let gisaid_metadata = self.get_gisaid_metadata(id).await?;
         let contents = if row.is_bundle && expand {
             Some(self.get_bundle_contents_expanded(id).await?)
         } else {
@@ -154,7 +155,30 @@ impl DrsRepo {
             description: row.description,
             aliases,
             ont_metrics,
+            gisaid_metadata,
         }))
+    }
+
+    async fn get_gisaid_metadata(&self, object_id: &str) -> Result<Option<serde_json::Value>> {
+        if self.dialect == DbDialect::Postgres {
+            let row: Option<(Option<serde_json::Value>,)> = pool_query!(self, |p| {
+                sqlx::query_as("SELECT gisaid_metadata FROM drs_objects WHERE id = $1")
+                    .bind(object_id)
+                    .fetch_optional(p)
+                    .await
+            })?;
+            return Ok(row.and_then(|r| r.0));
+        }
+
+        let row: Option<(Option<String>,)> = pool_query!(self, |p| {
+            sqlx::query_as("SELECT gisaid_metadata FROM drs_objects WHERE id = $1")
+                .bind(object_id)
+                .fetch_optional(p)
+                .await
+        })?;
+        Ok(row
+            .and_then(|r| r.0)
+            .and_then(|raw| serde_json::from_str(&raw).ok()))
     }
 
     async fn get_ont_metrics(&self, object_id: &str) -> Result<Option<serde_json::Value>> {
@@ -294,6 +318,7 @@ impl DrsRepo {
                 .bind(aliases)
                 .bind(req.workspace_id.as_deref())
                 .bind(req.ont_metrics.as_ref())
+                .bind(req.gisaid_metadata.as_ref())
                 .execute(p)
                 .await?;
             for c in &req.checksums {
@@ -957,6 +982,7 @@ impl DrsRepo {
             is_encrypted: Some(false),
             workspace_id: None,
             ont_metrics,
+            gisaid_metadata: None,
         };
         self.create_object_with_id(&req, Some(bundle_id.to_string()))
             .await?;

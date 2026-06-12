@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-mii-connect"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "MII-KDS conformance validation layer for Ferrum"
 license = "BUSL-1.1"

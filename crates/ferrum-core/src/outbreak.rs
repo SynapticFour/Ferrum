@@ -2,6 +2,7 @@
 
 use crate::config::{OutbreakConfig, OutbreakPolicy};
 use crate::error::{FerrumError, Result};
+use crate::gisaid::missing_gisaid_fields;
 use crate::pool::FerrumPool;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -109,6 +110,26 @@ impl OutbreakService {
             activated_by: req.activated_by.clone(),
             active: true,
         })
+    }
+
+    /// Warn when `gisaid_auto_package` is enabled but tagged objects lack required metadata.
+    pub async fn gisaid_packaging_warnings(&self, policy: &OutbreakPolicy) -> Result<Vec<String>> {
+        if !policy.gisaid_auto_package {
+            return Ok(Vec::new());
+        }
+        let rows = self.pathogen_drs_objects(&policy.trigger_pathogen).await?;
+        let mut warnings = Vec::new();
+        for row in rows {
+            let missing = missing_gisaid_fields(row.gisaid_metadata.as_ref());
+            if !missing.is_empty() {
+                warnings.push(format!(
+                    "DRS object {} missing gisaid_metadata fields: {}",
+                    row.drs_object_id,
+                    missing.join(", ")
+                ));
+            }
+        }
+        Ok(warnings)
     }
 
     /// Deactivate an active policy.
@@ -346,42 +367,57 @@ impl OutbreakService {
 
     /// Fetch DRS object IDs tagged with pathogen for GISAID packaging.
     pub async fn pathogen_drs_objects(&self, pathogen: &str) -> Result<Vec<PathogenPackageRow>> {
-        let rows: Vec<(String, String, Option<String>)> = match &self.pool {
+        match &self.pool {
             FerrumPool::Postgres(p) => {
-                sqlx::query_as(
-                    "SELECT pa.drs_object_id, pa.organism, sr.storage_key
+                let rows: Vec<(String, String, Option<String>, Option<Value>)> = sqlx::query_as(
+                    "SELECT pa.drs_object_id, pa.organism, sr.storage_key, d.gisaid_metadata
                      FROM pathogen_annotations pa
                      JOIN storage_references sr ON sr.object_id = pa.drs_object_id
+                     JOIN drs_objects d ON d.id = pa.drs_object_id
                      WHERE pa.organism = $1 OR pa.organism ILIKE $2",
                 )
                 .bind(pathogen)
                 .bind(format!("%{pathogen}%"))
                 .fetch_all(p)
-                .await?
+                .await?;
+                Ok(rows
+                    .into_iter()
+                    .map(
+                        |(drs_object_id, organism, storage_key, gisaid_raw)| PathogenPackageRow {
+                            drs_object_id,
+                            organism,
+                            storage_key,
+                            gisaid_metadata: gisaid_raw.filter(|v| !v.is_null()),
+                        },
+                    )
+                    .collect())
             }
             FerrumPool::Sqlite(p) => {
-                sqlx::query_as(
-                    "SELECT pa.drs_object_id, pa.organism, sr.storage_key
+                let rows: Vec<(String, String, Option<String>, Option<String>)> = sqlx::query_as(
+                    "SELECT pa.drs_object_id, pa.organism, sr.storage_key, d.gisaid_metadata
                      FROM pathogen_annotations pa
                      JOIN storage_references sr ON sr.object_id = pa.drs_object_id
+                     JOIN drs_objects d ON d.id = pa.drs_object_id
                      WHERE pa.organism = $1 OR pa.organism LIKE $2",
                 )
                 .bind(pathogen)
                 .bind(format!("%{pathogen}%"))
                 .fetch_all(p)
-                .await?
+                .await?;
+                Ok(rows
+                    .into_iter()
+                    .map(
+                        |(drs_object_id, organism, storage_key, gisaid_raw)| PathogenPackageRow {
+                            drs_object_id,
+                            organism,
+                            storage_key,
+                            gisaid_metadata: gisaid_raw
+                                .and_then(|raw| serde_json::from_str(&raw).ok()),
+                        },
+                    )
+                    .collect())
             }
-        };
-        Ok(rows
-            .into_iter()
-            .map(
-                |(drs_object_id, organism, storage_key)| PathogenPackageRow {
-                    drs_object_id,
-                    organism,
-                    storage_key,
-                },
-            )
-            .collect())
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -438,6 +474,15 @@ pub struct PathogenPackageRow {
     pub drs_object_id: String,
     pub organism: String,
     pub storage_key: Option<String>,
+    pub gisaid_metadata: Option<Value>,
+}
+
+fn gisaid_field(meta: Option<&Value>, key: &str, fallback: &str) -> String {
+    meta.and_then(|m| m.get(key))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(fallback)
+        .to_string()
 }
 
 fn pathogen_matches(policy_pathogen: &str, query_pathogen: &str) -> bool {
@@ -460,8 +505,8 @@ pub fn build_gisaid_package(policy_name: &str, entries: &[GisaidEntry]) -> Resul
     let mut fasta = String::new();
     for (i, e) in entries.iter().enumerate() {
         csv.push_str(&format!(
-            "ferrum,{},{},original,{},{},human,unknown,unknown,unknown,ONT\n",
-            e.virus_name, e.organism, e.collection_date, e.location
+            "{},{},{},original,{},{},{},unknown,unknown,unknown,ONT\n",
+            e.submitting_lab, e.virus_name, e.organism, e.collection_date, e.location, e.host,
         ));
         fasta.push_str(&format!(">{}\n{}\n", e.virus_name, e.sequence));
         let _ = i;
@@ -506,5 +551,30 @@ pub struct GisaidEntry {
     pub organism: String,
     pub collection_date: String,
     pub location: String,
+    pub host: String,
+    pub submitting_lab: String,
+    pub submitting_lab_address: String,
+    pub originating_lab: String,
     pub sequence: String,
+}
+
+impl GisaidEntry {
+    pub fn from_package_row(row: &PathogenPackageRow, index: usize, sequence: &str) -> Self {
+        let meta = row.gisaid_metadata.as_ref();
+        Self {
+            virus_name: format!(
+                "hCoV-19/{}/{}",
+                gisaid_field(meta, "location", "Unknown"),
+                index + 1
+            ),
+            organism: row.organism.clone(),
+            collection_date: gisaid_field(meta, "collection_date", "2025-01-01"),
+            location: gisaid_field(meta, "location", "Unknown/Unknown"),
+            host: gisaid_field(meta, "host", "Human"),
+            submitting_lab: gisaid_field(meta, "submitting_lab", "Unknown"),
+            submitting_lab_address: gisaid_field(meta, "submitting_lab_address", "Unknown"),
+            originating_lab: gisaid_field(meta, "originating_lab", "Unknown"),
+            sequence: sequence.to_string(),
+        }
+    }
 }

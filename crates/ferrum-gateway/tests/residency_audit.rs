@@ -147,3 +147,43 @@ async fn test_outbreak_activate_deactivate_audit_events() {
         .iter()
         .any(|e| e.event_type == "outbreak_deactivated"));
 }
+
+#[tokio::test]
+async fn test_rls_residency_audit() {
+    let (_, audit) = audit_pool().await;
+    audit
+        .append(
+            "data_uploaded",
+            Some("obj-a"),
+            Some("inst-a"),
+            None,
+            false,
+            None,
+        )
+        .await
+        .unwrap();
+    audit
+        .append(
+            "data_uploaded",
+            Some("obj-b"),
+            Some("inst-b"),
+            None,
+            false,
+            None,
+        )
+        .await
+        .unwrap();
+
+    let inst_a = audit
+        .query_range_for_requester(None, None, Some("inst-a"), false)
+        .await
+        .unwrap();
+    assert_eq!(inst_a.entries.len(), 1);
+    assert_eq!(inst_a.entries[0].requester.as_deref(), Some("inst-a"));
+
+    let admin = audit
+        .query_range_for_requester(None, None, Some("inst-a"), true)
+        .await
+        .unwrap();
+    assert!(admin.entries.len() >= 2);
+}

@@ -402,6 +402,28 @@ Before going into production with sensitive data, operators should complete:
 
 ---
 
+## Sensitive tables and access controls
+
+Ferrum stores genomic and operational metadata in PostgreSQL (production) or SQLite (Laptop Mode). The tables below may contain **identifiable or sensitive operational data**. Protections differ by backend:
+
+| Table | Sensitive data | PostgreSQL | SQLite (Laptop Mode) |
+|-------|----------------|------------|----------------------|
+| `drs_objects` | Object metadata, `ont_metrics`, `gisaid_metadata` | Workspace grants + Passport visas; RLS not enabled (object-level auth in API) | Application-level auth; single-user typical |
+| `pathogen_annotations` | Organism / AMR tags linked to DRS IDs | RLS enabled (service role); API enforces Beacon/DRS access | Application-level filtering |
+| `residency_audit` | Requester, destination, transfer events | **RLS** on `requester`; append-only triggers; HTTP query filtered by caller unless admin | Append-only triggers; HTTP query filtered by caller unless admin |
+| `outbreak_audit` | Outbreak activations, emergency access | RLS enabled; append-only triggers | Append-only triggers |
+| `outbreak_activations` / `outbreak_download_approvals` | Policy state, approved recipients | Standard SQL access via gateway auth | Same (application-level) |
+| `reference_genomes` | Reference metadata (not sequences) | Public read via `/api/v1/references`; write requires admin | Same |
+| `wes_runs` | Workflow params, owner | Owner / workspace visibility in WES API | Owner visibility |
+
+**PostgreSQL RLS:** migration `20250612000002_table_security_rls` enables row-level security on `residency_audit` (and governance tables). Deployments can set `SET app.current_requester = '<institution>'` per connection for defense in depth; the gateway also filters residency audit queries for non-admin Passport holders.
+
+**SQLite:** no database-level RLS; operators must rely on gateway authentication, network isolation, and filesystem permissions on `~/.ferrum/`.
+
+Operational email and DNS (pilot outreach): [OPERATIONS.md](OPERATIONS.md).
+
+---
+
 ## Contact & Commercial Licensing
 
 For **software terms** (when BUSL permits use, commercial / SaaS / embedding, optional support or institutional agreements), see **[BUSINESS-MODEL.md](BUSINESS-MODEL.md)** and the root **[LICENSE](../LICENSE)**.
