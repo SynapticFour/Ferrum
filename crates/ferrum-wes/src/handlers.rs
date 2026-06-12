@@ -942,10 +942,7 @@ pub async fn export_ro_crate(
     let mut input_parts: Vec<serde_json::Value> = Vec::new();
     let mut output_parts: Vec<serde_json::Value> = Vec::new();
     let pool = app.repo.pool();
-    async fn enrich_part(
-        pool: &sqlx::PgPool,
-        id: &str,
-    ) -> crate::error::Result<serde_json::Value> {
+    async fn enrich_part(pool: &sqlx::PgPool, id: &str) -> crate::error::Result<serde_json::Value> {
         let base = serde_json::json!({
             "@id": format!("drs://ferrum/{}", id),
             "@type": "File",
