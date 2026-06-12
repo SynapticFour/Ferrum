@@ -7,6 +7,8 @@ description = "Criterion benchmarks for Ferrum hot paths (compile with cargo ben
 
 [dependencies]
 criterion = "0.8"
+crypt4gh = "0.4"
+ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
 ferrum-storage = { path = "../ferrum-storage" }
 
 [[bench]]

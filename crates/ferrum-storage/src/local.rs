@@ -68,6 +68,8 @@ impl ObjectStorage for LocalStorage {
 
     async fn get(&self, key: &str) -> Result<Box<dyn AsyncRead + Send + Unpin>> {
         let path = self.path_for(key)?;
+        // Zero-copy streaming path: File → BufReader → AsyncRead (Tokio uses efficient
+        // OS reads on Linux; DRS handlers chunk at 64 KiB — see docs/PERFORMANCE.md).
         let file = tokio::fs::File::open(&path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 FerrumError::NotFound(key.to_string())

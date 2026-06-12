@@ -81,6 +81,7 @@ jobs:
       - name: Install libdeflate (for ferrum-core --features libdeflate)
         run: sudo apt-get update && sudo apt-get install -y libdeflate-dev
       - run: cargo bench -p ferrum-bench --no-run
+      - run: cargo bench -p ferrum-crypt4gh --bench crypt_benchmark --no-run
       - run: cargo check -p ferrum-storage --features opendal
       - run: cargo check -p ferrum-core --features libdeflate
       - run: cargo check -p ferrum-drs --features bam-lazy-ingest
@@ -98,5 +99,36 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
       - name: Build workspace (aarch64 release)
         run: cargo build --workspace --target aarch64-unknown-linux-gnu --release
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      - name: ARM64 gateway binary size check
+        run: |
+          BIN=target/aarch64-unknown-linux-gnu/release/ferrum-gateway
+          if [ ! -f "$BIN" ]; then
+            echo "::error::Missing $BIN"
+            exit 1
+          fi
+          SIZE=$(stat -c%s "$BIN")
+          echo "ferrum-gateway (aarch64 release): $SIZE bytes"
+          if [ "$SIZE" -ge 52428800 ]; then
+            echo "::warning::Binary exceeds 50MB Pi microSD target ($SIZE bytes)"
+          fi
+
+  benchmark-arm64:
+    if: github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - name: Install aarch64 cross linker
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Compile Crypt4GH benchmarks (aarch64)
+        run: cargo bench -p ferrum-crypt4gh --bench crypt_benchmark --no-run --target aarch64-unknown-linux-gnu
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      - name: Compile ferrum-bench (aarch64)
+        run: cargo bench -p ferrum-bench --no-run --target aarch64-unknown-linux-gnu
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc

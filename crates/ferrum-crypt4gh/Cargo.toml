@@ -22,6 +22,10 @@ utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "6", features = ["axum"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 crypt4gh = "0.4"
+# Crypt4GH uses X25519 + ChaCha20-Poly1305 (via the `crypt4gh` crate / RustCrypto).
+# With `.cargo/config.toml` `+neon` on aarch64, ChaCha20-Poly1305 uses SIMD intrinsics.
+# Crypt4GH does NOT use AES-GCM for payload encryption; `+aes` helps SHA2/AES-adjacent
+# RustCrypto paths and future at-rest layers — verify with `cargo bench -p ferrum-crypt4gh`.
 async-trait = "0.1"
 bytes = "1"
 dashmap = "5"
@@ -45,4 +49,8 @@ criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
 name = "header_rewrap"
+harness = false
+
+[[bench]]
+name = "crypt_benchmark"
 harness = false

@@ -447,6 +447,25 @@ flowchart TB
 
 ---
 
+## ARM64 and edge hardware
+
+Ferrum treats **ARM64** (Raspberry Pi 5 / Cortex-A76, Apple M-series) as a **first-class** build target alongside x86_64 servers.
+
+| Topic | Implementation |
+|-------|----------------|
+| **Build flags** | Repo-root [`.cargo/config.toml`](../.cargo/config.toml) — per-target `target-cpu` + SIMD/crypto features; see [PERFORMANCE.md](../PERFORMANCE.md) |
+| **Crypt4GH** | `ferrum-crypt4gh` → `crypt4gh` crate (ChaCha20-Poly1305). **NEON** via `+neon` on aarch64 |
+| **Hardware AES** | ARMv8 `+aes` in RUSTFLAGS; Crypt4GH payloads are ChaCha-based, not AES-GCM |
+| **DRS I/O** | `LocalStorage` opens `tokio::fs::File` (streaming); DRS `/stream` uses 64 KiB chunked reads |
+| **Beacon index** | SQLite queries — **no mmap** index files in current design |
+| **Binary size** | `ferrum-gateway` **<50 MB** target on ARM64 release (CI size check) |
+| **CI** | `build-arm64` cross-compiles workspace; `benchmark-arm64` compiles Crypt4GH benches on `main` |
+| **Field install** | [Ferrum-Lab-Kit `install-edge.sh`](https://github.com/SynapticFour/Ferrum-Lab-Kit/blob/main/install-edge.sh), `./scripts/build-laptop-native.sh` |
+
+Details: [PERFORMANCE.md](../PERFORMANCE.md) (repo root).
+
+---
+
 ## Design principles
 
 Ferrum prioritizes predictable behavior, explicit interfaces, and complete standard implementations with clear operational boundaries.

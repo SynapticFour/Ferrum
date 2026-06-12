@@ -12,6 +12,15 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-12 - ARM64 as first-class build target
+
+- **Context:** Raspberry Pi 5 (Cortex-A76, ARM64) is the primary edge hardware for Africa deployments. Hardware AES/SHA2 and NEON acceleration are critical for Crypt4GH performance in field conditions.
+- **Decision:** Add target-specific RUSTFLAGS in `.cargo/config.toml` for `aarch64-unknown-linux-gnu`, `aarch64-apple-darwin`, and `x86_64-unknown-linux-gnu`. Use the existing `crypt4gh` / RustCrypto stack (ChaCha20-Poly1305 + NEON). Add ARM64 workspace cross-build and Crypt4GH benchmark compile jobs to CI.
+- **Consequences:** Crypt4GH encryption on Pi 5 targets **>500 MB/s** throughput when NEON is active. Binary size target **<50 MB** for `ferrum-gateway` on microSD. Cross-compilation in CI uses `gcc-aarch64-linux-gnu` (no physical Pi required).
+- **Not decided:** SVE (Scalable Vector Extension) — Pi 5 Cortex-A76 supports SVEv1 but not SVE2. Investigate in a future ADR if throughput targets are not met.
+
+---
+
 ### 2026-06-11 - ADR-016: Pluggable reference genome registry
 
 - **Status:** Accepted

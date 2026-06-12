@@ -129,6 +129,33 @@ Environment overrides:
 
 Production PostgreSQL and S3 code paths are unchanged. HelixTest conformance continues to run against the full Postgres stack.
 
+### Performance on Raspberry Pi 5
+
+Raspberry Pi 5 (Cortex-A76, ARM64) is the primary **edge hardware** target for Africa field deployments.
+
+| Workload | Expected performance | Limiting factor |
+|----------|---------------------|-----------------|
+| **Crypt4GH encrypt** | **>500 MB/s** (64 KiB chunks, release + NEON) | CPU; verify with `cargo bench -p ferrum-crypt4gh` |
+| **Beacon v2 query** (local SQLite) | **<50 ms** typical | SQLite + disk; use USB SSD not microSD for indexes |
+| **DRS download** (plain `/stream`) | **~40–80 MB/s** on good microSD; **100+ MB/s** on USB SSD | Storage I/O, not CPU |
+| **Idle RAM** | ~100–250 MB RSS | Set `[africa] max_memory_mb` to leave headroom on 4 GB models |
+
+Verify hardware crypto extensions:
+
+```bash
+grep -m1 Features /proc/cpuinfo | grep -o aes
+# Expected on Pi 5: aes (ARMv8 Crypto Extensions)
+```
+
+Build with ARM optimisations (from repo root):
+
+```bash
+./scripts/build-laptop-native.sh --install
+# Uses .cargo/config.toml cortex-a76 + release-laptop profile
+```
+
+See [PERFORMANCE.md](../PERFORMANCE.md) for benchmark methodology and CI size targets (<50 MB gateway binary).
+
 ### Native optimized build (recommended)
 
 Ferrum ships a **single optimized binary** for Laptop Mode: DRS + Beacon + htsget + Crypt4GH on SQLite (no WES/TES/TRS/Postgres in the binary). GitHub Releases and `install.sh --offline` use this build.
