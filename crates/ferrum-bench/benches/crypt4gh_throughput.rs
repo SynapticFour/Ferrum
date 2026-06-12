@@ -14,9 +14,7 @@ fn bench_crypt4gh_encrypt_64kb(c: &mut Criterion) {
     group.throughput(Throughput::Bytes(size as u64));
     group.bench_function("encrypt_64kb", |b| {
         b.iter(|| {
-            black_box(
-                encrypt_bytes_for_pubkey(black_box(pk), black_box(&data)).unwrap(),
-            );
+            black_box(encrypt_bytes_for_pubkey(black_box(pk), black_box(&data)).unwrap());
         });
     });
     group.finish();
