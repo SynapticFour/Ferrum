@@ -94,4 +94,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-unknown-linux-gnu
-      - run: cargo build --target aarch64-unknown-linux-gnu --release
+      - name: Install aarch64 cross linker
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Build workspace (aarch64 release)
+        run: cargo build --workspace --target aarch64-unknown-linux-gnu --release
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
