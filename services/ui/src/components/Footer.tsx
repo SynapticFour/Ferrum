@@ -5,7 +5,7 @@ export function Footer() {
         <span>
           Ferrum · © 2025{' '}
           <a
-            href="https://synapticfour.de"
+            href="https://synapticfour.com"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-gray-300 transition-colors"

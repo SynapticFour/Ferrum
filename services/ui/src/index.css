@@ -1,3 +1,5 @@
+@import './styles/synapticfour-brand-tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -50,5 +52,14 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: var(--sf-font-sans);
+  }
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    outline: var(--sf-focus-ring-width) solid var(--sf-focus-ring);
+    outline-offset: var(--sf-focus-ring-offset);
+    border-radius: 4px;
   }
 }

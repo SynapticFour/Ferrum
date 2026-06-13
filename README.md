@@ -173,6 +173,24 @@ See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for resource requirem
 
 Open **http://localhost:8082** for the UI. The gateway API is available at **http://localhost:8080**.
 
+From a clone (without the `ferrum` CLI installer), the same stack is available via **Make**:
+
+```bash
+make up      # start demo (alias: make demo)
+make down    # stop; keep volumes
+make destroy # stop; remove volumes and project images
+```
+
+### Stop / tear down
+
+| Goal | Command |
+|------|---------|
+| Stop containers, **keep data** | `make down`, `make stop`, or `ferrum demo stop` |
+| Remove volumes (fresh start) | `make clean` |
+| Full reset (volumes + project images + build cache) | `make destroy` or `make clean-all` |
+
+See [docs/INSTALLATION.md](docs/INSTALLATION.md#uninstall) for uninstalling the CLI and removing install directories.
+
 ---
 
 ## GA4GH Standards
