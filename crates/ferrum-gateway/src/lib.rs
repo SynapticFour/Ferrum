@@ -300,7 +300,11 @@ pub fn app(
         }
     }
     #[cfg(feature = "full")]
-    if hot_reload || cfg.map(|c| c.services.enable_passports).unwrap_or(true) {
+    if hot_reload
+        || cfg
+            .map(|c| c.services.enable_passports && !c.auth.is_external())
+            .unwrap_or(true)
+    {
         let passport_router = match passport_params {
             Some(pool) => ferrum_passports::router(pool),
             None => ferrum_passports::router_unconfigured(),
@@ -577,6 +581,45 @@ pub async fn run(
                     }
                 }
             });
+        }
+    }
+
+    if let Some(ref cfg) = config {
+        #[cfg(feature = "external-auth")]
+        if cfg.discovery.enabled && cfg.discovery.auto_register {
+            if let Ok(client) = ferrum_discovery::ServiceRegistryClient::from_config(&cfg.discovery)
+            {
+                let gateway_base = cfg
+                    .discovery
+                    .registration_base_url
+                    .clone()
+                    .or_else(|| std::env::var("FERRUM_PUBLIC_BASE_URL").ok())
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or_else(|| format!("http://{}", bind));
+                let services = cfg.services.clone();
+                let environment = cfg
+                    .africa
+                    .as_ref()
+                    .map(|_| "africa".to_string())
+                    .unwrap_or_else(|| "development".to_string());
+                if let Err(err) = ferrum_discovery::register_ferrum_services(
+                    &client,
+                    &gateway_base,
+                    &services,
+                    &environment,
+                )
+                .await
+                {
+                    tracing::warn!(error = %err, "service registry auto-registration failed");
+                }
+            } else {
+                tracing::warn!("discovery.auto_register enabled but service registry client could not be built");
+            }
+        }
+        if cfg.auth.is_external() {
+            tracing::info!(
+                "external auth mode: ferrum-passports disabled; validating Passports via ga4gh-infra broker"
+            );
         }
     }
 

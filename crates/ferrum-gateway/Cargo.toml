@@ -35,6 +35,8 @@ swagger = ["dep:utoipa", "dep:utoipa-swagger-ui"]
 standalone = []
 tes-docker = ["ferrum-tes/docker", "tes"]
 workspaces_email = ["workspaces", "ferrum-workspaces/email"]
+# ga4gh-infra co-deploy: clearinghouse visa validation + service-registry auto-registration.
+external-auth = ["ferrum-core/clearinghouse", "dep:ferrum-discovery"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -47,6 +49,7 @@ ferrum-beacon = { path = "../ferrum-beacon" }
 ferrum-federation = { path = "../ferrum-federation" }
 ferrum-reference = { path = "../ferrum-reference" }
 ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
+ferrum-discovery = { path = "../ferrum-discovery", optional = true }
 ferrum-wes = { path = "../ferrum-wes", optional = true }
 ferrum-tes = { path = "../ferrum-tes", optional = true }
 ferrum-trs = { path = "../ferrum-trs", optional = true }

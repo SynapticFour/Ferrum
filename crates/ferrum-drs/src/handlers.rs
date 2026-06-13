@@ -612,7 +612,19 @@ pub async fn get_object_stream(
         event = "drs.stream.started",
     );
 
+    let client_accepts_zstd = headers
+        .get("accept-encoding")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| {
+            s.split(',').any(|part| {
+                let part = part.trim();
+                part.eq_ignore_ascii_case("zstd") || part.starts_with("zstd;q=")
+            })
+        })
+        .unwrap_or(false);
+
     let use_zstd = !is_encrypted
+        && client_accepts_zstd
         && state
             .bandwidth
             .as_ref()

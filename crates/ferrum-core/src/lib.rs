@@ -25,10 +25,10 @@ pub use auth::{
     PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
 };
 pub use config::{
-    AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, BandwidthConfig, DatabaseConfig,
-    EncryptionConfig, FederationConfig, FerrumConfig, FerrumPeerConfig, IngestConfig,
-    MultiQCConfig, OutbreakConfig, OutbreakPolicy, PowerConfig, PricingConfig, PricingTier,
-    SecurityConfig, ServicesConfig, StorageConfig, WesServiceConfig,
+    AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, AuthMode, BandwidthConfig,
+    DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig, FerrumConfig,
+    FerrumPeerConfig, IngestConfig, MultiQCConfig, OutbreakConfig, OutbreakPolicy, PowerConfig,
+    PricingConfig, PricingTier, SecurityConfig, ServicesConfig, StorageConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
 pub use dialect::{

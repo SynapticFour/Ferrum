@@ -185,6 +185,8 @@ pub struct AuthMiddlewareConfig {
     pub max_token_age_hours: u32,
     /// A07: If set, token with matching jti is rejected (revoked).
     pub revocation_check: Option<Arc<dyn RevocationCheck + Send + Sync>>,
+    /// When true, Passport visas are verified via ga4gh-clearinghouse (requires `clearinghouse` feature).
+    pub use_clearinghouse: bool,
 }
 
 impl AuthMiddlewareConfig {
@@ -197,6 +199,7 @@ impl AuthMiddlewareConfig {
             require_auth: cfg.require_auth,
             max_token_age_hours: cfg.max_token_age_hours,
             revocation_check: None,
+            use_clearinghouse: cfg.clearinghouse || cfg.is_external(),
         }
     }
 
@@ -210,6 +213,7 @@ impl AuthMiddlewareConfig {
             require_auth: false,
             max_token_age_hours: 24,
             revocation_check: None,
+            use_clearinghouse: false,
         }
     }
 
@@ -227,6 +231,7 @@ impl AuthMiddlewareConfig {
             require_auth: true,
             max_token_age_hours: 0,
             revocation_check: None,
+            use_clearinghouse: false,
         })
     }
 }
@@ -346,9 +351,15 @@ fn decode_jwt_or_passport(
     // Try as GA4GH Passport (has ga4gh_passport_v1 claim)
     if let Ok(claims) = decode_passport_jwt(token, cfg) {
         reject_token_if_too_old(claims.iat, cfg.max_token_age_hours)?;
+        let visa_jwts = claims.ga4gh_passport_v1.as_deref().unwrap_or(&[]);
+        let visas = if cfg.use_clearinghouse {
+            decode_passport_visas_clearinghouse(token, visa_jwts)
+        } else {
+            decode_passport_visas(visa_jwts)
+        };
         return Ok(AuthClaims::Passport {
             claims: claims.clone(),
-            visas: decode_passport_visas(claims.ga4gh_passport_v1.as_deref().unwrap_or(&[])),
+            visas,
         });
     }
 
@@ -456,6 +467,84 @@ fn decode_passport_jwt(
     // so we can use a small blocking runtime hop. This keeps changes localized and avoids touching call sites.
     // If JWKS fetching is slow, consider adding caching later.
     tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(validation_jwks))
+}
+
+fn decode_passport_visas_clearinghouse(
+    passport_jwt: &str,
+    visa_jwts: &[String],
+) -> Vec<VisaObject> {
+    #[cfg(feature = "clearinghouse")]
+    {
+        use std::time::Duration;
+
+        use ga4gh_clearinghouse::{Clearinghouse, ClearinghouseConfig, TrustedBroker};
+
+        let jwks_url = std::env::var("FERRUM_AUTH__JWKS_URL").ok();
+        let issuer = std::env::var("FERRUM_AUTH__ISSUER").ok();
+
+        let trusted = match (issuer, jwks_url) {
+            (Some(iss), Some(jwks)) if !iss.is_empty() && !jwks.is_empty() => {
+                vec![TrustedBroker::new(iss, jwks)]
+            }
+            _ => Vec::new(),
+        };
+
+        if trusted.is_empty() {
+            tracing::warn!(
+                "clearinghouse enabled but FERRUM_AUTH__ISSUER/JWKS_URL missing; falling back to unverified visa parse"
+            );
+            return decode_passport_visas(visa_jwts);
+        }
+
+        let result = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let clearinghouse =
+                    Clearinghouse::new(ClearinghouseConfig::new(trusted, Duration::from_secs(300)))
+                        .await
+                        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+
+                let passport = clearinghouse
+                    .validate_passport(passport_jwt)
+                    .await
+                    .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+                clearinghouse
+                    .extract_visas(&passport)
+                    .await
+                    .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)
+            })
+        });
+
+        match result {
+            Ok(visas) => visas
+                .into_iter()
+                .map(|visa| VisaObject {
+                    r#type: visa.claim.r#type.to_string(),
+                    asserted: visa.claim.asserted,
+                    value: visa.claim.value,
+                    source: visa.claim.source,
+                    conditions: visa
+                        .claim
+                        .conditions
+                        .as_ref()
+                        .and_then(|c| serde_json::to_value(c).ok())
+                        .map(|v| vec![v]),
+                    by: visa
+                        .claim
+                        .by
+                        .as_ref()
+                        .and_then(|b| serde_json::to_value(b).ok())
+                        .and_then(|v| v.as_str().map(str::to_string)),
+                })
+                .collect(),
+            Err(_) => decode_passport_visas(visa_jwts),
+        }
+    }
+
+    #[cfg(not(feature = "clearinghouse"))]
+    {
+        let _ = passport_jwt;
+        decode_passport_visas(visa_jwts)
+    }
 }
 
 fn decode_passport_visas(visa_jwts: &[String]) -> Vec<VisaObject> {

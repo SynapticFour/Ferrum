@@ -1,9 +1,6 @@
 //! Docker executor via bollard.
-//!
-//! Default behaviour is unchanged: one container from `executors[0]` with image, optional
-//! entrypoint, command, env, workdir. **Opt-in** host settings (binds, network, platform) come
-//! from `CreateTaskRequest.volumes` and/or **`FERRUM_TES_DOCKER_*`** environment variables on the
-//! TES process — see **`docs/TES-DOCKER-BACKEND.md`**.
+//! GA4GH demo: volume binds from the task (WES symmetric workdir), docker.sock, static docker CLI,
+//! compose network mode, and explicit executor entrypoint/cmd (Cromwell / Nextflow).
 
 use crate::error::{Result, TesError};
 use crate::executor::TaskExecutor;
@@ -26,97 +23,79 @@ impl DockerExecutor {
         let docker = Docker::connect_with_local_defaults()?;
         Ok(Self::new(docker))
     }
-}
 
-fn env_truthy(name: &str) -> bool {
-    match std::env::var(name).map(|s| s.to_ascii_lowercase()) {
-        Ok(s) if matches!(s.as_str(), "1" | "true" | "yes" | "on") => true,
-        _ => false,
-    }
-}
-
-/// Parse one TES `volumes[]` entry into a Docker bind string (`host:container[:opts]`).
-fn parse_volume_entry(v: &serde_json::Value) -> Option<String> {
-    if let Some(s) = v.as_str() {
-        let t = s.trim();
-        return (!t.is_empty()).then(|| t.to_string());
-    }
-    let obj = v.as_object()?;
-    if let Some(bind) = obj.get("bind").and_then(|x| x.as_str()) {
-        let t = bind.trim();
-        return (!t.is_empty()).then(|| t.to_string());
-    }
-    let host = obj
-        .get("host")
-        .or_else(|| obj.get("Host"))
-        .or_else(|| obj.get("source"))
-        .and_then(|x| x.as_str())?;
-    let dest = obj
-        .get("container")
-        .or_else(|| obj.get("Container"))
-        .or_else(|| obj.get("target"))
-        .and_then(|x| x.as_str())?;
-    let mode = obj.get("mode").and_then(|x| x.as_str()).unwrap_or("rw");
-    Some(format!("{}:{}:{}", host.trim(), dest.trim(), mode.trim()))
-}
-
-fn collect_binds(request: &CreateTaskRequest) -> Vec<String> {
-    let mut binds: Vec<String> = request
-        .volumes
-        .as_ref()
-        .map(|vols| {
-            vols.iter()
-                .filter_map(parse_volume_entry)
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-
-    if env_truthy("FERRUM_TES_DOCKER_MOUNT_SOCKET") {
-        binds.push("/var/run/docker.sock:/var/run/docker.sock".to_string());
-    }
-
-    if let Ok(host_path) = std::env::var("FERRUM_TES_DOCKER_CLI_HOST_PATH") {
-        let host_path = host_path.trim();
-        if !host_path.is_empty() {
-            let dest = std::env::var("FERRUM_TES_DOCKER_CLI_CONTAINER_PATH")
-                .unwrap_or_else(|_| "/usr/local/bin/docker-host".to_string());
-            let dest = dest.trim();
-            binds.push(format!("{host_path}:{dest}:ro"));
+    fn collect_binds(request: &CreateTaskRequest) -> Vec<String> {
+        let mut binds = Vec::new();
+        if std::env::var("FERRUM_TES_DOCKER_MOUNT_SOCKET")
+            .map(|s| s == "1")
+            .unwrap_or(false)
+        {
+            binds.push("/var/run/docker.sock:/var/run/docker.sock".to_string());
         }
-    }
-
-    binds
-}
-
-fn build_host_config(binds: Vec<String>) -> Option<HostConfig> {
-    let mut hc = HostConfig {
-        binds: if binds.is_empty() { None } else { Some(binds) },
-        ..Default::default()
-    };
-
-    if let Ok(nm) = std::env::var("FERRUM_TES_DOCKER_NETWORK_MODE") {
-        let nm = nm.trim().to_string();
-        if !nm.is_empty() {
-            hc.network_mode = Some(nm);
+        if let (Ok(host), Ok(cont)) = (
+            std::env::var("FERRUM_TES_DOCKER_CLI_HOST_PATH"),
+            std::env::var("FERRUM_TES_DOCKER_CLI_CONTAINER_PATH"),
+        ) {
+            let host = host.trim();
+            let cont = cont.trim();
+            if !host.is_empty() && !cont.is_empty() {
+                binds.push(format!("{}:{}:ro", host, cont));
+            }
         }
-    }
-
-    if let Ok(eh) = std::env::var("FERRUM_TES_DOCKER_EXTRA_HOSTS") {
-        let parts: Vec<String> = eh
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-        if !parts.is_empty() {
-            hc.extra_hosts = Some(parts);
+        if let Ok(extra) = std::env::var("FERRUM_TES_EXTRA_BINDS") {
+            for p in extra.split(',') {
+                let p = p.trim();
+                if !p.is_empty() {
+                    binds.push(p.to_string());
+                }
+            }
         }
+        if let Some(vols) = &request.volumes {
+            for v in vols {
+                if let Some(s) = v.as_str() {
+                    binds.push(s.to_string());
+                    continue;
+                }
+                if let (Some(h), Some(c)) = (
+                    v.get("hostPath").and_then(|x| x.as_str()),
+                    v.get("containerPath").and_then(|x| x.as_str()),
+                ) {
+                    binds.push(format!("{}:{}", h, c));
+                }
+            }
+        }
+        binds
     }
 
-    let empty = hc.binds.is_none() && hc.network_mode.is_none() && hc.extra_hosts.is_none();
-    if empty {
-        None
-    } else {
-        Some(hc)
+    /// Prefer explicit TES executor entrypoint/cmd (WES bash/file modes). Fall back to the
+    /// flattened `sh -lc script` shape for older callers.
+    fn entrypoint_and_cmd(
+        exec: &crate::types::TesExecutor,
+    ) -> (Option<Vec<String>>, Option<Vec<String>>) {
+        if let Some(ep) = &exec.entrypoint {
+            let cmd = if exec.command.is_empty() {
+                None
+            } else {
+                Some(exec.command.clone())
+            };
+            return (Some(ep.clone()), cmd);
+        }
+        let shell_bin = exec.command.first().map(|s| s.as_str());
+        let is_shell = matches!(shell_bin, Some("sh" | "bash" | "/bin/sh" | "/bin/bash"));
+        if exec.command.len() == 3
+            && is_shell
+            && (exec.command[1] == "-lc" || exec.command[1] == "-c")
+        {
+            return (
+                Some(vec![exec.command[0].clone(), exec.command[1].clone()]),
+                Some(vec![exec.command[2].clone()]),
+            );
+        }
+        if exec.command.is_empty() {
+            (None, None)
+        } else {
+            (None, Some(exec.command.clone()))
+        }
     }
 }
 
@@ -132,28 +111,43 @@ impl TaskExecutor for DockerExecutor {
         }
         let exec = &request.executors[0];
         let name = format!("tes-{}", task_id);
-        let binds = collect_binds(request);
-        let host_config = build_host_config(binds);
-
+        let binds = Self::collect_binds(request);
+        let (entrypoint, cmd) = Self::entrypoint_and_cmd(exec);
+        let network_mode = std::env::var("FERRUM_TES_DOCKER_NETWORK_MODE")
+            .or_else(|_| std::env::var("FERRUM_TES_DOCKER_NETWORK"))
+            .ok()
+            .filter(|s| !s.trim().is_empty());
+        let extra_hosts = std::env::var("FERRUM_TES_DOCKER_EXTRA_HOSTS")
+            .ok()
+            .map(|s| {
+                s.split(',')
+                    .map(|x| x.trim().to_string())
+                    .filter(|x| !x.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .filter(|v| !v.is_empty());
+        let host_config = HostConfig {
+            binds: if binds.is_empty() { None } else { Some(binds) },
+            network_mode,
+            extra_hosts,
+            ..Default::default()
+        };
         let config = Config {
             image: Some(exec.image.clone()),
-            entrypoint: exec.entrypoint.clone(),
-            cmd: Some(exec.command.clone()),
+            entrypoint,
+            cmd,
+            working_dir: exec.workdir.clone(),
             env: exec.env.as_ref().map(|m| {
                 m.iter()
                     .map(|(k, v)| format!("{}={}", k, v))
                     .collect::<Vec<_>>()
             }),
-            working_dir: exec.workdir.clone(),
-            host_config,
+            host_config: Some(host_config),
             ..Default::default()
         };
-
         let platform = std::env::var("FERRUM_TES_DOCKER_PLATFORM")
             .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty());
-
+            .filter(|s| !s.trim().is_empty());
         let opts = CreateContainerOptions { name, platform };
         let create = self
             .docker
@@ -184,11 +178,15 @@ impl TaskExecutor for DockerExecutor {
             .inspect_container(id, None)
             .await
             .map_err(|e| TesError::Executor(e.to_string()))?;
-        let state = inspect.state.as_ref().and_then(|s| s.status);
-        match state {
+        let status = inspect.state.as_ref().and_then(|s| s.status.clone());
+        match status {
             Some(ContainerStateStatusEnum::RUNNING) => Ok(TaskState::Running),
             Some(ContainerStateStatusEnum::EXITED) => {
-                let exit = inspect.state.and_then(|s| s.exit_code).unwrap_or(1);
+                let exit = inspect
+                    .state
+                    .as_ref()
+                    .and_then(|s| s.exit_code)
+                    .unwrap_or(1);
                 Ok(if exit == 0 {
                     TaskState::Complete
                 } else {
@@ -197,22 +195,5 @@ impl TaskExecutor for DockerExecutor {
             }
             _ => Ok(TaskState::Unknown),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_volume_string() {
-        let v = serde_json::json!("/a:/b:rw");
-        assert_eq!(parse_volume_entry(&v), Some("/a:/b:rw".to_string()));
-    }
-
-    #[test]
-    fn parse_volume_object() {
-        let v = serde_json::json!({"host": "/x", "container": "/y", "mode": "ro"});
-        assert_eq!(parse_volume_entry(&v), Some("/x:/y:ro".to_string()));
     }
 }

@@ -431,9 +431,11 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     });
 
     #[cfg(feature = "full")]
-    let tes_params = pg_pool
-        .clone()
-        .map(|pool| (pool, Some("noop".to_string()), None));
+    let tes_params = pg_pool.clone().map(|pool| {
+        let backend = std::env::var("FERRUM_TES_BACKEND").unwrap_or_else(|_| "noop".to_string());
+        let work_dir = std::env::var("FERRUM_TES_WORK_DIR").ok().map(PathBuf::from);
+        (pool, Some(backend), work_dir)
+    });
 
     #[cfg(feature = "full")]
     {

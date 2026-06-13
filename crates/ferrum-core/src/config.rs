@@ -48,6 +48,9 @@ pub struct FerrumConfig {
     /// Bandwidth-adaptive transfer thresholds.
     #[serde(default)]
     pub bandwidth: BandwidthConfig,
+    /// GA4GH Service Registry discovery (ga4gh-infra integration).
+    #[serde(default)]
+    pub discovery: DiscoveryConfig,
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].
@@ -591,6 +594,9 @@ fn default_storage_backend() -> String {
 /// Auth / JWT configuration.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct AuthConfig {
+    /// Authentication backend: `builtin` (ferrum-passports) or `external` (ga4gh-infra broker).
+    #[serde(default)]
+    pub mode: AuthMode,
     /// HMAC secret for JWT validation (HS256). Env: FERRUM_AUTH__JWT_SECRET. May be file:///path for Docker/K8s secrets.
     pub jwt_secret: Option<String>,
     /// Expected JWT issuer. Env: FERRUM_AUTH__ISSUER
@@ -602,9 +608,75 @@ pub struct AuthConfig {
     pub passport_endpoints: Vec<String>,
     #[serde(default)]
     pub require_auth: bool,
+    /// When true and `mode = external`, validate Passports via ga4gh-clearinghouse (visa signature verification).
+    #[serde(default)]
+    pub clearinghouse: bool,
+    /// Optional ADS introspection URL for controlled-access decisions (ga4gh-infra).
+    #[serde(default)]
+    pub ads_url: Option<String>,
+    /// Environment variable holding the DAC API key for ADS introspection.
+    #[serde(default = "default_ads_api_key_env")]
+    pub ads_api_key_env: String,
     /// A07: Reject tokens older than this many hours (even if not expired). Default 24.
     #[serde(default = "default_max_token_age_hours")]
     pub max_token_age_hours: u32,
+}
+
+/// Authentication backend selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AuthMode {
+    /// Built-in ferrum-passports broker (standalone Ferrum deployments).
+    #[default]
+    Builtin,
+    /// External ga4gh-infra AAI broker; disables ferrum-passports when combined with discovery.
+    External,
+}
+
+fn default_ads_api_key_env() -> String {
+    "ADS_DAC_API_KEY".to_string()
+}
+
+/// GA4GH Service Registry discovery configuration.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct DiscoveryConfig {
+    /// When true, register enabled Ferrum services and resolve peer URLs via service registry.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Base URL of ga4gh-infra service registry (no trailing slash).
+    #[serde(default)]
+    pub service_registry_url: Option<String>,
+    /// Environment variable for the registry registration API key.
+    #[serde(default = "default_registry_key_env")]
+    pub registration_api_key_env: String,
+    /// Register Ferrum services on startup.
+    #[serde(default)]
+    pub auto_register: bool,
+    /// Public base URL used in service-registry entries (defaults to bind address when unset).
+    /// Env: `FERRUM_DISCOVERY__REGISTRATION_BASE_URL`. Use `http://ferrum-gateway:8080` in Docker co-deploy.
+    #[serde(default)]
+    pub registration_base_url: Option<String>,
+    /// Static fallback URLs keyed by GA4GH artifact (`drs`, `beacon`, `wes`, …) when registry is offline.
+    #[serde(default)]
+    pub fallback_urls: std::collections::HashMap<String, String>,
+}
+
+fn default_registry_key_env() -> String {
+    "SERVICE_REGISTRY_REGISTRATION_KEY".to_string()
+}
+
+impl DiscoveryConfig {
+    /// Resolve the registration API key from the configured environment variable.
+    pub fn registration_api_key(&self) -> Result<String, std::env::VarError> {
+        std::env::var(&self.registration_api_key_env)
+    }
+}
+
+impl AuthConfig {
+    /// Returns true when Ferrum should use an external ga4gh-infra auth plane.
+    pub fn is_external(&self) -> bool {
+        self.mode == AuthMode::External
+    }
 }
 
 fn default_max_token_age_hours() -> u32 {

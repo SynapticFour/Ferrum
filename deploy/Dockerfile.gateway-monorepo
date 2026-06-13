@@ -1,0 +1,33 @@
+# Ferrum gateway build for monorepo co-deploy with ga4gh-infra.
+# Build context MUST be the parent directory containing both `Ferrum/` and `ga4gh-infra/`.
+#
+#   docker build -f Ferrum/deploy/Dockerfile.gateway-monorepo \
+#     --build-arg FERRUM_GATEWAY_FEATURES="full,tes-docker,external-auth" \
+#     -t ferrum-gateway:co-deploy \
+#     /path/to/SynapticFour
+#
+# Copies the ga4gh-infra workspace so path deps in ferrum-core resolve.
+
+ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm
+ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim
+FROM ${RUST_BUILDER_IMAGE} AS builder
+ARG FERRUM_GATEWAY_FEATURES=full,external-auth
+WORKDIR /build
+
+COPY Ferrum/Cargo.toml Ferrum/Cargo.lock* ./
+COPY Ferrum/crates ./crates
+COPY Ferrum/tools ./tools
+
+# Path deps: ../../../ga4gh-infra from crates/ferrum-core → /ga4gh-infra
+COPY ga4gh-infra /ga4gh-infra
+
+RUN cargo build --release -p ferrum-gateway --features "${FERRUM_GATEWAY_FEATURES}"
+
+FROM ${DEBIAN_RUNTIME_IMAGE}
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget curl && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /build/target/release/ferrum-gateway /app/ferrum-gateway
+RUN mkdir -p /app/data
+ENV FERRUM_BIND=0.0.0.0:8080
+EXPOSE 8080
+CMD ["/app/ferrum-gateway"]

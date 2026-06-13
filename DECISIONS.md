@@ -12,6 +12,16 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-12 - ADR-017: External auth plane owned by ga4gh-infra in co-deploy
+
+- **Status:** Accepted
+- **Context:** Ferrum embedded `ferrum-passports` (broker + visa issuance) duplicated ga4gh-infra's AAI stack. Co-deploying both caused port clashes (8080), split-brain auth, and divergent Passport validation logic.
+- **Decision:** When `[auth] mode = "external"` (or `FERRUM_AUTH__MODE=external`), Ferrum disables built-in `/passports/v1`, validates Passports via `ga4gh-clearinghouse`, and optionally registers GA4GH data services in ga4gh-infra's service-registry (`ferrum-discovery`). Standalone Ferrum keeps `mode = "builtin"` unchanged.
+- **Consequences:** Co-deploy requires sibling `ga4gh-infra` for path deps (`ga4gh-clearinghouse`, `ga4gh-types`) or published crates. Docker co-deploy uses `deploy/Dockerfile.gateway-monorepo` with monorepo build context. Ferrum owns data plane (DRS, WES, Beacon, …); ga4gh-infra owns identity plane (broker, visas, DUO, ADS, registry).
+- **Alternatives considered:** Permanent dual broker in Ferrum (rejected: duplication); Ferrum as sole auth stack (rejected: violates GA4GH AAI separation of concerns).
+
+---
+
 ### 2026-06-12 - ARM64 as first-class build target
 
 - **Context:** Raspberry Pi 5 (Cortex-A76, ARM64) is the primary edge hardware for Africa deployments. Hardware AES/SHA2 and NEON acceleration are critical for Crypt4GH performance in field conditions.
