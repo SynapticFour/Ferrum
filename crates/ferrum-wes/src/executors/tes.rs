@@ -77,10 +77,10 @@ fn min_terminal_delay() -> Duration {
 }
 
 fn env_truthy(name: &str) -> bool {
-    match std::env::var(name).map(|s| s.to_ascii_lowercase()) {
-        Ok(s) if matches!(s.as_str(), "1" | "true" | "yes" | "on") => true,
-        _ => false,
-    }
+    matches!(
+        std::env::var(name).map(|s| s.to_ascii_lowercase()),
+        Ok(s) if matches!(s.as_str(), "1" | "true" | "yes" | "on")
+    )
 }
 
 fn workflow_params_meaningful(p: &serde_json::Value) -> bool {
