@@ -1,0 +1,24 @@
+/**
+ * Synaptic Four brand tokens (vendored copy).
+ * Source: synapticfour-infra/platform/brand-tokens/tokens.css — keep in sync on brand updates.
+ */
+
+:root {
+  --sf-color-background: #f0f4f8;
+  --sf-color-surface: #e8eef4;
+  --sf-color-navy: #1a2744;
+  --sf-color-navy-text: #1e2d3d;
+  --sf-color-on-navy: #f0f4f8;
+  --sf-color-teal: #0ea5e9;
+  --sf-color-teal-green: #2ec4b6;
+  --sf-font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sf-focus-ring: #0ea5e9;
+  --sf-focus-ring-width: 3px;
+  --sf-focus-ring-offset: 3px;
+  --sf-contact-email: contact@synapticfour.com;
+  --sf-website-url: https://synapticfour.com;
+}
+
+:root[data-sf-product='ferrum'] {
+  --sf-color-accent: var(--sf-color-teal);
+}

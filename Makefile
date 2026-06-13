@@ -4,7 +4,26 @@
 COMPOSE_FILE := deploy/docker-compose.yml
 COMPOSE := docker compose -f $(COMPOSE_FILE)
 
-.PHONY: demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop
+
+# Synaptic Four unified local lifecycle: up → down → destroy
+help:
+	@echo "Ferrum — local lifecycle (Synaptic Four GA4GH stack)"
+	@echo ""
+	@echo "  make up        Start demo stack (alias: make demo)"
+	@echo "  make down      Stop stack; keep volumes"
+	@echo "  make destroy   Stop stack; remove volumes and project images"
+	@echo ""
+	@echo "  make demo      Pull, build, start, wait for health"
+	@echo "  make laptop    Native single-binary laptop mode (no Docker)"
+	@echo "  make logs      Tail compose logs"
+	@echo "  make build     Build images only"
+
+up: demo
+
+down: stop
+
+destroy: clean-all
 
 # Optimized single-binary Laptop Mode (native CPU when possible)
 laptop:
