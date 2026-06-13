@@ -167,7 +167,7 @@ ferrum demo start
 ferrum demo start --offline
 ```
 
-See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for resource requirements (Linux, macOS, Raspberry Pi, etc.) and what is included in Laptop Mode.
+See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for resource requirements (Linux, macOS, Raspberry Pi, etc.) and what is included in Laptop Mode. Public overview: [synapticfour.com/en/ferrum-field](https://synapticfour.com/en/ferrum-field).
 
 ### 3. Use the UI
 
@@ -274,7 +274,7 @@ ferrum demo start
 ferrum demo start --offline
 ```
 
-Resource expectations and platform notes: [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md).
+Resource expectations and platform notes: [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md). Website: [Field & offline deployment](https://synapticfour.com/en/ferrum-field).
 
 ### 🏢 On-premises HPC
 

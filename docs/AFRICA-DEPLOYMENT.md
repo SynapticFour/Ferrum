@@ -1,4 +1,6 @@
-# Africa Deployment Guide
+# Field & offline deployment guide
+
+> **Website:** [synapticfour.com/en/ferrum-field](https://synapticfour.com/en/ferrum-field) — public overview for resource-constrained and field-lab deployments.
 
 ## Offline-First and Laptop Mode
 
