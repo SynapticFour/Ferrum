@@ -104,7 +104,7 @@ Defaults are **unchanged** from older Ferrum (minimal `image` + `command`, no `v
 
 | Variable | Effect |
 |----------|--------|
-| **`FERRUM_WES_TES_WORK_HOST_PREFIX`** | Absolute host directory prefix. Ferrum adds a TES volume `{prefix}/{run_id}:{prefix}/{run_id}:rw` so nested `docker run -v` can resolve the **same** path on the host. Align **`FERRUM_WES_WORK_DIR`** / `work_dir_base` with this layout. |
+| **`FERRUM_WES_TES_WORK_HOST_PREFIX`** | Absolute host directory prefix. Ferrum adds a TES volume `{prefix}/{run_id}:{container}/{run_id}:rw` so nested `docker run -v` can resolve paths on the host. Set **`FERRUM_WES_TES_CONTAINER_MOUNT_PREFIX`** (e.g. `/wes-runs`) when the task container should use a stable in-container path distinct from the host prefix. Align **`FERRUM_WES_WORK_DIR`** / `work_dir_base` with this layout. |
 | **`FERRUM_WES_TES_CONTAINER_WORKDIR`** | Sets **`executors[].workdir`** on submitted tasks (optional working directory inside the task). |
 | **`FERRUM_WES_TES_WDL_BASH_LAUNCH`** | If truthy and **`workflow_type`** is WDL: use **`/bin/bash -lc`** and run Cromwell with **`$FERRUM_WES_WORKFLOW_URL`**; optional **`inputs.json`** in the work dir (from **`workflow_params`** when non-empty). |
 | **`FERRUM_WES_TES_NEXTFLOW_FILE_LAUNCH`** | If truthy and type is Nextflow: download workflow with **`curl`**, write minimal **`nextflow.config`** (`docker { enabled = true }`), run **`nextflow run workflow.nf`** with **`-params-file params.json`** when **`workflow_params`** was written. Requires the work dir to be visible in the task (same bind pattern as above). |

@@ -15,6 +15,7 @@ on:
 env:
   # Pin HelixTest to a branch or tag; change to e.g. v0.1.0 when HelixTest tags releases
   HELIXTEST_REF: main
+  GA4GH_INFRA_REF: main
   # HelixTest can skip the Auth (Level 4) suite in Ferrum mode to avoid conflicts where
   # Ferrum keeps some non-auth conformance endpoints intentionally open.
   HELIXTEST_SKIP_AUTH: "true"
@@ -34,6 +35,9 @@ jobs:
     steps:
       - name: Checkout Ferrum
         uses: actions/checkout@v6
+      - uses: ./.github/actions/clone-ga4gh-infra
+        with:
+          ref: ${{ env.GA4GH_INFRA_REF }}
 
       - name: Clone HelixTest
         run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
@@ -174,6 +178,9 @@ jobs:
     steps:
       - name: Checkout Ferrum
         uses: actions/checkout@v6
+      - uses: ./.github/actions/clone-ga4gh-infra
+        with:
+          ref: ${{ env.GA4GH_INFRA_REF }}
 
       - name: Clone HelixTest
         run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo

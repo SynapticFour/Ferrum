@@ -143,6 +143,10 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
+    let container_mount_prefix = std::env::var("FERRUM_WES_TES_CONTAINER_MOUNT_PREFIX")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
 
     let wt = run.workflow_type.to_lowercase();
     let wf_url = run.workflow_url.as_str();
@@ -166,8 +170,12 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
 
     let mut volumes: Option<Vec<serde_json::Value>> = None;
     if let Some(ref prefix) = host_prefix {
-        let abs = format!("{}/{}", prefix.trim_end_matches('/'), run.run_id);
-        let bind = format!("{abs}:{abs}:rw");
+        let host_run = format!("{}/{}", prefix.trim_end_matches('/'), run.run_id);
+        let container_run = container_mount_prefix
+            .as_ref()
+            .map(|cp| format!("{}/{}", cp.trim_end_matches('/'), run.run_id))
+            .unwrap_or_else(|| host_run.clone());
+        let bind = format!("{host_run}:{container_run}:rw");
         volumes = Some(vec![serde_json::Value::String(bind)]);
     }
 
@@ -175,6 +183,25 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
+
+    // When WORK_HOST_PREFIX + bash/file launch modes are on, inputs live under `{prefix}/{run_id}`.
+    // Derive per-run `workdir` if CONTAINER_WORKDIR is unset (stock Ferrum only supported a static env).
+    let bash_or_file_mode =
+        (wdl_bash && wt == "wdl") || (nf_file && matches!(wt.as_str(), "nextflow" | "nxf" | "nfl"));
+    let executor_workdir = if bash_or_file_mode {
+        container_workdir.clone().or_else(|| {
+            container_mount_prefix
+                .as_ref()
+                .map(|cp| format!("{}/{}", cp.trim_end_matches('/'), run.run_id))
+                .or_else(|| {
+                    host_prefix
+                        .as_ref()
+                        .map(|p| format!("{}/{}", p.trim_end_matches('/'), run.run_id))
+                })
+        })
+    } else {
+        container_workdir.clone()
+    };
 
     let mut base_env = HashMap::new();
     base_env.insert(
@@ -184,22 +211,24 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
 
     let executor = if wdl_bash && wt == "wdl" {
         TesExecutorBody {
-            image: "broadinstitute/cromwell:latest".to_string(),
+            // Pinned tag (matches demo pre-pull; avoids ambiguous `latest`).
+            image: "broadinstitute/cromwell:93-0232cbd".to_string(),
             entrypoint: Some(vec!["/bin/bash".to_string(), "-lc".to_string()]),
             command: vec![
                 "set -euo pipefail; INPUTS_ARGS=; if [ -f inputs.json ]; then INPUTS_ARGS=\"--inputs inputs.json\"; fi; exec java -jar /app/cromwell.jar run \"$FERRUM_WES_WORKFLOW_URL\" $INPUTS_ARGS".to_string(),
             ],
-            workdir: container_workdir.clone(),
+            workdir: executor_workdir.clone(),
             env: Some(base_env),
         }
     } else if nf_file && matches!(wt.as_str(), "nextflow" | "nxf" | "nfl") {
         TesExecutorBody {
-            image: "nextflow/nextflow:latest".to_string(),
+            // Pinned tag (Hub may not publish `latest`; image is amd64-only — use FERRUM_TES_DOCKER_PLATFORM on arm64).
+            image: "nextflow/nextflow:24.10.3".to_string(),
             entrypoint: Some(vec!["/bin/bash".to_string(), "-lc".to_string()]),
             command: vec![
-                "set -euo pipefail; curl -fsSL \"$FERRUM_WES_WORKFLOW_URL\" -o workflow.nf; echo 'docker { enabled = true }' > nextflow.config; if [ -f params.json ]; then exec nextflow run workflow.nf -params-file params.json; else exec nextflow run workflow.nf; fi".to_string(),
+                "set -euo pipefail; curl -fsSL \"$FERRUM_WES_WORKFLOW_URL\" -o workflow.nf; printf '%s\\n' 'docker {' '    enabled = true' '}' > nextflow.config; if [ -f params.json ]; then exec nextflow run workflow.nf -ansi-log false -params-file params.json; else exec nextflow run workflow.nf -ansi-log false; fi".to_string(),
             ],
-            workdir: container_workdir.clone(),
+            workdir: executor_workdir.clone(),
             env: Some(base_env),
         }
     } else {
@@ -208,7 +237,7 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
             image,
             command,
             entrypoint: None,
-            workdir: container_workdir,
+            workdir: executor_workdir,
             env: None,
         }
     };
@@ -239,7 +268,11 @@ impl WorkflowExecutor for TesExecutorBackend {
         vec![
             (
                 "Nextflow".to_string(),
-                vec!["22.10".to_string(), "23.04".to_string()],
+                vec![
+                    "22.10".to_string(),
+                    "23.04".to_string(),
+                    "24.10".to_string(),
+                ],
             ),
             (
                 "CWL".to_string(),

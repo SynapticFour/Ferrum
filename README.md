@@ -234,6 +234,9 @@ See [docs/CRYPT4GH.md](docs/CRYPT4GH.md) for the full design.
 Deployment matrix (including offline + update strategy):
 `docs/deployment/README.md`
 
+Co-deploy with [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra) (external auth + service registry):
+[docs/GA4GH-INFRA-INTEGRATION.md](docs/GA4GH-INFRA-INTEGRATION.md) · [DECISIONS.md](DECISIONS.md) (ADR-017)
+
 ### 🍎 Local demo (MacBook)
 
 **Docker demo (full stack):**

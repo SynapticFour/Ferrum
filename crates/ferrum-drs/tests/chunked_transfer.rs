@@ -164,6 +164,7 @@ async fn test_low_bandwidth_compression() {
     let req = Request::builder()
         .method(Method::GET)
         .uri("/objects/obj1/stream")
+        .header("Accept-Encoding", "zstd")
         .body(axum::body::Body::empty())
         .unwrap();
     let resp = app.oneshot(req).await.unwrap();
