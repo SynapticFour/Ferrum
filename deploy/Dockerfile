@@ -5,22 +5,26 @@
 # Stage 1: cargo-chef for dependency caching
 FROM rust:1.91.1-bookworm AS chef
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
 RUN cargo install cargo-chef
 COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
 COPY tools ./tools
+RUN git clone --depth 1 --branch main https://github.com/SynapticFour/ga4gh-infra.git /ga4gh-infra
 RUN cargo chef prepare --recipe-path recipe.json
 
 # Stage 2: build release with musl for static binary
 FROM rust:1.91.1-bookworm AS builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    musl-tools libssl-dev pkg-config \
+    musl-tools libssl-dev pkg-config git \
     && rm -rf /var/lib/apt/lists/*
 RUN rustup target add x86_64-unknown-linux-musl
 COPY --from=chef /usr/local/cargo/bin/cargo-chef /usr/local/cargo/bin/cargo-chef
 
 COPY --from=chef /app/recipe.json recipe.json
+RUN git clone --depth 1 --branch main https://github.com/SynapticFour/ga4gh-infra.git /ga4gh-infra
 RUN cargo chef cook --release --recipe-path recipe.json -p ferrum-gateway --target x86_64-unknown-linux-musl
 
 COPY . .
