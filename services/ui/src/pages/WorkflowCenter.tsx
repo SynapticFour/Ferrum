@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { apiGet } from '@/api/client';
-import { Play, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { SubmitWorkflowDialog } from '@/components/SubmitWorkflowDialog';
 
 interface RunSummary {

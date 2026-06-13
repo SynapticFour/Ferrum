@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiGet } from '@/api/client';
-import { Key, Database, Server, User, HardDrive, Info, Network } from 'lucide-react';
+import { Key, Database, Server, User, HardDrive, Info } from 'lucide-react';
 import { FederationPanel } from '@/components/FederationPanel';
 
 interface SanitizedConfig {

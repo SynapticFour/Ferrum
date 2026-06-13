@@ -84,6 +84,10 @@ export function BeaconExplorer() {
               <Input id="start" type="number" value={start} onChange={(e) => setStart(e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="end">End position</Label>
+              <Input id="end" type="number" value={end} onChange={(e) => setEnd(e.target.value)} />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="refbases">Reference bases</Label>
               <Input id="refbases" value={referenceBases} onChange={(e) => setReferenceBases(e.target.value)} />
             </div>
