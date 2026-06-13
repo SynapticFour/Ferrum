@@ -17,6 +17,10 @@ one gateway, your hardware, verifiable conformance.
 > operator's legal basis, configuration, and organisational measures.
 > See [docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md) for licensing details.
 
+## SynapticFour GA4GH stack
+
+Ferrum is the **data/compute plane** in a five-repo platform. See **[docs/ECOSYSTEM.md](docs/ECOSYSTEM.md)** for ga4gh-infra (identity), Lab Kit (deploy), Demo (benchmark), and HelixTest (conformance).
+
 ---
 
 ## Why Ferrum exists
