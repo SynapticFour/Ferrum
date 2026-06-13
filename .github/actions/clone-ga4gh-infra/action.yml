@@ -1,0 +1,21 @@
+name: Clone ga4gh-infra sibling
+description: Clone ga4gh-infra next to Ferrum for workspace path dependencies
+inputs:
+  ref:
+    description: Branch or tag of ga4gh-infra to clone
+    required: false
+    default: main
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        REF="${{ inputs.ref }}"
+        DEST="../ga4gh-infra"
+        if [ -d "$DEST/.git" ]; then
+          echo "ga4gh-infra already present at $DEST"
+          exit 0
+        fi
+        git clone --depth 1 --branch "$REF" \
+          "https://github.com/${GITHUB_REPOSITORY_OWNER}/ga4gh-infra.git" "$DEST"
