@@ -28,6 +28,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DeploymentModeBanner } from '@/components/DeploymentModeBanner';
 
 interface RunSummary {
   run_id: string;
@@ -133,6 +134,8 @@ export function Dashboard() {
 
   return (
     <div className="space-y-10">
+      <DeploymentModeBanner />
+
       {/* Hero + Quick actions */}
       <section className="relative rounded-2xl border border-border/60 bg-gradient-to-br from-card via-card to-primary/5 p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">

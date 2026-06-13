@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiGet } from '@/api/client';
 import { Play, AlertCircle } from 'lucide-react';
+import { SubmitWorkflowDialog } from '@/components/SubmitWorkflowDialog';
 
 interface RunSummary {
   run_id: string;
@@ -31,10 +32,7 @@ export function WorkflowCenter() {
           <h1 className="text-3xl font-bold tracking-tight">Workflow Center</h1>
           <p className="text-muted-foreground">Submit and monitor WES runs.</p>
         </div>
-        <Button variant="outline" disabled className="gap-2">
-          <Play className="h-4 w-4" />
-          Submit workflow
-        </Button>
+        <SubmitWorkflowDialog disabled={!!error} />
       </div>
       {error && (
         <div className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
@@ -46,7 +44,8 @@ export function WorkflowCenter() {
         <CardHeader>
           <CardTitle>Runs</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Submit workflows via the WES API (e.g. <code className="rounded bg-muted px-1">POST /ga4gh/wes/v1/runs</code>). Submit UI is coming in a future release.
+            Submit workflows via the button above or{' '}
+            <code className="rounded bg-muted px-1">POST /ga4gh/wes/v1/runs</code>.
           </p>
         </CardHeader>
         <CardContent>

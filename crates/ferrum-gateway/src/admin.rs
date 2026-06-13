@@ -11,9 +11,19 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub struct AdminState {
-    pub pool: sqlx::PgPool,
+    pub pool: Option<sqlx::PgPool>,
     /// Sanitized config for GET /admin/config (no secrets).
     pub config: Option<SanitizedConfig>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SanitizedDiscovery {
+    pub enabled: bool,
+    pub auto_register: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_registry_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub registration_base_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -22,6 +32,10 @@ pub struct SanitizedConfig {
     pub database: SanitizedDatabase,
     pub storage: SanitizedStorage,
     pub services: SanitizedServices,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discovery: Option<SanitizedDiscovery>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deployment_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -79,6 +93,12 @@ async fn revoke_token(
             Json(RevokeResponse { revoked: false }),
         );
     }
+    let Some(pool) = state.pool.as_ref() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(RevokeResponse { revoked: false }),
+        );
+    };
     let jti = req.jti.trim();
     if jti.is_empty() {
         return (
@@ -91,7 +111,7 @@ async fn revoke_token(
     )
     .bind(jti)
     .bind(None::<String>)
-    .execute(&state.pool)
+    .execute(pool)
     .await;
     match r {
         Ok(rows) => (
@@ -146,6 +166,12 @@ async fn list_security_events(
             Json(EventsResponse { events: vec![] }),
         );
     }
+    let Some(pool) = state.pool.as_ref() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(EventsResponse { events: vec![] }),
+        );
+    };
     let limit = q.limit.unwrap_or(100).min(500);
     let offset = q.offset.unwrap_or(0);
     let severity = q.severity.as_deref().filter(|s| !s.is_empty());
@@ -166,7 +192,7 @@ async fn list_security_events(
         .bind(sev)
         .bind(limit as i64)
         .bind(offset as i64)
-        .fetch_all(&state.pool)
+        .fetch_all(pool)
         .await
     } else {
         sqlx::query_as(
@@ -174,7 +200,7 @@ async fn list_security_events(
         )
         .bind(limit as i64)
         .bind(offset as i64)
-        .fetch_all(&state.pool)
+        .fetch_all(pool)
         .await
     };
     match rows {
@@ -233,7 +259,18 @@ async fn get_config(State(state): State<Arc<AdminState>>) -> impl IntoResponse {
 }
 
 /// Admin router: mount at /admin. GET /config is public (sanitized); revoke and security/events require admin auth.
-pub fn admin_router(pool: sqlx::PgPool, config: Option<&ferrum_core::FerrumConfig>) -> Router {
+pub fn admin_router(pool: Option<&sqlx::PgPool>, config: Option<&ferrum_core::FerrumConfig>) -> Router {
+    let deployment_mode = config.map(|c| {
+        if c.is_offline_first() {
+            if c.services.enable_wes || c.services.enable_trs {
+                "connected".to_string()
+            } else {
+                "offline".to_string()
+            }
+        } else {
+            "full".to_string()
+        }
+    });
     let sanitized = config.map(|c| SanitizedConfig {
         bind: c.bind.clone(),
         database: SanitizedDatabase {
@@ -260,14 +297,22 @@ pub fn admin_router(pool: sqlx::PgPool, config: Option<&ferrum_core::FerrumConfi
             enable_passports: c.services.enable_passports,
             enable_crypt4gh: c.services.enable_crypt4gh,
         },
+        discovery: Some(SanitizedDiscovery {
+            enabled: c.discovery.enabled,
+            auto_register: c.discovery.auto_register,
+            service_registry_url: c.discovery.service_registry_url.clone(),
+            registration_base_url: c.discovery.registration_base_url.clone(),
+        }),
+        deployment_mode,
     });
     let state = Arc::new(AdminState {
-        pool,
+        pool: pool.cloned(),
         config: sanitized,
     });
-    Router::new()
+    let core = Router::new()
         .route("/config", get(get_config))
         .route("/tokens/revoke", post(revoke_token))
         .route("/security/events", get(list_security_events))
-        .with_state(state)
+        .with_state(state);
+    core
 }

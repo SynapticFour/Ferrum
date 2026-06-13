@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiGet } from '@/api/client';
-import { Key, Database, Server, User, HardDrive, Info } from 'lucide-react';
+import { Key, Database, Server, User, HardDrive, Info, Network } from 'lucide-react';
+import { FederationPanel } from '@/components/FederationPanel';
 
 interface SanitizedConfig {
   bind?: string;
@@ -17,6 +18,13 @@ interface SanitizedConfig {
     enable_passports?: boolean;
     enable_crypt4gh?: boolean;
   };
+  discovery?: {
+    enabled?: boolean;
+    auto_register?: boolean;
+    service_registry_url?: string;
+    registration_base_url?: string;
+  };
+  deployment_mode?: string;
   message?: string;
 }
 
@@ -51,12 +59,13 @@ export function Settings() {
         <p className="text-muted-foreground">Server configuration, storage, and profile.</p>
       </div>
 
-      <Tabs defaultValue="config">
+      <Tabs defaultValue={typeof window !== 'undefined' && window.location.hash === '#federation' ? 'federation' : 'config'}>
         <TabsList>
           <TabsTrigger value="config">Server</TabsTrigger>
           <TabsTrigger value="storage">Storage</TabsTrigger>
           <TabsTrigger value="keys">Encryption keys</TabsTrigger>
           <TabsTrigger value="cache">Workflow cache</TabsTrigger>
+          <TabsTrigger value="federation">Federation</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
         </TabsList>
         <TabsContent value="config">
@@ -228,6 +237,9 @@ export function Settings() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="federation">
+          <FederationPanel />
         </TabsContent>
         <TabsContent value="profile">
           <Card>

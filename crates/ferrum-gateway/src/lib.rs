@@ -3,6 +3,8 @@
 
 #[cfg(feature = "full")]
 mod admin;
+#[cfg(feature = "full")]
+mod federation;
 pub mod audit;
 pub mod outbreak;
 pub mod power;
@@ -346,8 +348,10 @@ pub fn app(
         );
     }
     #[cfg(feature = "full")]
-    if let Some(pool) = admin_pool {
-        app = app.nest("/admin", admin::admin_router(pool, cfg));
+    {
+        app = app
+            .nest("/admin/federation", federation::federation_router(cfg))
+            .nest("/admin", admin::admin_router(admin_pool.as_ref(), cfg));
     }
 
     // UI: static files from services/ui (when built/present)

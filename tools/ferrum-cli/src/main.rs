@@ -64,6 +64,11 @@ enum DemoAction {
         #[arg(long)]
         force_production: bool,
     },
+    /// Seed demo DRS + Beacon data against a running gateway (Laptop Mode friendly)
+    Seed {
+        #[arg(long, default_value = "http://127.0.0.1:8080")]
+        base_url: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -198,6 +203,11 @@ async fn run_cli() -> Result<(), CliExit> {
                 force_production,
             } => {
                 demo_start(offline, force_production)
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+            DemoAction::Seed { base_url } => {
+                demo_seed(&base_url)
                     .await
                     .map_err(CliExit::RuntimeFailed)?;
             }
@@ -484,6 +494,34 @@ async fn demo_start(offline: bool, force_production: bool) -> Result<(), String>
     }
     eprintln!("{}", i18n::production_fallback(lang));
     start_laptop_mode(lang).await
+}
+
+async fn demo_seed(base_url: &str) -> Result<(), String> {
+    let script = std::env::var("FERRUM_SEED_SCRIPT").ok().or_else(|| {
+        for candidate in [
+            "scripts/seed-laptop-demo.sh",
+            "../scripts/seed-laptop-demo.sh",
+            "../../scripts/seed-laptop-demo.sh",
+        ] {
+            if std::path::Path::new(candidate).exists() {
+                return Some(candidate.to_string());
+            }
+        }
+        None
+    });
+    let script = script.ok_or(
+        "seed script not found — run from Ferrum repo root or set FERRUM_SEED_SCRIPT",
+    )?;
+    let status = tokio::process::Command::new("bash")
+        .arg(&script)
+        .env("BASE_URL", base_url)
+        .status()
+        .await
+        .map_err(|e| format!("failed to run seed script: {e}"))?;
+    if !status.success() {
+        return Err(format!("seed script exited with {status}"));
+    }
+    Ok(())
 }
 
 async fn start_laptop_mode(lang: i18n::Lang) -> Result<(), String> {
