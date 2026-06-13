@@ -11,7 +11,15 @@ const queryClient = new QueryClient({
   },
 });
 
-const router = createRouter({ routeTree });
+function uiBasepath(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  return window.location.pathname.startsWith('/ui') ? '/ui' : undefined;
+}
+
+const router = createRouter({
+  routeTree,
+  basepath: uiBasepath(),
+});
 
 declare module '@tanstack/react-router' {
   interface Register {
