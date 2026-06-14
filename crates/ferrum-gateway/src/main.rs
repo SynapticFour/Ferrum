@@ -9,7 +9,7 @@ use ferrum_embed::{
 };
 use ferrum_gateway::run;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -103,7 +103,7 @@ async fn start_laptop_mode() -> Result<(), Box<dyn std::error::Error + Send + Sy
     run_gateway_server().await
 }
 
-fn run_docker_demo(demo: &PathBuf) -> std::io::Result<std::process::ExitStatus> {
+fn run_docker_demo(demo: &Path) -> std::io::Result<std::process::ExitStatus> {
     if let Some(compose) = full_demo_compose() {
         println!("[ferrum] Using full demo stack: {}", compose.display());
         let repo_root = compose

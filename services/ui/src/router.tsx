@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, Outlet } from '@tanstack/react-router';
 import { AppLayout } from '@/components/AppLayout';
+import { AuthCallback } from '@/pages/AuthCallback';
 import { Dashboard } from '@/pages/Dashboard';
 import { DataBrowser } from '@/pages/DataBrowser';
 import { ObjectDetailPage } from '@/pages/ObjectDetailPage';
@@ -17,6 +18,18 @@ import { WorkspaceDetailPage } from '@/pages/WorkspaceDetailPage';
 import { NewWorkspacePage } from '@/pages/NewWorkspacePage';
 
 const rootRoute = createRootRoute({
+  component: () => <Outlet />,
+});
+
+const authCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/auth/callback',
+  component: AuthCallback,
+});
+
+const layoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: 'layout',
   component: () => (
     <AppLayout>
       <Outlet />
@@ -24,39 +37,39 @@ const rootRoute = createRootRoute({
   ),
 });
 
-const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component: Dashboard });
-const dataRoute = createRoute({ getParentRoute: () => rootRoute, path: '/data', component: DataBrowser });
+const indexRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/', component: Dashboard });
+const dataRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/data', component: DataBrowser });
 const objectDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => layoutRoute,
   path: '/data/objects/$objectId',
   component: ObjectDetailPage,
 });
-const workflowsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/workflows', component: WorkflowCenter });
+const workflowsRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/workflows', component: WorkflowCenter });
 const runDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => layoutRoute,
   path: '/workflows/runs/$runId',
   component: RunDetailPage,
 });
-const toolsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/tools', component: ToolRegistry });
-const beaconRoute = createRoute({ getParentRoute: () => rootRoute, path: '/beacon', component: BeaconExplorer });
-const accessRoute = createRoute({ getParentRoute: () => rootRoute, path: '/access', component: AccessManagement });
-const settingsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: Settings });
-const cohortsRoute = createRoute({ getParentRoute: () => rootRoute, path: '/cohorts', component: CohortListPage });
-const cohortNewRoute = createRoute({ getParentRoute: () => rootRoute, path: '/cohorts/new', component: NewCohortPage });
+const toolsRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/tools', component: ToolRegistry });
+const beaconRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/beacon', component: BeaconExplorer });
+const accessRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/access', component: AccessManagement });
+const settingsRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/settings', component: Settings });
+const cohortsRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/cohorts', component: CohortListPage });
+const cohortNewRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/cohorts/new', component: NewCohortPage });
 const cohortDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => layoutRoute,
   path: '/cohorts/$cohortId',
   component: CohortDetailPage,
 });
-const workspacesRoute = createRoute({ getParentRoute: () => rootRoute, path: '/workspaces', component: WorkspaceListPage });
+const workspacesRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/workspaces', component: WorkspaceListPage });
 const workspaceDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => layoutRoute,
   path: '/workspaces/$workspaceId',
   component: WorkspaceDetailPage,
 });
-const newWorkspaceRoute = createRoute({ getParentRoute: () => rootRoute, path: '/workspaces/new', component: NewWorkspacePage });
+const newWorkspaceRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/workspaces/new', component: NewWorkspacePage });
 
-rootRoute.addChildren([
+layoutRoute.addChildren([
   indexRoute,
   dataRoute,
   objectDetailRoute,
@@ -73,5 +86,7 @@ rootRoute.addChildren([
   workspaceDetailRoute,
   newWorkspaceRoute,
 ]);
+
+rootRoute.addChildren([authCallbackRoute, layoutRoute]);
 
 export const routeTree = rootRoute;

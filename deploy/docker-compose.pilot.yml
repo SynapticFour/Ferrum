@@ -1,0 +1,34 @@
+# Pilot overlay: Ferrum gateway with external auth + ga4gh-infra service registry.
+# Merged with deploy/docker-compose.yml + deploy/docker-compose.ga4gh-infra.yml via make up-pilot.
+services:
+  ferrum-gateway:
+    build:
+      context: ${GA4GH_INFRA_SRC}/..
+      dockerfile: Ferrum/deploy/Dockerfile.gateway-monorepo
+      args:
+        FERRUM_GATEWAY_FEATURES: full,tes-docker,external-auth
+    environment:
+      FERRUM_AUTH__MODE: external
+      FERRUM_AUTH__REQUIRE_AUTH: "true"
+      FERRUM_AUTH__CLEARINGHOUSE: "true"
+      FERRUM_AUTH__ISSUER: http://aai-broker:8080
+      FERRUM_AUTH__JWKS_URL: http://aai-broker:8080/jwks.json
+      FERRUM_PUBLIC_BROKER_URL: http://localhost:8180
+      FERRUM_BROKER_LOGIN_IDP: mock-idp
+      FERRUM_SERVICES__ENABLE_PASSPORTS: "false"
+      FERRUM_DISCOVERY__ENABLED: "true"
+      FERRUM_DISCOVERY__AUTO_REGISTER: "true"
+      FERRUM_DISCOVERY__SERVICE_REGISTRY_URL: http://service-registry:8083
+      FERRUM_DISCOVERY__REGISTRATION_BASE_URL: http://localhost:${GATEWAY_PORT:-8080}
+      SERVICE_REGISTRY_REGISTRATION_KEY: dev-service-registry-key
+      ADS_DAC_API_KEY: dev-ads-api-key
+    depends_on:
+      aai-broker:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+
+  ferrum-ui:
+    environment:
+      # UI reads broker login URL from gateway /admin/config (FERRUM_PUBLIC_BROKER_URL above).
+      VITE_API_BASE: ""

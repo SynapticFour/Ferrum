@@ -1,0 +1,13 @@
+[server]
+host = "0.0.0.0"
+port = 8083
+external_url = "http://localhost:8183"
+environment = "development"
+read_only = false
+
+[database]
+driver = "sqlite"
+url = "sqlite:///data/service_registry.sqlite"
+
+[auth]
+registration_api_key_env = "SERVICE_REGISTRY_REGISTRATION_KEY"

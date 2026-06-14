@@ -17,6 +17,16 @@ pub struct AdminState {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct SanitizedAuth {
+    pub mode: String,
+    pub require_auth: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub broker_public_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub broker_login_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SanitizedDiscovery {
     pub enabled: bool,
     pub auto_register: bool,
@@ -34,6 +44,8 @@ pub struct SanitizedConfig {
     pub services: SanitizedServices,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discovery: Option<SanitizedDiscovery>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth: Option<SanitizedAuth>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deployment_mode: Option<String>,
 }
@@ -274,48 +286,72 @@ pub fn admin_router(
             "full".to_string()
         }
     });
-    let sanitized = config.map(|c| SanitizedConfig {
-        bind: c.bind.clone(),
-        database: SanitizedDatabase {
-            driver: c.database.driver.clone(),
-            url_set: c.database.url.as_ref().map(|_| true),
-            run_migrations: c.database.run_migrations,
-            max_connections: c.database.max_connections,
-            min_connections: c.database.min_connections,
-            acquire_timeout_secs: c.database.acquire_timeout_secs,
-            idle_timeout_secs: c.database.idle_timeout_secs,
-            max_lifetime_secs: c.database.max_lifetime_secs,
-        },
-        storage: SanitizedStorage {
-            backend: c.storage.backend.clone(),
-            s3_endpoint: c.storage.s3_endpoint.clone(),
-            s3_bucket: c.storage.s3_bucket.clone(),
-        },
-        services: SanitizedServices {
-            enable_drs: c.services.enable_drs,
-            enable_wes: c.services.enable_wes,
-            enable_tes: c.services.enable_tes,
-            enable_trs: c.services.enable_trs,
-            enable_beacon: c.services.enable_beacon,
-            enable_passports: c.services.enable_passports,
-            enable_crypt4gh: c.services.enable_crypt4gh,
-        },
-        discovery: Some(SanitizedDiscovery {
-            enabled: c.discovery.enabled,
-            auto_register: c.discovery.auto_register,
-            service_registry_url: c.discovery.service_registry_url.clone(),
-            registration_base_url: c.discovery.registration_base_url.clone(),
-        }),
-        deployment_mode,
+    let sanitized = config.map(|c| {
+        let broker_public = std::env::var("FERRUM_PUBLIC_BROKER_URL")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| c.auth.issuer.clone());
+        let broker_login_url = broker_public.as_ref().map(|b| {
+            let idp =
+                std::env::var("FERRUM_BROKER_LOGIN_IDP").unwrap_or_else(|_| "keycloak".to_string());
+            format!(
+                "{}/login/{}",
+                b.trim_end_matches('/'),
+                idp.trim_matches('/')
+            )
+        });
+        let auth_mode = match c.auth.mode {
+            ferrum_core::config::AuthMode::Builtin => "builtin",
+            ferrum_core::config::AuthMode::External => "external",
+        };
+        SanitizedConfig {
+            bind: c.bind.clone(),
+            database: SanitizedDatabase {
+                driver: c.database.driver.clone(),
+                url_set: c.database.url.as_ref().map(|_| true),
+                run_migrations: c.database.run_migrations,
+                max_connections: c.database.max_connections,
+                min_connections: c.database.min_connections,
+                acquire_timeout_secs: c.database.acquire_timeout_secs,
+                idle_timeout_secs: c.database.idle_timeout_secs,
+                max_lifetime_secs: c.database.max_lifetime_secs,
+            },
+            storage: SanitizedStorage {
+                backend: c.storage.backend.clone(),
+                s3_endpoint: c.storage.s3_endpoint.clone(),
+                s3_bucket: c.storage.s3_bucket.clone(),
+            },
+            services: SanitizedServices {
+                enable_drs: c.services.enable_drs,
+                enable_wes: c.services.enable_wes,
+                enable_tes: c.services.enable_tes,
+                enable_trs: c.services.enable_trs,
+                enable_beacon: c.services.enable_beacon,
+                enable_passports: c.services.enable_passports,
+                enable_crypt4gh: c.services.enable_crypt4gh,
+            },
+            discovery: Some(SanitizedDiscovery {
+                enabled: c.discovery.enabled,
+                auto_register: c.discovery.auto_register,
+                service_registry_url: c.discovery.service_registry_url.clone(),
+                registration_base_url: c.discovery.registration_base_url.clone(),
+            }),
+            auth: Some(SanitizedAuth {
+                mode: auth_mode.to_string(),
+                require_auth: c.auth.require_auth,
+                broker_public_url: broker_public,
+                broker_login_url,
+            }),
+            deployment_mode,
+        }
     });
     let state = Arc::new(AdminState {
         pool: pool.cloned(),
         config: sanitized,
     });
-    let core = Router::new()
+    Router::new()
         .route("/config", get(get_config))
         .route("/tokens/revoke", post(revoke_token))
         .route("/security/events", get(list_security_events))
-        .with_state(state);
-    core
+        .with_state(state)
 }

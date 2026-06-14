@@ -1,0 +1,24 @@
+[server]
+host = "0.0.0.0"
+port = 8090
+external_url = "http://localhost:8190"
+environment = "development"
+
+[database]
+driver = "sqlite"
+url = "sqlite:///data/ads.sqlite"
+auto_migrate = true
+
+[oidc]
+jwks_cache_ttl_seconds = 300
+
+[[oidc.trusted_brokers]]
+issuer = "http://127.0.0.1:8180"
+jwks_uri = "http://aai-broker:8080/jwks.json"
+
+[auth]
+bootstrap_api_key_env = "ADS_DAC_API_KEY"
+
+[visa_registry]
+url = "http://visa-registry:8081"
+api_key_env = "REGISTRY_BOOTSTRAP_API_KEY"

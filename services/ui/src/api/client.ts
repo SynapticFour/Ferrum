@@ -1,7 +1,9 @@
+import { useAuthStore } from '@/stores/auth';
+
 const BASE = '';
 
 function getAuthHeader(): Record<string, string> {
-  const jwt = (window as unknown as { __ferrumPassport?: string }).__ferrumPassport;
+  const jwt = useAuthStore.getState().passportJwt;
   if (jwt) return { Authorization: `Bearer ${jwt}` };
   return {};
 }

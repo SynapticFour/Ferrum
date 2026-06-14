@@ -1,6 +1,9 @@
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useThemeStore } from '@/stores/theme';
-import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users, FolderOpen } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth';
+import { useAuthConfig } from '@/hooks/useAuthConfig';
+import { buildBrokerLoginUrl } from '@/lib/auth';
+import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users, FolderOpen, LogIn, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
@@ -21,12 +24,34 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const dark = useThemeStore((s) => s.dark);
   const toggleDark = useThemeStore((s) => s.toggle);
+  const passportJwt = useAuthStore((s) => s.passportJwt);
+  const setPassport = useAuthStore((s) => s.setPassport);
+  const { data: authConfig } = useAuthConfig();
+
+  const brokerLoginUrl = authConfig?.broker_login_url;
+  const showSignIn = Boolean(authConfig?.require_auth && brokerLoginUrl && !passportJwt);
+
+  const handleSignIn = () => {
+    if (!brokerLoginUrl) return;
+    window.location.href = buildBrokerLoginUrl(brokerLoginUrl);
+  };
+
+  const handleSignOut = () => setPassport(null);
 
   return (
     <div className={cn('min-h-screen bg-background flex flex-col', dark && 'dark')}>
       <aside className="fixed left-0 top-0 z-40 h-screen w-56 border-r border-border bg-card">
-        <div className="flex h-14 items-center gap-2 border-b border-border px-4">
+        <div className="flex h-14 items-center justify-between gap-2 border-b border-border px-4">
           <span className="font-semibold text-primary">Ferrum</span>
+          {showSignIn ? (
+            <Button variant="ghost" size="icon" onClick={handleSignIn} title="Sign in">
+              <LogIn className="h-4 w-4" />
+            </Button>
+          ) : passportJwt ? (
+            <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
         <nav className="space-y-0.5 p-2">
           {nav.map(({ path, label, icon: Icon }) => (

@@ -1,0 +1,16 @@
+[server]
+host = "0.0.0.0"
+port = 8081
+external_url = "http://localhost:8181"
+environment = "development"
+
+[signing]
+private_key_pem = "/secrets/registry_rs256.pem"
+visa_lifetime_seconds = 86400
+
+[database]
+driver = "sqlite"
+url = "sqlite:///data/visa_registry.sqlite"
+
+[auth]
+bootstrap_api_key_env = "REGISTRY_BOOTSTRAP_API_KEY"

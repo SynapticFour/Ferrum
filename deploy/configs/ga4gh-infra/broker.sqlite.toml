@@ -1,0 +1,33 @@
+[server]
+host = "0.0.0.0"
+port = 8080
+external_url = "http://localhost:8180"
+environment = "development"
+
+[signing]
+private_key_pem = "/secrets/broker_rs256.pem"
+passport_lifetime_seconds = 3600
+token_lifetime_seconds = 3600
+
+[session]
+cookie_secret_env = "BROKER_COOKIE_SECRET"
+session_lifetime_seconds = 600
+
+[[upstream_idps]]
+name = "mock-idp"
+issuer = "http://mock-idp:9100"
+client_id = "ga4gh-broker"
+client_secret_env = "MOCK_IDP_CLIENT_SECRET"
+scopes = ["openid", "profile", "email"]
+
+[upstream_idps.claim_mapping]
+sub = "sub"
+email = "email"
+
+[[visa_sources]]
+name = "local-registry"
+url = "http://visa-registry:8081"
+
+[ads]
+url = "http://access-decision-service:8090"
+sync_api_key_env = "ADS_DAC_API_KEY"

@@ -1,0 +1,148 @@
+# ga4gh-infra stack for local pilot profile (ports 8180–8190, 9100).
+# Requires sibling checkout: export GA4GH_INFRA_SRC=/path/to/ga4gh-infra
+#
+#   make up-pilot
+
+services:
+  mock-idp:
+    image: ${GA4GH_IMAGE_PREFIX:-ghcr.io/synapticfour}/mock-idp:${MOCK_IDP_VERSION:-0.1.0}
+    build:
+      context: ${GA4GH_INFRA_SRC:?set GA4GH_INFRA_SRC to ga4gh-infra repo abs path}
+      dockerfile: docker/Dockerfile.mock-idp
+    environment:
+      MOCK_IDP_ISSUER: http://mock-idp:9100
+      MOCK_IDP_HOST: 0.0.0.0
+      MOCK_IDP_SIGNING_KEY_PEM: /secrets/mock_idp_rs256.pem
+      MOCK_IDP_PORT: "9100"
+      MOCK_IDP_SUBJECT: researcher@uni-heidelberg.de
+      MOCK_IDP_CLIENT_ID: ga4gh-broker
+      MOCK_IDP_CLIENT_SECRET: mock-client-secret
+      RUST_LOG: info
+    ports:
+      - "9100:9100"
+    volumes:
+      - ${GA4GH_INFRA_SRC}/docker/secrets:/secrets:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9100/.well-known/openid-configuration"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  visa-registry:
+    image: ${GA4GH_IMAGE_PREFIX:-ghcr.io/synapticfour}/visa-registry:${VISA_REGISTRY_VERSION:-0.1.0}
+    build:
+      context: ${GA4GH_INFRA_SRC}
+      dockerfile: docker/Dockerfile.visa-registry
+    command: ["/config/visa-registry.toml"]
+    environment:
+      REGISTRY_BOOTSTRAP_API_KEY: dev-visa-api-key
+      RUST_LOG: info
+    ports:
+      - "8181:8081"
+    volumes:
+      - ./configs/ga4gh-infra/visa-registry.sqlite.toml:/config/visa-registry.toml:ro
+      - ${GA4GH_INFRA_SRC}/docker/secrets:/secrets:ro
+      - visa-registry-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/service-info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  duo-service:
+    image: ${GA4GH_IMAGE_PREFIX:-ghcr.io/synapticfour}/duo-service:${DUO_SERVICE_VERSION:-0.1.0}
+    build:
+      context: ${GA4GH_INFRA_SRC}
+      dockerfile: docker/Dockerfile.duo-service
+    command: ["/config/duo-service.toml"]
+    environment:
+      RUST_LOG: info
+    ports:
+      - "8182:8082"
+    volumes:
+      - ./configs/ga4gh-infra/duo-service.toml:/config/duo-service.toml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/service-info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  service-registry:
+    image: ${GA4GH_IMAGE_PREFIX:-ghcr.io/synapticfour}/service-registry:${SERVICE_REGISTRY_VERSION:-0.1.0}
+    build:
+      context: ${GA4GH_INFRA_SRC}
+      dockerfile: docker/Dockerfile.service-registry
+    command: ["/config/service-registry.toml"]
+    environment:
+      SERVICE_REGISTRY_REGISTRATION_KEY: dev-service-registry-key
+      RUST_LOG: info
+    ports:
+      - "8183:8083"
+    volumes:
+      - ./configs/ga4gh-infra/service-registry.sqlite.toml:/config/service-registry.toml:ro
+      - service-registry-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/service-info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  access-decision-service:
+    image: ${GA4GH_IMAGE_PREFIX:-ghcr.io/synapticfour}/access-decision-service:${ADS_VERSION:-0.1.0}
+    build:
+      context: ${GA4GH_INFRA_SRC}
+      dockerfile: docker/Dockerfile.access-decision-service
+    command: ["/config/access-decision-service.toml"]
+    environment:
+      ADS_DAC_API_KEY: dev-ads-api-key
+      REGISTRY_BOOTSTRAP_API_KEY: dev-visa-api-key
+      RUST_LOG: info
+    ports:
+      - "8190:8090"
+    volumes:
+      - ./configs/ga4gh-infra/access-decision-service.sqlite.toml:/config/access-decision-service.toml:ro
+      - ads-data:/data
+    depends_on:
+      visa-registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8090/service-info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  aai-broker:
+    image: ${GA4GH_IMAGE_PREFIX:-ghcr.io/synapticfour}/aai-broker:${AAI_BROKER_VERSION:-0.1.0}
+    build:
+      context: ${GA4GH_INFRA_SRC}
+      dockerfile: docker/Dockerfile.broker
+    command: ["/config/broker.toml"]
+    environment:
+      BROKER_COOKIE_SECRET: dev-broker-cookie-secret
+      MOCK_IDP_CLIENT_SECRET: mock-client-secret
+      ADS_DAC_API_KEY: dev-ads-api-key
+      RUST_LOG: info
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./configs/ga4gh-infra/broker.sqlite.toml:/config/broker.toml:ro
+      - ${GA4GH_INFRA_SRC}/docker/secrets:/secrets:ro
+    depends_on:
+      mock-idp:
+        condition: service_healthy
+      visa-registry:
+        condition: service_healthy
+      access-decision-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/service-info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  visa-registry-data:
+  service-registry-data:
+  ads-data:
