@@ -202,6 +202,47 @@ impl RunManager {
         Ok(handle)
     }
 
+    pub fn default_stale_queued_secs() -> i64 {
+        std::env::var("FERRUM_WES_STALE_QUEUED_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(120)
+            .max(0)
+    }
+
+    /// Mark orphan QUEUED runs as EXECUTOR_ERROR when submit never completed (no work_dir, not tracked).
+    pub async fn reconcile_stale_queued_runs(
+        &self,
+        older_than_secs: i64,
+        owner_sub: Option<&str>,
+        workspace_id: Option<&str>,
+    ) -> Result<Vec<String>> {
+        let ids = self
+            .repo
+            .find_orphan_queued_run_ids(older_than_secs, owner_sub, workspace_id)
+            .await?;
+        let tracked = self.run_to_executor.read().await;
+        let mut reconciled = Vec::new();
+        for id in ids {
+            if tracked.contains_key(&id) {
+                continue;
+            }
+            self.repo
+                .update_state(&id, RunState::ExecutorError)
+                .await?;
+            let mut updates = serde_json::Map::new();
+            updates.insert(
+                "ferrum:stale_reason".to_string(),
+                serde_json::Value::String(
+                    "queued_without_executor: submit failed or timed out".into(),
+                ),
+            );
+            let _ = self.repo.merge_run_outputs(&id, &updates).await;
+            reconciled.push(id);
+        }
+        Ok(reconciled)
+    }
+
     /// Register a run that must report a non-terminal state on the first `GET .../status` before `EXECUTOR_ERROR`.
     pub async fn register_synthetic_helixtest_error(&self, run_id: impl Into<String>) {
         let mut m = self.synthetic_helixtest_error_phases.write().await;
@@ -311,13 +352,21 @@ impl RunManager {
                                 .await;
 
                                 if let Ok(files) = files {
-                                    // Merge even an empty list to signal that output sampling ran.
+                                    let (results, artifacts, logs) =
+                                        crate::output_sampling::partition_output_files(files);
                                     let mut updates = serde_json::Map::new();
                                     updates.insert(
                                         "output_files".to_string(),
-                                        serde_json::Value::Array(files),
+                                        serde_json::Value::Array(results),
                                     );
-                                    // Best-effort: ignore merge failures.
+                                    updates.insert(
+                                        "artifact_files".to_string(),
+                                        serde_json::Value::Array(artifacts),
+                                    );
+                                    updates.insert(
+                                        "log_files".to_string(),
+                                        serde_json::Value::Array(logs),
+                                    );
                                     let _ = repo.merge_run_outputs(&run_id_s, &updates).await;
                                 }
                             }

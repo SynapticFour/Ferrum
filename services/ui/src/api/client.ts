@@ -32,6 +32,21 @@ export async function apiGet<T>(path: string): Promise<T> {
   return apiFetch<T>(path, { method: 'GET' });
 }
 
+/** Plain-text GET (e.g. WES `/logs/stdout`). */
+export async function apiGetText(path: string): Promise<string> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'GET',
+    headers: {
+      ...getAuthHeader(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return res.text();
+}
+
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiFetch<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined });
 }

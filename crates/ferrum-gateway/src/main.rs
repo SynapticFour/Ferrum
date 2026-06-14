@@ -457,6 +457,26 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     });
 
     #[cfg(feature = "full")]
+    fn wes_trs_register_url() -> Option<String> {
+        let disabled = matches!(
+            std::env::var("FERRUM_WES_TRS_AUTO_REGISTER")
+                .unwrap_or_else(|_| "true".to_string())
+                .trim()
+                .to_ascii_lowercase()
+                .as_str(),
+            "0" | "false" | "no" | "off"
+        );
+        if disabled {
+            return None;
+        }
+        std::env::var("FERRUM_WES_TRS_REGISTER_URL")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .or_else(|| Some("http://127.0.0.1:8080/ga4gh/trs/v2".to_string()))
+    }
+
+    #[cfg(feature = "full")]
     let wes_params = pg_pool.clone().map(|pool| {
         let work_dir = std::env::var("FERRUM_WES_WORK_DIR")
             .map(PathBuf::from)
@@ -467,7 +487,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             pool,
             Some(work_dir),
             Some(tes_url),
-            None,
+            wes_trs_register_url(),
             None,
             None,
             None,

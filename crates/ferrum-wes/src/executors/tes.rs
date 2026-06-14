@@ -12,7 +12,7 @@ use crate::types::RunState;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
@@ -55,6 +55,7 @@ struct TesOutput {
 #[derive(Debug, Deserialize)]
 struct TesTaskResponse {
     id: String,
+    #[allow(dead_code)]
     state: Option<String>,
 }
 
@@ -63,6 +64,8 @@ pub struct TesExecutorBackend {
     client: reqwest::Client,
     /// run_id -> TES task id
     run_to_task: RwLock<HashMap<String, String>>,
+    /// run_id -> WES work dir (for TES log files)
+    run_to_work_dir: RwLock<HashMap<String, PathBuf>>,
     /// HelixTest WES: first polls return QUEUED/RUNNING before reflecting TES terminal state.
     lifecycle_phase: RwLock<HashMap<String, u32>>,
     lifecycle_start: RwLock<HashMap<String, Instant>>,
@@ -92,43 +95,130 @@ fn workflow_params_meaningful(p: &serde_json::Value) -> bool {
 }
 
 /// Legacy default: image + argv only (no entrypoint override). Unchanged for compatibility.
-fn legacy_image_and_command(workflow_type: &str, workflow_url: &str) -> (String, Vec<String>) {
+fn env_tes_image(var: &str, default: &str) -> String {
+    std::env::var(var)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| default.to_string())
+}
+
+/// Internal gateway URL reachable from TES task containers (TRS `/ga4gh/...` descriptor paths).
+fn tes_task_gateway_base() -> String {
+    std::env::var("FERRUM_WES_GATEWAY_INTERNAL_URL")
+        .or_else(|_| std::env::var("FERRUM_PUBLIC_BASE_URL"))
+        .ok()
+        .map(|s| s.trim().trim_end_matches('/').to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "http://host.docker.internal:8082".to_string())
+}
+
+fn legacy_task_env(workflow_url: &str) -> HashMap<String, String> {
+    let mut env = HashMap::new();
+    env.insert(
+        "FERRUM_WES_WORKFLOW_URL".to_string(),
+        workflow_url.to_string(),
+    );
+    env.insert(
+        "FERRUM_WES_GATEWAY_BASE".to_string(),
+        tes_task_gateway_base(),
+    );
+    env
+}
+
+const RESOLVE_URL_BASH: &str = r#"set -euo pipefail
+URL="$FERRUM_WES_WORKFLOW_URL"
+[[ "$URL" != http* ]] && URL="$FERRUM_WES_GATEWAY_BASE$URL"
+"#;
+
+const RESOLVE_URL_SH: &str = r#"set -eu
+URL="$FERRUM_WES_WORKFLOW_URL"
+case "$URL" in
+  http* ) ;;
+  * ) URL="$FERRUM_WES_GATEWAY_BASE$URL" ;;
+esac
+"#;
+
+fn shell_launcher(image: String, script: &str, env: HashMap<String, String>, posix_sh: bool) -> TesExecutorBody {
+    let entrypoint = if posix_sh {
+        vec!["/bin/sh".to_string(), "-c".to_string()]
+    } else {
+        vec!["/bin/bash".to_string(), "-lc".to_string()]
+    };
+    TesExecutorBody {
+        image,
+        entrypoint: Some(entrypoint),
+        command: vec![script.to_string()],
+        workdir: None,
+        env: Some(env),
+    }
+}
+
+/// Shell launcher scripts: resolve relative TRS URLs, fetch descriptors, run engine with correct entrypoint.
+/// CWL images are minimal and often lack `/bin/bash`; use POSIX `/bin/sh` there.
+fn legacy_executor_body(workflow_type: &str, workflow_url: &str) -> TesExecutorBody {
+    let env = legacy_task_env(workflow_url);
+
     match workflow_type.to_lowercase().as_str() {
-        "nextflow" | "nxf" | "nfl" => (
-            "nextflow/nextflow:latest".to_string(),
-            vec![
-                "nextflow".to_string(),
-                "run".to_string(),
-                workflow_url.to_string(),
-            ],
+        "nextflow" | "nxf" | "nfl" => shell_launcher(
+            env_tes_image(
+                "FERRUM_WES_TES_IMAGE_NEXTFLOW",
+                "nextflow/nextflow:24.10.3",
+            ),
+            &format!(
+                "{RESOLVE_URL_BASH}curl -fsSL \"$URL\" -o workflow.nf
+printf '%s\\n' 'docker {{' '    enabled = false' '}}' > nextflow.config
+exec nextflow run workflow.nf -ansi-log false
+"
+            ),
+            env,
+            false,
         ),
-        "cwl" => (
-            "quay.io/commonwl/cwltool:latest".to_string(),
-            vec!["cwltool".to_string(), workflow_url.to_string()],
+        "cwl" => shell_launcher(
+            env_tes_image(
+                "FERRUM_WES_TES_IMAGE_CWL",
+                "quay.io/commonwl/cwltool:3.2.20260413085819",
+            ),
+            &format!(
+                "{RESOLVE_URL_SH}wget -qO workflow.cwl \"$URL\"
+exec cwltool --quiet workflow.cwl
+"
+            ),
+            env,
+            true,
         ),
-        "wdl" => (
-            "broadinstitute/cromwell:latest".to_string(),
-            vec![
-                "java".to_string(),
-                "-jar".to_string(),
-                "/app/cromwell.jar".to_string(),
-                "run".to_string(),
-                workflow_url.to_string(),
-            ],
+        "wdl" => shell_launcher(
+            env_tes_image(
+                "FERRUM_WES_TES_IMAGE_WDL",
+                "broadinstitute/cromwell:93-0232cbd",
+            ),
+            &format!(
+                "{RESOLVE_URL_BASH}INPUTS_ARGS=
+[ -f inputs.json ] && INPUTS_ARGS=\"--inputs inputs.json\"
+exec java -jar /app/cromwell.jar run \"$URL\" $INPUTS_ARGS
+"
+            ),
+            env,
+            false,
         ),
-        "snakemake" => (
-            "snakemake/snakemake:latest".to_string(),
-            vec![
-                "snakemake".to_string(),
-                "--snakefile".to_string(),
-                workflow_url.to_string(),
-                "--cores".to_string(),
-                "1".to_string(),
-            ],
+        "snakemake" | "smk" => shell_launcher(
+            env_tes_image(
+                "FERRUM_WES_TES_IMAGE_SNAKEMAKE",
+                "snakemake/snakemake:v7.32.4",
+            ),
+            &format!(
+                "{RESOLVE_URL_BASH}wget -qO Snakefile \"$URL\"
+exec /opt/conda/envs/snakemake/bin/snakemake --snakefile Snakefile --cores 1 -j1
+"
+            ),
+            env,
+            false,
         ),
-        _ => (
-            "alpine:latest".to_string(),
-            vec!["echo".to_string(), format!("workflow {}", workflow_url)],
+        _ => shell_launcher(
+            env_tes_image("FERRUM_WES_TES_IMAGE_DEFAULT", "alpine:3.20"),
+            &format!("{RESOLVE_URL_SH}echo \"Ferrum TES smoke: $FERRUM_WES_WORKFLOW_URL\"\n"),
+            env,
+            true,
         ),
     }
 }
@@ -188,20 +278,17 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
     // Derive per-run `workdir` if CONTAINER_WORKDIR is unset (stock Ferrum only supported a static env).
     let bash_or_file_mode =
         (wdl_bash && wt == "wdl") || (nf_file && matches!(wt.as_str(), "nextflow" | "nxf" | "nfl"));
-    let executor_workdir = if bash_or_file_mode {
-        container_workdir.clone().or_else(|| {
-            container_mount_prefix
-                .as_ref()
-                .map(|cp| format!("{}/{}", cp.trim_end_matches('/'), run.run_id))
-                .or_else(|| {
-                    host_prefix
-                        .as_ref()
-                        .map(|p| format!("{}/{}", p.trim_end_matches('/'), run.run_id))
-                })
-        })
-    } else {
-        container_workdir.clone()
-    };
+    let per_run_mount = host_prefix.as_ref().and_then(|_| {
+        container_mount_prefix
+            .as_ref()
+            .map(|cp| format!("{}/{}", cp.trim_end_matches('/'), run.run_id))
+            .or_else(|| {
+                host_prefix
+                    .as_ref()
+                    .map(|p| format!("{}/{}", p.trim_end_matches('/'), run.run_id))
+            })
+    });
+    let executor_workdir = container_workdir.clone().or(per_run_mount);
 
     let mut base_env = HashMap::new();
     base_env.insert(
@@ -211,35 +298,44 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
 
     let executor = if wdl_bash && wt == "wdl" {
         TesExecutorBody {
-            // Pinned tag (matches demo pre-pull; avoids ambiguous `latest`).
-            image: "broadinstitute/cromwell:93-0232cbd".to_string(),
+            image: env_tes_image(
+                "FERRUM_WES_TES_IMAGE_WDL",
+                "broadinstitute/cromwell:93-0232cbd",
+            ),
             entrypoint: Some(vec!["/bin/bash".to_string(), "-lc".to_string()]),
             command: vec![
-                "set -euo pipefail; INPUTS_ARGS=; if [ -f inputs.json ]; then INPUTS_ARGS=\"--inputs inputs.json\"; fi; exec java -jar /app/cromwell.jar run \"$FERRUM_WES_WORKFLOW_URL\" $INPUTS_ARGS".to_string(),
+                "set -euo pipefail; URL=\"$FERRUM_WES_WORKFLOW_URL\"; [[ \"$URL\" != http* ]] && URL=\"$FERRUM_WES_GATEWAY_BASE$URL\"; curl -fsSL \"$URL\" -o workflow.wdl; INPUTS_ARGS=; if [ -f inputs.json ]; then INPUTS_ARGS=\"--inputs inputs.json\"; fi; exec java -jar /app/cromwell.jar run workflow.wdl $INPUTS_ARGS".to_string(),
             ],
             workdir: executor_workdir.clone(),
-            env: Some(base_env),
+            env: Some({
+                let mut e = legacy_task_env(wf_url);
+                e.extend(base_env);
+                e
+            }),
         }
     } else if nf_file && matches!(wt.as_str(), "nextflow" | "nxf" | "nfl") {
         TesExecutorBody {
-            // Pinned tag (Hub may not publish `latest`; image is amd64-only — use FERRUM_TES_DOCKER_PLATFORM on arm64).
-            image: "nextflow/nextflow:24.10.3".to_string(),
+            image: env_tes_image(
+                "FERRUM_WES_TES_IMAGE_NEXTFLOW",
+                "nextflow/nextflow:24.10.3",
+            ),
             entrypoint: Some(vec!["/bin/bash".to_string(), "-lc".to_string()]),
             command: vec![
-                "set -euo pipefail; curl -fsSL \"$FERRUM_WES_WORKFLOW_URL\" -o workflow.nf; printf '%s\\n' 'docker {' '    enabled = true' '}' > nextflow.config; if [ -f params.json ]; then exec nextflow run workflow.nf -ansi-log false -params-file params.json; else exec nextflow run workflow.nf -ansi-log false; fi".to_string(),
+                "set -euo pipefail; URL=\"$FERRUM_WES_WORKFLOW_URL\"; [[ \"$URL\" != http* ]] && URL=\"$FERRUM_WES_GATEWAY_BASE$URL\"; curl -fsSL \"$URL\" -o workflow.nf; printf '%s\\n' 'docker {' '    enabled = true' '}' > nextflow.config; if [ -f params.json ]; then exec nextflow run workflow.nf -ansi-log false -params-file params.json; else exec nextflow run workflow.nf -ansi-log false; fi".to_string(),
             ],
             workdir: executor_workdir.clone(),
-            env: Some(base_env),
+            env: Some({
+                let mut e = legacy_task_env(wf_url);
+                e.extend(base_env);
+                e
+            }),
         }
     } else {
-        let (image, command) = legacy_image_and_command(&run.workflow_type, wf_url);
-        TesExecutorBody {
-            image,
-            command,
-            entrypoint: None,
-            workdir: executor_workdir,
-            env: None,
+        let mut exec = legacy_executor_body(&run.workflow_type, wf_url);
+        if let Some(ref wd) = executor_workdir {
+            exec.workdir = Some(wd.clone());
         }
+        exec
     };
 
     Ok(TesTaskRequest {
@@ -250,15 +346,84 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
     })
 }
 
+#[derive(Debug, Deserialize)]
+struct TesTaskLogEntry {
+    stdout: Option<String>,
+    stderr: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TesTaskDetail {
+    #[allow(dead_code)]
+    id: String,
+    state: Option<String>,
+    logs: Option<Vec<TesTaskLogEntry>>,
+}
+
 impl TesExecutorBackend {
     pub fn new(base_url: impl Into<String>) -> Self {
         Self {
             base_url: base_url.into().trim_end_matches('/').to_string(),
             client: reqwest::Client::new(),
             run_to_task: RwLock::new(HashMap::new()),
+            run_to_work_dir: RwLock::new(HashMap::new()),
             lifecycle_phase: RwLock::new(HashMap::new()),
             lifecycle_start: RwLock::new(HashMap::new()),
         }
+    }
+
+    /// Pull TES task logs into the WES work dir (`stdout.txt` / `stderr.txt`) for the UI.
+    pub async fn persist_logs(&self, run_id: &str, work_dir: &Path) -> Result<()> {
+        let task_id = self
+            .run_to_task
+            .read()
+            .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
+            .get(run_id)
+            .cloned();
+        let Some(task_id) = task_id else {
+            return Ok(());
+        };
+        self.write_logs_from_task(&task_id, work_dir).await
+    }
+
+    async fn write_logs_from_task(&self, task_id: &str, work_dir: &Path) -> Result<()> {
+        let url = format!("{}/tasks/{}", self.base_url, task_id);
+        let resp = self.client.get(&url).send().await.map_err(|e| {
+            WesError::Executor(format!("TES get task for logs: {}", e))
+        })?;
+        if !resp.status().is_success() {
+            return Ok(());
+        }
+        let text = resp
+            .text()
+            .await
+            .map_err(|e| WesError::Executor(e.to_string()))?;
+        let task: TesTaskDetail = serde_json::from_str(&text).unwrap_or(TesTaskDetail {
+            id: task_id.to_string(),
+            state: None,
+            logs: None,
+        });
+        self.write_logs_from_detail(work_dir, &task).await
+    }
+
+    async fn write_logs_from_detail(&self, work_dir: &Path, task: &TesTaskDetail) -> Result<()> {
+        let Some(logs) = task.logs.as_ref() else {
+            return Ok(());
+        };
+        let Some(entry) = logs.first() else {
+            return Ok(());
+        };
+        if let Some(ref stdout) = entry.stdout {
+            if !stdout.is_empty() {
+                let _ = tokio::fs::write(work_dir.join("stdout.txt"), stdout).await;
+            }
+        }
+        if let Some(ref stderr) = entry.stderr {
+            if !stderr.is_empty() {
+                let _ = tokio::fs::write(work_dir.join("stderr.txt"), stderr).await;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -319,6 +484,10 @@ impl WorkflowExecutor for TesExecutorBackend {
             .write()
             .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
             .insert(run_id.clone(), task.id.clone());
+        self.run_to_work_dir
+            .write()
+            .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
+            .insert(run_id.clone(), work_dir.to_path_buf());
         Ok(ProcessHandle { run_id })
     }
 
@@ -388,9 +557,10 @@ impl WorkflowExecutor for TesExecutorBackend {
             .text()
             .await
             .map_err(|e| WesError::Executor(e.to_string()))?;
-        let task: TesTaskResponse = serde_json::from_str(&text).unwrap_or(TesTaskResponse {
+        let task: TesTaskDetail = serde_json::from_str(&text).unwrap_or(TesTaskDetail {
             id: id.clone(),
             state: Some("UNKNOWN".to_string()),
+            logs: None,
         });
         let mut state = match task.state.as_deref().unwrap_or("UNKNOWN") {
             "QUEUED" => RunState::Queued,
@@ -424,7 +594,20 @@ impl WorkflowExecutor for TesExecutorBackend {
             && state != RunState::Paused
             && state != RunState::Unknown
         {
+            let work_dir = self
+                .run_to_work_dir
+                .read()
+                .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
+                .get(run_id)
+                .cloned();
+            if let Some(work_dir) = work_dir {
+                let _ = self.write_logs_from_detail(&work_dir, &task).await;
+            }
             self.run_to_task
+                .write()
+                .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
+                .remove(run_id);
+            self.run_to_work_dir
                 .write()
                 .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
                 .remove(run_id);

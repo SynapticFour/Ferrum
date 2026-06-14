@@ -15,6 +15,8 @@ import { CohortDetailPage } from '@/pages/CohortDetailPage';
 import { NewCohortPage } from '@/pages/NewCohortPage';
 import { WorkspaceListPage } from '@/pages/WorkspaceListPage';
 import { WorkspaceDetailPage } from '@/pages/WorkspaceDetailPage';
+import { InsightsPage } from '@/pages/InsightsPage';
+import { StudySetupPage } from '@/pages/StudySetupPage';
 import { NewWorkspacePage } from '@/pages/NewWorkspacePage';
 
 const rootRoute = createRootRoute({
@@ -67,6 +69,8 @@ const workspaceDetailRoute = createRoute({
   path: '/workspaces/$workspaceId',
   component: WorkspaceDetailPage,
 });
+const insightsRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/insights', component: InsightsPage });
+const studySetupRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/study/setup', component: StudySetupPage });
 const newWorkspaceRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/workspaces/new', component: NewWorkspacePage });
 
 layoutRoute.addChildren([
@@ -84,6 +88,8 @@ layoutRoute.addChildren([
   cohortDetailRoute,
   workspacesRoute,
   workspaceDetailRoute,
+  insightsRoute,
+  studySetupRoute,
   newWorkspaceRoute,
 ]);
 

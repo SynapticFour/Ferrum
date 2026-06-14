@@ -23,13 +23,14 @@ thiserror = "1"
 anyhow = "1"
 async-trait = "0.1"
 bollard = { version = "0.18", optional = true }
+futures-util = { version = "0.3", optional = true }
 handlebars = "6"
 libc = "0.2"
 
 [features]
 default = []
 standalone = ["tracing-subscriber"]
-docker = ["dep:bollard"]
+docker = ["dep:bollard", "dep:futures-util"]
 
 [[bin]]
 name = "ferrum-tes"

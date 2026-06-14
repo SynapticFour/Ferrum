@@ -269,6 +269,22 @@ WHERE NOT EXISTS (
 
 -- Negative is validated by absence: referenceName=1, start=999999999, referenceBases=C, alternateBases=G.
 
+-- Pasteur / pilot demo variant (GRCh37 chr22:2000 T>G)
+INSERT INTO beacon_datasets (id, name, description, assembly_id)
+VALUES ('pasteur-demo', 'Pasteur pilot demo', 'chr22:2000 T>G for UI walkthrough', 'GRCh37')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO beacon_variants (dataset_id, chromosome, start, "end", reference, alternate, variant_type)
+SELECT 'pasteur-demo', 'chr22', 2000, 2000, 'T', 'G', 'SNV'
+WHERE NOT EXISTS (
+  SELECT 1 FROM beacon_variants
+  WHERE dataset_id = 'pasteur-demo'
+    AND chromosome = 'chr22'
+    AND start = 2000
+    AND reference = 'T'
+    AND alternate = 'G'
+);
+
 -- Workspace for demo-user (so "make demo" shows a pre-created workspace)
 INSERT INTO workspaces (id, name, description, owner_sub, slug, is_archived, settings)
 VALUES ('demo-workspace-01', 'Demo Workspace', 'Pre-populated workspace for testing. Add data, cohorts, and run workflows.', 'demo-user', 'demo-workspace', false, '{}'::jsonb)
@@ -277,6 +293,55 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO workspace_members (workspace_id, sub, role, invited_by)
 VALUES ('demo-workspace-01', 'demo-user', 'owner', 'demo-user')
 ON CONFLICT (workspace_id, sub) DO NOTHING;
+
+-- Demo cohort in workspace
+INSERT INTO cohorts (id, name, description, owner_sub, workspace_id, sample_count, tags)
+VALUES (
+  'demo-cohort-01',
+  'Demo cohort',
+  'Two public-reference samples for trying cohort views and analyses.',
+  'demo-user',
+  'demo-workspace-01',
+  2,
+  '["demo","public-reference"]'::jsonb
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO cohort_samples (id, cohort_id, sample_id, drs_object_ids, phenotype, added_by)
+VALUES
+  (
+    'demo-sample-na12878',
+    'demo-cohort-01',
+    'NA12878',
+    '["demo-sample-bam","demo-sample-vcf"]'::jsonb,
+    '{"sex":"female","ancestry":"CEU","sequencing_type":"WGS"}'::jsonb,
+    'demo-user'
+  ),
+  (
+    'demo-sample-microbench',
+    'demo-cohort-01',
+    'microbench-plain',
+    '["microbench-plain-v1"]'::jsonb,
+    '{"sequencing_type":"synthetic","tissue_type":"benchmark"}'::jsonb,
+    'demo-user'
+  )
+ON CONFLICT (id) DO NOTHING;
+
+-- Link seeded DRS objects to demo workspace (visible in workspace contents)
+UPDATE drs_objects SET workspace_id = 'demo-workspace-01'
+WHERE id IN (
+  'test-object-1',
+  'demo-sample-bam',
+  'demo-sample-vcf',
+  'demo-bam-to-vcf-demo-bam-to-vcf-1.0-input',
+  'microbench-plain-v1'
+);
+
+INSERT INTO workspace_activity (id, workspace_id, sub, action, resource_type, resource_id, details)
+VALUES
+  ('act-demo-1', 'demo-workspace-01', 'demo-user', 'seed.completed', 'workspace', 'demo-workspace-01', '{"source":"init-demo"}'::jsonb),
+  ('act-demo-2', 'demo-workspace-01', 'demo-user', 'cohort.created', 'cohort', 'demo-cohort-01', '{"name":"Demo cohort"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
 SEED
 
 # Insert sha256 checksum metadata for HelixTest conformance.
@@ -304,7 +369,148 @@ INSERT INTO trs_files (tool_id, version_id, file_type, descriptor_type, content,
 VALUES
   ('demo-bam-to-vcf', 'demo-bam-to-vcf-1.0', 'DESCRIPTOR', 'CWL', 'cwlVersion: v1.0\nclass: Workflow\ninputs:\n  bam: File\noutputs:\n  vcf: File\nsteps: []', NULL, NOW()),
   ('demo-bam-to-vcf', 'demo-bam-to-vcf-1.0', 'DESCRIPTOR', 'PLAIN_CWL', 'cwlVersion: v1.0\nclass: Workflow\ninputs:\n  bam: File\noutputs:\n  vcf: File\nsteps: []', NULL, NOW());
+
+INSERT INTO trs_tools (id, name, description, organization, toolclass, meta_version)
+VALUES (
+  'tiny-germline-hc',
+  'TinyGermlineHC',
+  'Minimal GATK HaplotypeCaller workflow (Ferrum-GA4GH-Demo).',
+  'Ferrum Demo',
+  'Workflow',
+  '2.0'
+)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO trs_tool_versions (id, tool_id, name, created_at, updated_at)
+VALUES ('tiny-germline-hc-1.0', 'tiny-germline-hc', '1.0', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+DELETE FROM trs_files WHERE tool_id = 'tiny-germline-hc' AND version_id = 'tiny-germline-hc-1.0' AND file_type = 'DESCRIPTOR';
+INSERT INTO trs_files (tool_id, version_id, file_type, descriptor_type, content, url, created_at)
+VALUES (
+  'tiny-germline-hc',
+  'tiny-germline-hc-1.0',
+  'DESCRIPTOR',
+  'WDL',
+  NULL,
+  'https://raw.githubusercontent.com/SynapticFour/Ferrum-GA4GH-Demo/main/workflows/tiny_hc.wdl',
+  NOW()
+);
+
+-- Additional engine examples (WDL, CWL, Nextflow, Snakemake) for UI / WES demos
+INSERT INTO trs_tools (id, name, description, organization, toolclass, meta_version)
+VALUES
+  ('demo-nextflow-qc', 'Demo Nextflow QC', 'Minimal Nextflow workflow (public nf-core example).', 'Ferrum Demo', 'Workflow', '2.0'),
+  ('demo-cwl-sort', 'Demo CWL sort', 'Inline CWL sort example for TRS/WES.', 'Ferrum Demo', 'Workflow', '2.0'),
+  ('demo-snakemake-hello', 'Demo Snakemake', 'Minimal Snakemake workflow for engine coverage.', 'Ferrum Demo', 'Workflow', '2.0'),
+  ('demo-wdl-hello', 'Demo WDL hello', 'Minimal Cromwell WDL workflow for engine coverage.', 'Ferrum Demo', 'Workflow', '2.0')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO trs_tool_versions (id, tool_id, name, created_at, updated_at)
+VALUES
+  ('demo-nextflow-qc-1.0', 'demo-nextflow-qc', '1.0', NOW(), NOW()),
+  ('demo-cwl-sort-1.0', 'demo-cwl-sort', '1.0', NOW(), NOW()),
+  ('demo-snakemake-hello-1.0', 'demo-snakemake-hello', '1.0', NOW(), NOW()),
+  ('demo-wdl-hello-1.0', 'demo-wdl-hello', '1.0', NOW(), NOW())
+ON CONFLICT (id) DO NOTHING;
+
+DELETE FROM trs_files WHERE tool_id IN ('demo-nextflow-qc','demo-cwl-sort','demo-snakemake-hello','demo-wdl-hello');
+INSERT INTO trs_files (tool_id, version_id, file_type, descriptor_type, content, url, created_at)
+VALUES
+  ('demo-nextflow-qc', 'demo-nextflow-qc-1.0', 'DESCRIPTOR', 'NFL',
+   $nfl$#!/usr/bin/env nextflow
+process hello {
+  output:
+    path 'hello.txt'
+  script:
+    '''
+    echo "Ferrum Nextflow demo" > hello.txt
+    '''
+}
+workflow {
+  hello()
+}
+$nfl$,
+   NULL, NOW()),
+  ('demo-cwl-sort', 'demo-cwl-sort-1.0', 'DESCRIPTOR', 'CWL',
+   $cwl$cwlVersion: v1.0
+class: CommandLineTool
+baseCommand: [sh, -c]
+inputs:
+  - id: cmd
+    type: string
+    default: "printf 'c\nb\na\n' | sort -o sorted.txt"
+    inputBinding:
+      position: 0
+outputs:
+  out:
+    type: File
+    outputBinding:
+      glob: sorted.txt
+$cwl$,
+   NULL, NOW()),
+  ('demo-snakemake-hello', 'demo-snakemake-hello-1.0', 'DESCRIPTOR', 'SMK',
+   $smk$rule hello:
+    output:
+        "hello.txt"
+    shell:
+        "echo hello > {output}"
+$smk$,
+   NULL, NOW()),
+  ('demo-wdl-hello', 'demo-wdl-hello-1.0', 'DESCRIPTOR', 'WDL',
+   $wdl$version 1.0
+
+workflow HelloWdl {
+  call writeHello
+  output {
+    File hello = writeHello.hello_out
+  }
+}
+
+task writeHello {
+  command {
+    echo "Ferrum WDL demo" > hello.txt
+  }
+  output {
+    File hello_out = "hello.txt"
+  }
+}
+$wdl$,
+   NULL, NOW());
 TRSSEED
+
+# --- 5b. Refresh DRS object sizes from URL Content-Length (seed SQL uses 0 as placeholder) ---
+echo "Updating DRS object sizes from source URLs..."
+probe_url_size() {
+  url="$1"
+  size="$(curl -fsSIL --max-time 20 "$url" 2>/dev/null | awk 'tolower($1)=="content-length:"{print $2; exit}')"
+  if [ -n "$size" ] && [ "$size" -gt 0 ] 2>/dev/null; then
+    echo "$size"
+    return 0
+  fi
+  size="$(curl -fsSL --max-time 30 -o /dev/null -w '%{size_download}' "$url" 2>/dev/null)"
+  if [ -n "$size" ] && [ "$size" -gt 0 ] 2>/dev/null; then
+    echo "$size"
+    return 0
+  fi
+  return 1
+}
+PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -t -A -F $'\t' -c "
+  SELECT o.id, sr.storage_key
+  FROM drs_objects o
+  JOIN storage_references sr ON sr.object_id = o.id
+  WHERE sr.storage_backend = 'url' AND (o.size IS NULL OR o.size = 0);
+" 2>/dev/null | while IFS=$'\t' read -r obj_id url; do
+  [ -n "$obj_id" ] || continue
+  [ -n "$url" ] || continue
+  if size="$(probe_url_size "$url")"; then
+    PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 -c \
+      "UPDATE drs_objects SET size = ${size} WHERE id = '${obj_id}';" >/dev/null
+    echo "  size ${obj_id}: ${size} bytes"
+  else
+    echo "  size ${obj_id}: could not probe URL (left as 0)"
+  fi
+done
 
 # --- 6b. DRS /stream microbenchmark (MinIO + Postgres, last — repairs partial init / DO NOTHING skips) ---
 # `GET .../objects/microbench-plain-v1/stream` for CI (see docs/PERFORMANCE-CRYPT4GH.md). Runs AFTER all DRS URL seeds.
@@ -387,9 +593,78 @@ SEEDMICRO
     echo "ERROR: microbench storage_references row missing after seed (count=$MB_ROWS)" >&2
     exit 1
   fi
+  PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 -c \
+    "UPDATE drs_objects SET workspace_id = 'demo-workspace-01' WHERE id = '${MICRO_ID}';" >/dev/null || true
 else
   echo "  (mc not installed: skipping microbench-plain-v1 — DRS /stream microbench CI will fail unless you use deploy/Dockerfile.init)"
 fi
+
+# --- 6c. Reconcile demo workspace links (idempotent; fixes partial re-seeds) ---
+echo "Linking seeded objects to demo workspace..."
+PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<'WSRECON'
+UPDATE drs_objects SET workspace_id = 'demo-workspace-01'
+WHERE id IN (
+  'test-object-1',
+  'demo-1000genomes-chr22',
+  'demo-ena-run',
+  'demo-ga4gh-sample',
+  'demo-sample-bam',
+  'demo-sample-vcf',
+  'demo-bam-to-vcf-demo-bam-to-vcf-1.0-input',
+  'microbench-plain-v1'
+);
+
+INSERT INTO wes_runs (
+  run_id, workflow_url, workflow_type, workflow_type_version,
+  workflow_params, state, workspace_id, start_time, end_time, tags, outputs
+)
+VALUES (
+  'demo-run-seed-01',
+  'https://raw.githubusercontent.com/SynapticFour/Ferrum-GA4GH-Demo/main/workflows/tiny_hc.wdl',
+  'WDL',
+  '1.0',
+  '{"TinyGermlineHC.interval":"22:1700-2300"}'::jsonb,
+  'COMPLETE',
+  'demo-workspace-01',
+  NOW() - INTERVAL '2 days',
+  NOW() - INTERVAL '2 days' + INTERVAL '18 minutes',
+  '{"source":"init-demo","label":"Demo germline run"}'::jsonb,
+  '{
+    "result_drs_id": "demo-sample-vcf",
+    "output_files": [
+      {
+        "file_id": "demo-sample-vcf",
+        "name": "Demo VCF output",
+        "size": 0,
+        "location": "drs://localhost/demo-sample-vcf"
+      }
+    ]
+  }'::jsonb
+)
+ON CONFLICT (run_id) DO UPDATE SET
+  workspace_id = EXCLUDED.workspace_id,
+  state = EXCLUDED.state,
+  outputs = EXCLUDED.outputs;
+
+-- Demo run outputs (DRS-linked VCF for UI results tab; noop TES does not produce real files)
+UPDATE wes_runs SET outputs = '{
+  "result_drs_id": "demo-sample-vcf",
+  "output_files": [
+    {
+      "file_id": "demo-sample-vcf",
+      "name": "Demo VCF output",
+      "size": 0,
+      "location": "drs://localhost/demo-sample-vcf"
+    }
+  ]
+}'::jsonb
+WHERE run_id = 'demo-run-seed-01' AND (outputs IS NULL OR outputs = '{}'::jsonb);
+
+INSERT INTO workspace_activity (id, workspace_id, sub, action, resource_type, resource_id, details)
+VALUES
+  ('act-demo-3', 'demo-workspace-01', 'demo-user', 'run.completed', 'wes_run', 'demo-run-seed-01', '{"workflow":"tiny_hc.wdl"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+WSRECON
 
 # --- 7. Verify demo data ---
 echo "Verifying demo data..."
@@ -409,6 +684,11 @@ fi
 WS_COUNT=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -t -A -c "SELECT COUNT(*) FROM workspaces;" 2>/dev/null || echo "0")
 if [ "${WS_COUNT:-0}" -lt 1 ]; then
   echo "WARNING: No workspaces found after seed. Demo workspace may not be visible." >&2
+fi
+WS_OBJ_COUNT=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -t -A -c "SELECT COUNT(*) FROM drs_objects WHERE workspace_id = 'demo-workspace-01';" 2>/dev/null || echo "0")
+echo "  demo-workspace-01: ${WS_OBJ_COUNT} linked DRS objects"
+if [ "${WS_OBJ_COUNT:-0}" -lt 1 ]; then
+  echo "WARNING: Demo workspace has no linked DRS objects." >&2
 fi
 
 echo "Init complete."

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/api/client';
 import { FolderPlus } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Workspace {
   id: string;
@@ -14,19 +15,20 @@ interface Workspace {
 }
 
 export function WorkspaceListPage() {
+  const { t } = useI18n();
   const { data: workspaces, isLoading, error } = useQuery({
     queryKey: ['workspaces'],
     queryFn: () => apiGet<Workspace[]>('/workspaces/v1/workspaces'),
     retry: false,
   });
 
-  if (isLoading) return <p className="text-muted-foreground">Loading workspaces…</p>;
+  if (isLoading) return <p className="text-muted-foreground">{t('workspaceList.loading')}</p>;
   if (error) {
     const msg = error instanceof Error ? error.message : String(error);
     return (
       <div className="space-y-2">
-        <p className="text-destructive font-medium">Failed to load workspaces.</p>
-        <p className="text-sm text-muted-foreground font-mono break-all">Error: {msg}</p>
+        <p className="text-destructive font-medium">{t('workspaceList.failed')}</p>
+        <p className="text-sm text-muted-foreground font-mono break-all">{t('common.error')}: {msg}</p>
       </div>
     );
   }
@@ -35,13 +37,13 @@ export function WorkspaceListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Workspaces</h1>
-          <p className="text-muted-foreground">Shared project containers for data, workflows, and cohorts.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('workspaceList.title')}</h1>
+          <p className="text-muted-foreground">{t('workspaceList.subtitle')}</p>
         </div>
         <Button asChild>
           <Link to={"/workspaces/new" as any}>
             <FolderPlus className="mr-2 h-4 w-4" />
-            New Workspace
+            {t('workspaceList.new')}
           </Link>
         </Button>
       </div>
@@ -65,9 +67,9 @@ export function WorkspaceListPage() {
       {workspaces?.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <p className="text-muted-foreground">No workspaces yet.</p>
+            <p className="text-muted-foreground">{t('workspaceList.empty')}</p>
             <Button asChild className="mt-4">
-              <Link to={"/workspaces/new" as any}>Create your first workspace</Link>
+              <Link to={"/workspaces/new" as any}>{t('workspaceList.createFirst')}</Link>
             </Button>
           </CardContent>
         </Card>

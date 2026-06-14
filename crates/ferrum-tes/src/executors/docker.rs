@@ -6,9 +6,11 @@ use crate::error::{Result, TesError};
 use crate::executor::TaskExecutor;
 use crate::types::{CreateTaskRequest, TaskState};
 use async_trait::async_trait;
-use bollard::container::{Config, CreateContainerOptions, StartContainerOptions};
+use bollard::container::{Config, CreateContainerOptions, LogOutput, LogsOptions, StartContainerOptions};
+use bollard::image::CreateImageOptions;
 use bollard::models::{ContainerStateStatusEnum, HostConfig};
 use bollard::Docker;
+use futures_util::StreamExt;
 
 pub struct DockerExecutor {
     docker: Docker,
@@ -22,6 +24,42 @@ impl DockerExecutor {
     pub fn connect_default() -> std::result::Result<Self, bollard::errors::Error> {
         let docker = Docker::connect_with_local_defaults()?;
         Ok(Self::new(docker))
+    }
+
+    fn split_image_ref(image: &str) -> (String, String) {
+        let image = image.trim();
+        if let Some((name, tag)) = image.rsplit_once(':') {
+            if !tag.contains('/') {
+                return (name.to_string(), tag.to_string());
+            }
+        }
+        (image.to_string(), "latest".to_string())
+    }
+
+    async fn ensure_image(&self, image: &str) -> Result<()> {
+        let platform = std::env::var("FERRUM_TES_DOCKER_PLATFORM")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+        if platform.is_none() && self.docker.inspect_image(image).await.is_ok() {
+            return Ok(());
+        }
+        let (from_image, tag) = Self::split_image_ref(image);
+        tracing::info!(image = %image, ?platform, "TES Docker: pulling image");
+        let mut stream = self.docker.create_image(
+            Some(CreateImageOptions {
+                from_image: from_image.as_str(),
+                tag: tag.as_str(),
+                platform: platform.as_deref().unwrap_or(""),
+                ..Default::default()
+            }),
+            None,
+            None,
+        );
+        while let Some(item) = stream.next().await {
+            item.map_err(|e| TesError::Executor(format!("docker pull {image}: {e}")))?;
+        }
+        Ok(())
     }
 
     fn collect_binds(request: &CreateTaskRequest) -> Vec<String> {
@@ -97,6 +135,30 @@ impl DockerExecutor {
             (None, Some(exec.command.clone()))
         }
     }
+
+    async fn fetch_container_logs(&self, id: &str) -> Result<(String, String)> {
+        let opts = Some(LogsOptions::<String> {
+            stdout: true,
+            stderr: true,
+            tail: "all".to_string(),
+            ..Default::default()
+        });
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        let mut stream = self.docker.logs(id, opts);
+        while let Some(chunk) = stream.next().await {
+            match chunk.map_err(|e| TesError::Executor(e.to_string()))? {
+                LogOutput::StdOut { message } | LogOutput::Console { message } => {
+                    stdout.push_str(&String::from_utf8_lossy(&message));
+                }
+                LogOutput::StdErr { message } => {
+                    stderr.push_str(&String::from_utf8_lossy(&message));
+                }
+                LogOutput::StdIn { .. } => {}
+            }
+        }
+        Ok((stdout, stderr))
+    }
 }
 
 #[async_trait]
@@ -110,6 +172,7 @@ impl TaskExecutor for DockerExecutor {
             return Err(TesError::Validation("executors required".into()));
         }
         let exec = &request.executors[0];
+        self.ensure_image(&exec.image).await?;
         let name = format!("tes-{}", task_id);
         let binds = Self::collect_binds(request);
         let (entrypoint, cmd) = Self::entrypoint_and_cmd(exec);
@@ -195,5 +258,16 @@ impl TaskExecutor for DockerExecutor {
             }
             _ => Ok(TaskState::Unknown),
         }
+    }
+
+    async fn fetch_logs(
+        &self,
+        _task_id: &str,
+        external_id: Option<&str>,
+    ) -> Result<Option<(String, String)>> {
+        let Some(id) = external_id else {
+            return Ok(None);
+        };
+        Ok(Some(self.fetch_container_logs(id).await?))
     }
 }

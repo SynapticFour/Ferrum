@@ -37,11 +37,18 @@ pub struct SanitizedDiscovery {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct SanitizedCompute {
+    pub tes_backend: String,
+    pub wes_trs_auto_register: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SanitizedConfig {
     pub bind: String,
     pub database: SanitizedDatabase,
     pub storage: SanitizedStorage,
     pub services: SanitizedServices,
+    pub compute: SanitizedCompute,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discovery: Option<SanitizedDiscovery>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -304,6 +311,15 @@ pub fn admin_router(
             ferrum_core::config::AuthMode::Builtin => "builtin",
             ferrum_core::config::AuthMode::External => "external",
         };
+        let tes_backend = std::env::var("FERRUM_TES_BACKEND").unwrap_or_else(|_| "noop".to_string());
+        let wes_trs_auto_register = !matches!(
+            std::env::var("FERRUM_WES_TRS_AUTO_REGISTER")
+                .unwrap_or_else(|_| "true".to_string())
+                .trim()
+                .to_ascii_lowercase()
+                .as_str(),
+            "0" | "false" | "no" | "off"
+        );
         SanitizedConfig {
             bind: c.bind.clone(),
             database: SanitizedDatabase {
@@ -329,6 +345,10 @@ pub fn admin_router(
                 enable_beacon: c.services.enable_beacon,
                 enable_passports: c.services.enable_passports,
                 enable_crypt4gh: c.services.enable_crypt4gh,
+            },
+            compute: SanitizedCompute {
+                tes_backend,
+                wes_trs_auto_register,
             },
             discovery: Some(SanitizedDiscovery {
                 enabled: c.discovery.enabled,

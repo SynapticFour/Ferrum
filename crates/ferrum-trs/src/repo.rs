@@ -73,7 +73,16 @@ impl TrsRepo {
         let offset: i64 = page_token.and_then(|t| t.parse().ok()).unwrap_or(0);
         let rows: Vec<ToolRow> =
             sqlx::query_as(
-                "SELECT id, name, description, organization, toolclass, meta_version FROM trs_tools ORDER BY id LIMIT $1 OFFSET $2",
+                r#"SELECT id, name, description, organization, toolclass, meta_version
+                   FROM trs_tools
+                   ORDER BY
+                     CASE
+                       WHEN id = 'demo-bam-to-vcf' THEN 0
+                       WHEN id LIKE 'demo-%' OR id LIKE 'tiny-%' THEN 1
+                       ELSE 2
+                     END,
+                     id
+                   LIMIT $1 OFFSET $2"#,
             )
             .bind(page_size + 1)
             .bind(offset)
@@ -83,21 +92,16 @@ impl TrsRepo {
         let tools = rows
             .into_iter()
             .take(page_size as usize)
-            .map(
-                |(id, name, description, organization, toolclass, meta_version)| Tool {
+            .map(|(id, name, description, organization, toolclass, meta_version)| {
+                crate::types::tool_from_row(
                     id,
                     name,
                     description,
                     organization,
-                    toolclass: toolclass.map(|s| crate::types::ToolClass {
-                        id: Some(s.clone()),
-                        name: Some(s),
-                    }),
+                    toolclass,
                     meta_version,
-                    url: None,
-                    versions: None,
-                },
-            )
+                )
+            })
             .collect();
         let next = if has_more {
             Some((offset + page_size).to_string())
@@ -114,6 +118,28 @@ impl TrsRepo {
         .bind(version_id)
         .bind(tool_id)
         .bind(name)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn add_descriptor(
+        &self,
+        tool_id: &str,
+        version_id: &str,
+        descriptor_type: &str,
+        content: Option<&str>,
+        url: Option<&str>,
+    ) -> Result<()> {
+        sqlx::query(
+            r#"INSERT INTO trs_files (tool_id, version_id, file_type, descriptor_type, content, url)
+               VALUES ($1, $2, 'DESCRIPTOR', $3, $4, $5)"#,
+        )
+        .bind(tool_id)
+        .bind(version_id)
+        .bind(descriptor_type)
+        .bind(content)
+        .bind(url)
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -179,8 +205,8 @@ impl TrsRepo {
         // 2) If nothing matches, return any available DESCRIPTOR for the tool+version.
         let wanted = descriptor_type.trim();
         if !wanted.is_empty() {
-            let row: Option<(String,)> = sqlx::query_as(
-                r#"SELECT content
+            let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+                r#"SELECT content, url
                    FROM trs_files
                    WHERE tool_id = $1
                      AND version_id = $2
@@ -193,13 +219,13 @@ impl TrsRepo {
             .bind(wanted)
             .fetch_optional(&self.pool)
             .await?;
-            if row.is_some() {
-                return Ok(row.map(|r| r.0));
+            if let Some((content, url)) = row {
+                return Ok(resolve_descriptor_content(content, url).await);
             }
         }
 
-        let row: Option<(String,)> = sqlx::query_as(
-            r#"SELECT content
+        let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+            r#"SELECT content, url
                FROM trs_files
                WHERE tool_id = $1
                  AND version_id = $2
@@ -210,6 +236,33 @@ impl TrsRepo {
         .bind(&version_id)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.map(|r| r.0))
+        if let Some((content, url)) = row {
+            return Ok(resolve_descriptor_content(content, url).await);
+        }
+        Ok(None)
     }
+}
+
+async fn resolve_descriptor_content(
+    content: Option<String>,
+    url: Option<String>,
+) -> Option<String> {
+    if let Some(c) = content.filter(|s| !s.is_empty()) {
+        return Some(c);
+    }
+    let remote = url.filter(|s| s.starts_with("http://") || s.starts_with("https://"))?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .ok()?;
+    client
+        .get(&remote)
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .text()
+        .await
+        .ok()
 }

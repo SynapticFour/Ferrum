@@ -66,7 +66,16 @@ pub async fn create_task(
     app.repo
         .update_state(&id, crate::types::TaskState::Running)
         .await?;
-    let external_id = app.executor.run(&id, &body).await?;
+    let external_id = match app.executor.run(&id, &body).await {
+        Ok(ext) => ext,
+        Err(e) => {
+            let _ = app
+                .repo
+                .update_state(&id, crate::types::TaskState::ExecutorError)
+                .await;
+            return Err(e);
+        }
+    };
     if let Some(ref ext) = external_id {
         app.repo
             .set_external_id(&id, ext, app.executor.name())
@@ -135,6 +144,28 @@ pub async fn get_task(
         if polled != crate::types::TaskState::Running && polled != crate::types::TaskState::Unknown
         {
             app.repo.update_state(&id, polled).await?;
+        }
+    }
+    let existing_logs = app.repo.get(&id).await?.and_then(|r| r.15);
+    let needs_logs = existing_logs
+        .as_ref()
+        .map(|v| v.is_null() || v.as_array().is_none_or(|a| a.is_empty()))
+        .unwrap_or(true);
+    let current_state = app
+        .repo
+        .get(&id)
+        .await?
+        .map(|r| crate::types::TaskState::from_str(&r.1))
+        .unwrap_or(state_enum);
+    if needs_logs && current_state.is_terminal() {
+        if let Ok(Some((stdout, stderr))) =
+            app.executor.fetch_logs(&id, external_id.as_deref()).await
+        {
+            let logs = serde_json::json!([{
+                "stdout": stdout,
+                "stderr": stderr,
+            }]);
+            let _ = app.repo.set_logs(&id, &logs).await;
         }
     }
     let (

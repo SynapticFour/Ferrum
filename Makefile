@@ -6,14 +6,18 @@ COMPOSE := docker compose -f $(COMPOSE_FILE)
 GA4GH_INFRA_SRC ?= $(abspath ../ga4gh-infra)
 export GA4GH_INFRA_SRC
 COMPOSE_PILOT := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml
+COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tes.yml
+FERRUM_WES_TES_WORK_HOST_PREFIX ?= $(CURDIR)/deploy/.wes-runs
+export FERRUM_WES_TES_WORK_HOST_PREFIX
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop up-pilot down-pilot
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop up-pilot down-pilot up-tes
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
 	@echo "Ferrum — local lifecycle (Synaptic Four GA4GH stack)"
 	@echo ""
 	@echo "  make up        Start demo stack (alias: make demo)"
+	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
 	@echo "  make up-pilot  Start demo + ga4gh-infra with external auth (requires ../ga4gh-infra)"
 	@echo "  make down      Stop stack; keep volumes"
 	@echo "  make destroy   Stop stack; remove volumes and project images"
@@ -24,6 +28,36 @@ help:
 	@echo "  make build     Build images only"
 
 up: demo
+
+# Demo + Docker TES: workflow engine images (pinned tags; amd64 on Apple Silicon).
+TES_PLATFORM ?= linux/amd64
+TES_IMAGES := \
+	alpine:3.20 \
+	quay.io/commonwl/cwltool:3.2.20260413085819 \
+	nextflow/nextflow:24.10.3 \
+	broadinstitute/cromwell:93-0232cbd \
+	snakemake/snakemake:v7.32.4
+
+up-tes:
+	@mkdir -p deploy/.wes-runs
+	@echo "Pulling TES workflow images (platform=$(TES_PLATFORM))..."
+	@for img in $(TES_IMAGES); do \
+		docker pull --platform $(TES_PLATFORM) $$img || echo "WARN: could not pull $$img"; \
+	done
+	$(COMPOSE_TES) pull
+	$(COMPOSE_TES) up -d --build
+	@echo "Waiting for gateway (max 90s)..."
+	@for i in $$(seq 1 45); do \
+		curl -sf http://localhost:$${GATEWAY_PORT:-8080}/health >/dev/null && echo "Gateway OK" && break; \
+		[ $$i -eq 45 ] && echo "Gateway did not become healthy. Check: $(COMPOSE_TES) logs ferrum-gateway" && exit 1; \
+		sleep 2; \
+	done
+	@echo ""
+	@echo "Ferrum demo + TES (Docker) is up:"
+	@echo "  Gateway: http://localhost:$${GATEWAY_PORT:-8080}"
+	@echo "  UI:      http://localhost:$${UI_PORT:-8082}"
+	@echo "  TES:     FERRUM_TES_BACKEND=docker — submit a run and watch docker ps during RUNNING"
+	@command -v open >/dev/null 2>&1 && open "http://localhost:$${UI_PORT:-8082}/" || true
 
 # Pilot profile: Ferrum + ga4gh-infra AAI (mock-idp). Sibling ga4gh-infra checkout required.
 up-pilot:

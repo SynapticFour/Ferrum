@@ -34,6 +34,17 @@ impl TaskState {
             TaskState::Canceling => "CANCELING",
         }
     }
+
+    pub fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            TaskState::Complete
+                | TaskState::ExecutorError
+                | TaskState::SystemError
+                | TaskState::Canceled
+        )
+    }
+
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {

@@ -91,6 +91,10 @@ pub struct RunSummary {
     pub tags: std::collections::HashMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resumed_from_run_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workflow_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workflow_url: Option<String>,
 }
 
 /// GET /runs response.
@@ -99,6 +103,16 @@ pub struct RunListResponse {
     pub runs: Vec<RunSummary>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_page_token: Option<String>,
+    /// Orphan QUEUED runs (no executor, not yet past stale threshold) — UI may offer cleanup.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub orphan_queued_count: Option<u32>,
+}
+
+/// POST /runs/stale/reconcile response.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct StaleReconcileResponse {
+    pub reconciled: u32,
+    pub run_ids: Vec<String>,
 }
 
 /// Run request (from multipart form).

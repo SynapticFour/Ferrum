@@ -11,6 +11,8 @@ export interface DrsObject {
   aliases?: string[];
   is_bundle?: boolean;
   description?: string;
+  ont_metrics?: Record<string, unknown>;
+  gisaid_metadata?: Record<string, unknown>;
 }
 
 /** WES run state */

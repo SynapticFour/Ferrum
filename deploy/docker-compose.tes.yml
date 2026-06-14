@@ -1,0 +1,28 @@
+# Optional overlay: real Docker-backed TES (small workflows actually run containers).
+# Usage: make up-tes
+#
+# Requires Docker socket on the host. On Apple Silicon (arm64), workflow images that are
+# amd64-only (notably nextflow/nextflow) need FERRUM_TES_DOCKER_PLATFORM=linux/amd64.
+#
+# WES work dirs are bind-mounted so engine outputs (hello.txt, sorted.txt, …) appear in the UI.
+
+services:
+  ferrum-gateway:
+    build:
+      args:
+        FERRUM_GATEWAY_FEATURES: full,tes-docker
+    environment:
+      FERRUM_TES_BACKEND: docker
+      FERRUM_WES_WORK_DIR: /wes-runs
+      # Host path for Docker volume binds (set by Makefile `up-tes` via CURDIR).
+      FERRUM_WES_TES_WORK_HOST_PREFIX: ${FERRUM_WES_TES_WORK_HOST_PREFIX}
+      FERRUM_WES_TES_CONTAINER_MOUNT_PREFIX: /wes-runs
+      FERRUM_WES_TES_WDL_BASH_LAUNCH: "true"
+      # arm64 Macs: pull/run amd64 images via emulation (nextflow, some Cromwell tags).
+      FERRUM_TES_DOCKER_PLATFORM: "${FERRUM_TES_DOCKER_PLATFORM:-linux/amd64}"
+      FERRUM_TES_DOCKER_EXTRA_HOSTS: "${FERRUM_TES_DOCKER_EXTRA_HOSTS:-host.docker.internal:host-gateway}"
+      # TRS descriptor URLs (/ga4gh/trs/...) resolve inside task containers.
+      FERRUM_WES_GATEWAY_INTERNAL_URL: "${FERRUM_WES_GATEWAY_INTERNAL_URL:-http://host.docker.internal:8082}"
+    volumes:
+      - ${FERRUM_WES_TES_WORK_HOST_PREFIX}:/wes-runs
+      - /var/run/docker.sock:/var/run/docker.sock

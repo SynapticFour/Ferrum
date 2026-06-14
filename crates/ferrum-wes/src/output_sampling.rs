@@ -59,6 +59,8 @@ pub fn collect_output_files(work_dir: &Path, ignore_globs: &[String]) -> Vec<Val
                 "location": location,
                 "name": name,
                 "size": size,
+                "category": classify_output(&rel_str, &name),
+                "path": rel_str,
             }));
         }
     }
@@ -77,6 +79,21 @@ pub fn collect_output_files(work_dir: &Path, ignore_globs: &[String]) -> Vec<Val
     });
 
     out
+}
+
+/// Split collected files into result / artifact / log buckets for WES `outputs` JSON.
+pub fn partition_output_files(files: Vec<Value>) -> (Vec<Value>, Vec<Value>, Vec<Value>) {
+    let mut results = Vec::new();
+    let mut artifacts = Vec::new();
+    let mut logs = Vec::new();
+    for f in files {
+        match f.get("category").and_then(|c| c.as_str()) {
+            Some("log") => logs.push(f),
+            Some("artifact") => artifacts.push(f),
+            _ => results.push(f),
+        }
+    }
+    (results, artifacts, logs)
 }
 
 /// Build ignore globs for output sampling.
@@ -112,6 +129,53 @@ pub fn default_ignore_globs(multiqc_scan_patterns: Option<&[String]>) -> Vec<Str
     out.sort();
     out.dedup();
     out
+}
+
+/// Classify a workdir file for the results UI: `result`, `artifact`, or `log`.
+pub fn classify_output(rel_path: &str, file_name: &str) -> &'static str {
+    if file_name == "stdout.txt"
+        || file_name == "stderr.txt"
+        || file_name.ends_with(".log")
+        || file_name.starts_with(".command.")
+        || file_name == ".exitcode"
+    {
+        return "log";
+    }
+    if rel_path.starts_with(".nextflow/")
+        || rel_path.starts_with(".snakemake/")
+        || file_name == "workflow.nf"
+        || file_name == "nextflow.config"
+        || file_name == "workflow.cwl"
+        || file_name == "Snakefile"
+        || file_name == "inputs.json"
+        || file_name == "params.json"
+        || file_name == "state.json"
+        || file_name.starts_with("MANIFEST-")
+        || matches!(file_name, "CURRENT" | "LOCK" | "history")
+        || file_name.starts_with("index.")
+    {
+        return "artifact";
+    }
+    if rel_path.starts_with("work/") && !is_likely_result_name(file_name) {
+        return "artifact";
+    }
+    "result"
+}
+
+fn is_likely_result_name(file_name: &str) -> bool {
+    let n = file_name.to_lowercase();
+    n.ends_with(".txt")
+        || n.ends_with(".vcf")
+        || n.ends_with(".bam")
+        || n.ends_with(".cram")
+        || n.ends_with(".gz")
+        || n.ends_with(".html")
+        || n.ends_with(".pdf")
+        || n.ends_with(".tsv")
+        || n.ends_with(".csv")
+        || n.ends_with(".json")
+        || n == "sorted.txt"
+        || n == "hello.txt"
 }
 
 fn should_ignore_name(is_dir: bool, file_name: &str, ignore_globs: &[String]) -> bool {

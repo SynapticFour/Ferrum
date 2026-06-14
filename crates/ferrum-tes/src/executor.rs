@@ -20,6 +20,15 @@ pub trait TaskExecutor: Send + Sync {
     async fn poll_state(&self, _task_id: &str, _external_id: Option<&str>) -> Result<TaskState> {
         Ok(TaskState::Unknown)
     }
+
+    /// Fetch container/process stdout+stderr after a terminal state (best-effort).
+    async fn fetch_logs(
+        &self,
+        _task_id: &str,
+        _external_id: Option<&str>,
+    ) -> Result<Option<(String, String)>> {
+        Ok(None)
+    }
 }
 
 pub type ExecutorBackend = Arc<dyn TaskExecutor>;

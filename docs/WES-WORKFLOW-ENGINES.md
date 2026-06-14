@@ -8,12 +8,14 @@ Ferrum **WES** routes runs to an executor from **`workflow_type`** (and optional
 
 | `workflow_type` (case-insensitive) | Direct executor (no TES) | When **`FERRUM_WES_TES_URL`** / TES is configured |
 |-----------------------------------|---------------------------|---------------------------------------------------|
-| **`wdl`** | Cromwell-style command (see `CromwellExecutor`) | Default: Cromwell image + `java -jar … run <url>`. Optional **`FERRUM_WES_TES_WDL_BASH_LAUNCH`** → shell + `inputs.json` (see [TES-DOCKER-BACKEND.md](TES-DOCKER-BACKEND.md)). |
-| **`nextflow`** or **`nxf`** | `NextflowExecutor` | Default: `nextflow run <workflow_url>`. Optional **`FERRUM_WES_TES_NEXTFLOW_FILE_LAUNCH`** → download + local `nextflow.config` (see TES doc). |
-| **`cwl`** | `cwltool` | TES: **`quay.io/commonwl/cwltool:latest`** |
-| **`snakemake`** | `snakemake` | TES: **`snakemake/snakemake:latest`** |
+| **`wdl`** | Cromwell-style command (see `CromwellExecutor`) | TES: **`broadinstitute/cromwell:93-0232cbd`** + bash launcher. Optional **`FERRUM_WES_TES_WDL_BASH_LAUNCH`** adds `inputs.json` + workdir binds (see [TES-DOCKER-BACKEND.md](TES-DOCKER-BACKEND.md)). |
+| **`nextflow`** or **`nxf`** | `NextflowExecutor` | TES: **`nextflow/nextflow:24.10.3`** (bash: curl + `nextflow run`). Optional **`FERRUM_WES_TES_NEXTFLOW_FILE_LAUNCH`** adds `params.json` + workdir binds. |
+| **`cwl`** | `cwltool` | TES: **`quay.io/commonwl/cwltool:3.2.20260413085819`** (bash launcher; TRS URLs via `FERRUM_WES_GATEWAY_INTERNAL_URL`) |
+| **`snakemake`** | `snakemake` | TES: **`snakemake/snakemake:v7.32.4`** |
 
-**Source:** `crates/ferrum-wes/src/run_manager.rs` (`executor_for_type`), `crates/ferrum-wes/src/executors/tes.rs` (`build_tes_task_request`, `legacy_image_and_command`).
+**Apple Silicon:** set **`FERRUM_TES_DOCKER_PLATFORM=linux/amd64`** (`make up-tes` does this by default) — **`nextflow/nextflow`** is amd64-only.
+
+**Source:** `crates/ferrum-wes/src/run_manager.rs` (`executor_for_type`), `crates/ferrum-wes/src/executors/tes.rs` (`build_tes_task_request`, `legacy_executor_body`).
 
 **No fork required for Nextflow** — submit WES with `workflow_type: "Nextflow"` (or `nextflow` / `nxf`) and a **`workflow_url`** pointing at your script (e.g. TRS URL, `https://`, or `file:` where your deployment allows it). TES must be reachable and the **task image** must contain a working **Nextflow** install (default public image above).
 

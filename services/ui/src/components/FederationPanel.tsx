@@ -87,6 +87,11 @@ export function FederationPanel() {
 
   return (
     <div className="space-y-4">
+      <ol className="flex flex-wrap gap-2 text-xs text-muted-foreground list-none">
+        <li className="rounded-full border px-2 py-0.5">1. Configure registry URL & tunnel</li>
+        <li className="rounded-full border px-2 py-0.5">2. List peers</li>
+        <li className="rounded-full border px-2 py-0.5">3. Register & verify</li>
+      </ol>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">

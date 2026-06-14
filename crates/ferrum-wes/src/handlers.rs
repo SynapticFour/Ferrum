@@ -79,18 +79,20 @@ pub struct ListRunsQuery {
     pub workspace_id: Option<String>,
 }
 
-/// GET /runs — lists runs for the authenticated user (or all if no auth / admin). If workspace_id set, filter to that workspace (caller must be member).
-#[utoipa::path(get, path = "/runs", params(ListRunsQuery), responses((status = 200, body = RunListResponse)))]
-pub async fn list_runs(
-    State(app): State<Arc<AppState>>,
-    Query(q): Query<ListRunsQuery>,
-    auth: Option<Extension<ferrum_core::AuthClaims>>,
-) -> Result<Json<RunListResponse>> {
-    let page_size = q.page_size.unwrap_or(100).min(1000);
-    let state_filter = q.state.as_deref().map(RunState::from_str);
-    let owner_sub = auth.as_ref().and_then(|c| c.sub());
-    let is_admin = auth.as_ref().is_some_and(|c| c.is_admin());
-    let (filter_owner, workspace_id) = if let Some(ref ws_id) = q.workspace_id {
+#[derive(Debug, serde::Deserialize, IntoParams, ToSchema)]
+pub struct StaleReconcileQuery {
+    /// Minimum age in seconds before a stuck QUEUED run is reconciled (default: 0 = immediate).
+    pub older_than_secs: Option<i64>,
+    pub workspace_id: Option<String>,
+}
+
+async fn wes_runs_list_scope(
+    app: &AppState,
+    workspace_id: Option<&str>,
+    owner_sub: Option<&str>,
+    is_admin: bool,
+) -> Result<(Option<String>, Option<String>)> {
+    if let Some(ws_id) = workspace_id {
         let sub = owner_sub
             .ok_or_else(|| WesError::Forbidden("workspace_id requires authentication".into()))?;
         let is_member = ferrum_core::get_workspace_member_role(
@@ -104,23 +106,117 @@ pub async fn list_runs(
         if !is_member {
             return Err(WesError::Forbidden("not a member of this workspace".into()));
         }
-        (None, q.workspace_id.as_deref())
+        Ok((None, Some(ws_id.to_string())))
     } else {
-        (if is_admin { None } else { owner_sub }, None)
-    };
+        Ok((
+            if is_admin {
+                None
+            } else {
+                owner_sub.map(String::from)
+            },
+            None,
+        ))
+    }
+}
+
+async fn orphan_queued_count(
+    app: &AppState,
+    filter_owner: Option<&str>,
+    workspace_id: Option<&str>,
+) -> Result<u32> {
+    let ids = app
+        .repo
+        .find_orphan_queued_run_ids(0, filter_owner, workspace_id)
+        .await?;
+    let tracked = app.run_manager.active_run_ids().await;
+    let tracked_set: std::collections::HashSet<_> = tracked.into_iter().collect();
+    Ok(ids
+        .into_iter()
+        .filter(|id| !tracked_set.contains(id))
+        .count() as u32)
+}
+
+/// POST /runs/stale/reconcile — mark orphan QUEUED runs (submit never completed) as EXECUTOR_ERROR.
+#[utoipa::path(
+    post,
+    path = "/runs/stale/reconcile",
+    params(StaleReconcileQuery),
+    responses((status = 200, body = StaleReconcileResponse))
+)]
+pub async fn post_reconcile_stale_runs(
+    State(app): State<Arc<AppState>>,
+    Query(q): Query<StaleReconcileQuery>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<Json<StaleReconcileResponse>> {
+    let owner_sub = auth.as_ref().and_then(|c| c.sub());
+    let is_admin = auth.as_ref().is_some_and(|c| c.is_admin());
+    let (filter_owner, workspace_id) =
+        wes_runs_list_scope(&app, q.workspace_id.as_deref(), owner_sub, is_admin).await?;
+    let filter_owner_ref = filter_owner.as_deref();
+    let workspace_id_ref = workspace_id.as_deref();
+    let older_than_secs = q.older_than_secs.unwrap_or(0).max(0);
+    let run_ids = app
+        .run_manager
+        .reconcile_stale_queued_runs(older_than_secs, filter_owner_ref, workspace_id_ref)
+        .await?;
+    Ok(Json(StaleReconcileResponse {
+        reconciled: run_ids.len() as u32,
+        run_ids,
+    }))
+}
+
+/// GET /runs — lists runs for the authenticated user (or all if no auth / admin). If workspace_id set, filter to that workspace (caller must be member).
+#[utoipa::path(get, path = "/runs", params(ListRunsQuery), responses((status = 200, body = RunListResponse)))]
+pub async fn list_runs(
+    State(app): State<Arc<AppState>>,
+    Query(q): Query<ListRunsQuery>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<Json<RunListResponse>> {
+    let page_size = q.page_size.unwrap_or(100).min(1000);
+    let state_filter = q.state.as_deref().map(RunState::from_str);
+    let owner_sub = auth.as_ref().and_then(|c| c.sub());
+    let is_admin = auth.as_ref().is_some_and(|c| c.is_admin());
+    let (filter_owner, workspace_id) =
+        wes_runs_list_scope(&app, q.workspace_id.as_deref(), owner_sub, is_admin).await?;
+    let filter_owner_ref = filter_owner.as_deref();
+    let workspace_id_ref = workspace_id.as_deref();
+    let _ = app
+        .run_manager
+        .reconcile_stale_queued_runs(
+            crate::run_manager::RunManager::default_stale_queued_secs(),
+            filter_owner_ref,
+            workspace_id_ref,
+        )
+        .await;
     let (runs, next_page_token) = app
         .repo
         .list_runs(
             page_size,
             q.page_token.as_deref(),
             state_filter,
-            filter_owner,
-            workspace_id,
+            filter_owner_ref,
+            workspace_id_ref,
         )
         .await?;
+    let mut runs = runs;
+    for run in &mut runs {
+        if !run.state.is_terminal() {
+            if let Ok(state) = app.run_manager.poll_status(&run.run_id).await {
+                if state != RunState::Unknown {
+                    let _ = app.repo.update_state(&run.run_id, state).await;
+                    run.state = state;
+                }
+            }
+        }
+    }
+    let orphan_queued_count = orphan_queued_count(&app, filter_owner_ref, workspace_id_ref)
+        .await
+        .ok()
+        .filter(|&n| n > 0);
     Ok(Json(RunListResponse {
         runs,
         next_page_token,
+        orphan_queued_count,
     }))
 }
 
@@ -408,19 +504,30 @@ pub async fn post_runs(
         workflow_engine_params,
         work_dir: None,
     };
-    app.run_manager.submit(&run).await?;
+    if let Err(e) = app.run_manager.submit(&run).await {
+        let _ = app
+            .repo
+            .update_state(&run_id, RunState::ExecutorError)
+            .await;
+        return Err(e);
+    }
 
     if let Some(ref base) = app.trs_register_url {
-        let url = format!("{}/internal/register", base.trim_end_matches('/'));
-        let client = reqwest::Client::new();
-        let body = serde_json::json!({
-            "workflow_url": run.workflow_url,
-            "workflow_type": run.workflow_type,
-            "workflow_type_version": run.workflow_type_version,
-        });
-        tokio::spawn(async move {
-            let _ = client.post(&url).json(&body).send().await;
-        });
+        let wf_url = run.workflow_url.as_str();
+        // Skip when UI already registered inline content → TRS descriptor URL.
+        let already_trs = wf_url.contains("/ga4gh/trs/v2/tools/") && wf_url.contains("/descriptor");
+        if !already_trs {
+            let url = format!("{}/internal/register", base.trim_end_matches('/'));
+            let client = reqwest::Client::new();
+            let body = serde_json::json!({
+                "workflow_url": run.workflow_url,
+                "workflow_type": run.workflow_type,
+                "workflow_type_version": run.workflow_type_version,
+            });
+            tokio::spawn(async move {
+                let _ = client.post(&url).json(&body).send().await;
+            });
+        }
     }
 
     Ok(Json(RunIdResponse { run_id, warnings }))
@@ -600,6 +707,10 @@ pub async fn get_run_log(
 ) -> Result<Json<RunLog>> {
     if !run_visible(&app, &run_id, auth.as_ref()).await? {
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
+    let polled = app.run_manager.poll_status(&run_id).await?;
+    if polled != RunState::Unknown {
+        app.repo.update_state(&run_id, polled).await?;
     }
     let row = app
         .repo
@@ -794,6 +905,114 @@ pub async fn get_stderr(
     Ok((
         [("content-type", "text/plain; charset=utf-8")],
         axum::body::Body::from(body),
+    )
+        .into_response())
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct OutputFileQuery {
+    /// When true, serve with inline disposition (browser preview).
+    pub inline: Option<bool>,
+}
+
+fn outputs_list_contains(outputs: &serde_json::Value, file_id: &str) -> bool {
+    for key in ["output_files", "artifact_files", "log_files"] {
+        if let Some(arr) = outputs.get(key).and_then(|v| v.as_array()) {
+            if arr.iter().any(|o| o.get("file_id").and_then(|v| v.as_str()) == Some(file_id)) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn guess_content_type(name: &str) -> &'static str {
+    let n = name.to_ascii_lowercase();
+    if n.ends_with(".json") {
+        return "application/json";
+    }
+    if n.ends_with(".html") {
+        return "text/html; charset=utf-8";
+    }
+    if n.ends_with(".csv") || n.ends_with(".tsv") {
+        return "text/plain; charset=utf-8";
+    }
+    if n.ends_with(".vcf") {
+        return "text/plain; charset=utf-8";
+    }
+    "application/octet-stream"
+}
+
+fn is_previewable(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n.ends_with(".txt")
+        || n.ends_with(".log")
+        || n.ends_with(".json")
+        || n.ends_with(".html")
+        || n.ends_with(".csv")
+        || n.ends_with(".tsv")
+        || n.ends_with(".vcf")
+        || n.ends_with(".cwl")
+        || n.ends_with(".wdl")
+        || n.ends_with(".nf")
+}
+
+/// GET /runs/{run_id}/outputs/files/{file_id} — download or inline-preview a sampled workdir file.
+pub async fn get_run_output_file(
+    State(app): State<Arc<AppState>>,
+    Path((run_id, file_id)): Path<(String, String)>,
+    Query(q): Query<OutputFileQuery>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<axum::response::Response> {
+    if !run_visible(&app, &run_id, auth.as_ref()).await? {
+        return Err(WesError::NotFound(format!("run not found: {}", run_id)));
+    }
+    if file_id.is_empty() || file_id.contains("..") {
+        return Err(WesError::NotFound("invalid file_id".into()));
+    }
+    let row = app
+        .repo
+        .get_run(&run_id)
+        .await?
+        .ok_or_else(|| WesError::NotFound(format!("run not found: {}", run_id)))?;
+    let (_, _, _, _, _, _, _, _, _, _, outputs, work_dir, _, _, _) = row;
+    let work_dir = work_dir.ok_or_else(|| WesError::NotFound("work_dir not found".into()))?;
+    if !outputs_list_contains(&outputs, &file_id) {
+        return Err(WesError::NotFound(format!("output file not found: {}", file_id)));
+    }
+    let rel = file_id.replace("__", "/");
+    let base = std::path::Path::new(&work_dir)
+        .canonicalize()
+        .map_err(WesError::Io)?;
+    let path = base.join(&rel);
+    let canonical = path.canonicalize().map_err(|_| {
+        WesError::NotFound(format!("output file not found on disk: {}", file_id))
+    })?;
+    if !canonical.starts_with(&base) {
+        return Err(WesError::Forbidden("path outside work_dir".into()));
+    }
+    let name = canonical
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("download");
+    let bytes = tokio::fs::read(&canonical).await.map_err(WesError::Io)?;
+    let inline = q.inline.unwrap_or(false) && is_previewable(name);
+    let disposition = if inline {
+        format!("inline; filename=\"{}\"", name)
+    } else {
+        format!("attachment; filename=\"{}\"", name)
+    };
+    let ct = if inline {
+        guess_content_type(name)
+    } else {
+        "application/octet-stream"
+    };
+    Ok((
+        [
+            ("content-type", ct),
+            ("content-disposition", disposition.as_str()),
+        ],
+        axum::body::Body::from(bytes),
     )
         .into_response())
 }
@@ -1579,7 +1798,13 @@ pub async fn resume_run(
         workflow_engine_params,
         work_dir: None,
     };
-    app.run_manager.submit(&run).await?;
+    if let Err(e) = app.run_manager.submit(&run).await {
+        let _ = app
+            .repo
+            .update_state(&new_run_id, RunState::ExecutorError)
+            .await;
+        return Err(e);
+    }
     Ok(Json(ResumeRunResponse {
         run_id: new_run_id,
         resumed_from: run_id,

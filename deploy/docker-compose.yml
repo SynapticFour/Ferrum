@@ -104,6 +104,7 @@ services:
       FERRUM_AUTH__ISSUER: "${FERRUM_AUTH__ISSUER:-}"
       # htsget ticket URLs (DRS /stream); CI sets http://localhost:8080 — omit locally to use https://{FERRUM_DRS_HOSTNAME}
       FERRUM_PUBLIC_BASE_URL: "${FERRUM_PUBLIC_BASE_URL:-}"
+      FERRUM_WES_TRS_AUTO_REGISTER: "${FERRUM_WES_TRS_AUTO_REGISTER:-true}"
     depends_on:
       postgres: { condition: service_healthy }
       minio: { condition: service_started }

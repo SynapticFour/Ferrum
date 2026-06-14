@@ -608,10 +608,31 @@ pub async fn cohort_stats(
     let mut field_filled: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
     let mut sex_distribution = std::collections::HashMap::new();
-    let total_data_size_bytes: i64 = 0;
-    let data_type_breakdown: std::collections::HashMap<String, DataTypeStat> =
-        std::collections::HashMap::new();
-    for (_, _drs_ids, phenotype) in &samples {
+    let mut object_ids: Vec<String> = Vec::new();
+    for (_, drs_ids, phenotype) in &samples {
+        if let Some(arr) = drs_ids.as_array() {
+            for v in arr {
+                if let Some(s) = v.as_str() {
+                    object_ids.push(s.to_string());
+                }
+            }
+        }
+        let sex_value = phenotype
+            .as_object()
+            .and_then(|obj| obj.get("sex"))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+        match sex_value {
+            Some(s) => {
+                *sex_distribution.entry(s.to_string()).or_insert(0) += 1;
+            }
+            None => {
+                *sex_distribution
+                    .entry("not_recorded".to_string())
+                    .or_insert(0) += 1;
+            }
+        }
         if let Some(obj) = phenotype.as_object() {
             for (k, v) in obj {
                 let filled = !v.is_null()
@@ -623,12 +644,31 @@ pub async fn cohort_stats(
                 if filled {
                     *field_filled.entry(k.clone()).or_insert(0) += 1;
                 }
-                if k == "sex" {
-                    if let Some(s) = v.as_str() {
-                        *sex_distribution.entry(s.to_string()).or_insert(0) += 1;
-                    }
-                }
             }
+        }
+    }
+
+    let mut total_data_size_bytes: i64 = 0;
+    let mut data_type_breakdown: std::collections::HashMap<String, DataTypeStat> =
+        std::collections::HashMap::new();
+    if !object_ids.is_empty() {
+        let rows: Vec<(String, i64, Option<String>)> = sqlx::query_as(
+            "SELECT id, COALESCE(size, 0), mime_type FROM drs_objects WHERE id = ANY($1)",
+        )
+        .bind(&object_ids)
+        .fetch_all(state.repo.pool())
+        .await
+        .map_err(|e| CohortError::Other(e.into()))?;
+        for (_oid, size, mime) in rows {
+            total_data_size_bytes += size;
+            let key = mime.clone().unwrap_or_else(|| "unknown".to_string());
+            let entry = data_type_breakdown.entry(key.clone()).or_insert(DataTypeStat {
+                count: 0,
+                total_size: 0,
+                mime_type: key,
+            });
+            entry.count += 1;
+            entry.total_size += size;
         }
     }
     let n = sample_count.max(1) as f64;

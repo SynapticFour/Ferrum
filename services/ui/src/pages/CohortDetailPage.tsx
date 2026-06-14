@@ -4,8 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { apiGet } from '@/api/client';
+import { AddCohortSampleDialog } from '@/components/AddCohortSampleDialog';
+import { SampleSheetImportDialog } from '@/components/SampleSheetImportDialog';
+import { RunCohortDialog } from '@/components/RunCohortDialog';
+import { apiGet, apiPost } from '@/api/client';
 import { ArrowLeft, Users, Database, BarChart3 } from 'lucide-react';
+import { formatBytes } from '@/lib/utils';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const COHORTS_BASE = '/cohorts/v1';
 
@@ -49,6 +54,7 @@ type CohortStats = {
 };
 
 export function CohortDetailPage() {
+  const { t } = useI18n();
   const params = useParams({ strict: false }) as { cohortId?: string };
   const cohortId = params.cohortId;
   const cohortQuery = useQuery({
@@ -68,17 +74,30 @@ export function CohortDetailPage() {
     enabled: !!cohortId,
   });
 
-  const cohort = cohortQuery.data;
-  const samples = samplesQuery.data?.samples ?? [];
   const stats = statsQuery.data;
 
+  function sexLabel(sex: string) {
+    return sex === 'not_recorded' ? t('cohort.sexNotRecorded') : sex;
+  }
+
+  function sortedSexEntries(entries: [string, number][]) {
+    return [...entries].sort(([a], [b]) => {
+      if (a === 'not_recorded') return 1;
+      if (b === 'not_recorded') return -1;
+      return a.localeCompare(b);
+    });
+  }
+
+  const cohort = cohortQuery.data;
+  const samples = samplesQuery.data?.samples ?? [];
+
   if (cohortQuery.isLoading || !cohort) {
-    return <div className="text-muted-foreground">Loading cohort…</div>;
+    return <div className="text-muted-foreground">{t('cohortDetail.loading')}</div>;
   }
   if (cohortQuery.error) {
     return (
       <div className="text-destructive">
-        Failed to load cohort: {String(cohortQuery.error)}
+        {t('cohortDetail.failed')}: {String(cohortQuery.error)}
       </div>
     );
   }
@@ -98,8 +117,38 @@ export function CohortDetailPage() {
           )}
           <div className="mt-2 flex items-center gap-2">
             {cohort.is_frozen && (
-              <Badge variant="secondary">Frozen</Badge>
+              <Badge variant="secondary">{t('cohortDetail.frozen')}</Badge>
             )}
+            {!cohort.is_frozen && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  await apiPost(`${COHORTS_BASE}/cohorts/${encodeURIComponent(cohortId!)}/freeze`, {});
+                  window.location.reload();
+                }}
+              >
+                {t('cohortDetail.freeze')}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                const data = await apiGet<unknown>(
+                  `${COHORTS_BASE}/cohorts/${encodeURIComponent(cohortId!)}/export`,
+                );
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `cohort-${cohortId}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              {t('cohortDetail.export')}
+            </Button>
             {cohort.tags?.map((t) => (
               <Badge key={t} variant="outline">{t}</Badge>
             ))}
@@ -109,14 +158,14 @@ export function CohortDetailPage() {
 
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="samples">Samples</TabsTrigger>
+          <TabsTrigger value="overview">{t('cohortDetail.tabOverview')}</TabsTrigger>
+          <TabsTrigger value="samples">{t('cohortDetail.tabSamples')}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Samples</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('cohortDetail.statSamples')}</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -125,18 +174,22 @@ export function CohortDetailPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Data size</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('cohortDetail.statDataSize')}</CardTitle>
                 <Database className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {stats ? `${(stats.total_data_size_bytes / 1e9).toFixed(2)} GB` : '—'}
+                  {stats && stats.total_data_size_bytes > 0
+                    ? formatBytes(stats.total_data_size_bytes)
+                    : stats
+                      ? '0 B'
+                      : '—'}
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Version</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('cohortDetail.statVersion')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{cohort.version}</div>
@@ -144,7 +197,7 @@ export function CohortDetailPage() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Last updated</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('cohortDetail.statUpdated')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-sm">{new Date(cohort.updated_at).toLocaleString()}</div>
@@ -156,14 +209,14 @@ export function CohortDetailPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  Sex distribution
+                  {t('cohortDetail.sexDistribution')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-4">
-                  {Object.entries(stats.sex_distribution).map(([sex, count]) => (
+                  {sortedSexEntries(Object.entries(stats.sex_distribution)).map(([sex, count]) => (
                     <div key={sex} className="rounded bg-muted px-3 py-1">
-                      <span className="font-medium">{sex}</span>: {count}
+                      <span className="font-medium">{sexLabel(sex)}</span>: {count}
                     </div>
                   ))}
                 </div>
@@ -172,25 +225,35 @@ export function CohortDetailPage() {
           )}
         </TabsContent>
         <TabsContent value="samples" className="space-y-4">
+          <div className="flex flex-wrap justify-end gap-2">
+            <SampleSheetImportDialog cohortId={cohortId!} disabled={cohort.is_frozen} />
+            <RunCohortDialog
+              cohortId={cohortId!}
+              cohortName={cohort.name}
+              workspaceId={cohort.workspace_id}
+              disabled={cohort.is_frozen}
+            />
+            <AddCohortSampleDialog cohortId={cohortId!} disabled={cohort.is_frozen} />
+          </div>
           <Card>
             <CardHeader>
-              <CardTitle>Samples</CardTitle>
+              <CardTitle>{t('cohortDetail.samplesTitle')}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {samples.length} sample(s). Add or import via API.
+                {t('cohortDetail.samplesHint', { count: samples.length })}
               </p>
             </CardHeader>
             <CardContent>
               {samples.length === 0 ? (
-                <p className="text-muted-foreground">No samples in this cohort yet.</p>
+                <p className="text-muted-foreground">{t('cohortDetail.noSamples')}</p>
               ) : (
                 <div className="rounded-md border">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="p-3 text-left font-medium">Sample ID</th>
-                        <th className="p-3 text-left font-medium">DRS objects</th>
-                        <th className="p-3 text-left font-medium">Phenotype</th>
-                        <th className="p-3 text-left font-medium">Added</th>
+                        <th className="p-3 text-left font-medium">{t('cohortDetail.colSampleId')}</th>
+                        <th className="p-3 text-left font-medium">{t('cohortDetail.colDrs')}</th>
+                        <th className="p-3 text-left font-medium">{t('cohortDetail.colPhenotype')}</th>
+                        <th className="p-3 text-left font-medium">{t('cohortDetail.colAdded')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -198,7 +261,7 @@ export function CohortDetailPage() {
                         <tr key={s.id} className="border-b last:border-0">
                           <td className="p-3 font-mono">{s.sample_id}</td>
                           <td className="p-3">
-                            {s.drs_object_ids?.length ?? 0} object(s)
+                            {t('cohortDetail.objectCount', { count: s.drs_object_ids?.length ?? 0 })}
                           </td>
                           <td className="p-3 max-w-xs truncate">
                             {Object.keys(s.phenotype ?? {}).length > 0

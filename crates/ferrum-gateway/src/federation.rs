@@ -99,6 +99,14 @@ fn public_base_url(cfg: &FerrumConfig) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+fn federation_http_client() -> Result<reqwest::Client, (StatusCode, String)> {
+    reqwest::Client::builder()
+        .user_agent("Ferrum-Gateway/1.0 (GA4GH TRS proxy)")
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
 async fn registry_get(
     registry_url: &str,
     api_key: Option<&str>,
@@ -109,10 +117,7 @@ async fn registry_get(
         registry_url.trim_end_matches('/'),
         path.trim_start_matches('/')
     );
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let client = federation_http_client()?;
     let mut req = client.get(&url);
     if let Some(key) = api_key.filter(|k| !k.is_empty()) {
         req = req.header("X-API-Key", key);
@@ -131,10 +136,7 @@ async fn registry_post(
     body: &serde_json::Value,
 ) -> Result<reqwest::Response, (StatusCode, String)> {
     let url = format!("{}/services", registry_url.trim_end_matches('/'));
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let client = federation_http_client()?;
     client
         .post(url)
         .header("X-API-Key", api_key)
@@ -360,12 +362,21 @@ async fn remote_trs_tools(
     if trs_base.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "trs_base_url required".into()));
     }
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-    let resp = client
-        .get(format!("{trs_base}/tools"))
+    let client = federation_http_client()?;
+    let mut req = client.get(format!("{trs_base}/tools"));
+    if let Some(toolname) = q.q.as_deref().filter(|s| !s.is_empty()) {
+        req = req.query(&[("toolname", toolname)]);
+    }
+    if let Some(dt) = q.descriptor_type.as_deref().filter(|s| !s.is_empty()) {
+        req = req.query(&[("descriptorType", dt)]);
+    }
+    if let Some(tc) = q.tool_class.as_deref().filter(|s| !s.is_empty()) {
+        req = req.query(&[("toolClass", tc)]);
+    }
+    if let Some(limit) = q.limit {
+        req = req.query(&[("limit", limit.to_string())]);
+    }
+    let resp = req
         .send()
         .await
         .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
@@ -387,9 +398,112 @@ async fn remote_trs_tools(
     }))
 }
 
+#[derive(Debug, Serialize)]
+pub struct RemoteTrsDescriptorResponse {
+    pub trs_base_url: String,
+    pub tool_id: String,
+    pub version_id: String,
+    pub descriptor_type: String,
+    pub descriptor_url: String,
+    pub workflow_url: Option<String>,
+    pub content: Option<String>,
+    pub has_inline_content: bool,
+}
+
+fn encode_trs_path_segment(segment: &str) -> String {
+    segment
+        .chars()
+        .map(|c| match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
+            _ => format!("%{:02X}", c as u8),
+        })
+        .collect()
+}
+
+async fn remote_trs_descriptor(
+    axum::extract::Query(q): axum::extract::Query<RemoteTrsDescriptorQuery>,
+) -> Result<Json<RemoteTrsDescriptorResponse>, (StatusCode, String)> {
+    let trs_base = q.trs_base_url.trim().trim_end_matches('/');
+    if trs_base.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "trs_base_url required".into()));
+    }
+    let tool_id = q.tool_id.trim();
+    let version_id = q.version_id.trim();
+    let descriptor_type = q.descriptor_type.trim();
+    if tool_id.is_empty() || version_id.is_empty() || descriptor_type.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "tool_id, version_id, and descriptor_type required".into(),
+        ));
+    }
+    let descriptor_url = format!(
+        "{trs_base}/tools/{}/versions/{}/{}/descriptor",
+        encode_trs_path_segment(tool_id),
+        encode_trs_path_segment(version_id),
+        encode_trs_path_segment(descriptor_type),
+    );
+    let client = federation_http_client()?;
+    let resp = client
+        .get(&descriptor_url)
+        .send()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err((
+            StatusCode::BAD_GATEWAY,
+            format!("TRS descriptor HTTP {status}: {text}"),
+        ));
+    }
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let workflow_url = body
+        .get("url")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let content = body
+        .get("content")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let has_inline_content = content.is_some();
+    Ok(Json(RemoteTrsDescriptorResponse {
+        trs_base_url: trs_base.to_string(),
+        tool_id: tool_id.to_string(),
+        version_id: version_id.to_string(),
+        descriptor_type: descriptor_type.to_string(),
+        descriptor_url,
+        workflow_url,
+        content,
+        has_inline_content,
+    }))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct RemoteTrsQuery {
     pub trs_base_url: String,
+    #[serde(default)]
+    pub q: Option<String>,
+    #[serde(default)]
+    pub descriptor_type: Option<String>,
+    #[serde(default)]
+    pub tool_class: Option<String>,
+    #[serde(default)]
+    pub limit: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RemoteTrsDescriptorQuery {
+    pub trs_base_url: String,
+    pub tool_id: String,
+    pub version_id: String,
+    pub descriptor_type: String,
 }
 
 pub fn federation_router(config: Option<&FerrumConfig>) -> Router {
@@ -401,5 +515,6 @@ pub fn federation_router(config: Option<&FerrumConfig>) -> Router {
         .route("/registry/services", post(list_registry_services))
         .route("/registry/register-node", post(register_this_node))
         .route("/proxy/trs/tools", get(remote_trs_tools))
+        .route("/proxy/trs/descriptor", get(remote_trs_descriptor))
         .with_state(state)
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { apiGet } from '@/api/client';
 import { Plus, Users, Lock } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const COHORTS_BASE = '/cohorts/v1';
 
@@ -28,13 +29,14 @@ type ListCohortsResponse = {
 };
 
 export function CohortListPage() {
+  const { t } = useI18n();
   const { data, isLoading, error } = useQuery({
     queryKey: ['cohorts'],
     queryFn: () => apiGet<ListCohortsResponse>(`${COHORTS_BASE}/cohorts?limit=50`),
   });
 
-  if (isLoading) return <div className="text-muted-foreground">Loading cohorts…</div>;
-  if (error) return <div className="text-destructive">Failed to load cohorts: {String(error)}</div>;
+  if (isLoading) return <div className="text-muted-foreground">{t('cohortList.loading')}</div>;
+  if (error) return <div className="text-destructive">{t('cohortList.failed')}: {String(error)}</div>;
 
   const cohorts = data?.cohorts ?? [];
 
@@ -42,23 +44,23 @@ export function CohortListPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Cohort Browser</h1>
-          <p className="text-muted-foreground">Define and manage sample cohorts with phenotype and DRS links.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('cohortList.title')}</h1>
+          <p className="text-muted-foreground">{t('cohortList.subtitle')}</p>
         </div>
         <Button asChild>
           <Link to={"/cohorts/new" as any}>
             <Plus className="mr-2 h-4 w-4" />
-            New Cohort
+            {t('cohortList.new')}
           </Link>
         </Button>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Cohorts</CardTitle>
+          <CardTitle>{t('cohortList.cardTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           {cohorts.length === 0 ? (
-            <p className="text-muted-foreground">No cohorts yet. Create one to get started.</p>
+            <p className="text-muted-foreground">{t('cohortList.empty')}</p>
           ) : (
             <div className="space-y-2">
               {cohorts.map((c) => (
@@ -74,7 +76,7 @@ export function CohortListPage() {
                         {c.name}
                         {c.is_frozen && (
                           <Badge variant="secondary" className="gap-1">
-                            <Lock className="h-3 w-3" /> Frozen
+                            <Lock className="h-3 w-3" /> {t('cohortList.frozen')}
                           </Badge>
                         )}
                       </div>
@@ -84,7 +86,10 @@ export function CohortListPage() {
                     </div>
                   </div>
                   <div className="text-right text-sm text-muted-foreground">
-                    {c.sample_count} samples · updated {new Date(c.updated_at).toLocaleDateString()}
+                    {t('cohortList.samplesUpdated', {
+                      count: c.sample_count,
+                      date: new Date(c.updated_at).toLocaleDateString(),
+                    })}
                   </div>
                 </Link>
               ))}

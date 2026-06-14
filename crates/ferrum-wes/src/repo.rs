@@ -192,7 +192,6 @@ impl WesRepo {
         Ok(())
     }
 
-    /// Merge additional keys into the run's outputs JSONB (e.g. multiqc_report, multiqc_data).
     pub async fn merge_run_outputs(
         &self,
         run_id: &str,
@@ -220,6 +219,32 @@ impl WesRepo {
         Ok(())
     }
 
+    /// Runs stuck in QUEUED/INITIALIZING without ever reaching RUNNING (no start_time, no work_dir).
+    pub async fn find_orphan_queued_run_ids(
+        &self,
+        older_than_secs: i64,
+        owner_sub: Option<&str>,
+        workspace_id: Option<&str>,
+    ) -> Result<Vec<String>> {
+        let secs = older_than_secs.max(0);
+        let ids: Vec<String> = sqlx::query_scalar(
+            r#"SELECT run_id FROM wes_runs
+               WHERE state IN ('QUEUED', 'INITIALIZING')
+                 AND start_time IS NULL
+                 AND work_dir IS NULL
+                 AND created_at < NOW() - ($1::text || ' seconds')::interval
+                 AND ($2::text IS NULL OR owner_sub = $2)
+                 AND ($3::text IS NULL OR workspace_id = $3)
+               ORDER BY created_at ASC"#,
+        )
+        .bind(secs.to_string())
+        .bind(owner_sub)
+        .bind(workspace_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(ids)
+    }
+
     pub async fn list_runs(
         &self,
         page_size: i64,
@@ -237,9 +262,11 @@ impl WesRepo {
             Option<DateTime<Utc>>,
             Option<Value>,
             Option<String>,
+            String,
+            String,
         );
         let rows: Vec<RunListRow> = sqlx::query_as(
-            r#"SELECT run_id, state, start_time, end_time, tags, resumed_from_run_id FROM wes_runs
+            r#"SELECT run_id, state, start_time, end_time, tags, resumed_from_run_id, workflow_type, workflow_url FROM wes_runs
                    WHERE ($1::text IS NULL OR state = $1)
                      AND ($4::text IS NULL OR owner_sub = $4)
                      AND ($5::text IS NULL OR workspace_id = $5)
@@ -257,7 +284,7 @@ impl WesRepo {
             .into_iter()
             .take(page_size as usize)
             .map(
-                |(run_id, state, start_time, end_time, tags, resumed_from_run_id)| {
+                |(run_id, state, start_time, end_time, tags, resumed_from_run_id, workflow_type, workflow_url)| {
                     let tags_map = tags
                         .and_then(|v| v.as_object().cloned())
                         .map(|m| {
@@ -273,6 +300,8 @@ impl WesRepo {
                         end_time: end_time.map(|t| t.to_rfc3339()),
                         tags: tags_map,
                         resumed_from_run_id,
+                        workflow_type: Some(workflow_type),
+                        workflow_url: Some(workflow_url),
                     }
                 },
             )

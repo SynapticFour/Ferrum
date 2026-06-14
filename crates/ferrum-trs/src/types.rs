@@ -24,6 +24,30 @@ pub struct Tool {
     pub versions: Option<Vec<ToolVersion>>,
 }
 
+/// Map a DB row to API `Tool` with GA4GH-required string fields (never JSON `null`).
+pub fn tool_from_row(
+    id: String,
+    name: Option<String>,
+    description: Option<String>,
+    organization: Option<String>,
+    toolclass: Option<String>,
+    meta_version: Option<String>,
+) -> Tool {
+    Tool {
+        id: id.clone(),
+        name: Some(name.unwrap_or_else(|| id.clone())),
+        description: Some(description.unwrap_or_default()),
+        organization: Some(organization.unwrap_or_else(|| "Ferrum".into())),
+        toolclass: toolclass.map(|s| ToolClass {
+            id: Some(s.clone()),
+            name: Some(s),
+        }),
+        meta_version,
+        url: None,
+        versions: None,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ToolClass {
     pub id: Option<String>,
@@ -57,7 +81,10 @@ pub struct RegisterToolRequest {
     pub description: Option<String>,
     pub organization: Option<String>,
     pub toolclass: Option<String>,
-    pub workflow_url: String,
+    /// Remote descriptor URL (WDL/CWL/NFL/SMK). Required unless `workflow_content` is set.
+    pub workflow_url: Option<String>,
+    /// Inline workflow file body (alternative to `workflow_url`).
+    pub workflow_content: Option<String>,
     pub workflow_type: Option<String>,
     pub workflow_type_version: Option<String>,
 }

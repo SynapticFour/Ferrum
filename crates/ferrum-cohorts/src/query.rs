@@ -51,10 +51,17 @@ impl CohortQuery {
         for (sample_id, phenotype) in rows {
             if self.matches(&phenotype, &sample_id) {
                 matched.push(sample_id.clone());
+                let sex_value = phenotype
+                    .as_object()
+                    .and_then(|obj| obj.get("sex"))
+                    .and_then(|v| v.as_str())
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty());
+                match sex_value {
+                    Some(v) => *by_sex.entry(v.to_string()).or_insert(0) += 1,
+                    None => *by_sex.entry("not_recorded".to_string()).or_insert(0) += 1,
+                }
                 if let Some(obj) = phenotype.as_object() {
-                    if let Some(v) = obj.get("sex").and_then(|v| v.as_str()) {
-                        *by_sex.entry(v.to_string()).or_insert(0) += 1;
-                    }
                     if let Some(v) = obj.get("diagnosis").and_then(|v| v.as_str()) {
                         *by_diagnosis.entry(v.to_string()).or_insert(0) += 1;
                     }

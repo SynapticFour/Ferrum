@@ -1,10 +1,21 @@
 import { useState } from 'react';
+import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { apiGet } from '@/api/client';
 import { loadFederationPrefs } from '@/stores/federation';
-import { Wrench, AlertCircle } from 'lucide-react';
+import { Wrench, AlertCircle, Play, BookOpen, ExternalLink, Download } from 'lucide-react';
+import { RegisterToolDialog } from '@/components/RegisterToolDialog';
+import { DockstoreSearchPanel } from '@/components/DockstoreSearchPanel';
+import { useI18n } from '@/i18n/I18nProvider';
+import { WORKFLOW_ENGINES } from '@/lib/workflowEngines';
+import {
+  TRS_EXTERNAL_CATALOGS,
+  TRS_IMPORT_PRESETS,
+  type RegisterToolPreset,
+} from '@/lib/trsCatalogs';
 
 interface Tool {
   id: string;
@@ -36,6 +47,7 @@ function ToolList({ tools, empty }: { tools: Tool[]; empty: string }) {
           <p className="text-xs text-muted-foreground mt-2">
             ID: <code className="rounded bg-muted px-1">{t.id}</code>
             {t.organization && ` · ${t.organization}`}
+            {t.toolclass?.name && ` · ${t.toolclass.name}`}
           </p>
         </li>
       ))}
@@ -44,7 +56,9 @@ function ToolList({ tools, empty }: { tools: Tool[]; empty: string }) {
 }
 
 export function ToolRegistry() {
+  const { t } = useI18n();
   const [tab, setTab] = useState('local');
+  const [registerPreset, setRegisterPreset] = useState<RegisterToolPreset | null>(null);
   const prefs = loadFederationPrefs();
 
   const { data, isLoading, error } = useQuery({
@@ -73,11 +87,11 @@ export function ToolRegistry() {
     queryKey: ['trs', 'remote', remoteTrs],
     queryFn: () =>
       apiGet<{ trs_base_url?: string; tools: Tool[] | { tools?: Tool[] } }>(
-        `/admin/federation/proxy/trs/tools?trs_base_url=${encodeURIComponent(remoteTrs!)}`
+        `/admin/federation/proxy/trs/tools?trs_base_url=${encodeURIComponent(remoteTrs!)}`,
       ).then((r) => {
-        const t = r.tools;
-        if (Array.isArray(t)) return t;
-        if (t && typeof t === 'object' && Array.isArray(t.tools)) return t.tools;
+        const tools = r.tools;
+        if (Array.isArray(tools)) return tools;
+        if (tools && typeof tools === 'object' && Array.isArray(tools.tools)) return tools.tools;
         return [];
       }),
     enabled: tab === 'federation' && !!remoteTrs,
@@ -89,61 +103,131 @@ export function ToolRegistry() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Tool Registry</h1>
-        <p className="text-muted-foreground">
-          Browse workflows from local TRS or federation peers (via service registry).
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t('tools.title')}</h1>
+          <p className="text-muted-foreground">{t('tools.subtitle')}</p>
+        </div>
+        <RegisterToolDialog
+          preset={registerPreset}
+          onPresetApplied={() => setRegisterPreset(null)}
+        />
       </div>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BookOpen className="h-4 w-4" />
+            {t('tools.guideTitle')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>{t('tools.guideBody')}</p>
+          <div className="flex flex-wrap gap-2">
+            {WORKFLOW_ENGINES.map((e) => (
+              <span key={e.id} className="rounded-full border border-border bg-background px-2 py-0.5 text-xs">
+                {t(e.labelKey)}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button asChild size="sm" variant="outline" className="gap-1">
+              <Link to={'/workflows' as any}>
+                <Play className="h-3.5 w-3.5" />
+                {t('tools.goRunAnalysis')}
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('tools.catalogTitle')}</CardTitle>
+          <p className="text-sm text-muted-foreground">{t('tools.catalogHint')}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {TRS_EXTERNAL_CATALOGS.map((catalog) => (
+              <div key={catalog.id} className="rounded-lg border border-border p-3">
+                <p className="font-medium">{catalog.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t(catalog.descriptionKey)}</p>
+                <Button asChild size="sm" variant="outline" className="mt-2 gap-1">
+                  <a href={catalog.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {t('tools.browseCatalog')}
+                  </a>
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-border/60 pt-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2">{t('tools.importPreset')}</p>
+            <div className="flex flex-wrap gap-2">
+              {TRS_IMPORT_PRESETS.map((preset) => (
+                <Button
+                  key={preset.id}
+                  size="sm"
+                  variant="secondary"
+                  className="gap-1"
+                  onClick={() =>
+                    setRegisterPreset({
+                      name: t(preset.nameKey),
+                      workflowUrl: preset.workflowUrl,
+                      engineId: preset.engineId,
+                      toolclass: preset.toolclass,
+                      description: t(preset.sourceKey),
+                    })
+                  }
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {t(preset.nameKey)}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <DockstoreSearchPanel onImport={setRegisterPreset} />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="local">Local</TabsTrigger>
-          <TabsTrigger value="federation">Federation</TabsTrigger>
+          <TabsTrigger value="local">{t('tools.tabLocal')}</TabsTrigger>
+          <TabsTrigger value="federation">{t('tools.tabFederation')}</TabsTrigger>
         </TabsList>
         <TabsContent value="local">
           {error && (
             <div className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400 mb-4">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              TRS unavailable — use Laptop Mode with DRS/Beacon only, or start full gateway with Postgres.
+              {t('tools.trsUnavailable')}
             </div>
           )}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wrench className="h-4 w-4" />
-                Local tools
+                {t('tools.localListTitle')}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading && <p className="text-muted-foreground text-sm">Loading…</p>}
-              <ToolList tools={localTools} empty="No local tools. Register via TRS API or run ferrum demo seed." />
+              {isLoading && <p className="text-muted-foreground text-sm">{t('common.loading')}</p>}
+              <ToolList tools={localTools} empty={t('tools.localEmpty')} />
             </CardContent>
           </Card>
         </TabsContent>
         <TabsContent value="federation">
           <Card>
             <CardHeader>
-              <CardTitle>Federation tools</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Loads TRS from the first tool-registry entry in Settings → Federation registry URL (
-                {prefs.registryUrl || 'not configured'}).
-              </p>
+              <CardTitle>{t('tools.federationTitle')}</CardTitle>
+              <p className="text-sm text-muted-foreground">{t('tools.federationHint', { url: prefs.registryUrl || '—' })}</p>
             </CardHeader>
             <CardContent>
-              {!prefs.registryUrl && (
-                <p className="text-sm text-muted-foreground">
-                  Set a registry URL under Settings → Federation first.
-                </p>
-              )}
-              {remoteLoading && <p className="text-sm text-muted-foreground">Loading remote TRS…</p>}
+              {!prefs.registryUrl && <p className="text-sm text-muted-foreground">{t('tools.federationNoRegistry')}</p>}
+              {remoteLoading && <p className="text-sm text-muted-foreground">{t('common.loading')}</p>}
               <ToolList
                 tools={federatedTools}
-                empty={
-                  remoteTrs
-                    ? 'No tools on remote TRS.'
-                    : 'No tool-registry service found in registry.'
-                }
+                empty={remoteTrs ? t('tools.federationEmpty') : t('tools.federationNoTrs')}
               />
             </CardContent>
           </Card>

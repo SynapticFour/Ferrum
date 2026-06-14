@@ -354,8 +354,8 @@ impl WorkspaceRepo {
         &self,
         workspace_id: &str,
     ) -> Result<(i64, usize, usize, usize, usize)> {
-        let size: (Option<i64>,) = sqlx::query_as(
-            "SELECT COALESCE(sum(size), 0) FROM drs_objects WHERE workspace_id = $1",
+        let size: (i64,) = sqlx::query_as(
+            "SELECT COALESCE(sum(size), 0)::bigint FROM drs_objects WHERE workspace_id = $1",
         )
         .bind(workspace_id)
         .fetch_one(&self.pool)
@@ -382,7 +382,7 @@ impl WorkspaceRepo {
                 .fetch_one(&self.pool)
                 .await?;
         Ok((
-            size.0.unwrap_or(0),
+            size.0,
             drs_count.0 as usize,
             wes_count.0 as usize,
             cohort_count.0 as usize,

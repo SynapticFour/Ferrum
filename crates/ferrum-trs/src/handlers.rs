@@ -69,19 +69,17 @@ pub async fn get_tool(
     let (id, name, description, organization, toolclass, meta_version) = row;
     let versions = state.repo.get_versions(&id).await.unwrap_or_default();
     let url = format!("/ga4gh/trs/v2/tools/{}", id);
-    Ok(Json(Tool {
+    let mut tool = crate::types::tool_from_row(
         id,
         name,
         description,
         organization,
-        toolclass: toolclass.map(|s| ToolClass {
-            id: Some(s.clone()),
-            name: Some(s),
-        }),
+        toolclass,
         meta_version,
-        url: Some(url),
-        versions: Some(versions),
-    }))
+    );
+    tool.url = Some(url);
+    tool.versions = Some(versions);
+    Ok(Json(tool))
 }
 
 // HelixTest + GA4GH TRS expect GET /tools/{id}/versions to return a root-level JSON array of ToolVersion.
@@ -147,39 +145,83 @@ pub async fn register_tool(
     State(state): State<Arc<AppState>>,
     Json(body): Json<RegisterToolRequest>,
 ) -> Result<Json<Tool>> {
+    let workflow_url = body.workflow_url.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let workflow_content = body
+        .workflow_content
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if workflow_url.is_none() && workflow_content.is_none() {
+        return Err(TrsError::Validation(
+            "workflow_url or workflow_content required".into(),
+        ));
+    }
+
     let tool_id = ulid::Ulid::new().to_string();
     let version_id = ulid::Ulid::new().to_string();
+    let version_name = body
+        .workflow_type_version
+        .as_deref()
+        .unwrap_or("1.0")
+        .to_string();
+    let descriptor_type = normalize_descriptor_type(body.workflow_type.as_deref());
+
     state
         .repo
         .create_tool(
             &tool_id,
-            body.name.as_deref(),
-            body.description.as_deref(),
-            body.organization.as_deref(),
-            body.toolclass.as_deref(),
+            Some(
+                body.name
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or("Unnamed workflow"),
+            ),
+            Some(
+                body.description
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or("Registered from WES"),
+            ),
+            Some(
+                body.organization
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or("Ferrum"),
+            ),
+            body.toolclass.as_deref().or(Some("Workflow")),
             body.workflow_type_version.as_deref(),
         )
         .await?;
     state
         .repo
-        .add_version(
-            &version_id,
+        .add_version(&version_id, &tool_id, &version_name)
+        .await?;
+    state
+        .repo
+        .add_descriptor(
             &tool_id,
-            body.workflow_type_version.as_deref().unwrap_or("1"),
+            &version_id,
+            &descriptor_type,
+            workflow_content,
+            workflow_url,
         )
         .await?;
+
     let row = state.repo.get_tool(&tool_id).await?.unwrap();
-    Ok(Json(Tool {
-        id: row.0,
-        name: row.1,
-        description: row.2,
-        organization: row.3,
-        toolclass: row.4.map(|s| ToolClass {
-            id: Some(s.clone()),
-            name: Some(s),
-        }),
-        meta_version: row.5,
-        url: None,
-        versions: None,
-    }))
+    let versions = state.repo.get_versions(&tool_id).await.unwrap_or_default();
+    let mut tool = crate::types::tool_from_row(row.0, row.1, row.2, row.3, row.4, row.5);
+    tool.url = Some(format!("/ga4gh/trs/v2/tools/{}", tool_id));
+    tool.versions = Some(versions);
+    Ok(Json(tool))
+}
+
+fn normalize_descriptor_type(workflow_type: Option<&str>) -> String {
+    match workflow_type.map(|s| s.to_lowercase()).as_deref() {
+        Some("nextflow") | Some("nxf") | Some("nfl") => "NFL".to_string(),
+        Some("cwl") => "CWL".to_string(),
+        Some("wdl") => "WDL".to_string(),
+        Some("snakemake") | Some("smk") => "SMK".to_string(),
+        Some(other) if !other.is_empty() => other.to_uppercase(),
+        _ => "WDL".to_string(),
+    }
 }

@@ -4,29 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiGet } from '@/api/client';
 import { Key, Database, Server, User, HardDrive, Info } from 'lucide-react';
 import { FederationPanel } from '@/components/FederationPanel';
-
-interface SanitizedConfig {
-  bind?: string;
-  database?: { driver?: string; url_set?: boolean; run_migrations?: boolean; max_connections?: number };
-  storage?: { backend?: string; s3_endpoint?: string; s3_bucket?: string };
-  services?: {
-    enable_drs?: boolean;
-    enable_wes?: boolean;
-    enable_tes?: boolean;
-    enable_trs?: boolean;
-    enable_beacon?: boolean;
-    enable_passports?: boolean;
-    enable_crypt4gh?: boolean;
-  };
-  discovery?: {
-    enabled?: boolean;
-    auto_register?: boolean;
-    service_registry_url?: string;
-    registration_base_url?: string;
-  };
-  deployment_mode?: string;
-  message?: string;
-}
+import { ProfilePanel } from '@/components/ProfilePanel';
+import { SecurityEventsPanel } from '@/components/SecurityEventsPanel';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
+import { DemoModeNote } from '@/components/DemoModeNote';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface CacheStats {
   total_entries: number;
@@ -36,11 +18,8 @@ interface CacheStats {
 }
 
 export function Settings() {
-  const { data: config, isLoading: configLoading, error: configError } = useQuery({
-    queryKey: ['admin', 'config'],
-    queryFn: () => apiGet<SanitizedConfig>('/admin/config'),
-    retry: false,
-  });
+  const { t } = useI18n();
+  const { data: config, isLoading: configLoading, error: configError } = useAdminConfig();
   const { data: cacheStats } = useQuery({
     queryKey: ['wes', 'cache', 'stats'],
     queryFn: () => apiGet<CacheStats>('/ga4gh/wes/v1/cache/stats'),
@@ -52,21 +31,28 @@ export function Settings() {
   const db = config?.database;
   const services = config?.services;
 
+  const hashTab =
+    typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+  const defaultTab = ['federation', 'security', 'profile'].includes(hashTab) ? hashTab : 'config';
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Server configuration, storage, and profile.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t('settings.title')}</h1>
+        <p className="text-muted-foreground">{t('settings.subtitle')}</p>
       </div>
 
-      <Tabs defaultValue={typeof window !== 'undefined' && window.location.hash === '#federation' ? 'federation' : 'config'}>
+      <DemoModeNote />
+
+      <Tabs defaultValue={defaultTab}>
         <TabsList>
-          <TabsTrigger value="config">Server</TabsTrigger>
-          <TabsTrigger value="storage">Storage</TabsTrigger>
-          <TabsTrigger value="keys">Encryption keys</TabsTrigger>
-          <TabsTrigger value="cache">Workflow cache</TabsTrigger>
-          <TabsTrigger value="federation">Federation</TabsTrigger>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="config">{t('settings.server')}</TabsTrigger>
+          <TabsTrigger value="storage">{t('settings.storage')}</TabsTrigger>
+          <TabsTrigger value="keys">{t('settings.keys')}</TabsTrigger>
+          <TabsTrigger value="cache">{t('settings.cache')}</TabsTrigger>
+          <TabsTrigger value="federation">{t('settings.federation')}</TabsTrigger>
+          <TabsTrigger value="security">{t('settings.security')}</TabsTrigger>
+          <TabsTrigger value="profile">{t('settings.profile')}</TabsTrigger>
         </TabsList>
         <TabsContent value="config">
           <Card>
@@ -241,28 +227,20 @@ export function Settings() {
         <TabsContent value="federation">
           <FederationPanel />
         </TabsContent>
+        <TabsContent value="security">
+          <SecurityEventsPanel />
+        </TabsContent>
         <TabsContent value="profile">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <User className="h-4 w-4" />
-                Profile
+                {t('settings.profile')}
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                User profile and passport/visa viewer. When auth is enabled, your claims and visas appear here.
-              </p>
+              <p className="text-sm text-muted-foreground">{t('settings.profileHint')}</p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                When the gateway is configured with an identity provider (e.g. Keycloak), sign in to see your profile.
-                The UI stores the Passport JWT in memory (<code className="rounded bg-muted px-1">__ferrumPassport</code>) and sends it with API requests.
-              </p>
-              <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
-                <p className="font-medium">No session</p>
-                <p className="mt-1 text-muted-foreground">
-                  You are not signed in or auth is disabled. Configure <code className="rounded bg-muted px-1">FERRUM_AUTH__*</code> and use your IdP to log in; then your visas and identity will be shown here.
-                </p>
-              </div>
+            <CardContent>
+              <ProfilePanel />
             </CardContent>
           </Card>
         </TabsContent>
