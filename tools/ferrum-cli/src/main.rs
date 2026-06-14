@@ -207,9 +207,7 @@ async fn run_cli() -> Result<(), CliExit> {
                     .map_err(CliExit::RuntimeFailed)?;
             }
             DemoAction::Seed { base_url } => {
-                demo_seed(&base_url)
-                    .await
-                    .map_err(CliExit::RuntimeFailed)?;
+                demo_seed(&base_url).await.map_err(CliExit::RuntimeFailed)?;
             }
         },
         Commands::Mii { action } => match action {
@@ -509,9 +507,8 @@ async fn demo_seed(base_url: &str) -> Result<(), String> {
         }
         None
     });
-    let script = script.ok_or(
-        "seed script not found — run from Ferrum repo root or set FERRUM_SEED_SCRIPT",
-    )?;
+    let script = script
+        .ok_or("seed script not found — run from Ferrum repo root or set FERRUM_SEED_SCRIPT")?;
     let status = tokio::process::Command::new("bash")
         .arg(&script)
         .env("BASE_URL", base_url)

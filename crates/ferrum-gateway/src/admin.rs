@@ -259,7 +259,10 @@ async fn get_config(State(state): State<Arc<AdminState>>) -> impl IntoResponse {
 }
 
 /// Admin router: mount at /admin. GET /config is public (sanitized); revoke and security/events require admin auth.
-pub fn admin_router(pool: Option<&sqlx::PgPool>, config: Option<&ferrum_core::FerrumConfig>) -> Router {
+pub fn admin_router(
+    pool: Option<&sqlx::PgPool>,
+    config: Option<&ferrum_core::FerrumConfig>,
+) -> Router {
     let deployment_mode = config.map(|c| {
         if c.is_offline_first() {
             if c.services.enable_wes || c.services.enable_trs {

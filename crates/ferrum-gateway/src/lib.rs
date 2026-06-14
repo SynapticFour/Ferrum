@@ -3,9 +3,9 @@
 
 #[cfg(feature = "full")]
 mod admin;
+pub mod audit;
 #[cfg(feature = "full")]
 mod federation;
-pub mod audit;
 pub mod outbreak;
 pub mod power;
 pub mod shutdown;

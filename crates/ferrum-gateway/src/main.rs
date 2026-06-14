@@ -75,7 +75,9 @@ fn docker_available() -> bool {
 
 fn full_demo_compose() -> Option<PathBuf> {
     if let Ok(repo) = std::env::var("FERRUM_REPO") {
-        let compose = PathBuf::from(repo).join("deploy").join("docker-compose.yml");
+        let compose = PathBuf::from(repo)
+            .join("deploy")
+            .join("docker-compose.yml");
         if compose.is_file() {
             return Some(compose);
         }
@@ -558,8 +560,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     }
                 }
                 DemoAction::Status => {
-                    let compose = full_demo_compose()
-                        .unwrap_or_else(|| demo.join("docker-compose.demo.yml"));
+                    let compose =
+                        full_demo_compose().unwrap_or_else(|| demo.join("docker-compose.demo.yml"));
                     Command::new("docker")
                         .args(["compose", "-f"])
                         .arg(compose)

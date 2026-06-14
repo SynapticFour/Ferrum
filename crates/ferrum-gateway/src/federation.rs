@@ -117,9 +117,12 @@ async fn registry_get(
     if let Some(key) = api_key.filter(|k| !k.is_empty()) {
         req = req.header("X-API-Key", key);
     }
-    req.send()
-        .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("registry request failed: {e}")))
+    req.send().await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            format!("registry request failed: {e}"),
+        )
+    })
 }
 
 async fn registry_post(
@@ -138,7 +141,12 @@ async fn registry_post(
         .json(body)
         .send()
         .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("registry register failed: {e}")))
+        .map_err(|e| {
+            (
+                StatusCode::BAD_GATEWAY,
+                format!("registry register failed: {e}"),
+            )
+        })
 }
 
 async fn get_status(State(state): State<Arc<FederationState>>) -> impl IntoResponse {
@@ -198,10 +206,12 @@ async fn list_registry_services(
             format!("registry returned HTTP {status}: {text}"),
         ));
     }
-    let services: Vec<RegisteredService> = resp
-        .json()
-        .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("invalid registry JSON: {e}")))?;
+    let services: Vec<RegisteredService> = resp.json().await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            format!("invalid registry JSON: {e}"),
+        )
+    })?;
     Ok(Json(RegistryListResponse { services }))
 }
 
