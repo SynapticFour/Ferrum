@@ -70,10 +70,36 @@ fi
 
 if [[ "${internet_needed}" == "true" ]]; then check_internet; else warn "Internet check skipped"; fi
 
+check_port_free() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    if ss -tln "sport = :${port}" 2>/dev/null | grep -q LISTEN; then
+      fail "Port ${port} already in use"
+    else
+      pass "Port ${port} available"
+    fi
+  elif command -v lsof >/dev/null 2>&1; then
+    if lsof -i ":${port}" -sTCP:LISTEN >/dev/null 2>&1; then
+      fail "Port ${port} already in use"
+    else
+      pass "Port ${port} available"
+    fi
+  else
+    warn "Cannot check port ${port} (install ss or lsof)"
+  fi
+}
+
 case "${SCENARIO}" in
   demo)
     check_cmd docker
     check_docker
+    if docker compose version >/dev/null 2>&1; then
+      pass "Docker Compose v2 available"
+    else
+      fail "Docker Compose v2 plugin not found (docker compose)"
+    fi
+    check_port_free 8080
+    check_port_free 8082
     (( ram >= 8 )) && pass "RAM >= 8 GB" || fail "RAM < 8 GB"
     (( disk >= 20 )) && pass "Disk >= 20 GB" || fail "Disk < 20 GB"
     ;;

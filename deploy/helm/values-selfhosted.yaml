@@ -1,0 +1,48 @@
+# Self-managed Kubernetes — no cert-manager assumed
+# Usage: helm install ferrum ./deploy/helm -f deploy/helm/values-selfhosted.yaml
+
+replicaCount: 1
+image:
+  repository: ghcr.io/synapticfour/ferrum
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  # Provide TLS manually — create secret ferrum-tls before install:
+  #   kubectl create secret tls ferrum-tls --cert=fullchain.pem --key=privkey.pem
+  hosts:
+    - host: ferrum.example.org
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - ferrum.example.org
+      secretName: ferrum-tls
+
+existingSecret: ferrum-secrets
+
+config:
+  database:
+    run_migrations: true
+  storage:
+    backend: s3
+    s3_region: us-east-1
+  auth:
+    require_auth: true
+    jwks_url: "https://auth.example.org/realms/ferrum/protocol/openid-connect/certs"
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi

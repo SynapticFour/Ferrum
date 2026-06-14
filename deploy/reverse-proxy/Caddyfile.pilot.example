@@ -1,0 +1,39 @@
+# Example Caddy v2 config — TLS + Basic Auth in front of Ferrum demo stack.
+#
+# Replace example.org, set credentials, and ensure Ferrum is reachable:
+#   API/UI proxy target: 127.0.0.1:8082 (nginx from demo stack) or :8080 (gateway only)
+#
+# Generate bcrypt hash for Basic Auth:
+#   caddy hash-password --plaintext 'your-pilot-password'
+#
+# Usage:
+#   export BASIC_AUTH_USER=pilot
+#   export BASIC_AUTH_PASS_HASH='...'
+#   caddy run --config Caddyfile.pilot.example
+
+{$FERRUM_DEMO_HOST:localhost} {
+	encode gzip
+
+	# Optional: restrict to institute egress IPs (uncomment and edit)
+	# @blocked not remote_ip 203.0.113.0/24 198.51.100.0/24
+	# respond @blocked "Forbidden" 403
+
+	@health path /health /ga4gh/*/service-info
+	handle @health {
+		reverse_proxy {$FERRUM_UPSTREAM:127.0.0.1:8082}
+	}
+
+	handle {
+		basic_auth {
+			{$BASIC_AUTH_USER} {$BASIC_AUTH_PASS_HASH}
+		}
+		reverse_proxy {$FERRUM_UPSTREAM:127.0.0.1:8082}
+	}
+}
+
+# Public HTTPS (Let's Encrypt) — set FERRUM_DEMO_HOST to your DNS name:
+# ferrum-pilot.example.org {
+#   encode gzip
+#   basic_auth { ... }
+#   reverse_proxy 127.0.0.1:8082
+# }

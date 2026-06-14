@@ -12,7 +12,6 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
-use std::time::Duration;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[derive(Parser)]
@@ -53,35 +52,80 @@ fn demo_dir() -> PathBuf {
     if relative.exists() {
         return relative;
     }
+    if let Ok(home) = std::env::var("HOME") {
+        let installed = PathBuf::from(home).join(".ferrum").join("demo");
+        if installed.exists() {
+            return installed;
+        }
+    }
     std::env::current_dir()
         .unwrap_or_else(|_| PathBuf::from("."))
         .join("demo")
 }
 
-fn postgres_available() -> bool {
-    std::process::Command::new("pg_isready")
-        .arg("-h")
-        .arg("127.0.0.1")
-        .arg("-p")
-        .arg("5432")
-        .output()
-        .map(|o| o.status.success())
+fn docker_available() -> bool {
+    Command::new("docker")
+        .arg("info")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
         .unwrap_or(false)
 }
 
-fn minio_available() -> bool {
-    std::net::TcpStream::connect_timeout(&"127.0.0.1:9000".parse().unwrap(), Duration::from_secs(2))
-        .is_ok()
+fn full_demo_compose() -> Option<PathBuf> {
+    if let Ok(repo) = std::env::var("FERRUM_REPO") {
+        let compose = PathBuf::from(repo).join("deploy").join("docker-compose.yml");
+        if compose.is_file() {
+            return Some(compose);
+        }
+    }
+    let cwd = std::env::current_dir().ok()?;
+    for ancestor in cwd.ancestors() {
+        let compose = ancestor.join("deploy").join("docker-compose.yml");
+        if compose.is_file() {
+            return Some(compose);
+        }
+    }
+    None
 }
 
 async fn start_laptop_mode() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    println!("[ferrum] PostgreSQL not detected. Starting in Laptop Mode (SQLite + local storage).");
+    println!("[ferrum] Starting in Laptop Mode (SQLite + local storage).");
     if let Some(home) = ferrum_embed::default_ferrum_home() {
         println!("[ferrum] Data will be stored at {}/", home.display());
     }
+    println!("[ferrum] For the full Docker demo (Postgres, MinIO, Keycloak, WES): clone Ferrum and run `make demo`, or start Docker and run `ferrum demo start` again.");
     println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
     std::env::set_var("FERRUM_OFFLINE", "1");
     run_gateway_server().await
+}
+
+fn run_docker_demo(demo: &PathBuf) -> std::io::Result<std::process::ExitStatus> {
+    if let Some(compose) = full_demo_compose() {
+        println!("[ferrum] Using full demo stack: {}", compose.display());
+        let repo_root = compose
+            .parent()
+            .and_then(|deploy| deploy.parent())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        return Command::new("docker")
+            .args(["compose", "-f"])
+            .arg(&compose)
+            .arg("up")
+            .arg("-d")
+            .arg("--build")
+            .current_dir(&repo_root)
+            .status();
+    }
+    let start = demo.join("start.sh");
+    if start.is_file() {
+        return Command::new("sh").arg(start).status();
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "demo/start.sh not found — reinstall with install.sh or clone github.com/SynapticFour/Ferrum",
+    ))
 }
 
 /// Merge `FERRUM_STORAGE__*` env into storage config so Docker/CI never lose nested fields
@@ -486,27 +530,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let demo = demo_dir();
             let status = match action {
                 DemoAction::Start { offline } => {
-                    if offline || (!postgres_available() && !minio_available()) {
-                        if !offline && !postgres_available() {
-                            return start_laptop_mode().await;
-                        }
-                        if offline {
-                            return start_laptop_mode().await;
-                        }
-                    }
-                    println!("\n  🧬 Ferrum Demo\n");
-                    if !postgres_available() {
+                    if offline {
                         return start_laptop_mode().await;
                     }
-                    Command::new("sh").arg(demo.join("start.sh")).status()?
+                    if !docker_available() {
+                        eprintln!("[ferrum] Docker is not running. Starting Laptop Mode instead.");
+                        return start_laptop_mode().await;
+                    }
+                    println!("\n  🧬 Ferrum Demo\n");
+                    run_docker_demo(&demo)?
                 }
-                DemoAction::Stop => Command::new("sh").arg(demo.join("stop.sh")).status()?,
-                DemoAction::Status => Command::new("docker")
-                    .arg("compose")
-                    .arg("-f")
-                    .arg(demo.join("docker-compose.demo.yml"))
-                    .arg("ps")
-                    .status()?,
+                DemoAction::Stop => {
+                    if let Some(compose) = full_demo_compose() {
+                        let repo_root = compose
+                            .parent()
+                            .and_then(|deploy| deploy.parent())
+                            .map(PathBuf::from)
+                            .unwrap_or_else(|| PathBuf::from("."));
+                        Command::new("docker")
+                            .args(["compose", "-f"])
+                            .arg(&compose)
+                            .arg("down")
+                            .current_dir(&repo_root)
+                            .status()?
+                    } else {
+                        Command::new("sh").arg(demo.join("stop.sh")).status()?
+                    }
+                }
+                DemoAction::Status => {
+                    let compose = full_demo_compose()
+                        .unwrap_or_else(|| demo.join("docker-compose.demo.yml"));
+                    Command::new("docker")
+                        .args(["compose", "-f"])
+                        .arg(compose)
+                        .arg("ps")
+                        .status()?
+                }
             };
             std::process::exit(status.code().unwrap_or(1));
         }

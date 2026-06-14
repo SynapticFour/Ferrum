@@ -50,16 +50,27 @@ After four years from each release, that version becomes Apache-2.0.
 curl -sSf https://raw.githubusercontent.com/SynapticFour/Ferrum/main/install.sh | sh
 export PATH="$HOME/.ferrum/bin:$PATH"
 
-# Start complete demo stack (PostgreSQL, MinIO, Keycloak, UI)
+# Start Docker demo (lightweight stack from install.sh; full stack when run from repo clone)
 ferrum demo start
 
-# Verify all services are healthy
+# Verify services
 ferrum demo status
 ```
 
-The demo stack includes: **ferrum-gateway**, **PostgreSQL 16**, **MinIO**, **Keycloak** (realm + test users), **ferrum-ui**, and **nginx**. Pre-seeded DRS objects (public genomic URLs) and test users (e.g. `alice`/`bob`) are created by the init container. UI: `http://localhost:8082`, API: `http://localhost:8080`.
+When run **from a cloned repository**, `ferrum demo start` uses `deploy/docker-compose.yml`
+(PostgreSQL, MinIO, Keycloak, init seeding, UI). After `install.sh` only, it starts the
+lighter pre-built image stack under `~/.ferrum/demo/`. For the canonical full demo:
 
-**Preflight (Docker demo):** `./scripts/deployment_preflight.sh --scenario demo` (8 GB RAM, 20 GB disk recommended).
+```bash
+git clone https://github.com/SynapticFour/Ferrum
+cd Ferrum
+make demo
+ferrum demo status
+```
+
+The demo stack includes: **ferrum-gateway**, **PostgreSQL 16**, **MinIO**, **Keycloak** (realm + test users), **ferrum-ui**, and **nginx** (full stack). Pre-seeded DRS objects and test users (e.g. `alice`/`bob`) are created by the init container in the full stack. UI: `http://localhost:8082`, API: `http://localhost:8080`.
+
+**Preflight (Docker demo):** `./scripts/deployment_preflight.sh --scenario demo` (8 GB RAM, 20 GB disk, ports 8080/8082 free).
 
 ### Laptop Mode (no Docker — one command)
 
@@ -193,6 +204,10 @@ sudo systemctl enable --now ferrum-gateway
 ```
 
 ### g) Configure nginx reverse proxy
+
+See `deploy/reverse-proxy/` for pilot examples with **Basic Auth** and TLS (`Caddyfile.pilot.example`, `nginx.pilot.conf.example`).
+
+Minimal nginx (TLS only):
 
 ```nginx
 upstream ferrum {

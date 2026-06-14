@@ -114,6 +114,8 @@ DEMO_INSTALL_DIR="$HOME/.ferrum/demo"
 mkdir -p "$DEMO_INSTALL_DIR"
 if curl -sSfL --connect-timeout 5 "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/docker-compose.demo.yml" \
   -o "$DEMO_INSTALL_DIR/docker-compose.demo.yml" 2>/dev/null; then
+  curl -sSfL --connect-timeout 5 "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/nginx-demo.conf" \
+    -o "$DEMO_INSTALL_DIR/nginx-demo.conf" || true
   curl -sSfL --connect-timeout 5 "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/start.sh" \
     -o "$DEMO_INSTALL_DIR/start.sh" || true
   curl -sSfL --connect-timeout 5 "https://raw.githubusercontent.com/SynapticFour/Ferrum/main/demo/stop.sh" \
@@ -132,4 +134,6 @@ echo "Add Ferrum to your PATH:"
 echo '  export PATH="$HOME/.ferrum/bin:$PATH"'
 echo ""
 echo "Laptop / offline mode: ferrum demo start --offline"
+echo "Docker demo (requires Docker): ferrum demo start"
+echo "Full stack (MinIO, Keycloak, seeded data): git clone https://github.com/SynapticFour/Ferrum && cd Ferrum && make demo"
 echo ""
