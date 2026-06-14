@@ -6,7 +6,9 @@ use crate::error::{Result, TesError};
 use crate::executor::TaskExecutor;
 use crate::types::{CreateTaskRequest, TaskState};
 use async_trait::async_trait;
-use bollard::container::{Config, CreateContainerOptions, LogOutput, LogsOptions, StartContainerOptions};
+use bollard::container::{
+    Config, CreateContainerOptions, LogOutput, LogsOptions, StartContainerOptions,
+};
 use bollard::image::CreateImageOptions;
 use bollard::models::{ContainerStateStatusEnum, HostConfig};
 use bollard::Docker;

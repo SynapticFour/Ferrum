@@ -662,11 +662,13 @@ pub async fn cohort_stats(
         for (_oid, size, mime) in rows {
             total_data_size_bytes += size;
             let key = mime.clone().unwrap_or_else(|| "unknown".to_string());
-            let entry = data_type_breakdown.entry(key.clone()).or_insert(DataTypeStat {
-                count: 0,
-                total_size: 0,
-                mime_type: key,
-            });
+            let entry = data_type_breakdown
+                .entry(key.clone())
+                .or_insert(DataTypeStat {
+                    count: 0,
+                    total_size: 0,
+                    mime_type: key,
+                });
             entry.count += 1;
             entry.total_size += size;
         }

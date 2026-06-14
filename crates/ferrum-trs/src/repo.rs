@@ -71,9 +71,8 @@ impl TrsRepo {
             Option<String>,
         );
         let offset: i64 = page_token.and_then(|t| t.parse().ok()).unwrap_or(0);
-        let rows: Vec<ToolRow> =
-            sqlx::query_as(
-                r#"SELECT id, name, description, organization, toolclass, meta_version
+        let rows: Vec<ToolRow> = sqlx::query_as(
+            r#"SELECT id, name, description, organization, toolclass, meta_version
                    FROM trs_tools
                    ORDER BY
                      CASE
@@ -83,25 +82,27 @@ impl TrsRepo {
                      END,
                      id
                    LIMIT $1 OFFSET $2"#,
-            )
-            .bind(page_size + 1)
-            .bind(offset)
-            .fetch_all(&self.pool)
-            .await?;
+        )
+        .bind(page_size + 1)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
         let has_more = rows.len() as i64 > page_size;
         let tools = rows
             .into_iter()
             .take(page_size as usize)
-            .map(|(id, name, description, organization, toolclass, meta_version)| {
-                crate::types::tool_from_row(
-                    id,
-                    name,
-                    description,
-                    organization,
-                    toolclass,
-                    meta_version,
-                )
-            })
+            .map(
+                |(id, name, description, organization, toolclass, meta_version)| {
+                    crate::types::tool_from_row(
+                        id,
+                        name,
+                        description,
+                        organization,
+                        toolclass,
+                        meta_version,
+                    )
+                },
+            )
             .collect();
         let next = if has_more {
             Some((offset + page_size).to_string())

@@ -32,8 +32,9 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::handlers::{
     cancel_run, export_ro_crate, get_cache_stats, get_cost_summary, get_provenance_graph,
     get_run_log, get_run_metrics, get_run_metrics_report, get_run_output_file, get_run_provenance,
-    get_run_status, get_service_info, get_stderr, get_stdout, list_runs, list_tasks, post_cost_estimate,
-    post_reconcile_stale_runs, post_runs, resume_run, stream_logs, ListRunsQuery,
+    get_run_status, get_service_info, get_stderr, get_stdout, list_runs, list_tasks,
+    post_cost_estimate, post_reconcile_stale_runs, post_runs, resume_run, stream_logs,
+    ListRunsQuery,
 };
 use crate::multiqc::MultiQCRunner;
 use crate::repo::WesRepo;
@@ -204,7 +205,10 @@ pub fn router(
         .route("/runs/:run_id/logs/stream", get(stream_logs))
         .route("/runs/:run_id/logs/stdout", get(get_stdout))
         .route("/runs/:run_id/logs/stderr", get(get_stderr))
-        .route("/runs/:run_id/outputs/files/:file_id", get(get_run_output_file))
+        .route(
+            "/runs/:run_id/outputs/files/:file_id",
+            get(get_run_output_file),
+        )
         .route("/runs/:run_id/provenance", get(get_run_provenance))
         .route("/runs/:run_id/export/ro-crate", get(export_ro_crate))
         .route("/provenance/graph", get(get_provenance_graph));

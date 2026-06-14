@@ -227,9 +227,7 @@ impl RunManager {
             if tracked.contains_key(&id) {
                 continue;
             }
-            self.repo
-                .update_state(&id, RunState::ExecutorError)
-                .await?;
+            self.repo.update_state(&id, RunState::ExecutorError).await?;
             let mut updates = serde_json::Map::new();
             updates.insert(
                 "ferrum:stale_reason".to_string(),

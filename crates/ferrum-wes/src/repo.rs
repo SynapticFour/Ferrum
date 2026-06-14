@@ -284,7 +284,16 @@ impl WesRepo {
             .into_iter()
             .take(page_size as usize)
             .map(
-                |(run_id, state, start_time, end_time, tags, resumed_from_run_id, workflow_type, workflow_url)| {
+                |(
+                    run_id,
+                    state,
+                    start_time,
+                    end_time,
+                    tags,
+                    resumed_from_run_id,
+                    workflow_type,
+                    workflow_url,
+                )| {
                     let tags_map = tags
                         .and_then(|v| v.as_object().cloned())
                         .map(|m| {

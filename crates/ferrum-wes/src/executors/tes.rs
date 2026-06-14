@@ -139,7 +139,12 @@ case "$URL" in
 esac
 "#;
 
-fn shell_launcher(image: String, script: &str, env: HashMap<String, String>, posix_sh: bool) -> TesExecutorBody {
+fn shell_launcher(
+    image: String,
+    script: &str,
+    env: HashMap<String, String>,
+    posix_sh: bool,
+) -> TesExecutorBody {
     let entrypoint = if posix_sh {
         vec!["/bin/sh".to_string(), "-c".to_string()]
     } else {
@@ -161,10 +166,7 @@ fn legacy_executor_body(workflow_type: &str, workflow_url: &str) -> TesExecutorB
 
     match workflow_type.to_lowercase().as_str() {
         "nextflow" | "nxf" | "nfl" => shell_launcher(
-            env_tes_image(
-                "FERRUM_WES_TES_IMAGE_NEXTFLOW",
-                "nextflow/nextflow:24.10.3",
-            ),
+            env_tes_image("FERRUM_WES_TES_IMAGE_NEXTFLOW", "nextflow/nextflow:24.10.3"),
             &format!(
                 "{RESOLVE_URL_BASH}curl -fsSL \"$URL\" -o workflow.nf
 printf '%s\\n' 'docker {{' '    enabled = false' '}}' > nextflow.config
@@ -288,7 +290,11 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
                     .map(|p| format!("{}/{}", p.trim_end_matches('/'), run.run_id))
             })
     });
-    let executor_workdir = container_workdir.clone().or(per_run_mount);
+    let executor_workdir = container_workdir.clone().or(if bash_or_file_mode {
+        per_run_mount
+    } else {
+        None
+    });
 
     let mut base_env = HashMap::new();
     base_env.insert(
@@ -388,9 +394,12 @@ impl TesExecutorBackend {
 
     async fn write_logs_from_task(&self, task_id: &str, work_dir: &Path) -> Result<()> {
         let url = format!("{}/tasks/{}", self.base_url, task_id);
-        let resp = self.client.get(&url).send().await.map_err(|e| {
-            WesError::Executor(format!("TES get task for logs: {}", e))
-        })?;
+        let resp = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| WesError::Executor(format!("TES get task for logs: {}", e)))?;
         if !resp.status().is_success() {
             return Ok(());
         }

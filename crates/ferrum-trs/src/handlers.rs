@@ -69,14 +69,8 @@ pub async fn get_tool(
     let (id, name, description, organization, toolclass, meta_version) = row;
     let versions = state.repo.get_versions(&id).await.unwrap_or_default();
     let url = format!("/ga4gh/trs/v2/tools/{}", id);
-    let mut tool = crate::types::tool_from_row(
-        id,
-        name,
-        description,
-        organization,
-        toolclass,
-        meta_version,
-    );
+    let mut tool =
+        crate::types::tool_from_row(id, name, description, organization, toolclass, meta_version);
     tool.url = Some(url);
     tool.versions = Some(versions);
     Ok(Json(tool))
@@ -145,7 +139,11 @@ pub async fn register_tool(
     State(state): State<Arc<AppState>>,
     Json(body): Json<RegisterToolRequest>,
 ) -> Result<Json<Tool>> {
-    let workflow_url = body.workflow_url.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let workflow_url = body
+        .workflow_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     let workflow_content = body
         .workflow_content
         .as_deref()

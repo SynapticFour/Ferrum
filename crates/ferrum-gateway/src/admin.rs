@@ -311,7 +311,8 @@ pub fn admin_router(
             ferrum_core::config::AuthMode::Builtin => "builtin",
             ferrum_core::config::AuthMode::External => "external",
         };
-        let tes_backend = std::env::var("FERRUM_TES_BACKEND").unwrap_or_else(|_| "noop".to_string());
+        let tes_backend =
+            std::env::var("FERRUM_TES_BACKEND").unwrap_or_else(|_| "noop".to_string());
         let wes_trs_auto_register = !matches!(
             std::env::var("FERRUM_WES_TRS_AUTO_REGISTER")
                 .unwrap_or_else(|_| "true".to_string())

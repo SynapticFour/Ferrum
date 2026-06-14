@@ -918,7 +918,10 @@ pub struct OutputFileQuery {
 fn outputs_list_contains(outputs: &serde_json::Value, file_id: &str) -> bool {
     for key in ["output_files", "artifact_files", "log_files"] {
         if let Some(arr) = outputs.get(key).and_then(|v| v.as_array()) {
-            if arr.iter().any(|o| o.get("file_id").and_then(|v| v.as_str()) == Some(file_id)) {
+            if arr
+                .iter()
+                .any(|o| o.get("file_id").and_then(|v| v.as_str()) == Some(file_id))
+            {
                 return true;
             }
         }
@@ -978,16 +981,19 @@ pub async fn get_run_output_file(
     let (_, _, _, _, _, _, _, _, _, _, outputs, work_dir, _, _, _) = row;
     let work_dir = work_dir.ok_or_else(|| WesError::NotFound("work_dir not found".into()))?;
     if !outputs_list_contains(&outputs, &file_id) {
-        return Err(WesError::NotFound(format!("output file not found: {}", file_id)));
+        return Err(WesError::NotFound(format!(
+            "output file not found: {}",
+            file_id
+        )));
     }
     let rel = file_id.replace("__", "/");
     let base = std::path::Path::new(&work_dir)
         .canonicalize()
         .map_err(WesError::Io)?;
     let path = base.join(&rel);
-    let canonical = path.canonicalize().map_err(|_| {
-        WesError::NotFound(format!("output file not found on disk: {}", file_id))
-    })?;
+    let canonical = path
+        .canonicalize()
+        .map_err(|_| WesError::NotFound(format!("output file not found on disk: {}", file_id)))?;
     if !canonical.starts_with(&base) {
         return Err(WesError::Forbidden("path outside work_dir".into()));
     }
