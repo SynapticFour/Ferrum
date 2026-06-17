@@ -103,6 +103,7 @@ pub fn router(
     multiqc_config: Option<ferrum_core::MultiQCConfig>,
     drs_ingest_base_url: Option<String>,
     allowed_workflow_sources: Vec<String>,
+    ads_introspect: Option<Arc<ferrum_core::AdsIntrospectClient>>,
 ) -> Router {
     let checkpoint_store = Some(Arc::new(crate::checkpoint::CheckpointStore::new(
         pool.clone(),
@@ -143,6 +144,7 @@ pub fn router(
         multiqc_runner,
         allowed_workflow_sources,
         checkpoint_store,
+        ads_introspect,
     };
     let state = Arc::new(state);
 

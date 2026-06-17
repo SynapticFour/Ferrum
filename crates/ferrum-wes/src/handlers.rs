@@ -433,6 +433,14 @@ pub async fn post_runs(
             ));
         }
     }
+
+    enforce_ads_resource_tags(
+        app.ads_introspect.as_ref(),
+        auth.as_ref().map(|Extension(c)| c),
+        &tags,
+    )
+    .await?;
+
     let disposition = crate::helixtest_ferrum::classify_trs_workflow(
         &workflow_url,
         &workflow_type,
@@ -1860,4 +1868,43 @@ pub async fn evict_cache(
     let max_age_days = q.older_than_days.unwrap_or(30);
     let deleted = store.evict_stale_entries(max_age_days, None).await?;
     Ok(Json(serde_json::json!({ "evicted": deleted })))
+}
+
+async fn enforce_ads_resource_tags(
+    client: Option<&Arc<ferrum_core::AdsIntrospectClient>>,
+    auth: Option<&ferrum_core::AuthClaims>,
+    tags: &serde_json::Value,
+) -> Result<()> {
+    let Some(client) = client else {
+        return Ok(());
+    };
+    let Some(map) = tags.as_object() else {
+        return Ok(());
+    };
+    let resource_id = map
+        .get("ads_dataset_id")
+        .or_else(|| map.get("ads_compute_pool_id"))
+        .and_then(|v| v.as_str());
+    let Some(resource_id) = resource_id else {
+        return Ok(());
+    };
+    let claims = auth.ok_or_else(|| {
+        WesError::Forbidden("authentication required for ADS-controlled compute".into())
+    })?;
+    if claims.is_admin() || claims.has_dataset_grant(resource_id) {
+        return Ok(());
+    }
+    let token = claims.raw_token().ok_or_else(|| {
+        WesError::Forbidden("Bearer token required for ADS access check".into())
+    })?;
+    let active = client
+        .is_dataset_access_active(token, &format!("wes:run:{resource_id}"), resource_id)
+        .await
+        .map_err(|e| WesError::Forbidden(format!("ADS access check failed: {e}")))?;
+    if !active {
+        return Err(WesError::Forbidden(
+            "ADS resource access not granted for this run".into(),
+        ));
+    }
+    Ok(())
 }

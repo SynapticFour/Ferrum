@@ -384,6 +384,25 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         .trim_end_matches('/')
         .to_string();
 
+    let ads_introspect = config.as_ref().and_then(|cfg| {
+        let ads_base = cfg
+            .auth
+            .ads_url
+            .clone()
+            .filter(|u| !u.trim().is_empty())
+            .or_else(|| {
+                cfg.auth
+                    .issuer
+                    .as_ref()
+                    .map(|issuer| format!("{}/ads/v1", issuer.trim_end_matches('/')))
+            });
+        ads_base.and_then(|url| {
+            ferrum_core::AdsIntrospectClient::from_env(&url, &cfg.auth.ads_api_key_env)
+                .ok()
+                .map(Arc::new)
+        })
+    });
+
     let drs_state: Option<ferrum_drs::AppState> = if let Some(ref pool) = ferrum_pool {
         let repo = Arc::new(ferrum_drs::repo::DrsRepo::new(
             pool.clone(),
@@ -444,6 +463,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             transfer_queue: Some(transfer_queue),
             residency_audit: Some(residency_audit),
             background_gate: Some(background_gate),
+            ads_introspect: ads_introspect.clone(),
         })
     } else {
         None
@@ -457,7 +477,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     });
 
     #[cfg(feature = "full")]
-    fn wes_trs_register_url() -> Option<String> {
+    fn wes_trs_register_url(resolved_trs: Option<String>) -> Option<String> {
         let disabled = matches!(
             std::env::var("FERRUM_WES_TRS_AUTO_REGISTER")
                 .unwrap_or_else(|_| "true".to_string())
@@ -473,26 +493,50 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             .ok()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
+            .or(resolved_trs)
             .or_else(|| Some("http://127.0.0.1:8080/ga4gh/trs/v2".to_string()))
     }
+
+    #[cfg(feature = "discovery")]
+    let resolved_urls = if let Some(ref cfg) = config {
+        ferrum_discovery::resolve_service_urls(cfg, &public_base_url).await
+    } else {
+        ferrum_discovery::ResolvedServiceUrls::local_defaults(&public_base_url)
+    };
 
     #[cfg(feature = "full")]
     let wes_params = pg_pool.clone().map(|pool| {
         let work_dir = std::env::var("FERRUM_WES_WORK_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| std::env::temp_dir().join("wes-runs"));
+        let default_tes = format!(
+            "{}/ga4gh/tes/v1",
+            public_base_url.trim_end_matches('/')
+        );
+        #[cfg(feature = "discovery")]
         let tes_url = std::env::var("FERRUM_WES_TES_URL")
-            .unwrap_or_else(|_| "http://localhost:8080/ga4gh/tes/v1".to_string());
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .or(resolved_urls.tes.clone())
+            .unwrap_or(default_tes);
+        #[cfg(not(feature = "discovery"))]
+        let tes_url = std::env::var("FERRUM_WES_TES_URL").unwrap_or(default_tes);
+        #[cfg(feature = "discovery")]
+        let trs_url = wes_trs_register_url(resolved_urls.trs.clone());
+        #[cfg(not(feature = "discovery"))]
+        let trs_url = wes_trs_register_url(None);
         (
             pool,
             Some(work_dir),
             Some(tes_url),
-            wes_trs_register_url(),
+            trs_url,
             None,
             None,
             None,
             None,
             vec![],
+            ads_introspect.clone(),
         )
     });
 

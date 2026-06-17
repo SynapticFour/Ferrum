@@ -4,6 +4,10 @@
 #[cfg(feature = "full")]
 mod admin;
 pub mod audit;
+#[cfg(feature = "discovery")]
+mod access;
+#[cfg(feature = "full")]
+mod publish;
 #[cfg(feature = "full")]
 mod federation;
 pub mod outbreak;
@@ -36,6 +40,7 @@ pub type WesRouterParams = (
     Option<ferrum_core::MultiQCConfig>,
     Option<String>,
     Vec<String>,
+    Option<std::sync::Arc<ferrum_core::AdsIntrospectClient>>,
 );
 #[cfg(not(feature = "full"))]
 pub type WesRouterParams = ();
@@ -211,7 +216,7 @@ pub fn app(
     }
     #[cfg(feature = "full")]
     if hot_reload || cfg.map(|c| c.services.enable_wes).unwrap_or(true) {
-        let wes_router = match wes_params {
+        let wes_router = match &wes_params {
             Some((
                 pool,
                 work_dir,
@@ -222,16 +227,18 @@ pub fn app(
                 multiqc_config,
                 drs_ingest_base_url,
                 allowed_workflow_sources,
+                ads_introspect,
             )) => ferrum_wes::router(
-                pool,
-                work_dir,
-                tes_url,
-                trs_register_url,
-                provenance_store,
-                pricing,
-                multiqc_config,
-                drs_ingest_base_url,
-                allowed_workflow_sources,
+                pool.clone(),
+                work_dir.clone(),
+                tes_url.clone(),
+                trs_register_url.clone(),
+                provenance_store.clone(),
+                pricing.clone(),
+                multiqc_config.clone(),
+                drs_ingest_base_url.clone(),
+                allowed_workflow_sources.clone(),
+                ads_introspect.clone(),
             ),
             None => ferrum_wes::router_unconfigured(),
         };
@@ -352,6 +359,23 @@ pub fn app(
         app = app
             .nest("/admin/federation", federation::federation_router(cfg))
             .nest("/admin", admin::admin_router(admin_pool.as_ref(), cfg));
+    }
+    #[cfg(feature = "discovery")]
+    if let Some(cfg) = config {
+        if cfg.auth.is_external() || cfg.auth.ads_url.is_some() || cfg.discovery.enabled {
+            app = app.nest("/access/v1", access::access_router(cfg));
+        }
+    }
+    #[cfg(feature = "full")]
+    if let (Some(pool), Some(cfg)) = (
+        admin_pool.clone().or_else(|| {
+            wes_params
+                .as_ref()
+                .map(|(pool, _, _, _, _, _, _, _, _, _)| pool.clone())
+        }),
+        config,
+    ) {
+        app = app.nest("/api/v1", publish::publish_router(pool, cfg));
     }
 
     // UI: static files from services/ui (when built/present)
@@ -589,6 +613,13 @@ pub async fn run(
     }
 
     if let Some(ref cfg) = config {
+        #[cfg(feature = "discovery")]
+        if cfg.discovery.enabled {
+            if let Ok(client) = ferrum_discovery::ServiceRegistryClient::from_config(&cfg.discovery)
+            {
+                client.warm_cache().await;
+            }
+        }
         #[cfg(feature = "external-auth")]
         if cfg.discovery.enabled && cfg.discovery.auto_register {
             if let Ok(client) = ferrum_discovery::ServiceRegistryClient::from_config(&cfg.discovery)

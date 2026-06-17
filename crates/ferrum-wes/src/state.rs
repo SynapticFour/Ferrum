@@ -6,7 +6,7 @@ use crate::metrics::MetricsCollector;
 use crate::multiqc::MultiQCRunner;
 use crate::repo::WesRepo;
 use crate::run_manager::RunManager;
-use ferrum_core::ProvenanceStore;
+use ferrum_core::{AdsIntrospectClient, ProvenanceStore};
 use std::sync::Arc;
 
 pub struct AppState {
@@ -27,4 +27,6 @@ pub struct AppState {
     pub allowed_workflow_sources: Vec<String>,
     /// When set, enable checkpoint/resume and cache stats/evict endpoints.
     pub checkpoint_store: Option<Arc<CheckpointStore>>,
+    /// When set, enforce ADS introspection for runs tagged with ADS resource ids.
+    pub ads_introspect: Option<Arc<AdsIntrospectClient>>,
 }

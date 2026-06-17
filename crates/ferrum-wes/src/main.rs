@@ -39,6 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         None,
         None,
         vec![],
+        None,
     );
 
     let bind: SocketAddr = std::env::var("BIND")
