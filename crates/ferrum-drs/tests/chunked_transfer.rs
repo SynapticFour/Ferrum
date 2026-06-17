@@ -70,6 +70,7 @@ async fn drs_test_state() -> (AppState, tempfile::TempDir) {
             transfer_queue: Some(Arc::new(TransferQueue::new(300))),
             residency_audit: Some(Arc::new(ResidencyAuditLog::new(fp))),
             background_gate: None,
+            ads_introspect: None,
         },
         tmp,
     )

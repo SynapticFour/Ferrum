@@ -105,6 +105,47 @@ impl DrsRepo {
         Ok(row.and_then(|r| r.0))
     }
 
+    /// Workspace scope for private (pre-publish) objects. None = not workspace-scoped.
+    pub async fn get_workspace_id(&self, object_id: &str) -> Result<Option<String>> {
+        let row: Option<(Option<String>,)> = pool_query!(self, |p| {
+            sqlx::query_as("SELECT workspace_id FROM drs_objects WHERE id = $1")
+                .bind(object_id)
+                .fetch_optional(p)
+                .await
+        })?;
+        Ok(row.and_then(|r| r.0))
+    }
+
+    /// Link a DRS object to a published ADS dataset id.
+    pub async fn set_dataset_id(&self, object_id: &str, dataset_id: &str) -> Result<()> {
+        let rows = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query(
+                    "UPDATE drs_objects SET dataset_id = $1, updated_time = NOW() WHERE id = $2",
+                )
+                .bind(dataset_id)
+                .bind(object_id)
+                .execute(p)
+                .await?
+                .rows_affected()
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query(
+                    "UPDATE drs_objects SET dataset_id = ?1, updated_time = datetime('now') WHERE id = ?2",
+                )
+                .bind(dataset_id)
+                .bind(object_id)
+                .execute(p)
+                .await?
+                .rows_affected()
+            }
+        };
+        if rows == 0 {
+            return Err(DrsError::NotFound(object_id.to_string()));
+        }
+        Ok(())
+    }
+
     /// Get object by canonical ID, optionally expand bundle contents.
     pub async fn get_object(&self, id: &str, expand: bool) -> Result<Option<DrsObject>> {
         let row: Option<DrsObjectRow> = pool_query!(self, |p| {

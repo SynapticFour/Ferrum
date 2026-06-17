@@ -41,4 +41,6 @@ pub struct AppState {
     pub residency_audit: Option<Arc<ResidencyAuditLog>>,
     /// Solar/battery gate for pausing background checksum/index work (optional; set by gateway).
     pub background_gate: Option<Arc<BackgroundWorkGate>>,
+    /// Optional ADS introspection for published datasets (ga4gh-infra co-deploy).
+    pub ads_introspect: Option<Arc<ferrum_core::AdsIntrospectClient>>,
 }

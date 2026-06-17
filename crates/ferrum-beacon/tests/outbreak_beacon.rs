@@ -49,6 +49,7 @@ async fn outbreak_beacon_app() -> axum::Router {
 
 fn who_passport_claims() -> AuthClaims {
     AuthClaims::Passport {
+        raw_token: None,
         claims: PassportClaims {
             sub: Some("who-user".into()),
             iss: Some("who.int".into()),

@@ -49,6 +49,7 @@ fn drs_state_for_laptop(pool: FerrumPool, objects_dir: &std::path::Path) -> ferr
         transfer_queue: None,
         residency_audit: None,
         background_gate: None,
+        ads_introspect: None,
     }
 }
 

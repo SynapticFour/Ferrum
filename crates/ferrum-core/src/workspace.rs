@@ -44,3 +44,14 @@ pub async fn is_workspace_editor_or_owner(
         .map(|r| r == "owner" || r == "editor")
         .unwrap_or(false))
 }
+
+/// Returns true if sub is any workspace member (viewer, editor, or owner).
+pub async fn is_workspace_member(
+    pool: &FerrumPool,
+    workspace_id: &str,
+    sub: &str,
+) -> Result<bool> {
+    Ok(get_workspace_member_role(pool, workspace_id, sub)
+        .await?
+        .is_some())
+}

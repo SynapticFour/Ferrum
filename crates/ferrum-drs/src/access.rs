@@ -1,24 +1,44 @@
-//! Shared DRS access checks (DAC, outbreak download approval).
+//! Shared DRS access checks (workspace-private, published dataset grants, outbreak approval).
 
 use crate::error::{DrsError, Result};
 use crate::state::AppState;
-use ferrum_core::{AuthClaims, OutbreakService};
+use ferrum_core::{is_workspace_member, AuthClaims, OutbreakService};
 use std::sync::Arc;
 
-/// Enforce dataset DAC and outbreak download approval before byte access.
+/// Enforce workspace-private, dataset DAC, and outbreak download approval before byte access.
 pub async fn check_object_byte_access(
     state: &AppState,
     canonical_object_id: &str,
     auth: Option<&AuthClaims>,
 ) -> Result<()> {
-    if let Some(dataset_id) = state.repo.get_dataset_id(canonical_object_id).await? {
+    let dataset_id = state.repo.get_dataset_id(canonical_object_id).await?;
+    let workspace_id = state.repo.get_workspace_id(canonical_object_id).await?;
+
+    if let Some(dataset_id) = dataset_id {
         let claims = auth.ok_or_else(|| {
             DrsError::Forbidden("authentication required for this dataset".into())
         })?;
-        if !claims.has_dataset_grant(&dataset_id) && !claims.is_admin() {
+        if let Some(client) = state.ads_introspect.as_ref() {
+            enforce_ads_dataset_access(client, &dataset_id, canonical_object_id, claims).await?;
+        } else if !claims.has_dataset_grant(&dataset_id) && !claims.is_admin() {
             return Err(DrsError::Forbidden("dataset access not granted".into()));
         }
+    } else if let Some(ws_id) = workspace_id {
+        let claims = auth.ok_or_else(|| {
+            DrsError::Forbidden("authentication required for workspace-private data".into())
+        })?;
+        if !claims.is_admin() {
+            let sub = claims
+                .sub()
+                .ok_or_else(|| DrsError::Forbidden("missing subject in token".into()))?;
+            if !is_workspace_member(state.repo.pool(), &ws_id, sub).await? {
+                return Err(DrsError::Forbidden(
+                    "workspace-private object: not a workspace member".into(),
+                ));
+            }
+        }
     }
+
     enforce_outbreak_download(
         state.outbreak.as_ref(),
         &state.repo,
@@ -26,6 +46,28 @@ pub async fn check_object_byte_access(
         auth,
     )
     .await
+}
+
+async fn enforce_ads_dataset_access(
+    client: &ferrum_core::AdsIntrospectClient,
+    dataset_id: &str,
+    object_id: &str,
+    claims: &AuthClaims,
+) -> Result<()> {
+    if claims.is_admin() || claims.has_dataset_grant(dataset_id) {
+        return Ok(());
+    }
+    let token = claims
+        .raw_token()
+        .ok_or_else(|| DrsError::Forbidden("Bearer token required for ADS access check".into()))?;
+    let active = client
+        .is_dataset_access_active(token, object_id, dataset_id)
+        .await
+        .map_err(|e| DrsError::Forbidden(format!("ADS access check failed: {e}")))?;
+    if !active {
+        return Err(DrsError::Forbidden("dataset access not granted".into()));
+    }
+    Ok(())
 }
 
 /// Metadata GET uses the same rules as stream/download for controlled objects.

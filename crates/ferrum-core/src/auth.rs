@@ -60,11 +60,13 @@ pub enum AuthClaims {
         exp: i64,
         jti: Option<String>,
         scope: Option<String>,
+        raw_token: Option<String>,
     },
     /// GA4GH Passport with decoded passport claims and optional decoded visas.
     Passport {
         claims: PassportClaims,
         visas: Vec<VisaObject>,
+        raw_token: Option<String>,
     },
 }
 
@@ -139,6 +141,14 @@ impl AuthClaims {
         match self {
             AuthClaims::Jwt { jti, .. } => jti.as_deref(),
             AuthClaims::Passport { claims, .. } => claims.jti.as_deref(),
+        }
+    }
+
+    /// Original Bearer token (for ADS introspection).
+    pub fn raw_token(&self) -> Option<&str> {
+        match self {
+            AuthClaims::Jwt { raw_token, .. } => raw_token.as_deref(),
+            AuthClaims::Passport { raw_token, .. } => raw_token.as_deref(),
         }
     }
 }
@@ -337,6 +347,7 @@ pub async fn auth_middleware_with_config(
                 exp,
                 jti: None,
                 scope: None,
+                raw_token: None,
             });
         }
     }
@@ -380,6 +391,7 @@ async fn decode_jwt_or_passport(
         return Ok(AuthClaims::Passport {
             claims: claims.clone(),
             visas,
+            raw_token: Some(token.to_string()),
         });
     }
 
@@ -400,6 +412,7 @@ async fn decode_jwt_or_passport(
             exp: data.claims.exp.unwrap_or(0),
             jti: data.claims.jti,
             scope: data.claims.scope,
+            raw_token: Some(token.to_string()),
         });
     }
 
@@ -424,6 +437,7 @@ fn decode_jwt_fallback(token: &str) -> Result<AuthClaims, jsonwebtoken::errors::
         exp: claims.claims.exp.unwrap_or(0),
         jti: claims.claims.jti,
         scope: claims.claims.scope,
+        raw_token: Some(token.to_string()),
     })
 }
 

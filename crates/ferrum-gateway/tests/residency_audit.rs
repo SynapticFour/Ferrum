@@ -61,6 +61,7 @@ async fn test_upload_writes_data_uploaded_event() {
         transfer_queue: None,
         residency_audit: Some(audit.clone()),
         background_gate: None,
+        ads_introspect: None,
     };
     process_upload_from_parts(
         Arc::new(state),
@@ -97,6 +98,7 @@ async fn test_outbreak_activate_deactivate_audit_events() {
     let app = outbreak_router(service, Some(audit.clone()));
 
     let claims = AuthClaims::Passport {
+        raw_token: None,
         claims: PassportClaims {
             sub: Some("activator@lab.org".into()),
             iss: Some("lab.org".into()),

@@ -91,11 +91,13 @@ async fn outbreak_drs_state() -> AppState {
         transfer_queue: None,
         residency_audit: None,
         background_gate: None,
+        ads_introspect: None,
     }
 }
 
 fn who_claims() -> AuthClaims {
     AuthClaims::Passport {
+        raw_token: None,
         claims: PassportClaims {
             sub: Some("who-user".into()),
             iss: Some("who.int".into()),
