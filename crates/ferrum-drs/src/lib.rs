@@ -149,7 +149,7 @@ pub fn router(state: AppState) -> Router {
         )
         .route(
             "/objects/:object_id/view",
-            get(|s, p, auth| async move { ViewResult(get_object_view(s, p, auth).await) }),
+            get(|s, p, h, auth| async move { ViewResult(get_object_view(s, p, h, auth).await) }),
         )
         .route(
             "/objects/:object_id",

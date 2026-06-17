@@ -4,9 +4,9 @@
 use axum::{
     body::Body,
     extract::{Path, Query, State},
-    http::{header, HeaderMap, Request, StatusCode},
+    http::{header, HeaderMap, Method, Request, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::{get, post, any},
     Router,
 };
 use ferrum_core::FerrumConfig;
@@ -315,10 +315,96 @@ fn dedup_federated_catalog(
     (out, dropped)
 }
 
+fn build_ads_introspect(config: &FerrumConfig) -> Option<ferrum_core::AdsIntrospectClient> {
+    let ads_url = config
+        .auth
+        .ads_url
+        .as_deref()
+        .filter(|u| !u.trim().is_empty())
+        .map(str::to_string)
+        .or_else(|| {
+            config.auth.issuer.as_ref().map(|issuer| {
+                format!("{}/ads/v1", issuer.trim_end_matches('/'))
+            })
+        })?;
+    ferrum_core::AdsIntrospectClient::from_env(&ads_url, &config.auth.ads_api_key_env).ok()
+}
+
+async fn ads_base_for_origin(
+    state: &AccessProxyState,
+    registry_services: &[ferrum_discovery::RegisteredService],
+    origin: &str,
+    explicit: Option<&str>,
+) -> Result<String, (StatusCode, String)> {
+    if let Some(url) = explicit.filter(|u| !u.trim().is_empty()) {
+        return Ok(normalize_ads_from_service_url(url));
+    }
+    if origin == "local" {
+        return state.ads_base_url().await;
+    }
+    let bases = collect_ads_bases(state, registry_services).await?;
+    bases
+        .into_iter()
+        .find(|(o, _)| o == origin)
+        .map(|(_, b)| b)
+        .ok_or((
+            StatusCode::BAD_REQUEST,
+            format!("unknown federation origin: {origin}"),
+        ))
+}
+
+async fn enforce_federated_introspect(
+    config: &FerrumConfig,
+    ads_base: &str,
+    auth_header: Option<&str>,
+    resource: &str,
+    dataset_id: &str,
+) -> Result<(), (StatusCode, String)> {
+    let Some(client) = build_ads_introspect(config) else {
+        return Ok(());
+    };
+    let Some(token) = auth_header.and_then(|h| h.strip_prefix("Bearer ").map(str::trim)) else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "Authorization required for federated resource access".into(),
+        ));
+    };
+    let active = client
+        .introspect_at_base(ads_base, token, resource, dataset_id)
+        .await
+        .map_err(|e| (StatusCode::FORBIDDEN, format!("ADS introspect failed: {e}")))?;
+    if !active {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "ADS grant not active for federated resource".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn object_id_from_drs_path(path: &str) -> Option<String> {
+    let trimmed = path.trim_start_matches('/');
+    let mut parts = trimmed.split('/');
+    if parts.next()? != "objects" {
+        return None;
+    }
+    parts.next().map(str::to_string)
+}
+
 #[derive(Debug, Deserialize)]
 pub struct FederatedDrsQuery {
     pub base_url: Option<String>,
     pub origin: Option<String>,
+    pub ads_base_url: Option<String>,
+    pub dataset_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FederatedWesQuery {
+    pub base_url: Option<String>,
+    pub origin: Option<String>,
+    pub ads_base_url: Option<String>,
+    pub dataset_id: Option<String>,
 }
 
 async fn federated_drs_proxy(
@@ -327,13 +413,14 @@ async fn federated_drs_proxy(
     Path(path): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, (StatusCode, String)> {
+    let registry_services = load_registry_services(&state.config).await;
+    let prefs =
+        ferrum_discovery::ServiceSelectionPrefs::from_discovery_config(&state.config.discovery);
+
     let base = if let Some(url) = q.base_url.as_ref().filter(|u| !u.trim().is_empty()) {
         url.trim_end_matches('/').to_string()
     } else if let Some(origin) = q.origin.as_deref() {
-        let services = load_registry_services(&state.config).await;
-        let prefs =
-            ferrum_discovery::ServiceSelectionPrefs::from_discovery_config(&state.config.discovery);
-        ferrum_discovery::drs_url_for_ads_origin(&services, origin, &prefs).ok_or((
+        ferrum_discovery::drs_url_for_ads_origin(&registry_services, origin, &prefs).ok_or((
             StatusCode::BAD_REQUEST,
             "could not resolve DRS URL for federation origin".into(),
         ))?
@@ -347,14 +434,52 @@ async fn federated_drs_proxy(
     if !base.starts_with("http://") && !base.starts_with("https://") {
         return Err((StatusCode::BAD_REQUEST, "base_url must be http(s)".into()));
     }
+
+    let ads_base = if let Some(origin) = q.origin.as_deref() {
+        Some(
+            ads_base_for_origin(
+                &state,
+                &registry_services,
+                origin,
+                q.ads_base_url.as_deref(),
+            )
+            .await?,
+        )
+    } else {
+        q.ads_base_url
+            .as_deref()
+            .map(normalize_ads_from_service_url)
+    };
+
+    let auth = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok());
+
+    if let (Some(ads_base), Some(dataset_id)) = (ads_base.as_deref(), q.dataset_id.as_deref()) {
+        let resource = object_id_from_drs_path(&path)
+            .map(|id| format!("drs:{id}"))
+            .unwrap_or_else(|| format!("drs:{}", path.trim_start_matches('/')));
+        enforce_federated_introspect(
+            &state.config,
+            ads_base,
+            auth,
+            &resource,
+            dataset_id,
+        )
+        .await?;
+    }
+
     let url = format!("{base}/{}", path.trim_start_matches('/'));
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
         .build()
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let mut builder = client.get(&url);
-    if let Some(token) = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()) {
+    if let Some(token) = auth {
         builder = builder.header(header::AUTHORIZATION, token);
+    }
+    if let Some(ads_base) = &ads_base {
+        builder = builder.header("X-ADS-Base-URL", ads_base.as_str());
     }
     let resp = builder
         .send()
@@ -362,14 +487,146 @@ async fn federated_drs_proxy(
         .map_err(|e| (StatusCode::BAD_GATEWAY, format!("remote DRS request failed: {e}")))?;
     let status =
         StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
-    let headers = resp.headers().clone();
+    let resp_headers = resp.headers().clone();
     let bytes = resp
         .bytes()
         .await
         .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
     let mut response = Response::new(Body::from(bytes));
     *response.status_mut() = status;
+    if let Some(ct) = resp_headers.get(header::CONTENT_TYPE) {
+        response
+            .headers_mut()
+            .insert(header::CONTENT_TYPE, ct.clone());
+    }
+    Ok(response)
+}
+
+async fn federated_wes_proxy(
+    State(state): State<Arc<AccessProxyState>>,
+    Query(q): Query<FederatedWesQuery>,
+    Path(path): Path<String>,
+    req: Request<Body>,
+) -> Result<Response, (StatusCode, String)> {
+    let registry_services = load_registry_services(&state.config).await;
+    let prefs =
+        ferrum_discovery::ServiceSelectionPrefs::from_discovery_config(&state.config.discovery);
+
+    let base = if let Some(url) = q.base_url.as_ref().filter(|u| !u.trim().is_empty()) {
+        url.trim_end_matches('/').to_string()
+    } else if let Some(origin) = q.origin.as_deref() {
+        ferrum_discovery::wes_url_for_ads_origin(&registry_services, origin, &prefs).ok_or((
+            StatusCode::BAD_REQUEST,
+            "could not resolve WES URL for federation origin".into(),
+        ))?
+    } else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "base_url or origin query parameter required".into(),
+        ));
+    };
+
+    if !base.starts_with("http://") && !base.starts_with("https://") {
+        return Err((StatusCode::BAD_REQUEST, "base_url must be http(s)".into()));
+    }
+
+    let ads_base = if let Some(origin) = q.origin.as_deref() {
+        Some(
+            ads_base_for_origin(
+                &state,
+                &registry_services,
+                origin,
+                q.ads_base_url.as_deref(),
+            )
+            .await?,
+        )
+    } else {
+        q.ads_base_url
+            .as_deref()
+            .map(normalize_ads_from_service_url)
+    };
+
+    let method = req.method().clone();
+    let headers = req.headers().clone();
+    let auth = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok());
+
+    let body_bytes = if method == Method::GET || method == Method::HEAD {
+        None
+    } else {
+        Some(
+            axum::body::to_bytes(req.into_body(), 8 * 1024 * 1024)
+                .await
+                .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?,
+        )
+    };
+
+    if method == Method::POST && path.trim_matches('/') == "runs" {
+        if let (Some(ads_base), Some(bytes)) = (ads_base.as_deref(), body_bytes.as_ref()) {
+            let dataset_id = q.dataset_id.clone().or_else(|| {
+                serde_json::from_slice::<serde_json::Value>(bytes)
+                    .ok()
+                    .and_then(|v| {
+                        v.get("tags")
+                            .and_then(|t| t.get("ads_compute_pool_id"))
+                            .and_then(|id| id.as_str())
+                            .map(str::to_string)
+                    })
+            });
+            if let Some(dataset_id) = dataset_id {
+                enforce_federated_introspect(
+                    &state.config,
+                    ads_base,
+                    auth,
+                    &format!("wes:run:{dataset_id}"),
+                    &dataset_id,
+                )
+                .await?;
+            }
+        }
+    }
+
+    let url = format!("{base}/{}", path.trim_start_matches('/'));
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let mut builder = match method {
+        Method::GET => client.get(&url),
+        Method::POST => client.post(&url),
+        Method::PUT => client.put(&url),
+        Method::DELETE => client.delete(&url),
+        _ => return Err((StatusCode::METHOD_NOT_ALLOWED, "unsupported method".into())),
+    };
+    if let Some(token) = auth {
+        builder = builder.header(header::AUTHORIZATION, token);
+    }
+    if let Some(ads_base) = &ads_base {
+        builder = builder.header("X-ADS-Base-URL", ads_base.as_str());
+    }
     if let Some(ct) = headers.get(header::CONTENT_TYPE) {
+        builder = builder.header(header::CONTENT_TYPE, ct.clone());
+    }
+    if let Some(body) = body_bytes {
+        builder = builder.body(body);
+    }
+
+    let resp = builder
+        .send()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("remote WES request failed: {e}")))?;
+    let status =
+        StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let resp_headers = resp.headers().clone();
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let mut response = Response::new(Body::from(bytes));
+    *response.status_mut() = status;
+    if let Some(ct) = resp_headers.get(header::CONTENT_TYPE) {
         response
             .headers_mut()
             .insert(header::CONTENT_TYPE, ct.clone());
@@ -688,6 +945,7 @@ pub fn access_router(config: &FerrumConfig) -> Router {
         .route("/catalog/datasets", get(get_catalog_datasets))
         .route("/catalog/federated", get(get_federated_catalog))
         .route("/federated/drs/*path", get(federated_drs_proxy))
+        .route("/federated/wes/*path", any(federated_wes_proxy))
         .route("/datasets/:id", get(get_dataset))
         .route("/me/projects", get(get_me_projects))
         .route("/me/access-requests", get(get_me_access_requests))

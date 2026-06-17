@@ -23,6 +23,7 @@ import {
   createProject,
   submitAccessRequest,
   federatedDrsUrl,
+  federatedWesRunsUrl,
   getAccessStatus,
   type DatasetCatalogEntry,
   type ResearchProject,
@@ -430,6 +431,7 @@ export function AccessManagement() {
                                 ds.remote_drs_base_url,
                                 ds.external_id,
                                 ds.federation_origin,
+                                ds.id,
                               ) ?? '#'
                             }
                             className="inline-flex items-center gap-1 text-primary hover:underline"
@@ -555,6 +557,7 @@ export function AccessManagement() {
                               g.remote_drs_base_url,
                               g.external_id,
                               g.federation_origin,
+                              g.dataset_id,
                             ) ?? '#'
                           }
                           className="inline-flex items-center gap-1 text-primary hover:underline"
@@ -564,7 +567,22 @@ export function AccessManagement() {
                         </a>
                       </p>
                     )}
-                    {g.remote_wes_base_url && (
+                    {g.resource_type === 'compute_pool' &&
+                      (g.remote_wes_base_url || g.federation_origin) && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t('access.remoteWesSubmit')}:{' '}
+                          <code className="rounded bg-muted px-1 text-[11px]">
+                            POST{' '}
+                            {federatedWesRunsUrl(
+                              g.remote_wes_base_url,
+                              g.federation_origin,
+                              g.dataset_id,
+                              g.ads_base_url,
+                            ) ?? '/access/v1/federated/wes/runs'}
+                          </code>
+                        </p>
+                      )}
+                    {g.remote_wes_base_url && g.resource_type !== 'compute_pool' && (
                       <p className="mt-1 text-xs font-mono text-muted-foreground truncate">
                         {t('access.remoteWes')}: {g.remote_wes_base_url}
                       </p>

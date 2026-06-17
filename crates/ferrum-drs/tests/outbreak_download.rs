@@ -115,7 +115,7 @@ fn who_claims() -> AuthClaims {
 #[tokio::test]
 async fn test_outbreak_download_requires_approval() {
     let state = outbreak_drs_state().await;
-    let err = check_object_byte_access(&state, "obj-mpox-1", Some(&who_claims()))
+    let err = check_object_byte_access(&state, "obj-mpox-1", Some(&who_claims()), None)
         .await
         .expect_err("should block");
     assert!(err.to_string().contains("approve-download"));
@@ -136,7 +136,7 @@ async fn test_outbreak_download_allowed_after_approval() {
         )
         .await
         .expect("approve");
-    check_object_byte_access(&state, "obj-mpox-1", Some(&who_claims()))
+    check_object_byte_access(&state, "obj-mpox-1", Some(&who_claims()), None)
         .await
         .expect("allowed after approval");
 }

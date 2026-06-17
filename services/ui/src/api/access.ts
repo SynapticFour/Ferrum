@@ -127,15 +127,37 @@ export function federatedDrsUrl(
   remoteDrsBase?: string,
   externalId?: string,
   federationOrigin?: string,
+  datasetId?: string,
 ) {
   const objectId = externalId?.startsWith('drs:') ? externalId.slice(4) : externalId;
   if (!objectId) return null;
+  const params = new URLSearchParams();
   if (remoteDrsBase) {
-    const base = remoteDrsBase.trim().replace(/\/$/, '');
-    return `/access/v1/federated/drs/objects/${encodeURIComponent(objectId)}?base_url=${encodeURIComponent(base)}`;
+    params.set('base_url', remoteDrsBase.trim().replace(/\/$/, ''));
+  } else if (federationOrigin) {
+    params.set('origin', federationOrigin);
+  } else {
+    return null;
   }
-  if (federationOrigin) {
-    return `/access/v1/federated/drs/objects/${encodeURIComponent(objectId)}?origin=${encodeURIComponent(federationOrigin)}`;
+  if (datasetId) params.set('dataset_id', datasetId);
+  return `/access/v1/federated/drs/objects/${encodeURIComponent(objectId)}?${params}`;
+}
+
+export function federatedWesRunsUrl(
+  remoteWesBase?: string,
+  federationOrigin?: string,
+  datasetId?: string,
+  adsBaseUrl?: string,
+) {
+  const params = new URLSearchParams();
+  if (remoteWesBase) {
+    params.set('base_url', remoteWesBase.trim().replace(/\/$/, ''));
+  } else if (federationOrigin) {
+    params.set('origin', federationOrigin);
+  } else {
+    return null;
   }
-  return null;
+  if (datasetId) params.set('dataset_id', datasetId);
+  if (adsBaseUrl) params.set('ads_base_url', adsBaseUrl);
+  return `/access/v1/federated/wes/runs?${params}`;
 }

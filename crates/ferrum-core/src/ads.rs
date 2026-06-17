@@ -70,7 +70,27 @@ impl AdsIntrospectClient {
         resource: &str,
         dataset_id: &str,
     ) -> Result<bool, AdsIntrospectError> {
-        let url = format!("{}/introspect", self.ads_base);
+        self.introspect_at_base(&self.ads_base, passport_jwt, resource, dataset_id)
+            .await
+    }
+
+    /// Introspect against an explicit ADS base URL (for federated nodes).
+    pub async fn introspect_at_base(
+        &self,
+        ads_base: &str,
+        passport_jwt: &str,
+        resource: &str,
+        dataset_id: &str,
+    ) -> Result<bool, AdsIntrospectError> {
+        let base = ads_base.trim().trim_end_matches('/');
+        let base = if base.ends_with("/ads/v1") {
+            base.to_string()
+        } else if base.ends_with("/ads") {
+            format!("{base}/v1")
+        } else {
+            format!("{base}/ads/v1")
+        };
+        let url = format!("{base}/introspect");
         let resp = self
             .http
             .post(&url)

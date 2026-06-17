@@ -5,7 +5,7 @@
 mod admin;
 pub mod audit;
 #[cfg(feature = "discovery")]
-mod access;
+pub mod access;
 #[cfg(feature = "full")]
 mod publish;
 #[cfg(feature = "full")]
@@ -375,12 +375,21 @@ pub fn app(
         }),
         config,
     ) {
+        let federation_client = if cfg.federation.enabled {
+            ferrum_federation::FederationRuntime::from_config(&cfg.federation)
+                .ok()
+                .map(ferrum_federation::FederationClient::new)
+                .map(Arc::new)
+        } else {
+            None
+        };
         app = app.nest(
             "/api/v1",
             publish::publish_router(
                 pool,
                 cfg,
                 drs_state.as_ref().and_then(|s| s.background_gate.clone()),
+                federation_client,
             ),
         );
     }

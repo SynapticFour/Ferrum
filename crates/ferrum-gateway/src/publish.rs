@@ -18,6 +18,7 @@ pub struct PublishState {
     pub pool: sqlx::PgPool,
     pub config: Arc<FerrumConfig>,
     pub background_gate: Option<Arc<BackgroundWorkGate>>,
+    pub federation: Option<Arc<ferrum_federation::FederationClient>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -38,6 +39,9 @@ pub struct PublishDatasetRequest {
     /// When true (default), index VCF variants into Beacon when the object looks like VCF.
     #[serde(default = "default_true")]
     pub index_variants: bool,
+    /// When true, probe configured Beacon federation peers after local Beacon indexing.
+    #[serde(default)]
+    pub index_beacon_federate: bool,
 }
 
 fn default_true() -> bool {
@@ -59,6 +63,8 @@ pub struct PublishDatasetResponse {
     pub variants_indexed: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vcf_index_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub beacon_peers_probed: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -66,6 +72,20 @@ pub struct PublishIndexStatusResponse {
     pub object_id: String,
     pub vcf_index_status: Option<String>,
     pub variants_indexed: Option<usize>,
+}
+
+async fn probe_beacon_federation_on_publish(
+    federation: &ferrum_federation::FederationClient,
+    ads_dataset_id: &str,
+) -> usize {
+    if !federation.is_enabled() {
+        return 0;
+    }
+    let envelope = serde_json::json!({
+        "meta": { "apiVersion": "v2.0.0" },
+        "query": { "datasets": [ads_dataset_id] }
+    });
+    federation.query_peers(&envelope).await.len()
 }
 
 fn resolve_ads_datasets_url(config: &FerrumConfig) -> Option<String> {
@@ -374,6 +394,15 @@ async fn publish_dataset(
         None
     };
 
+    let beacon_peers_probed = if body.index_beacon_federate {
+        match state.federation.as_ref() {
+            Some(f) => Some(probe_beacon_federation_on_publish(f, &ads_id).await),
+            None => None,
+        }
+    } else {
+        None
+    };
+
     let (variants_indexed, vcf_index_status) = if body.index_variants {
         let ferrum_pool = FerrumPool::Postgres(state.pool.clone());
         let drs = DrsRepo::new(ferrum_pool, "localhost".into());
@@ -410,6 +439,7 @@ async fn publish_dataset(
         beacon_indexed,
         variants_indexed,
         vcf_index_status,
+        beacon_peers_probed,
     }))
 }
 
@@ -438,11 +468,13 @@ pub fn publish_router(
     pool: sqlx::PgPool,
     config: &FerrumConfig,
     background_gate: Option<Arc<BackgroundWorkGate>>,
+    federation: Option<Arc<ferrum_federation::FederationClient>>,
 ) -> Router {
     let state = Arc::new(PublishState {
         pool,
         config: Arc::new(config.clone()),
         background_gate,
+        federation,
     });
     Router::new()
         .route("/datasets/publish", post(publish_dataset))

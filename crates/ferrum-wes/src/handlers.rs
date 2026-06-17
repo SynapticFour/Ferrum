@@ -1888,6 +1888,7 @@ async fn enforce_ads_resource_tags(
     let Some(resource_id) = resource_id else {
         return Ok(());
     };
+    let ads_base = map.get("ads_base_url").and_then(|v| v.as_str());
     let claims = auth.ok_or_else(|| {
         WesError::Forbidden("authentication required for ADS-controlled compute".into())
     })?;
@@ -1897,10 +1898,17 @@ async fn enforce_ads_resource_tags(
     let token = claims.raw_token().ok_or_else(|| {
         WesError::Forbidden("Bearer token required for ADS access check".into())
     })?;
-    let active = client
-        .is_dataset_access_active(token, &format!("wes:run:{resource_id}"), resource_id)
-        .await
-        .map_err(|e| WesError::Forbidden(format!("ADS access check failed: {e}")))?;
+    let resource = format!("wes:run:{resource_id}");
+    let active = if let Some(base) = ads_base {
+        client
+            .introspect_at_base(base, token, &resource, resource_id)
+            .await
+    } else {
+        client
+            .is_dataset_access_active(token, &resource, resource_id)
+            .await
+    }
+    .map_err(|e| WesError::Forbidden(format!("ADS access check failed: {e}")))?;
     if !active {
         return Err(WesError::Forbidden(
             "ADS resource access not granted for this run".into(),

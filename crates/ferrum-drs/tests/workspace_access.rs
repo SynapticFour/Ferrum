@@ -114,7 +114,7 @@ fn jwt_claims(sub: &str) -> AuthClaims {
 #[tokio::test]
 async fn workspace_member_can_access_private_object() {
     let (state, _tmp) = workspace_drs_state().await;
-    check_object_byte_access(&state, "ws-obj", Some(&jwt_claims("member@lab")))
+    check_object_byte_access(&state, "ws-obj", Some(&jwt_claims("member@lab")), None)
         .await
         .expect("member allowed");
 }
@@ -122,7 +122,7 @@ async fn workspace_member_can_access_private_object() {
 #[tokio::test]
 async fn non_member_denied_private_object() {
     let (state, _tmp) = workspace_drs_state().await;
-    let err = check_object_byte_access(&state, "ws-obj", Some(&jwt_claims("outsider@other")))
+    let err = check_object_byte_access(&state, "ws-obj", Some(&jwt_claims("outsider@other")), None)
         .await
         .expect_err("outsider blocked");
     assert!(err.to_string().contains("workspace"));
@@ -131,7 +131,7 @@ async fn non_member_denied_private_object() {
 #[tokio::test]
 async fn unauthenticated_denied_private_object() {
     let (state, _tmp) = workspace_drs_state().await;
-    let err = check_object_byte_access(&state, "ws-obj", None)
+    let err = check_object_byte_access(&state, "ws-obj", None, None)
         .await
         .expect_err("auth required");
     assert!(err.to_string().contains("authentication"));

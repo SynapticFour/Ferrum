@@ -28,6 +28,14 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
+
+fn federated_ads_base(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("X-ADS-Base-URL")
+        .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+}
 use utoipa::ToSchema;
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -79,7 +87,13 @@ pub async fn get_object(
     tracing::info!(object_id = %object_id, resolved = ?resolved, "DRS resolve_id_or_uri");
     let canonical =
         resolved.ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
-    check_object_metadata_access(&state, &canonical, auth.as_ref().map(|e| &e.0)).await?;
+    check_object_metadata_access(
+        &state,
+        &canonical,
+        auth.as_ref().map(|e| &e.0),
+        federated_ads_base(&headers),
+    )
+    .await?;
     let obj = state
         .repo
         .get_object(&canonical, params.expand.unwrap_or(false))
@@ -164,7 +178,13 @@ pub async fn list_bundle_contents(
     let canonical =
         resolved.ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
 
-    check_object_metadata_access(&state, &canonical, auth.as_ref().map(|e| &e.0)).await?;
+    check_object_metadata_access(
+        &state,
+        &canonical,
+        auth.as_ref().map(|e| &e.0),
+        federated_ads_base(&headers),
+    )
+    .await?;
 
     let page_size = params.page_size.unwrap_or(100);
     let (contents, next_page_token) = state
@@ -219,7 +239,13 @@ pub async fn get_access(
         .resolve_id_or_uri(&object_id)
         .await?
         .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
-    check_object_byte_access(&state, &canonical, auth.as_ref().map(|e| &e.0)).await?;
+    check_object_byte_access(
+        &state,
+        &canonical,
+        auth.as_ref().map(|e| &e.0),
+        federated_ads_base(&headers),
+    )
+    .await?;
     let mut url = state
         .repo
         .get_access_url(&canonical, &access_id)
@@ -311,6 +337,7 @@ pub async fn get_access(
 pub async fn get_object_view(
     State(state): State<Arc<AppState>>,
     Path(object_id): Path<String>,
+    headers: HeaderMap,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> crate::error::Result<axum::response::Response> {
     let canonical = state
@@ -318,7 +345,13 @@ pub async fn get_object_view(
         .resolve_id_or_uri(&object_id)
         .await?
         .ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
-    check_object_byte_access(&state, &canonical, auth.as_ref().map(|e| &e.0)).await?;
+    check_object_byte_access(
+        &state,
+        &canonical,
+        auth.as_ref().map(|e| &e.0),
+        federated_ads_base(&headers),
+    )
+    .await?;
     let obj = state
         .repo
         .get_object(&canonical, false)
@@ -512,7 +545,13 @@ pub async fn get_object_stream(
     let resolved = state.repo.resolve_id_or_uri(&object_id).await?;
     let canonical =
         resolved.ok_or_else(|| DrsError::NotFound(format!("object not found: {}", object_id)))?;
-    check_object_byte_access(&state, &canonical, auth.as_ref().map(|e| &e.0)).await?;
+    check_object_byte_access(
+        &state,
+        &canonical,
+        auth.as_ref().map(|e| &e.0),
+        federated_ads_base(&headers),
+    )
+    .await?;
 
     let storage = state.storage.as_ref().ok_or_else(|| {
         DrsError::Validation("object streaming requires configured storage (S3/local)".into())

@@ -620,6 +620,7 @@ export const en = {
     federationOrigin: 'Origin',
     remoteDrs: 'Open federated DRS object',
     remoteWes: 'Remote WES',
+    remoteWesSubmit: 'Submit runs via federated WES proxy',
     grantExpires: 'Expires',
     computeHint: 'Request compute access via workflow tags (ads_compute_pool_id) after your DAC approves a grant.',
     tabRequests: 'My requests',

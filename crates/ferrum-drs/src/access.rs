@@ -10,6 +10,7 @@ pub async fn check_object_byte_access(
     state: &AppState,
     canonical_object_id: &str,
     auth: Option<&AuthClaims>,
+    federated_ads_base: Option<&str>,
 ) -> Result<()> {
     let dataset_id = state.repo.get_dataset_id(canonical_object_id).await?;
     let workspace_id = state.repo.get_workspace_id(canonical_object_id).await?;
@@ -19,7 +20,14 @@ pub async fn check_object_byte_access(
             DrsError::Forbidden("authentication required for this dataset".into())
         })?;
         if let Some(client) = state.ads_introspect.as_ref() {
-            enforce_ads_dataset_access(client, &dataset_id, canonical_object_id, claims).await?;
+            enforce_ads_dataset_access(
+                client,
+                &dataset_id,
+                canonical_object_id,
+                claims,
+                federated_ads_base,
+            )
+            .await?;
         } else if !claims.has_published_dataset_access(&dataset_id, canonical_object_id)
             && !claims.is_admin()
         {
@@ -55,6 +63,7 @@ async fn enforce_ads_dataset_access(
     dataset_id: &str,
     object_id: &str,
     claims: &AuthClaims,
+    federated_ads_base: Option<&str>,
 ) -> Result<()> {
     if claims.is_admin() || claims.has_published_dataset_access(dataset_id, object_id) {
         return Ok(());
@@ -63,10 +72,16 @@ async fn enforce_ads_dataset_access(
         .raw_token()
         .ok_or_else(|| DrsError::Forbidden("Bearer token required for ADS access check".into()))?;
     let resource = format!("drs:{object_id}");
-    let active = client
-        .is_dataset_access_active(token, &resource, dataset_id)
-        .await
-        .map_err(|e| DrsError::Forbidden(format!("ADS access check failed: {e}")))?;
+    let active = if let Some(ads_base) = federated_ads_base {
+        client
+            .introspect_at_base(ads_base, token, &resource, dataset_id)
+            .await
+    } else {
+        client
+            .is_dataset_access_active(token, &resource, dataset_id)
+            .await
+    }
+    .map_err(|e| DrsError::Forbidden(format!("ADS access check failed: {e}")))?;
     if !active {
         return Err(DrsError::Forbidden("dataset access not granted".into()));
     }
@@ -78,8 +93,9 @@ pub async fn check_object_metadata_access(
     state: &AppState,
     canonical_object_id: &str,
     auth: Option<&AuthClaims>,
+    federated_ads_base: Option<&str>,
 ) -> Result<()> {
-    check_object_byte_access(state, canonical_object_id, auth).await
+    check_object_byte_access(state, canonical_object_id, auth, federated_ads_base).await
 }
 
 async fn enforce_outbreak_download(
