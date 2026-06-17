@@ -1,13 +1,13 @@
 //! Publish workspace-private DRS objects to the ADS catalog (institute/public).
 
 use axum::{
-    extract::State,
-    routing::post,
+    extract::{Path, State},
+    routing::{get, post},
     Extension, Json, Router,
 };
 use axum::http::StatusCode;
 use ferrum_beacon::repo::BeaconRepo;
-use ferrum_core::{is_workspace_editor_or_owner, AuthClaims, FerrumConfig, FerrumPool};
+use ferrum_core::{is_workspace_editor_or_owner, AuthClaims, BackgroundWorkGate, FerrumConfig, FerrumPool};
 use ferrum_drs::repo::DrsRepo;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -17,6 +17,7 @@ use tracing::warn;
 pub struct PublishState {
     pub pool: sqlx::PgPool,
     pub config: Arc<FerrumConfig>,
+    pub background_gate: Option<Arc<BackgroundWorkGate>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,6 +56,15 @@ pub struct PublishDatasetResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub beacon_indexed: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub variants_indexed: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vcf_index_status: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PublishIndexStatusResponse {
+    pub object_id: String,
+    pub vcf_index_status: Option<String>,
     pub variants_indexed: Option<usize>,
 }
 
@@ -147,7 +157,11 @@ async fn read_local_storage_bytes(storage_key: &str) -> Option<Vec<u8>> {
     tokio::fs::read(&path).await.ok()
 }
 
-async fn index_variants_for_publish(pool: &sqlx::PgPool, object_id: &str, ads_dataset_id: &str) -> usize {
+pub async fn index_variants_for_publish(
+    pool: &sqlx::PgPool,
+    object_id: &str,
+    ads_dataset_id: &str,
+) -> usize {
     let ferrum_pool = FerrumPool::Postgres(pool.clone());
     let drs = DrsRepo::new(ferrum_pool.clone(), "localhost".into());
     let Some((name, mime, backend, storage_key)) = drs
@@ -158,7 +172,8 @@ async fn index_variants_for_publish(pool: &sqlx::PgPool, object_id: &str, ads_da
     else {
         return 0;
     };
-    if backend != "local" || !ferrum_beacon::vcf_index::is_vcf_object(name.as_deref(), mime.as_deref())
+    if backend != "local"
+        || !ferrum_beacon::vcf_index::is_vcf_object(name.as_deref(), mime.as_deref())
     {
         return 0;
     }
@@ -168,7 +183,12 @@ async fn index_variants_for_publish(pool: &sqlx::PgPool, object_id: &str, ads_da
     };
     let beacon = BeaconRepo::new(ferrum_pool.clone());
     if beacon
-        .ensure_dataset(ads_dataset_id, name.as_deref().unwrap_or(object_id), None, "GRCh38")
+        .ensure_dataset(
+            ads_dataset_id,
+            name.as_deref().unwrap_or(object_id),
+            None,
+            "GRCh38",
+        )
         .await
         .is_err()
     {
@@ -186,6 +206,46 @@ async fn index_variants_for_publish(pool: &sqlx::PgPool, object_id: &str, ads_da
             0
         }
     }
+}
+
+fn spawn_vcf_index_job(
+    pool: sqlx::PgPool,
+    background_gate: Option<Arc<BackgroundWorkGate>>,
+    object_id: String,
+    ads_dataset_id: String,
+) {
+    if background_gate
+        .as_ref()
+        .is_some_and(|g| !g.allows_background_work())
+    {
+        tracing::info!(object_id = %object_id, "deferring VCF indexing while in low-power mode");
+        let pool_bg = pool.clone();
+        let object_id_bg = object_id.clone();
+        tokio::spawn(async move {
+            let ferrum_pool = FerrumPool::Postgres(pool_bg);
+            let drs_bg = DrsRepo::new(ferrum_pool, "localhost".into());
+            let _ = drs_bg
+                .set_vcf_index_status(&object_id_bg, "deferred_low_power")
+                .await;
+        });
+        return;
+    }
+
+    tokio::spawn(async move {
+        let ferrum_pool = FerrumPool::Postgres(pool.clone());
+        let drs = DrsRepo::new(ferrum_pool, "localhost".into());
+        let _ = drs.set_vcf_index_status(&object_id, "running").await;
+        let count = index_variants_for_publish(&pool, &object_id, &ads_dataset_id).await;
+        let status = if count > 0 {
+            "completed"
+        } else {
+            "skipped"
+        };
+        let _ = drs.set_vcf_index_status(&object_id, status).await;
+        if count > 0 {
+            let _ = drs.set_variants_indexed_count(&object_id, count).await;
+        }
+    });
 }
 
 async fn publish_dataset(
@@ -314,10 +374,33 @@ async fn publish_dataset(
         None
     };
 
-    let variants_indexed = if body.index_variants {
-        Some(index_variants_for_publish(&state.pool, &body.object_id, &ads_id).await)
+    let (variants_indexed, vcf_index_status) = if body.index_variants {
+        let ferrum_pool = FerrumPool::Postgres(state.pool.clone());
+        let drs = DrsRepo::new(ferrum_pool, "localhost".into());
+        let looks_like_vcf = drs
+            .get_object_publish_info(&body.object_id)
+            .await
+            .ok()
+            .flatten()
+            .is_some_and(|(name, mime, backend, _)| {
+                backend == "local"
+                    && ferrum_beacon::vcf_index::is_vcf_object(name.as_deref(), mime.as_deref())
+            });
+
+        if looks_like_vcf {
+            let _ = drs.set_vcf_index_status(&body.object_id, "pending").await;
+            spawn_vcf_index_job(
+                state.pool.clone(),
+                state.background_gate.clone(),
+                body.object_id.clone(),
+                ads_id.clone(),
+            );
+            (None, Some("pending".to_string()))
+        } else {
+            (None, Some("skipped".to_string()))
+        }
     } else {
-        None
+        (None, None)
     };
 
     Ok(Json(PublishDatasetResponse {
@@ -326,15 +409,43 @@ async fn publish_dataset(
         visibility: body.visibility,
         beacon_indexed,
         variants_indexed,
+        vcf_index_status,
     }))
 }
 
-pub fn publish_router(pool: sqlx::PgPool, config: &FerrumConfig) -> Router {
+async fn get_publish_index_status(
+    State(state): State<Arc<PublishState>>,
+    Path(object_id): Path<String>,
+) -> Result<Json<PublishIndexStatusResponse>, (StatusCode, String)> {
+    let ferrum_pool = FerrumPool::Postgres(state.pool.clone());
+    let drs = DrsRepo::new(ferrum_pool, "localhost".into());
+    let status = drs
+        .get_vcf_index_status(&object_id)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let variants_indexed = drs
+        .get_variants_indexed_count(&object_id)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(PublishIndexStatusResponse {
+        object_id,
+        vcf_index_status: status,
+        variants_indexed,
+    }))
+}
+
+pub fn publish_router(
+    pool: sqlx::PgPool,
+    config: &FerrumConfig,
+    background_gate: Option<Arc<BackgroundWorkGate>>,
+) -> Router {
     let state = Arc::new(PublishState {
         pool,
         config: Arc::new(config.clone()),
+        background_gate,
     });
     Router::new()
         .route("/datasets/publish", post(publish_dataset))
+        .route("/datasets/publish/:object_id/index-status", get(get_publish_index_status))
         .with_state(state)
 }

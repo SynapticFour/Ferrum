@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { publishDataset } from '@/api/publish';
+import { getPublishIndexStatus, publishDataset } from '@/api/publish';
 import { useI18n } from '@/i18n/I18nProvider';
 import { Share2 } from 'lucide-react';
 
@@ -19,6 +19,18 @@ interface PublishDatasetDialogProps {
   objectId: string;
   defaultName?: string;
   onPublished?: (adsDatasetId: string) => void;
+}
+
+async function pollVcfIndexUntilDone(objectId: string) {
+  for (let i = 0; i < 30; i += 1) {
+    const status = await getPublishIndexStatus(objectId);
+    const s = status.vcf_index_status;
+    if (!s || s === 'completed' || s === 'skipped' || s.startsWith('failed')) {
+      return status;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  return getPublishIndexStatus(objectId);
 }
 
 export function PublishDatasetDialog({
@@ -33,6 +45,7 @@ export function PublishDatasetDialog({
   const [duoCodes, setDuoCodes] = useState('GRU');
   const [visibility, setVisibility] = useState<'institute' | 'public'>('institute');
   const [error, setError] = useState<string | null>(null);
+  const [indexNote, setIndexNote] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -46,16 +59,35 @@ export function PublishDatasetDialog({
           .filter(Boolean),
         visibility,
       }),
-    onSuccess: (res) => {
-      setOpen(false);
+    onSuccess: async (res) => {
       setError(null);
       onPublished?.(res.ads_dataset_id);
+      if (res.vcf_index_status === 'pending') {
+        setIndexNote(t('data.publishVcfIndexing'));
+        const final = await pollVcfIndexUntilDone(objectId);
+        if (final.variants_indexed && final.variants_indexed > 0) {
+          setIndexNote(
+            t('data.publishVcfDone').replace('{n}', String(final.variants_indexed)),
+          );
+        } else {
+          setIndexNote(null);
+          setOpen(false);
+        }
+      } else {
+        setOpen(false);
+      }
     },
     onError: (e: Error) => setError(e.message),
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) setIndexNote(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-1">
           <Share2 className="h-3.5 w-3.5" />
@@ -106,13 +138,16 @@ export function PublishDatasetDialog({
             </select>
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
+          {indexNote && <p className="text-muted-foreground text-sm">{indexNote}</p>}
         </div>
         <DialogFooter>
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !name.trim()}
           >
-            {mutation.isPending ? t('data.publishWorking') : t('data.publishSubmit')}
+            {mutation.isPending || indexNote
+              ? t('data.publishWorking')
+              : t('data.publishSubmit')}
           </Button>
         </DialogFooter>
       </DialogContent>

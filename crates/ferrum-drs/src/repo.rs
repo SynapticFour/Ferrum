@@ -28,6 +28,8 @@ pub struct DrsRepo {
 
 impl DrsRepo {
     const CHECKSUM_STATUS_META_KEY: &'static str = "checksum_status";
+    const VCF_INDEX_STATUS_META_KEY: &'static str = "vcf_index_status";
+    const VARIANTS_INDEXED_META_KEY: &'static str = "variants_indexed";
 
     pub fn new(pool: FerrumPool, hostname: String) -> Self {
         let dialect = pool.dialect();
@@ -863,6 +865,50 @@ impl DrsRepo {
     pub async fn set_checksum_status(&self, object_id: &str, status: &str) -> Result<()> {
         self.set_metadata(object_id, Self::CHECKSUM_STATUS_META_KEY, status)
             .await
+    }
+
+    /// Returns VCF → Beacon indexing status stored in `drs_object_metadata`.
+    pub async fn get_vcf_index_status(&self, object_id: &str) -> Result<Option<String>> {
+        let row: Option<(String,)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT value FROM drs_object_metadata WHERE object_id = $1 AND key = $2",
+            )
+            .bind(object_id)
+            .bind(Self::VCF_INDEX_STATUS_META_KEY)
+            .fetch_optional(p)
+            .await
+        })?;
+        Ok(row.map(|r| r.0))
+    }
+
+    /// Set VCF indexing status for a published object.
+    pub async fn set_vcf_index_status(&self, object_id: &str, status: &str) -> Result<()> {
+        self.set_metadata(object_id, Self::VCF_INDEX_STATUS_META_KEY, status)
+            .await
+    }
+
+    /// Record how many variants were indexed into Beacon for this object.
+    pub async fn set_variants_indexed_count(&self, object_id: &str, count: usize) -> Result<()> {
+        self.set_metadata(
+            object_id,
+            Self::VARIANTS_INDEXED_META_KEY,
+            &count.to_string(),
+        )
+        .await
+    }
+
+    /// Returns the number of variants indexed into Beacon (if recorded).
+    pub async fn get_variants_indexed_count(&self, object_id: &str) -> Result<Option<usize>> {
+        let row: Option<(String,)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT value FROM drs_object_metadata WHERE object_id = $1 AND key = $2",
+            )
+            .bind(object_id)
+            .bind(Self::VARIANTS_INDEXED_META_KEY)
+            .fetch_optional(p)
+            .await
+        })?;
+        Ok(row.and_then(|r| r.0.parse().ok()))
     }
 
     /// Upsert checksums in `drs_checksums`.

@@ -11,6 +11,7 @@ export interface DatasetCatalogEntry {
   visibility?: 'draft' | 'institute' | 'public';
   resource_type?: 'dataset' | 'compute_pool';
   remote_drs_base_url?: string;
+  remote_wes_base_url?: string;
   ads_base_url?: string;
   federation_origin?: string;
 }
@@ -45,6 +46,17 @@ export interface Grant {
   dataset_id: string;
   duo_codes: string[];
   created_at: string;
+  source?: string;
+  resource_scope?: string;
+  expires_at?: string;
+  dataset_name?: string;
+  description?: string;
+  external_id?: string;
+  resource_type?: 'dataset' | 'compute_pool';
+  remote_drs_base_url?: string;
+  remote_wes_base_url?: string;
+  federation_origin?: string;
+  ads_base_url?: string;
 }
 
 export interface AccessStatus {
@@ -70,6 +82,7 @@ export function listFederatedCatalog() {
     })[];
     sources: { origin: string; ads_base_url: string }[];
     errors: unknown[];
+    duplicates_dropped?: number;
   }>('/access/v1/catalog/federated');
 }
 
@@ -110,9 +123,19 @@ export function submitAccessRequest(
   });
 }
 
-export function federatedDrsUrl(remoteDrsBase: string, externalId?: string) {
+export function federatedDrsUrl(
+  remoteDrsBase?: string,
+  externalId?: string,
+  federationOrigin?: string,
+) {
   const objectId = externalId?.startsWith('drs:') ? externalId.slice(4) : externalId;
   if (!objectId) return null;
-  const base = remoteDrsBase.trim().replace(/\/$/, '');
-  return `/access/v1/federated/drs/objects/${encodeURIComponent(objectId)}?base_url=${encodeURIComponent(base)}`;
+  if (remoteDrsBase) {
+    const base = remoteDrsBase.trim().replace(/\/$/, '');
+    return `/access/v1/federated/drs/objects/${encodeURIComponent(objectId)}?base_url=${encodeURIComponent(base)}`;
+  }
+  if (federationOrigin) {
+    return `/access/v1/federated/drs/objects/${encodeURIComponent(objectId)}?origin=${encodeURIComponent(federationOrigin)}`;
+  }
+  return null;
 }

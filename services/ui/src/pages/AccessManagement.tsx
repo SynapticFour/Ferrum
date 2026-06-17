@@ -379,7 +379,10 @@ export function AccessManagement() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {catalog.map((ds) => (
-                  <Card key={`${(ds as { federation_origin?: string }).federation_origin ?? 'local'}-${ds.id}`} className="border-border/80">
+                  <Card
+                    key={ds.external_id ?? `${ds.federation_origin ?? 'local'}-${ds.id}`}
+                    className="border-border/80"
+                  >
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center gap-2 text-base">
                         {catalogKind === 'compute' ? (
@@ -419,15 +422,26 @@ export function AccessManagement() {
                           {ds.external_id}
                         </p>
                       )}
-                      {ds.remote_drs_base_url && ds.external_id && (
+                      {(ds.remote_drs_base_url || ds.federation_origin) && ds.external_id && (
                         <p className="text-xs">
                           <a
-                            href={federatedDrsUrl(ds.remote_drs_base_url, ds.external_id) ?? '#'}
+                            href={
+                              federatedDrsUrl(
+                                ds.remote_drs_base_url,
+                                ds.external_id,
+                                ds.federation_origin,
+                              ) ?? '#'
+                            }
                             className="inline-flex items-center gap-1 text-primary hover:underline"
                           >
                             {t('access.remoteDrs')}
                             <ExternalLink className="h-3 w-3" />
                           </a>
+                        </p>
+                      )}
+                      {ds.remote_wes_base_url && ds.resource_type === 'compute_pool' && (
+                        <p className="text-xs font-mono text-muted-foreground truncate">
+                          {t('access.remoteWes')}: {ds.remote_wes_base_url}
                         </p>
                       )}
                       <Button
@@ -501,14 +515,31 @@ export function AccessManagement() {
             ) : (
               <ul className="space-y-3">
                 {grants.map((g) => (
-                  <li key={g.id} className="rounded-lg border border-border p-4 text-sm">
-                    <div className="flex items-center gap-2">
+                  <li key={`${g.federation_origin ?? 'local'}-${g.id}`} className="rounded-lg border border-border p-4 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
                       <FileCheck className="h-4 w-4 text-green-600" />
-                      <span className="font-medium">{t('access.activeGrant')}</span>
+                      <span className="font-medium">
+                        {g.dataset_name ?? t('access.activeGrant')}
+                      </span>
+                      {g.resource_type === 'compute_pool' && (
+                        <Badge variant="secondary">{t('access.catalogCompute')}</Badge>
+                      )}
+                      {g.source && <Badge variant="outline">{g.source}</Badge>}
                     </div>
+                    {g.federation_origin && g.federation_origin !== 'local' && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t('access.federationOrigin')}:{' '}
+                        <span className="font-mono">{g.federation_origin}</span>
+                      </p>
+                    )}
                     <p className="mt-2 font-mono text-xs text-muted-foreground">
                       {t('access.datasetId')}: {g.dataset_id}
                     </p>
+                    {g.external_id && (
+                      <p className="mt-1 font-mono text-xs text-muted-foreground truncate">
+                        {g.external_id}
+                      </p>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-1">
                       {g.duo_codes.map((c) => (
                         <Badge key={c} variant="outline">
@@ -516,6 +547,33 @@ export function AccessManagement() {
                         </Badge>
                       ))}
                     </div>
+                    {(g.remote_drs_base_url || g.federation_origin) && g.external_id && (
+                      <p className="mt-2 text-xs">
+                        <a
+                          href={
+                            federatedDrsUrl(
+                              g.remote_drs_base_url,
+                              g.external_id,
+                              g.federation_origin,
+                            ) ?? '#'
+                          }
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          {t('access.remoteDrs')}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </p>
+                    )}
+                    {g.remote_wes_base_url && (
+                      <p className="mt-1 text-xs font-mono text-muted-foreground truncate">
+                        {t('access.remoteWes')}: {g.remote_wes_base_url}
+                      </p>
+                    )}
+                    {g.expires_at && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t('access.grantExpires')}: {new Date(g.expires_at).toLocaleString()}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>

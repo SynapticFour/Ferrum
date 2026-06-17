@@ -375,7 +375,14 @@ pub fn app(
         }),
         config,
     ) {
-        app = app.nest("/api/v1", publish::publish_router(pool, cfg));
+        app = app.nest(
+            "/api/v1",
+            publish::publish_router(
+                pool,
+                cfg,
+                drs_state.as_ref().and_then(|s| s.background_gate.clone()),
+            ),
+        );
     }
 
     // UI: static files from services/ui (when built/present)

@@ -52,6 +52,8 @@ pub struct ResolvedServiceUrls {
     pub tes: Option<String>,
     pub trs: Option<String>,
     pub ads: Option<String>,
+    pub drs: Option<String>,
+    pub wes: Option<String>,
 }
 
 impl ResolvedServiceUrls {
@@ -63,6 +65,8 @@ impl ResolvedServiceUrls {
             tes: local_service_url(base, ARTIFACT_TES),
             trs: local_service_url(base, ARTIFACT_TRS),
             ads: None,
+            drs: local_service_url(base, ARTIFACT_DRS),
+            wes: local_service_url(base, ARTIFACT_WES),
         }
     }
 }
@@ -98,6 +102,16 @@ pub async fn resolve_service_urls(config: &FerrumConfig, gateway_base: &str) -> 
             }
             if let Some(trs) = client.resolve_artifact(ARTIFACT_TRS).await {
                 resolved.trs = Some(trs);
+            }
+            if let Some(drs) = client.resolve_artifact(ARTIFACT_DRS).await {
+                resolved.drs = Some(drs);
+            } else if resolved.drs.is_none() {
+                resolved.drs = local_service_url(&base, ARTIFACT_DRS);
+            }
+            if let Some(wes) = client.resolve_artifact(ARTIFACT_WES).await {
+                resolved.wes = Some(wes);
+            } else if resolved.wes.is_none() {
+                resolved.wes = local_service_url(&base, ARTIFACT_WES);
             }
             if resolved.ads.is_none() {
                 if let Some(ads) = client.resolve_artifact(ARTIFACT_ADS).await {
@@ -242,6 +256,44 @@ pub fn select_service_url(
         sb.cmp(&sa).then_with(|| a.info.id.cmp(&b.info.id))
     });
     matches.first().map(|svc| svc.url.clone())
+}
+
+/// Resolve DRS URL for services under the same organization as a federated ADS origin.
+pub fn drs_url_for_ads_origin(
+    services: &[RegisteredService],
+    ads_origin: &str,
+    prefs: &ServiceSelectionPrefs,
+) -> Option<String> {
+    let ads = services.iter().find(|s| s.info.id == ads_origin)?;
+    let org = &ads.info.organization.name;
+    let org_drs: Vec<RegisteredService> = services
+        .iter()
+        .filter(|s| {
+            s.info.r#type.artifact.eq_ignore_ascii_case(ARTIFACT_DRS)
+                && s.info.organization.name == *org
+        })
+        .cloned()
+        .collect();
+    select_service_url(&org_drs, ARTIFACT_DRS, prefs)
+}
+
+/// Resolve WES URL for services under the same organization as a federated ADS origin.
+pub fn wes_url_for_ads_origin(
+    services: &[RegisteredService],
+    ads_origin: &str,
+    prefs: &ServiceSelectionPrefs,
+) -> Option<String> {
+    let ads = services.iter().find(|s| s.info.id == ads_origin)?;
+    let org = &ads.info.organization.name;
+    let org_wes: Vec<RegisteredService> = services
+        .iter()
+        .filter(|s| {
+            s.info.r#type.artifact.eq_ignore_ascii_case(ARTIFACT_WES)
+                && s.info.organization.name == *org
+        })
+        .cloned()
+        .collect();
+    select_service_url(&org_wes, ARTIFACT_WES, prefs)
 }
 
 /// Client for GA4GH Service Registry read/write APIs.
@@ -637,5 +689,51 @@ mod tests {
         };
         let url = select_service_url(&services, "tes", &prefs).unwrap();
         assert_eq!(url, "https://local.example.org/ga4gh/tes/v1");
+    }
+
+    #[test]
+    fn drs_url_for_ads_origin_picks_same_org() {
+        let org_a = ServiceOrganization {
+            name: "Institute A".to_string(),
+            url: "https://a.example.org".to_string(),
+            contact_url: None,
+        };
+        let org_b = ServiceOrganization {
+            name: "Institute B".to_string(),
+            url: "https://b.example.org".to_string(),
+            contact_url: None,
+        };
+        let services = vec![
+            build_service(
+                "org.a.ads",
+                "A ADS",
+                "access-decision-service",
+                "1.0",
+                &org_a,
+                "https://a.example.org/ads/v1".to_string(),
+                "production",
+            ),
+            build_service(
+                "org.a.drs",
+                "A DRS",
+                "drsservice",
+                "1.3",
+                &org_a,
+                "https://a.example.org/ga4gh/drs/v1".to_string(),
+                "production",
+            ),
+            build_service(
+                "org.b.drs",
+                "B DRS",
+                "drsservice",
+                "1.3",
+                &org_b,
+                "https://b.example.org/ga4gh/drs/v1".to_string(),
+                "production",
+            ),
+        ];
+        let prefs = ServiceSelectionPrefs::default();
+        let url = drs_url_for_ads_origin(&services, "org.a.ads", &prefs).unwrap();
+        assert_eq!(url, "https://a.example.org/ga4gh/drs/v1");
     }
 }

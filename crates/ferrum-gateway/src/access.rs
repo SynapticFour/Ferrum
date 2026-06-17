@@ -164,32 +164,186 @@ async fn get_catalog_datasets(
 }
 
 #[cfg(feature = "discovery")]
-fn drs_url_for_ads_origin(
-    services: &[ferrum_discovery::RegisteredService],
-    ads_origin: &str,
-) -> Option<String> {
-    let ads = services.iter().find(|s| s.info.id == ads_origin)?;
-    let org = &ads.info.organization.name;
-    services
+async fn load_registry_services(config: &FerrumConfig) -> Vec<ferrum_discovery::RegisteredService> {
+    if !config.discovery.enabled {
+        return Vec::new();
+    }
+    let Ok(registry) = ferrum_discovery::ServiceRegistryClient::from_config(&config.discovery) else {
+        return Vec::new();
+    };
+    registry.list().await.unwrap_or_default()
+}
+
+#[cfg(feature = "discovery")]
+async fn collect_ads_bases(
+    state: &AccessProxyState,
+    registry_services: &[ferrum_discovery::RegisteredService],
+) -> Result<Vec<(String, String)>, (StatusCode, String)> {
+    let mut ads_bases: Vec<(String, String)> = Vec::new();
+    if let Ok(local) = state.ads_base_url().await {
+        ads_bases.push(("local".to_string(), local));
+    }
+    if state.config.discovery.enabled {
+        for svc in registry_services {
+            if svc
+                .info
+                .r#type
+                .artifact
+                .eq_ignore_ascii_case(ferrum_discovery::ARTIFACT_ADS)
+            {
+                let base = normalize_ads_from_service_url(&svc.url);
+                let origin = svc.info.id.clone();
+                if !ads_bases.iter().any(|(_, u)| u == &base) {
+                    ads_bases.push((origin, base));
+                }
+            }
+        }
+    }
+    Ok(ads_bases)
+}
+
+#[cfg(feature = "discovery")]
+fn enrich_catalog_entry(
+    obj: &mut serde_json::Map<String, serde_json::Value>,
+    origin: &str,
+    base: &str,
+    registry_services: &[ferrum_discovery::RegisteredService],
+    prefs: &ferrum_discovery::ServiceSelectionPrefs,
+) {
+    obj.insert(
+        "federation_origin".to_string(),
+        serde_json::Value::String(origin.to_string()),
+    );
+    obj.insert(
+        "ads_base_url".to_string(),
+        serde_json::Value::String(base.to_string()),
+    );
+    let remote_drs = obj
+        .get("remote_drs_base_url")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+        .or_else(|| ferrum_discovery::drs_url_for_ads_origin(registry_services, origin, prefs));
+    if let Some(drs) = remote_drs {
+        obj.insert(
+            "remote_drs_base_url".to_string(),
+            serde_json::Value::String(drs),
+        );
+    }
+    let resource_type = obj
+        .get("resource_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("dataset");
+    if resource_type == "compute_pool" {
+        if let Some(wes) =
+            ferrum_discovery::wes_url_for_ads_origin(registry_services, origin, prefs)
+        {
+            obj.insert(
+                "remote_wes_base_url".to_string(),
+                serde_json::Value::String(wes),
+            );
+        }
+    }
+}
+
+#[cfg(feature = "discovery")]
+fn catalog_dedup_key(obj: &serde_json::Map<String, serde_json::Value>) -> Option<String> {
+    if let Some(ext) = obj.get("external_id").and_then(|v| v.as_str()) {
+        let normalized = ext.strip_prefix("drs:").unwrap_or(ext);
+        return Some(format!("ext:{normalized}"));
+    }
+    let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    if name.is_empty() {
+        return None;
+    }
+    let dac = obj.get("dac_group").and_then(|v| v.as_str()).unwrap_or("");
+    Some(format!("name:{name}:{dac}"))
+}
+
+#[cfg(feature = "discovery")]
+fn origin_preference_score(
+    origin: &str,
+    registry_services: &[ferrum_discovery::RegisteredService],
+    prefs: &ferrum_discovery::ServiceSelectionPrefs,
+) -> i32 {
+    if origin == "local" {
+        return 10_000;
+    }
+    registry_services
         .iter()
-        .find(|s| {
-            s.info.r#type.artifact.eq_ignore_ascii_case(ferrum_discovery::ARTIFACT_DRS)
-                && s.info.organization.name == *org
-        })
-        .map(|s| s.url.clone())
+        .find(|s| s.info.id == origin)
+        .map(|s| ferrum_discovery::score_service_match(s, prefs))
+        .unwrap_or(0)
+}
+
+#[cfg(feature = "discovery")]
+fn dedup_federated_catalog(
+    merged: Vec<serde_json::Value>,
+    registry_services: &[ferrum_discovery::RegisteredService],
+    prefs: &ferrum_discovery::ServiceSelectionPrefs,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut best: std::collections::HashMap<String, (i32, serde_json::Value)> =
+        std::collections::HashMap::new();
+    let mut passthrough = Vec::new();
+    let mut dropped = 0usize;
+
+    for row in merged {
+        let Some(obj) = row.as_object() else {
+            passthrough.push(row);
+            continue;
+        };
+        let Some(key) = catalog_dedup_key(obj) else {
+            passthrough.push(row);
+            continue;
+        };
+        let origin = obj
+            .get("federation_origin")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        let score = origin_preference_score(origin, registry_services, prefs);
+        match best.get(&key) {
+            Some((best_score, _)) if *best_score >= score => {
+                dropped += 1;
+            }
+            _ => {
+                best.insert(key, (score, row));
+            }
+        }
+    }
+
+    let mut out: Vec<serde_json::Value> = best.into_values().map(|(_, v)| v).collect();
+    out.extend(passthrough);
+    (out, dropped)
 }
 
 #[derive(Debug, Deserialize)]
 pub struct FederatedDrsQuery {
-    pub base_url: String,
+    pub base_url: Option<String>,
+    pub origin: Option<String>,
 }
 
 async fn federated_drs_proxy(
+    State(state): State<Arc<AccessProxyState>>,
     Query(q): Query<FederatedDrsQuery>,
     Path(path): Path<String>,
     headers: HeaderMap,
 ) -> Result<Response, (StatusCode, String)> {
-    let base = q.base_url.trim_end_matches('/');
+    let base = if let Some(url) = q.base_url.as_ref().filter(|u| !u.trim().is_empty()) {
+        url.trim_end_matches('/').to_string()
+    } else if let Some(origin) = q.origin.as_deref() {
+        let services = load_registry_services(&state.config).await;
+        let prefs =
+            ferrum_discovery::ServiceSelectionPrefs::from_discovery_config(&state.config.discovery);
+        ferrum_discovery::drs_url_for_ads_origin(&services, origin, &prefs).ok_or((
+            StatusCode::BAD_REQUEST,
+            "could not resolve DRS URL for federation origin".into(),
+        ))?
+    } else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "base_url or origin query parameter required".into(),
+        ));
+    };
+
     if !base.starts_with("http://") && !base.starts_with("https://") {
         return Err((StatusCode::BAD_REQUEST, "base_url must be http(s)".into()));
     }
@@ -238,43 +392,10 @@ async fn get_federated_catalog(
         .build()
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let mut ads_bases: Vec<(String, String)> = Vec::new();
-    if let Ok(local) = state.ads_base_url().await {
-        ads_bases.push(("local".to_string(), local));
-    }
-
-    #[cfg(feature = "discovery")]
-    let registry_services: Vec<ferrum_discovery::RegisteredService> = {
-        let mut services = Vec::new();
-        if state.config.discovery.enabled {
-            if let Ok(registry) =
-                ferrum_discovery::ServiceRegistryClient::from_config(&state.config.discovery)
-            {
-                if let Ok(list) = registry.list().await {
-                    services = list;
-                }
-            }
-        }
-        services
-    };
-
-    #[cfg(feature = "discovery")]
-    if state.config.discovery.enabled {
-        for svc in &registry_services {
-            if svc
-                .info
-                .r#type
-                .artifact
-                .eq_ignore_ascii_case(ferrum_discovery::ARTIFACT_ADS)
-            {
-                let base = normalize_ads_from_service_url(&svc.url);
-                let origin = svc.info.id.clone();
-                if !ads_bases.iter().any(|(_, u)| u == &base) {
-                    ads_bases.push((origin, base));
-                }
-            }
-        }
-    }
+    let registry_services = load_registry_services(&state.config).await;
+    let selection_prefs =
+        ferrum_discovery::ServiceSelectionPrefs::from_discovery_config(&state.config.discovery);
+    let ads_bases = collect_ads_bases(&state, &registry_services).await?;
 
     let mut merged: Vec<serde_json::Value> = Vec::new();
     let mut errors: Vec<serde_json::Value> = Vec::new();
@@ -292,27 +413,13 @@ async fn get_federated_catalog(
                         for entry in arr {
                             let mut row = entry.clone();
                             if let Some(obj) = row.as_object_mut() {
-                                obj.insert(
-                                    "federation_origin".to_string(),
-                                    serde_json::Value::String(origin.clone()),
+                                enrich_catalog_entry(
+                                    obj,
+                                    origin,
+                                    base,
+                                    &registry_services,
+                                    &selection_prefs,
                                 );
-                                obj.insert(
-                                    "ads_base_url".to_string(),
-                                    serde_json::Value::String(base.clone()),
-                                );
-                                let remote_drs = obj
-                                    .get("remote_drs_base_url")
-                                    .and_then(|v| v.as_str())
-                                    .map(str::to_string)
-                                    .or_else(|| {
-                                        drs_url_for_ads_origin(&registry_services, origin)
-                                    });
-                                if let Some(drs) = remote_drs {
-                                    obj.insert(
-                                        "remote_drs_base_url".to_string(),
-                                        serde_json::Value::String(drs),
-                                    );
-                                }
                             }
                             merged.push(row);
                         }
@@ -343,10 +450,14 @@ async fn get_federated_catalog(
         ));
     }
 
+    let (datasets, duplicates_dropped) =
+        dedup_federated_catalog(merged, &registry_services, &selection_prefs);
+
     Ok(axum::Json(serde_json::json!({
-        "datasets": merged,
+        "datasets": datasets,
         "sources": ads_bases.iter().map(|(o, u)| serde_json::json!({"origin": o, "ads_base_url": u})).collect::<Vec<_>>(),
         "errors": errors,
+        "duplicates_dropped": duplicates_dropped,
     }))
     .into_response())
 }
@@ -384,11 +495,168 @@ async fn get_me_access_requests(
     forward(state, "GET", "me/access-requests", req).await
 }
 
+async fn ads_get_json(
+    client: &reqwest::Client,
+    ads_base: &str,
+    path: &str,
+    auth: Option<&str>,
+) -> Result<serde_json::Value, String> {
+    let url = format!("{ads_base}/{}", path.trim_start_matches('/'));
+    let mut builder = client.get(&url);
+    if let Some(token) = auth {
+        builder = builder.header(header::AUTHORIZATION, token);
+    }
+    let resp = builder
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("ADS HTTP {}", resp.status()));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+fn enrich_grant_from_dataset(
+    grant: &mut serde_json::Map<String, serde_json::Value>,
+    dataset: &serde_json::Value,
+    origin: &str,
+    ads_base: &str,
+    registry_services: &[ferrum_discovery::RegisteredService],
+    prefs: &ferrum_discovery::ServiceSelectionPrefs,
+) {
+    grant.insert(
+        "federation_origin".to_string(),
+        serde_json::Value::String(origin.to_string()),
+    );
+    grant.insert(
+        "ads_base_url".to_string(),
+        serde_json::Value::String(ads_base.to_string()),
+    );
+    for key in [
+        "name",
+        "description",
+        "external_id",
+        "resource_type",
+        "remote_drs_base_url",
+    ] {
+        if let Some(v) = dataset.get(key) {
+            if key == "name" {
+                grant.insert("dataset_name".to_string(), v.clone());
+            } else {
+                grant.insert(key.to_string(), v.clone());
+            }
+        }
+    }
+    let remote_drs = grant
+        .get("remote_drs_base_url")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+        .or_else(|| ferrum_discovery::drs_url_for_ads_origin(registry_services, origin, prefs));
+    if let Some(drs) = remote_drs {
+        grant.insert(
+            "remote_drs_base_url".to_string(),
+            serde_json::Value::String(drs),
+        );
+    }
+    if grant.get("resource_type").and_then(|v| v.as_str()) == Some("compute_pool") {
+        if let Some(wes) =
+            ferrum_discovery::wes_url_for_ads_origin(registry_services, origin, prefs)
+        {
+            grant.insert(
+                "remote_wes_base_url".to_string(),
+                serde_json::Value::String(wes),
+            );
+        }
+    }
+}
+
 async fn get_me_grants(
     State(state): State<Arc<AccessProxyState>>,
     req: Request<Body>,
 ) -> Result<Response, (StatusCode, String)> {
-    forward(state, "GET", "me/grants", req).await
+    let auth = req
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let registry_services = load_registry_services(&state.config).await;
+    let selection_prefs =
+        ferrum_discovery::ServiceSelectionPrefs::from_discovery_config(&state.config.discovery);
+    let ads_bases = collect_ads_bases(&state, &registry_services).await?;
+
+    let mut enriched: Vec<serde_json::Value> = Vec::new();
+    let mut errors: Vec<serde_json::Value> = Vec::new();
+
+    for (origin, base) in &ads_bases {
+        match ads_get_json(&client, base, "me/grants", auth.as_deref()).await {
+            Ok(body) => {
+                if let Some(grants) = body.get("grants").and_then(|g| g.as_array()) {
+                    for grant in grants {
+                        let mut row = grant.clone();
+                        if let Some(obj) = row.as_object_mut() {
+                            let dataset_id = obj
+                                .get("dataset_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            if !dataset_id.is_empty() {
+                                if let Ok(dataset) = ads_get_json(
+                                    &client,
+                                    base,
+                                    &format!("datasets/{dataset_id}"),
+                                    auth.as_deref(),
+                                )
+                                .await
+                                {
+                                    enrich_grant_from_dataset(
+                                        obj,
+                                        &dataset,
+                                        origin,
+                                        base,
+                                        &registry_services,
+                                        &selection_prefs,
+                                    );
+                                } else {
+                                    obj.insert(
+                                        "federation_origin".to_string(),
+                                        serde_json::Value::String(origin.clone()),
+                                    );
+                                    obj.insert(
+                                        "ads_base_url".to_string(),
+                                        serde_json::Value::String(base.clone()),
+                                    );
+                                }
+                            }
+                        }
+                        enriched.push(row);
+                    }
+                }
+            }
+            Err(err) => {
+                errors.push(serde_json::json!({
+                    "origin": origin,
+                    "ads_base_url": base,
+                    "error": err,
+                }));
+            }
+        }
+    }
+
+    if enriched.is_empty() && errors.len() == ads_bases.len() && !ads_bases.is_empty() {
+        return forward(state, "GET", "me/grants", req).await;
+    }
+
+    Ok(axum::Json(serde_json::json!({
+        "grants": enriched,
+        "errors": errors,
+    }))
+    .into_response())
 }
 
 async fn post_projects(
