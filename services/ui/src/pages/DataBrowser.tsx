@@ -8,7 +8,7 @@ import { AddDataDialog } from '@/components/AddDataDialog';
 import { OntIngestDialog } from '@/components/OntIngestDialog';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useIngestJobPoller } from '@/hooks/useIngestJobs';
-import { formatBytes } from '@/lib/utils';
+import { PublishDatasetDialog } from '@/components/PublishDatasetDialog';
 import { Database, Upload, AlertCircle, Loader2 } from 'lucide-react';
 
 interface DrsObject {
@@ -281,10 +281,20 @@ export function DataBrowser() {
                         {obj.size != null && obj.size > 0 ? formatBytes(obj.size) : '—'}
                       </td>
                       <td className="py-2">{obj.mime_type ?? '—'}</td>
-                      <td className="py-2">
+                      <td className="py-2 flex flex-wrap gap-2">
                         <Link to={`/data/objects/${obj.id}` as any} className="text-primary hover:underline">
                           {t('common.view')}
                         </Link>
+                        <PublishDatasetDialog
+                          objectId={obj.id}
+                          defaultName={obj.name}
+                          onPublished={(adsId) => {
+                            setUploadBanner({
+                              kind: 'success',
+                              text: t('data.publishSuccess', { id: adsId }),
+                            });
+                          }}
+                        />
                       </td>
                     </tr>
                   ))}
