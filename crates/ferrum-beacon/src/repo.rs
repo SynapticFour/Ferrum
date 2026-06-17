@@ -304,6 +304,49 @@ impl BeaconRepo {
         Ok(row.0)
     }
 
+    /// Ensure a Beacon dataset row exists (idempotent).
+    pub async fn ensure_dataset(
+        &self,
+        id: &str,
+        name: &str,
+        description: Option<&str>,
+        assembly_id: &str,
+    ) -> Result<()> {
+        match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query(
+                    "INSERT INTO beacon_datasets (id, name, description, assembly_id)
+                     VALUES ($1, $2, $3, $4)
+                     ON CONFLICT (id) DO UPDATE SET
+                       name = EXCLUDED.name,
+                       description = COALESCE(EXCLUDED.description, beacon_datasets.description)",
+                )
+                .bind(id)
+                .bind(name)
+                .bind(description)
+                .bind(assembly_id)
+                .execute(p)
+                .await?;
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query(
+                    "INSERT INTO beacon_datasets (id, name, description, assembly_id)
+                     VALUES (?1, ?2, ?3, ?4)
+                     ON CONFLICT (id) DO UPDATE SET
+                       name = excluded.name,
+                       description = COALESCE(excluded.description, beacon_datasets.description)",
+                )
+                .bind(id)
+                .bind(name)
+                .bind(description)
+                .bind(assembly_id)
+                .execute(p)
+                .await?;
+            }
+        }
+        Ok(())
+    }
+
     /// Insert pathogen annotation (tests and ingest helpers).
     #[allow(clippy::too_many_arguments)]
     pub async fn insert_pathogen_annotation(

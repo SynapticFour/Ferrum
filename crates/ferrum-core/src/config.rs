@@ -659,6 +659,15 @@ pub struct DiscoveryConfig {
     /// Static fallback URLs keyed by GA4GH artifact (`drs`, `beacon`, `wes`, …) when registry is offline.
     #[serde(default)]
     pub fallback_urls: std::collections::HashMap<String, String>,
+    /// Prefer registry entries whose `environment` matches (e.g. `production`, `africa`).
+    #[serde(default)]
+    pub preferred_environment: Option<String>,
+    /// Prefer registry entries from this organization name (GA4GH `ServiceInfo.organization.name`).
+    #[serde(default)]
+    pub preferred_organization: Option<String>,
+    /// Exact GA4GH service `id` to use when multiple entries share an artifact.
+    #[serde(default)]
+    pub preferred_service_id: Option<String>,
 }
 
 fn default_registry_key_env() -> String {

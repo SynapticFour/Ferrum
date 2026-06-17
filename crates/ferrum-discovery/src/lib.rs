@@ -161,6 +161,89 @@ fn normalize_ads_base(url: &str) -> String {
     }
 }
 
+/// Preferences for choosing one registry entry when several share the same artifact.
+#[derive(Debug, Clone, Default)]
+pub struct ServiceSelectionPrefs {
+    pub preferred_environment: Option<String>,
+    pub preferred_organization: Option<String>,
+    pub preferred_service_id: Option<String>,
+    pub local_base_url: Option<String>,
+}
+
+impl ServiceSelectionPrefs {
+    pub fn from_discovery_config(config: &DiscoveryConfig) -> Self {
+        Self {
+            preferred_environment: config.preferred_environment.clone(),
+            preferred_organization: config.preferred_organization.clone(),
+            preferred_service_id: config.preferred_service_id.clone(),
+            local_base_url: config
+                .registration_base_url
+                .clone()
+                .or_else(|| std::env::var("FERRUM_PUBLIC_BASE_URL").ok()),
+        }
+    }
+}
+
+/// Score a registry entry for artifact disambiguation (higher = better match).
+pub fn score_service_match(service: &RegisteredService, prefs: &ServiceSelectionPrefs) -> i32 {
+    let mut score = 0;
+    if let Some(ref want) = prefs.preferred_service_id {
+        if service.info.id == *want {
+            score += 1_000;
+        }
+    }
+    if let Some(ref want) = prefs.preferred_environment {
+        if service
+            .info
+            .environment
+            .as_deref()
+            .is_some_and(|env| env.eq_ignore_ascii_case(want))
+        {
+            score += 100;
+        }
+    }
+    if let Some(ref want) = prefs.preferred_organization {
+        if service.info.organization.name.eq_ignore_ascii_case(want) {
+            score += 50;
+        }
+    }
+    if let Some(ref base) = prefs.local_base_url {
+        let base = base.trim_end_matches('/');
+        if service.url.trim_end_matches('/').starts_with(base)
+            || service
+                .info
+                .organization
+                .url
+                .trim_end_matches('/')
+                .starts_with(base)
+        {
+            score += 25;
+        }
+    }
+    score
+}
+
+/// Pick the best URL for an artifact from a registry listing (stable tie-break on service id).
+pub fn select_service_url(
+    services: &[RegisteredService],
+    artifact: &str,
+    prefs: &ServiceSelectionPrefs,
+) -> Option<String> {
+    let mut matches: Vec<&RegisteredService> = services
+        .iter()
+        .filter(|svc| svc.info.r#type.artifact.eq_ignore_ascii_case(artifact))
+        .collect();
+    if matches.is_empty() {
+        return None;
+    }
+    matches.sort_by(|a, b| {
+        let sa = score_service_match(a, prefs);
+        let sb = score_service_match(b, prefs);
+        sb.cmp(&sa).then_with(|| a.info.id.cmp(&b.info.id))
+    });
+    matches.first().map(|svc| svc.url.clone())
+}
+
 /// Client for GA4GH Service Registry read/write APIs.
 #[derive(Clone)]
 pub struct ServiceRegistryClient {
@@ -169,6 +252,7 @@ pub struct ServiceRegistryClient {
     registration_key: Option<String>,
     cache: Arc<RwLock<HashMap<String, String>>>,
     fallback: HashMap<String, String>,
+    selection: ServiceSelectionPrefs,
 }
 
 impl ServiceRegistryClient {
@@ -200,6 +284,7 @@ impl ServiceRegistryClient {
             registration_key,
             cache: Arc::new(RwLock::new(HashMap::new())),
             fallback: config.fallback_urls.clone(),
+            selection: ServiceSelectionPrefs::from_discovery_config(config),
         })
     }
 
@@ -245,10 +330,7 @@ impl ServiceRegistryClient {
                 for service in &services {
                     cache.insert(service.info.id.clone(), service.url.clone());
                 }
-                services
-                    .into_iter()
-                    .find(|svc| svc.info.r#type.artifact.eq_ignore_ascii_case(artifact))
-                    .map(|svc| svc.url)
+                select_service_url(&services, artifact, &self.selection)
                     .or_else(|| self.fallback.get(artifact).cloned())
             }
             Err(err) => {
@@ -259,6 +341,18 @@ impl ServiceRegistryClient {
                 );
                 self.fallback.get(artifact).cloned()
             }
+        }
+    }
+
+    /// All registry URLs for an artifact (for federation / catalog harvest).
+    pub async fn list_artifact_urls(&self, artifact: &str) -> Vec<(String, String)> {
+        match self.list().await {
+            Ok(services) => services
+                .into_iter()
+                .filter(|svc| svc.info.r#type.artifact.eq_ignore_ascii_case(artifact))
+                .map(|svc| (svc.info.id.clone(), svc.url.clone()))
+                .collect(),
+            Err(_) => Vec::new(),
         }
     }
 
@@ -467,6 +561,9 @@ mod tests {
             auto_register: true,
             registration_base_url: None,
             fallback_urls: HashMap::new(),
+            preferred_environment: None,
+            preferred_organization: None,
+            preferred_service_id: None,
         };
         std::env::set_var("TEST_REGISTRY_KEY", "secret");
         let client = ServiceRegistryClient::from_config(&config).expect("client");
@@ -489,5 +586,56 @@ mod tests {
         let url = client.resolve_artifact("drsservice").await;
         assert_eq!(url.as_deref(), Some("https://example.org/ga4gh/drs/v1"));
         std::env::remove_var("TEST_REGISTRY_KEY");
+    }
+
+    #[test]
+    fn select_service_prefers_configured_environment_and_id() {
+        let org_a = ServiceOrganization {
+            name: "Institute A".to_string(),
+            url: "https://a.example.org".to_string(),
+            contact_url: None,
+        };
+        let org_b = ServiceOrganization {
+            name: "Institute B".to_string(),
+            url: "https://b.example.org".to_string(),
+            contact_url: None,
+        };
+        let services = vec![
+            build_service(
+                "org.b.tes",
+                "B TES",
+                "tes",
+                "1.1",
+                &org_b,
+                "https://b.example.org/ga4gh/tes/v1".to_string(),
+                "production",
+            ),
+            build_service(
+                "org.a.tes",
+                "A TES",
+                "tes",
+                "1.1",
+                &org_a,
+                "https://a.example.org/ga4gh/tes/v1".to_string(),
+                "staging",
+            ),
+            build_service(
+                "org.local.tes",
+                "Local TES",
+                "tes",
+                "1.1",
+                &org_a,
+                "https://local.example.org/ga4gh/tes/v1".to_string(),
+                "production",
+            ),
+        ];
+        let prefs = ServiceSelectionPrefs {
+            preferred_environment: Some("production".to_string()),
+            preferred_service_id: Some("org.local.tes".to_string()),
+            preferred_organization: None,
+            local_base_url: Some("https://local.example.org".to_string()),
+        };
+        let url = select_service_url(&services, "tes", &prefs).unwrap();
+        assert_eq!(url, "https://local.example.org/ga4gh/tes/v1");
     }
 }

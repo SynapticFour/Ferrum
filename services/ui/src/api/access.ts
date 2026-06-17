@@ -8,6 +8,8 @@ export interface DatasetCatalogEntry {
   external_id?: string;
   dac_group?: string;
   auto_approve_enabled?: boolean;
+  visibility?: 'draft' | 'institute' | 'public';
+  resource_type?: 'dataset' | 'compute_pool';
 }
 
 export interface ResearchProject {
@@ -52,8 +54,20 @@ export function getAccessStatus() {
   return apiGet<AccessStatus>('/access/v1/status');
 }
 
-export function listCatalogDatasets() {
-  return apiGet<{ datasets: DatasetCatalogEntry[] }>('/access/v1/catalog/datasets');
+export function listCatalogDatasets(resourceType?: 'dataset' | 'compute_pool') {
+  const qs = resourceType ? `?resource_type=${resourceType}` : '';
+  return apiGet<{ datasets: DatasetCatalogEntry[] }>(`/access/v1/catalog/datasets${qs}`);
+}
+
+export function listFederatedCatalog() {
+  return apiGet<{
+    datasets: (DatasetCatalogEntry & {
+      federation_origin?: string;
+      ads_base_url?: string;
+    })[];
+    sources: { origin: string; ads_base_url: string }[];
+    errors: unknown[];
+  }>('/access/v1/catalog/federated');
 }
 
 export function listMyProjects() {

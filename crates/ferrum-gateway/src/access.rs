@@ -65,7 +65,11 @@ async fn forward(
     req: Request<Body>,
 ) -> Result<Response, (StatusCode, String)> {
     let ads = state.ads_base_url().await?;
-    let url = format!("{ads}/{}", ads_path.trim_start_matches('/'));
+    let mut url = format!("{ads}/{}", ads_path.trim_start_matches('/'));
+    if let Some(query) = req.uri().query() {
+        url.push('?');
+        url.push_str(query);
+    }
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))

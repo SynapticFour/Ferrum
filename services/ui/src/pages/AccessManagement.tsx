@@ -16,6 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import {
   listCatalogDatasets,
+  listFederatedCatalog,
   listMyAccessRequests,
   listMyGrants,
   listMyProjects,
@@ -38,6 +39,8 @@ import {
   Plus,
   Database,
   ClipboardList,
+  Server,
+  Globe,
 } from 'lucide-react';
 
 const COMMON_DUO_CODES = ['GRU', 'HMB', 'DS', 'NRES', 'PUB', 'GSO'];
@@ -264,6 +267,7 @@ export function AccessManagement() {
 
   const [requestDataset, setRequestDataset] = useState<DatasetCatalogEntry | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
+  const [catalogKind, setCatalogKind] = useState<'datasets' | 'compute' | 'federated'>('datasets');
 
   const { data: status } = useQuery({
     queryKey: ['access', 'status'],
@@ -274,8 +278,14 @@ export function AccessManagement() {
   const adsAvailable = status?.ads_available ?? false;
 
   const { data: catalog, isLoading: catalogLoading } = useQuery({
-    queryKey: ['access', 'catalog'],
-    queryFn: async () => (await listCatalogDatasets()).datasets,
+    queryKey: ['access', 'catalog', catalogKind],
+    queryFn: async () => {
+      if (catalogKind === 'federated') {
+        return (await listFederatedCatalog()).datasets;
+      }
+      const type = catalogKind === 'compute' ? 'compute_pool' : 'dataset';
+      return (await listCatalogDatasets(type)).datasets;
+    },
     enabled: adsAvailable,
     retry: false,
   });
@@ -326,21 +336,65 @@ export function AccessManagement() {
           </TabsList>
 
           <TabsContent value="catalog" className="mt-6 space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant={catalogKind === 'datasets' ? 'default' : 'outline'}
+                onClick={() => setCatalogKind('datasets')}
+              >
+                <Database className="h-3.5 w-3.5 mr-1" />
+                {t('access.catalogDatasets')}
+              </Button>
+              <Button
+                size="sm"
+                variant={catalogKind === 'compute' ? 'default' : 'outline'}
+                onClick={() => setCatalogKind('compute')}
+              >
+                <Server className="h-3.5 w-3.5 mr-1" />
+                {t('access.catalogCompute')}
+              </Button>
+              <Button
+                size="sm"
+                variant={catalogKind === 'federated' ? 'default' : 'outline'}
+                onClick={() => setCatalogKind('federated')}
+              >
+                <Globe className="h-3.5 w-3.5 mr-1" />
+                {t('access.catalogFederated')}
+              </Button>
+            </div>
             {catalogLoading ? (
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             ) : !catalog?.length ? (
-              <p className="text-sm text-muted-foreground">{t('access.noDatasets')}</p>
+              <p className="text-sm text-muted-foreground">
+                {catalogKind === 'compute'
+                  ? t('access.noComputePools')
+                  : catalogKind === 'federated'
+                    ? t('access.noFederated')
+                    : t('access.noDatasets')}
+              </p>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {catalog.map((ds) => (
-                  <Card key={ds.id} className="border-border/80">
+                  <Card key={`${(ds as { federation_origin?: string }).federation_origin ?? 'local'}-${ds.id}`} className="border-border/80">
                     <CardHeader className="pb-2">
                       <CardTitle className="flex items-center gap-2 text-base">
-                        <Database className="h-4 w-4" />
+                        {catalogKind === 'compute' ? (
+                          <Server className="h-4 w-4" />
+                        ) : (
+                          <Database className="h-4 w-4" />
+                        )}
                         {ds.name}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
+                      {(ds as { federation_origin?: string }).federation_origin && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('access.federationOrigin')}:{' '}
+                          <span className="font-mono">
+                            {(ds as { federation_origin?: string }).federation_origin}
+                          </span>
+                        </p>
+                      )}
                       {ds.description && (
                         <p className="text-muted-foreground">{ds.description}</p>
                       )}
@@ -361,13 +415,18 @@ export function AccessManagement() {
                           {ds.external_id}
                         </p>
                       )}
-                      <Button
-                        size="sm"
-                        disabled={!researcherId}
-                        onClick={() => setRequestDataset(ds)}
-                      >
-                        {t('access.requestAccess')}
-                      </Button>
+                      {catalogKind !== 'compute' && (
+                        <Button
+                          size="sm"
+                          disabled={!researcherId}
+                          onClick={() => setRequestDataset(ds)}
+                        >
+                          {t('access.requestAccess')}
+                        </Button>
+                      )}
+                      {catalogKind === 'compute' && (
+                        <p className="text-xs text-muted-foreground">{t('access.computeHint')}</p>
+                      )}
                     </CardContent>
                   </Card>
                 ))}

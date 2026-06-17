@@ -6,9 +6,12 @@ use axum::{
     routing::post,
     Extension, Json, Router,
 };
+use ferrum_beacon::repo::BeaconRepo;
 use ferrum_core::{is_workspace_editor_or_owner, AuthClaims, FerrumConfig, FerrumPool};
+use ferrum_drs::repo::DrsRepo;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::warn;
 
 #[derive(Clone)]
 pub struct PublishState {
@@ -28,6 +31,13 @@ pub struct PublishDatasetRequest {
     pub dac_group: Option<String>,
     #[serde(default)]
     pub auto_approve_enabled: bool,
+    /// When true (default), link pathogen annotations to Beacon on publish when organism metadata exists.
+    #[serde(default = "default_true")]
+    pub index_beacon: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_visibility() -> String {
@@ -39,6 +49,8 @@ pub struct PublishDatasetResponse {
     pub ads_dataset_id: String,
     pub object_id: String,
     pub visibility: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub beacon_indexed: Option<bool>,
 }
 
 fn resolve_ads_datasets_url(config: &FerrumConfig) -> Option<String> {
@@ -62,6 +74,56 @@ fn resolve_ads_datasets_url(config: &FerrumConfig) -> Option<String> {
     } else {
         format!("{base}/ads/v1/datasets")
     })
+}
+
+async fn index_beacon_for_publish(
+    pool: &sqlx::PgPool,
+    object_id: &str,
+    ads_dataset_id: &str,
+    display_name: &str,
+    description: Option<&str>,
+) -> bool {
+    let ferrum_pool = FerrumPool::Postgres(pool.clone());
+    let drs = DrsRepo::new(ferrum_pool.clone(), "localhost".into());
+    let beacon = BeaconRepo::new(ferrum_pool);
+
+    let Some(organism) = drs.pathogen_organism(object_id).await.ok().flatten() else {
+        return false;
+    };
+
+    if beacon
+        .ensure_dataset(
+            ads_dataset_id,
+            display_name,
+            description,
+            "unknown",
+        )
+        .await
+        .is_err()
+    {
+        warn!(object_id, ads_dataset_id, "beacon dataset upsert failed");
+        return false;
+    }
+
+    match drs
+        .link_pathogen_to_dataset(object_id, ads_dataset_id)
+        .await
+    {
+        Ok(rows) if rows > 0 => {
+            tracing::info!(
+                object_id,
+                ads_dataset_id,
+                organism = %organism,
+                "linked pathogen annotation to published Beacon dataset"
+            );
+            true
+        }
+        Ok(_) => false,
+        Err(err) => {
+            warn!(object_id, error = %err, "pathogen beacon link failed");
+            false
+        }
+    }
 }
 
 async fn publish_dataset(
@@ -174,10 +236,26 @@ async fn publish_dataset(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
+    let beacon_indexed = if body.index_beacon {
+        Some(
+            index_beacon_for_publish(
+                &state.pool,
+                &body.object_id,
+                &ads_id,
+                &body.name,
+                body.description.as_deref(),
+            )
+            .await,
+        )
+    } else {
+        None
+    };
+
     Ok(Json(PublishDatasetResponse {
         ads_dataset_id: ads_id,
         object_id: body.object_id,
         visibility: body.visibility,
+        beacon_indexed,
     }))
 }
 

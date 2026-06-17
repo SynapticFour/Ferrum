@@ -925,6 +925,37 @@ impl DrsRepo {
         Ok(id)
     }
 
+    /// Link existing pathogen annotations to a published ADS/Beacon dataset id.
+    pub async fn link_pathogen_to_dataset(
+        &self,
+        drs_object_id: &str,
+        dataset_id: &str,
+    ) -> Result<u64> {
+        let rows = match &self.pool {
+            FerrumPool::Postgres(p) => {
+                sqlx::query(
+                    "UPDATE pathogen_annotations SET dataset_id = $1 WHERE drs_object_id = $2",
+                )
+                .bind(dataset_id)
+                .bind(drs_object_id)
+                .execute(p)
+                .await?
+                .rows_affected()
+            }
+            FerrumPool::Sqlite(p) => {
+                sqlx::query(
+                    "UPDATE pathogen_annotations SET dataset_id = ?1 WHERE drs_object_id = ?2",
+                )
+                .bind(dataset_id)
+                .bind(drs_object_id)
+                .execute(p)
+                .await?
+                .rows_affected()
+            }
+        };
+        Ok(rows)
+    }
+
     /// Update ONT metrics JSON on an existing DRS object (e.g. from ont-qc workflow).
     pub async fn update_ont_metrics(
         &self,
