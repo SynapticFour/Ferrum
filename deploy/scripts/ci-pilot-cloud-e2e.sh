@@ -24,12 +24,26 @@ fly = sys.argv[2].rstrip("/")
 a = c.get("auth") or {}
 assert a.get("require_auth") is True, a
 assert a.get("mode") == "external", a
+assert a.get("access_requests_enabled") is True, a
 login = a.get("broker_login_url") or ""
 assert login.startswith(fly), (login, fly)
 assert "/login/keycloak" in login, login
+d = c.get("discovery") or {}
+assert d.get("enabled") is True, d
+assert d.get("service_registry_url", "").startswith(fly), d
 print("broker_login_url:", login)
+print("discovery:", d.get("service_registry_url"))
 PY
-ok "gateway wired to Fly Keycloak login"
+ok "gateway wired to Fly Keycloak + service registry"
+
+access_status="$(curl -sf "$GATEWAY/access/v1/status" 2>/dev/null || echo '{}')"
+python3 - "$access_status" <<'PY' || die "ADS proxy not available"
+import json, sys
+s = json.loads(sys.argv[1])
+assert s.get("ads_available") is True, s
+print("ads_base_url:", s.get("ads_base_url"))
+PY
+ok "ADS access proxy reachable"
 
 curl -sf -o /dev/null "$UI/" || die "UI not reachable"
 ok "UI reachable"

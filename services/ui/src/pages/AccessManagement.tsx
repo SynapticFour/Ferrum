@@ -1,125 +1,522 @@
+import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Key, FileCheck, Settings, ExternalLink, Lock } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import {
+  listCatalogDatasets,
+  listMyAccessRequests,
+  listMyGrants,
+  listMyProjects,
+  createProject,
+  submitAccessRequest,
+  getAccessStatus,
+  type DatasetCatalogEntry,
+  type ResearchProject,
+} from '@/api/access';
+import { useAuthStore } from '@/stores/auth';
+import { decodeJwtPayload } from '@/lib/auth';
+import { useI18n } from '@/i18n/I18nProvider';
+import {
+  Shield,
+  Key,
+  FileCheck,
+  Settings,
+  ExternalLink,
+  Loader2,
+  Plus,
+  Database,
+  ClipboardList,
+} from 'lucide-react';
+
+const COMMON_DUO_CODES = ['GRU', 'HMB', 'DS', 'NRES', 'PUB', 'GSO'];
+
+function statusBadge(status: string) {
+  const variant =
+    status === 'approved'
+      ? 'default'
+      : status === 'pending' || status === 'escalated'
+        ? 'secondary'
+        : 'destructive';
+  return <Badge variant={variant}>{status}</Badge>;
+}
+
+function RequestAccessDialog({
+  dataset,
+  projects,
+  researcherId,
+  open,
+  onOpenChange,
+}: {
+  dataset: DatasetCatalogEntry | null;
+  projects: ResearchProject[];
+  researcherId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const [projectId, setProjectId] = useState('');
+  const [justification, setJustification] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      submitAccessRequest({
+        researcher_id: researcherId,
+        dataset_id: dataset!.id,
+        project_id: projectId,
+        justification: justification.trim() || undefined,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['access', 'requests'] });
+      onOpenChange(false);
+      setJustification('');
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('access.requestTitle')}</DialogTitle>
+        </DialogHeader>
+        {dataset && (
+          <div className="space-y-4 text-sm">
+            <p>
+              <strong>{dataset.name}</strong>
+              {dataset.dac_group && (
+                <span className="text-muted-foreground"> · {dataset.dac_group}</span>
+              )}
+            </p>
+            {dataset.description && (
+              <p className="text-muted-foreground">{dataset.description}</p>
+            )}
+            <div className="flex flex-wrap gap-1">
+              {dataset.duo_codes.map((c) => (
+                <Badge key={c} variant="outline">
+                  {c}
+                </Badge>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="access-project">{t('access.selectProject')}</Label>
+              <select
+                id="access-project"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+              >
+                <option value="">{t('access.chooseProject')}</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.duo_codes.join(', ')})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="access-justification">{t('access.justification')}</Label>
+              <textarea
+                id="access-justification"
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={justification}
+                onChange={(e) => setJustification(e.target.value)}
+                placeholder={t('access.justificationPlaceholder')}
+                rows={3}
+              />
+            </div>
+            {dataset.auto_approve_enabled && (
+              <p className="text-xs text-muted-foreground">{t('access.autoApproveHint')}</p>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={!projectId || mutation.isPending}
+          >
+            {mutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              t('access.submitRequest')
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateProjectDialog({
+  researcherId,
+  open,
+  onOpenChange,
+}: {
+  researcherId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [duoCodes, setDuoCodes] = useState<string[]>(['GRU']);
+
+  const toggleDuo = (code: string) => {
+    setDuoCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  };
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      createProject({
+        researcher_id: researcherId,
+        name: name.trim(),
+        description: description.trim() || undefined,
+        duo_codes: duoCodes,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['access', 'projects'] });
+      onOpenChange(false);
+      setName('');
+      setDescription('');
+      setDuoCodes(['GRU']);
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('access.newProject')}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="proj-name">{t('access.projectName')}</Label>
+            <Input id="proj-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="proj-desc">{t('access.projectDescription')}</Label>
+            <textarea
+              id="proj-desc"
+              className="flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>{t('access.intendedUseDuo')}</Label>
+            <div className="flex flex-wrap gap-2">
+              {COMMON_DUO_CODES.map((code) => (
+                <Button
+                  key={code}
+                  type="button"
+                  size="sm"
+                  variant={duoCodes.includes(code) ? 'default' : 'outline'}
+                  onClick={() => toggleDuo(code)}
+                >
+                  {code}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={!name.trim() || duoCodes.length === 0 || mutation.isPending}
+          >
+            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('access.createProject')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function AccessManagement() {
+  const { t } = useI18n();
+  const passportJwt = useAuthStore((s) => s.passportJwt);
+  const researcherId = useMemo(() => {
+    if (!passportJwt) return '';
+    const claims = decodeJwtPayload(passportJwt);
+    return typeof claims?.sub === 'string' ? claims.sub : '';
+  }, [passportJwt]);
+
+  const [requestDataset, setRequestDataset] = useState<DatasetCatalogEntry | null>(null);
+  const [showNewProject, setShowNewProject] = useState(false);
+
+  const { data: status } = useQuery({
+    queryKey: ['access', 'status'],
+    queryFn: getAccessStatus,
+    retry: false,
+  });
+
+  const adsAvailable = status?.ads_available ?? false;
+
+  const { data: catalog, isLoading: catalogLoading } = useQuery({
+    queryKey: ['access', 'catalog'],
+    queryFn: async () => (await listCatalogDatasets()).datasets,
+    enabled: adsAvailable,
+    retry: false,
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['access', 'projects'],
+    queryFn: async () => (await listMyProjects()).projects,
+    enabled: adsAvailable && !!researcherId,
+    retry: false,
+  });
+
+  const { data: requests = [] } = useQuery({
+    queryKey: ['access', 'requests'],
+    queryFn: async () => (await listMyAccessRequests()).requests,
+    enabled: adsAvailable && !!researcherId,
+    retry: false,
+  });
+
+  const { data: grants = [] } = useQuery({
+    queryKey: ['access', 'grants'],
+    queryFn: async () => (await listMyGrants()).grants,
+    enabled: adsAvailable && !!researcherId,
+    retry: false,
+  });
+
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Access Management</h1>
-        <p className="text-muted-foreground mt-1">
-          GA4GH Passports, visas, and access policies for datasets and workflows.
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight">{t('access.title')}</h1>
+        <p className="text-muted-foreground mt-1">{t('access.subtitle')}</p>
       </div>
+
+      {!adsAvailable && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            {t('access.adsUnavailable')}
+          </CardContent>
+        </Card>
+      )}
+
+      {adsAvailable && (
+        <Tabs defaultValue="catalog">
+          <TabsList>
+            <TabsTrigger value="catalog">{t('access.tabCatalog')}</TabsTrigger>
+            <TabsTrigger value="requests">{t('access.tabRequests')}</TabsTrigger>
+            <TabsTrigger value="projects">{t('access.tabProjects')}</TabsTrigger>
+            <TabsTrigger value="grants">{t('access.tabGrants')}</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="catalog" className="mt-6 space-y-4">
+            {catalogLoading ? (
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            ) : !catalog?.length ? (
+              <p className="text-sm text-muted-foreground">{t('access.noDatasets')}</p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {catalog.map((ds) => (
+                  <Card key={ds.id} className="border-border/80">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Database className="h-4 w-4" />
+                        {ds.name}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      {ds.description && (
+                        <p className="text-muted-foreground">{ds.description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-1">
+                        {ds.duo_codes.map((c) => (
+                          <Badge key={c} variant="outline">
+                            {c}
+                          </Badge>
+                        ))}
+                      </div>
+                      {ds.dac_group && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('access.dacGroup')}: {ds.dac_group}
+                        </p>
+                      )}
+                      {ds.external_id && (
+                        <p className="text-xs font-mono text-muted-foreground truncate">
+                          {ds.external_id}
+                        </p>
+                      )}
+                      <Button
+                        size="sm"
+                        disabled={!researcherId}
+                        onClick={() => setRequestDataset(ds)}
+                      >
+                        {t('access.requestAccess')}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="requests" className="mt-6">
+            {!requests.length ? (
+              <p className="text-sm text-muted-foreground">{t('access.noRequests')}</p>
+            ) : (
+              <ul className="space-y-3">
+                {requests.map((r) => (
+                  <li key={r.id} className="rounded-lg border border-border p-4 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {statusBadge(r.status)}
+                      <span className="text-muted-foreground font-mono text-xs">{r.id}</span>
+                    </div>
+                    <p className="mt-2">
+                      {t('access.datasetId')}: <code className="rounded bg-muted px-1">{r.dataset_id}</code>
+                    </p>
+                    {r.justification && (
+                      <p className="mt-1 text-muted-foreground">{r.justification}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </TabsContent>
+
+          <TabsContent value="projects" className="mt-6 space-y-4">
+            <Button size="sm" onClick={() => setShowNewProject(true)} disabled={!researcherId}>
+              <Plus className="h-4 w-4 mr-1" />
+              {t('access.newProject')}
+            </Button>
+            {!projects.length ? (
+              <p className="text-sm text-muted-foreground">{t('access.noProjects')}</p>
+            ) : (
+              <ul className="space-y-3">
+                {projects.map((p) => (
+                  <li key={p.id} className="rounded-lg border border-border p-4 text-sm">
+                    <p className="font-medium">{p.name}</p>
+                    {p.description && (
+                      <p className="text-muted-foreground mt-1">{p.description}</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {p.duo_codes.map((c) => (
+                        <Badge key={c} variant="outline">
+                          {c}
+                        </Badge>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </TabsContent>
+
+          <TabsContent value="grants" className="mt-6">
+            {!grants.length ? (
+              <p className="text-sm text-muted-foreground">{t('access.noGrants')}</p>
+            ) : (
+              <ul className="space-y-3">
+                {grants.map((g) => (
+                  <li key={g.id} className="rounded-lg border border-border p-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <FileCheck className="h-4 w-4 text-green-600" />
+                      <span className="font-medium">{t('access.activeGrant')}</span>
+                    </div>
+                    <p className="mt-2 font-mono text-xs text-muted-foreground">
+                      {t('access.datasetId')}: {g.dataset_id}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {g.duo_codes.map((c) => (
+                        <Badge key={c} variant="outline">
+                          {c}
+                        </Badge>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="border-border/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Key className="h-4 w-4" />
-              GA4GH Passports
+              {t('access.passportsTitle')}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Passports encode visas (claims) for controlled access to data and services. This instance uses the
-              GA4GH Passport standard for token-based authorization.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Obtain a passport from your identity provider or visa issuer; the gateway validates JWTs and applies
-              access rules to DRS, WES, and cohorts.
-            </p>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>{t('access.passportsBody')}</p>
           </CardContent>
         </Card>
-
         <Card className="border-border/80">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <FileCheck className="h-4 w-4" />
-              Visa grants
+              <Shield className="h-4 w-4" />
+              {t('access.standardsTitle')}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Visas are embedded in Passport tokens and describe what a user or process is allowed to access
-              (e.g. a specific dataset, cohort, or workflow).
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Configure visa types and policies in your identity provider (e.g. Keycloak) or via admin APIs.
-            </p>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p>{t('access.standardsBody')}</p>
+            <a
+              href="https://github.com/ga4gh-duri/ga4gh-duri.github.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-primary hover:underline"
+            >
+              GA4GH DURI <ExternalLink className="h-3 w-3" />
+            </a>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-border/80">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Shield className="h-4 w-4" />
-            What you can do here
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-3 text-sm">
-            <li className="flex items-start gap-3">
-              <Lock className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
-              <span>
-                <strong>Authentication:</strong> Sign in via the header button (AAI broker). The UI stores the
-                Passport JWT in <code className="rounded bg-muted px-1">sessionStorage</code> (
-                <code className="rounded bg-muted px-1">ferrum.passport</code>). See Settings → Profile.
-              </span>
-            </li>
-            <li className="flex items-start gap-3">
-              <Settings className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
-              <span>
-                <strong>Configuration:</strong> Admins configure JWKS URL, required visas, and CORS in{' '}
-                <Link to={"/settings" as any} className="text-primary hover:underline">
-                  Settings
-                </Link>
-                . Security events and token revocation are available under the admin API.
-              </span>
-            </li>
-            <li className="flex items-start gap-3">
-              <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
-              <span>
-                <strong>Documentation:</strong> See{' '}
-                <a
-                  href="https://github.com/ga4gh-duri/ga4gh-duri.github.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  GA4GH DURI (Passports)
-                </a>{' '}
-                for the Passport and Visa standard.
-              </span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-
       <div className="flex flex-wrap gap-3">
         <Link
-          to={"/insights" as any}
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          <Shield className="h-4 w-4" />
-          Platform insights
-        </Link>
-        <Link
           to={"/settings" as any}
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
         >
           <Settings className="h-4 w-4" />
-          Open Settings
+          {t('access.openSettings')}
         </Link>
         <Link
           to={"/data" as any}
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
         >
-          <FileCheck className="h-4 w-4" />
-          Data Browser (DRS)
+          <ClipboardList className="h-4 w-4" />
+          {t('access.dataBrowser')}
         </Link>
       </div>
+
+      <RequestAccessDialog
+        dataset={requestDataset}
+        projects={projects}
+        researcherId={researcherId}
+        open={!!requestDataset}
+        onOpenChange={(o) => !o && setRequestDataset(null)}
+      />
+      <CreateProjectDialog
+        researcherId={researcherId}
+        open={showNewProject}
+        onOpenChange={setShowNewProject}
+      />
     </div>
   );
 }

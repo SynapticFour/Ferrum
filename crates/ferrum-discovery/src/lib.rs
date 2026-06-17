@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use ferrum_core::DiscoveryConfig;
+use ferrum_core::{AuthConfig, DiscoveryConfig, FerrumConfig};
 use ga4gh_types::{ServiceInfo, ServiceOrganization, ServiceType};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -34,6 +34,131 @@ pub struct RegisteredService {
     #[serde(flatten)]
     pub info: ServiceInfo,
     pub url: String,
+}
+
+/// GA4GH artifact names used for service discovery.
+pub const ARTIFACT_DRS: &str = "drsservice";
+pub const ARTIFACT_BEACON: &str = "beacon";
+pub const ARTIFACT_HTSGET: &str = "htsget";
+pub const ARTIFACT_WES: &str = "wes";
+pub const ARTIFACT_TES: &str = "tes";
+pub const ARTIFACT_TRS: &str = "tool-registry";
+pub const ARTIFACT_ADS: &str = "access-decision-service";
+
+/// Resolved base URLs for cross-service calls (registry → fallbacks → local gateway).
+#[derive(Debug, Clone)]
+pub struct ResolvedServiceUrls {
+    pub gateway_base: String,
+    pub tes: Option<String>,
+    pub trs: Option<String>,
+    pub ads: Option<String>,
+}
+
+impl ResolvedServiceUrls {
+    /// Local Ferrum paths when no external registry is configured.
+    pub fn local_defaults(gateway_base: &str) -> Self {
+        let base = gateway_base.trim_end_matches('/');
+        Self {
+            gateway_base: base.to_string(),
+            tes: local_service_url(base, ARTIFACT_TES),
+            trs: local_service_url(base, ARTIFACT_TRS),
+            ads: None,
+        }
+    }
+}
+
+/// Map a GA4GH service artifact to a path under the Ferrum gateway base URL.
+pub fn local_service_url(gateway_base: &str, artifact: &str) -> Option<String> {
+    let base = gateway_base.trim_end_matches('/');
+    let path = match artifact {
+        ARTIFACT_DRS => "/ga4gh/drs/v1",
+        ARTIFACT_BEACON => "/ga4gh/beacon/v2",
+        ARTIFACT_HTSGET => "/ga4gh/htsget/v1",
+        ARTIFACT_WES => "/ga4gh/wes/v1",
+        ARTIFACT_TES => "/ga4gh/tes/v1",
+        ARTIFACT_TRS => "/ga4gh/trs/v2",
+        _ => return None,
+    };
+    Some(format!("{base}{path}"))
+}
+
+/// Resolve service URLs for gateway startup (TES, TRS register, ADS proxy).
+pub async fn resolve_service_urls(config: &FerrumConfig, gateway_base: &str) -> ResolvedServiceUrls {
+    let base = gateway_base.trim_end_matches('/').to_string();
+    let mut resolved = ResolvedServiceUrls::local_defaults(&base);
+
+    if let Some(ads) = resolve_ads_url(&config.auth, &config.discovery, &base).await {
+        resolved.ads = Some(ads);
+    }
+
+    if config.discovery.enabled {
+        if let Ok(client) = ServiceRegistryClient::from_config(&config.discovery) {
+            if let Some(tes) = client.resolve_artifact(ARTIFACT_TES).await {
+                resolved.tes = Some(tes);
+            }
+            if let Some(trs) = client.resolve_artifact(ARTIFACT_TRS).await {
+                resolved.trs = Some(trs);
+            }
+            if resolved.ads.is_none() {
+                if let Some(ads) = client.resolve_artifact(ARTIFACT_ADS).await {
+                    resolved.ads = Some(normalize_ads_base(&ads));
+                }
+            }
+        }
+    }
+
+    resolved
+}
+
+/// ADS base URL (`…/ads/v1`) from config, registry, or co-located broker host.
+pub async fn resolve_ads_url(
+    auth: &AuthConfig,
+    discovery: &DiscoveryConfig,
+    gateway_base: &str,
+) -> Option<String> {
+    if let Some(url) = auth
+        .ads_url
+        .as_ref()
+        .map(|u| normalize_ads_base(u.trim()))
+        .filter(|u| !u.is_empty())
+    {
+        return Some(url);
+    }
+
+    if discovery.enabled {
+        if let Ok(client) = ServiceRegistryClient::from_config(discovery) {
+            if let Some(url) = client.resolve_artifact(ARTIFACT_ADS).await {
+                return Some(normalize_ads_base(&url));
+            }
+        }
+        if let Some(url) = discovery
+            .fallback_urls
+            .get(ARTIFACT_ADS)
+            .cloned()
+            .or_else(|| discovery.fallback_urls.get("ads").cloned())
+        {
+            return Some(normalize_ads_base(&url));
+        }
+    }
+
+    if let Some(issuer) = auth.issuer.as_ref().filter(|u| !u.trim().is_empty()) {
+        let broker = issuer.trim_end_matches('/');
+        return Some(format!("{broker}/ads/v1"));
+    }
+
+    let _ = gateway_base;
+    None
+}
+
+fn normalize_ads_base(url: &str) -> String {
+    let trimmed = url.trim_end_matches('/');
+    if trimmed.ends_with("/ads/v1") {
+        trimmed.to_string()
+    } else if trimmed.ends_with("/ads") {
+        format!("{trimmed}/v1")
+    } else {
+        format!("{trimmed}/ads/v1")
+    }
 }
 
 /// Client for GA4GH Service Registry read/write APIs.
@@ -124,6 +249,7 @@ impl ServiceRegistryClient {
                     .into_iter()
                     .find(|svc| svc.info.r#type.artifact.eq_ignore_ascii_case(artifact))
                     .map(|svc| svc.url)
+                    .or_else(|| self.fallback.get(artifact).cloned())
             }
             Err(err) => {
                 tracing::warn!(
@@ -132,6 +258,16 @@ impl ServiceRegistryClient {
                     "service registry lookup failed; using fallback URL if configured"
                 );
                 self.fallback.get(artifact).cloned()
+            }
+        }
+    }
+
+    /// Preload the in-memory cache from the registry (best-effort).
+    pub async fn warm_cache(&self) {
+        if let Ok(services) = self.list().await {
+            let mut cache = self.cache.write().await;
+            for service in services {
+                cache.insert(service.info.id.clone(), service.url);
             }
         }
     }

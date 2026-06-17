@@ -23,6 +23,7 @@ full = [
     "cohorts",
     "workspaces",
     "swagger",
+    "discovery",
 ]
 postgres = ["sqlx/postgres"]
 wes = ["dep:ferrum-wes"]
@@ -35,8 +36,9 @@ swagger = ["dep:utoipa", "dep:utoipa-swagger-ui"]
 standalone = []
 tes-docker = ["ferrum-tes/docker", "tes"]
 workspaces_email = ["workspaces", "ferrum-workspaces/email"]
+discovery = ["dep:ferrum-discovery"]
 # ga4gh-infra co-deploy: clearinghouse visa validation + service-registry auto-registration.
-external-auth = ["ferrum-core/clearinghouse", "dep:ferrum-discovery"]
+external-auth = ["ferrum-core/clearinghouse", "discovery"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

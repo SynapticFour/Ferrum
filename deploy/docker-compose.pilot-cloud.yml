@@ -12,7 +12,7 @@ services:
       context: ${GA4GH_INFRA_SRC}/..
       dockerfile: Ferrum/deploy/Dockerfile.gateway-monorepo
       args:
-        FERRUM_GATEWAY_FEATURES: full,tes-docker,external-auth
+        FERRUM_GATEWAY_FEATURES: full,tes-docker,external-auth,discovery
     environment:
       FERRUM_AUTH__MODE: external
       FERRUM_AUTH__REQUIRE_AUTH: "true"
@@ -22,9 +22,11 @@ services:
       FERRUM_PUBLIC_BROKER_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
       FERRUM_BROKER_LOGIN_IDP: keycloak
       FERRUM_SERVICES__ENABLE_PASSPORTS: "false"
-      # Do not auto-register localhost into the Fly service registry by default.
-      FERRUM_DISCOVERY__ENABLED: "${PILOT_CLOUD_DISCOVERY:-false}"
-      FERRUM_DISCOVERY__AUTO_REGISTER: "false"
+      FERRUM_DISCOVERY__ENABLED: "true"
+      FERRUM_DISCOVERY__AUTO_REGISTER: "${PILOT_CLOUD_AUTO_REGISTER:-true}"
+      FERRUM_DISCOVERY__SERVICE_REGISTRY_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
+      FERRUM_DISCOVERY__REGISTRATION_BASE_URL: http://localhost:${GATEWAY_PORT:-8080}
+      SERVICE_REGISTRY_REGISTRATION_KEY: ${SERVICE_REGISTRY_REGISTRATION_KEY:-}
 
   ferrum-ui:
     environment:

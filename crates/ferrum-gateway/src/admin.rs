@@ -24,6 +24,9 @@ pub struct SanitizedAuth {
     pub broker_public_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub broker_login_url: Option<String>,
+    /// Whether ADS-backed dataset access requests are available (external auth / ga4gh-infra).
+    #[serde(default)]
+    pub access_requests_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -311,6 +314,9 @@ pub fn admin_router(
             ferrum_core::config::AuthMode::Builtin => "builtin",
             ferrum_core::config::AuthMode::External => "external",
         };
+        let access_requests_enabled = c.auth.is_external()
+            || c.auth.ads_url.as_ref().is_some_and(|u| !u.trim().is_empty())
+            || c.discovery.enabled;
         let tes_backend =
             std::env::var("FERRUM_TES_BACKEND").unwrap_or_else(|_| "noop".to_string());
         let wes_trs_auto_register = !matches!(
@@ -362,6 +368,7 @@ pub fn admin_router(
                 require_auth: c.auth.require_auth,
                 broker_public_url: broker_public,
                 broker_login_url,
+                access_requests_enabled,
             }),
             deployment_mode,
         }

@@ -47,6 +47,12 @@ export function FederationPanel() {
     retry: false,
   });
 
+  useEffect(() => {
+    if (status?.service_registry_url && !prefs.registryUrl) {
+      setPrefs((p) => ({ ...p, registryUrl: status.service_registry_url! }));
+    }
+  }, [status?.service_registry_url, prefs.registryUrl]);
+
   const listMutation = useMutation({
     mutationFn: () =>
       apiPost<{ services: RegisteredService[] }>('/admin/federation/registry/services', {

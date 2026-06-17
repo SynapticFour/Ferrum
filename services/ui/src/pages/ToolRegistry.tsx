@@ -67,15 +67,23 @@ export function ToolRegistry() {
     retry: false,
   });
 
+  const { data: federationStatus } = useQuery({
+    queryKey: ['admin', 'federation', 'status'],
+    queryFn: () => apiGet<{ service_registry_url?: string }>('/admin/federation/status'),
+    retry: false,
+  });
+
+  const registryUrl = prefs.registryUrl || federationStatus?.service_registry_url || '';
+
   const { data: registryServices } = useQuery({
-    queryKey: ['federation', 'registry', prefs.registryUrl],
+    queryKey: ['federation', 'registry', registryUrl],
     queryFn: () =>
       fetch('/admin/federation/registry/services', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ registry_url: prefs.registryUrl }),
+        body: JSON.stringify({ registry_url: registryUrl }),
       }).then((r) => r.json()) as Promise<{ services: RegisteredService[] }>,
-    enabled: tab === 'federation' && !!prefs.registryUrl,
+    enabled: tab === 'federation' && !!registryUrl,
     retry: false,
   });
 
