@@ -7,6 +7,7 @@ import { apiGet, apiPostFormData } from '@/api/client';
 import { AddDataDialog } from '@/components/AddDataDialog';
 import { OntIngestDialog } from '@/components/OntIngestDialog';
 import { useI18n } from '@/i18n/I18nProvider';
+import { formatBytes } from '@/lib/utils';
 import { useIngestJobPoller } from '@/hooks/useIngestJobs';
 import { PublishDatasetDialog } from '@/components/PublishDatasetDialog';
 import { Database, Upload, AlertCircle, Loader2 } from 'lucide-react';
