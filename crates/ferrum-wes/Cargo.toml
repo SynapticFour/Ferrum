@@ -7,6 +7,7 @@ license = "BUSL-1.1"
 
 [dependencies]
 ferrum-core = { path = "../ferrum-core" }
+ferrum-discovery = { path = "../ferrum-discovery", optional = true }
 ferrum-reference = { path = "../ferrum-reference" }
 axum = { version = "0.7", features = ["json", "multipart"] }
 tokio = { version = "1", features = ["full"] }
@@ -38,6 +39,7 @@ libc = "0.2"
 [features]
 default = []
 standalone = ["tracing-subscriber"]
+discovery = ["dep:ferrum-discovery"]
 drs = []
 
 [[bin]]

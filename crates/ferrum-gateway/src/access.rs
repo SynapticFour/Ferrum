@@ -6,7 +6,7 @@ use axum::{
     extract::{Path, Query, State},
     http::{header, HeaderMap, Method, Request, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post, any},
+    routing::{any, get, post},
     Router,
 };
 use ferrum_core::FerrumConfig;
@@ -168,7 +168,8 @@ async fn load_registry_services(config: &FerrumConfig) -> Vec<ferrum_discovery::
     if !config.discovery.enabled {
         return Vec::new();
     }
-    let Ok(registry) = ferrum_discovery::ServiceRegistryClient::from_config(&config.discovery) else {
+    let Ok(registry) = ferrum_discovery::ServiceRegistryClient::from_config(&config.discovery)
+    else {
         return Vec::new();
     };
     registry.list().await.unwrap_or_default()
@@ -315,6 +316,61 @@ fn dedup_federated_catalog(
     (out, dropped)
 }
 
+#[cfg(feature = "discovery")]
+fn grant_dedup_key(obj: &serde_json::Map<String, serde_json::Value>) -> Option<String> {
+    if let Some(ext) = obj.get("external_id").and_then(|v| v.as_str()) {
+        let normalized = ext.strip_prefix("drs:").unwrap_or(ext);
+        if !normalized.is_empty() {
+            return Some(format!("ext:{normalized}"));
+        }
+    }
+    let dataset_id = obj.get("dataset_id").and_then(|v| v.as_str()).unwrap_or("");
+    if dataset_id.is_empty() {
+        return None;
+    }
+    Some(format!("ds:{dataset_id}"))
+}
+
+#[cfg(feature = "discovery")]
+fn dedup_federated_grants(
+    merged: Vec<serde_json::Value>,
+    registry_services: &[ferrum_discovery::RegisteredService],
+    prefs: &ferrum_discovery::ServiceSelectionPrefs,
+) -> (Vec<serde_json::Value>, usize) {
+    let mut best: std::collections::HashMap<String, (i32, serde_json::Value)> =
+        std::collections::HashMap::new();
+    let mut passthrough = Vec::new();
+    let mut dropped = 0usize;
+
+    for row in merged {
+        let Some(obj) = row.as_object() else {
+            passthrough.push(row);
+            continue;
+        };
+        let Some(key) = grant_dedup_key(obj) else {
+            passthrough.push(row);
+            continue;
+        };
+        let origin = obj
+            .get("federation_origin")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
+        let score = origin_preference_score(origin, registry_services, prefs);
+        match best.get(&key) {
+            Some((best_score, _)) if *best_score >= score => {
+                dropped += 1;
+            }
+            _ => {
+                best.insert(key, (score, row));
+            }
+        }
+    }
+
+    let mut out: Vec<serde_json::Value> = best.into_values().map(|(_, v)| v).collect();
+    out.extend(passthrough);
+    (out, dropped)
+}
+
 fn build_ads_introspect(config: &FerrumConfig) -> Option<ferrum_core::AdsIntrospectClient> {
     let ads_url = config
         .auth
@@ -323,9 +379,11 @@ fn build_ads_introspect(config: &FerrumConfig) -> Option<ferrum_core::AdsIntrosp
         .filter(|u| !u.trim().is_empty())
         .map(str::to_string)
         .or_else(|| {
-            config.auth.issuer.as_ref().map(|issuer| {
-                format!("{}/ads/v1", issuer.trim_end_matches('/'))
-            })
+            config
+                .auth
+                .issuer
+                .as_ref()
+                .map(|issuer| format!("{}/ads/v1", issuer.trim_end_matches('/')))
         })?;
     ferrum_core::AdsIntrospectClient::from_env(&ads_url, &config.auth.ads_api_key_env).ok()
 }
@@ -459,14 +517,7 @@ async fn federated_drs_proxy(
         let resource = object_id_from_drs_path(&path)
             .map(|id| format!("drs:{id}"))
             .unwrap_or_else(|| format!("drs:{}", path.trim_start_matches('/')));
-        enforce_federated_introspect(
-            &state.config,
-            ads_base,
-            auth,
-            &resource,
-            dataset_id,
-        )
-        .await?;
+        enforce_federated_introspect(&state.config, ads_base, auth, &resource, dataset_id).await?;
     }
 
     let url = format!("{base}/{}", path.trim_start_matches('/'));
@@ -481,12 +532,13 @@ async fn federated_drs_proxy(
     if let Some(ads_base) = &ads_base {
         builder = builder.header("X-ADS-Base-URL", ads_base.as_str());
     }
-    let resp = builder
-        .send()
-        .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("remote DRS request failed: {e}")))?;
-    let status =
-        StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let resp = builder.send().await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            format!("remote DRS request failed: {e}"),
+        )
+    })?;
+    let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
     let resp_headers = resp.headers().clone();
     let bytes = resp
         .bytes()
@@ -613,12 +665,13 @@ async fn federated_wes_proxy(
         builder = builder.body(body);
     }
 
-    let resp = builder
-        .send()
-        .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("remote WES request failed: {e}")))?;
-    let status =
-        StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let resp = builder.send().await.map_err(|e| {
+        (
+            StatusCode::BAD_GATEWAY,
+            format!("remote WES request failed: {e}"),
+        )
+    })?;
+    let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
     let resp_headers = resp.headers().clone();
     let bytes = resp
         .bytes()
@@ -763,10 +816,7 @@ async fn ads_get_json(
     if let Some(token) = auth {
         builder = builder.header(header::AUTHORIZATION, token);
     }
-    let resp = builder
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    let resp = builder.send().await.map_err(|e| e.to_string())?;
     if !resp.status().is_success() {
         return Err(format!("ADS HTTP {}", resp.status()));
     }
@@ -909,9 +959,16 @@ async fn get_me_grants(
         return forward(state, "GET", "me/grants", req).await;
     }
 
+    #[cfg(feature = "discovery")]
+    let (enriched, duplicates_dropped) =
+        dedup_federated_grants(enriched, &registry_services, &selection_prefs);
+    #[cfg(not(feature = "discovery"))]
+    let duplicates_dropped = 0usize;
+
     Ok(axum::Json(serde_json::json!({
         "grants": enriched,
         "errors": errors,
+        "duplicates_dropped": duplicates_dropped,
     }))
     .into_response())
 }

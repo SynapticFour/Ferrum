@@ -509,10 +509,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         let work_dir = std::env::var("FERRUM_WES_WORK_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| std::env::temp_dir().join("wes-runs"));
-        let default_tes = format!(
-            "{}/ga4gh/tes/v1",
-            public_base_url.trim_end_matches('/')
-        );
+        let default_tes = format!("{}/ga4gh/tes/v1", public_base_url.trim_end_matches('/'));
         #[cfg(feature = "discovery")]
         let tes_url = std::env::var("FERRUM_WES_TES_URL")
             .ok()

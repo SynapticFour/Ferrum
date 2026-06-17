@@ -315,7 +315,10 @@ pub fn admin_router(
             ferrum_core::config::AuthMode::External => "external",
         };
         let access_requests_enabled = c.auth.is_external()
-            || c.auth.ads_url.as_ref().is_some_and(|u| !u.trim().is_empty())
+            || c.auth
+                .ads_url
+                .as_ref()
+                .is_some_and(|u| !u.trim().is_empty())
             || c.discovery.enabled;
         let tes_backend =
             std::env::var("FERRUM_TES_BACKEND").unwrap_or_else(|_| "noop".to_string());

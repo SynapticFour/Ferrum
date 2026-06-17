@@ -252,6 +252,7 @@ pub async fn post_runs(
         .await
         .map_err(|e| WesError::Other(e.into()))?
         .to_bytes();
+    let raw_body = bytes.clone();
 
     let ct = headers
         .get(axum::http::header::CONTENT_TYPE)
@@ -440,6 +441,23 @@ pub async fn post_runs(
         &tags,
     )
     .await?;
+
+    #[cfg(feature = "discovery")]
+    if let Some(run_id) = crate::federated_forward::try_forward_federated_run(
+        &app,
+        &tags,
+        &raw_body,
+        headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok()),
+    )
+    .await?
+    {
+        return Ok(Json(RunIdResponse {
+            run_id,
+            warnings: None,
+        }));
+    }
 
     let disposition = crate::helixtest_ferrum::classify_trs_workflow(
         &workflow_url,
@@ -1895,9 +1913,9 @@ async fn enforce_ads_resource_tags(
     if claims.is_admin() || claims.has_dataset_grant(resource_id) {
         return Ok(());
     }
-    let token = claims.raw_token().ok_or_else(|| {
-        WesError::Forbidden("Bearer token required for ADS access check".into())
-    })?;
+    let token = claims
+        .raw_token()
+        .ok_or_else(|| WesError::Forbidden("Bearer token required for ADS access check".into()))?;
     let resource = format!("wes:run:{resource_id}");
     let active = if let Some(base) = ads_base {
         client

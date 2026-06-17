@@ -1,13 +1,15 @@
 //! Publish workspace-private DRS objects to the ADS catalog (institute/public).
 
+use axum::http::StatusCode;
 use axum::{
     extract::{Path, State},
     routing::{get, post},
     Extension, Json, Router,
 };
-use axum::http::StatusCode;
 use ferrum_beacon::repo::BeaconRepo;
-use ferrum_core::{is_workspace_editor_or_owner, AuthClaims, BackgroundWorkGate, FerrumConfig, FerrumPool};
+use ferrum_core::{
+    is_workspace_editor_or_owner, AuthClaims, BackgroundWorkGate, FerrumConfig, FerrumPool,
+};
 use ferrum_drs::repo::DrsRepo;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -127,12 +129,7 @@ async fn index_beacon_for_publish(
     };
 
     if beacon
-        .ensure_dataset(
-            ads_dataset_id,
-            display_name,
-            description,
-            "unknown",
-        )
+        .ensure_dataset(ads_dataset_id, display_name, description, "unknown")
         .await
         .is_err()
     {
@@ -184,11 +181,8 @@ pub async fn index_variants_for_publish(
 ) -> usize {
     let ferrum_pool = FerrumPool::Postgres(pool.clone());
     let drs = DrsRepo::new(ferrum_pool.clone(), "localhost".into());
-    let Some((name, mime, backend, storage_key)) = drs
-        .get_object_publish_info(object_id)
-        .await
-        .ok()
-        .flatten()
+    let Some((name, mime, backend, storage_key)) =
+        drs.get_object_publish_info(object_id).await.ok().flatten()
     else {
         return 0;
     };
@@ -198,7 +192,10 @@ pub async fn index_variants_for_publish(
         return 0;
     }
     let Some(bytes) = read_local_storage_bytes(&storage_key).await else {
-        warn!(object_id, storage_key, "VCF indexing skipped: local bytes not found");
+        warn!(
+            object_id,
+            storage_key, "VCF indexing skipped: local bytes not found"
+        );
         return 0;
     };
     let beacon = BeaconRepo::new(ferrum_pool.clone());
@@ -217,7 +214,12 @@ pub async fn index_variants_for_publish(
     match ferrum_beacon::vcf_index::index_vcf_bytes(&ferrum_pool, ads_dataset_id, &bytes).await {
         Ok(n) => {
             if n > 0 {
-                tracing::info!(object_id, ads_dataset_id, variants = n, "indexed VCF variants into Beacon");
+                tracing::info!(
+                    object_id,
+                    ads_dataset_id,
+                    variants = n,
+                    "indexed VCF variants into Beacon"
+                );
             }
             n
         }
@@ -256,11 +258,7 @@ fn spawn_vcf_index_job(
         let drs = DrsRepo::new(ferrum_pool, "localhost".into());
         let _ = drs.set_vcf_index_status(&object_id, "running").await;
         let count = index_variants_for_publish(&pool, &object_id, &ads_dataset_id).await;
-        let status = if count > 0 {
-            "completed"
-        } else {
-            "skipped"
-        };
+        let status = if count > 0 { "completed" } else { "skipped" };
         let _ = drs.set_vcf_index_status(&object_id, status).await;
         if count > 0 {
             let _ = drs.set_variants_indexed_count(&object_id, count).await;
@@ -280,18 +278,15 @@ async fn publish_dataset(
         .sub()
         .ok_or((StatusCode::FORBIDDEN, "missing subject".into()))?;
 
-    let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
-        "SELECT workspace_id, dataset_id FROM drs_objects WHERE id = $1",
-    )
-    .bind(&body.object_id)
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let row: Option<(Option<String>, Option<String>)> =
+        sqlx::query_as("SELECT workspace_id, dataset_id FROM drs_objects WHERE id = $1")
+            .bind(&body.object_id)
+            .fetch_optional(&state.pool)
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let (workspace_id, existing_dataset) = row.ok_or((
-        StatusCode::NOT_FOUND,
-        "DRS object not found".into(),
-    ))?;
+    let (workspace_id, existing_dataset) =
+        row.ok_or((StatusCode::NOT_FOUND, "DRS object not found".into()))?;
 
     if existing_dataset.is_some() {
         return Err((
@@ -317,10 +312,8 @@ async fn publish_dataset(
         ));
     }
 
-    let ads_url = resolve_ads_datasets_url(&state.config).ok_or((
-        StatusCode::SERVICE_UNAVAILABLE,
-        "ADS not configured".into(),
-    ))?;
+    let ads_url = resolve_ads_datasets_url(&state.config)
+        .ok_or((StatusCode::SERVICE_UNAVAILABLE, "ADS not configured".into()))?;
 
     let api_key = std::env::var(&state.config.auth.ads_api_key_env).map_err(|_| {
         (
@@ -478,6 +471,9 @@ pub fn publish_router(
     });
     Router::new()
         .route("/datasets/publish", post(publish_dataset))
-        .route("/datasets/publish/:object_id/index-status", get(get_publish_index_status))
+        .route(
+            "/datasets/publish/:object_id/index-status",
+            get(get_publish_index_status),
+        )
         .with_state(state)
 }

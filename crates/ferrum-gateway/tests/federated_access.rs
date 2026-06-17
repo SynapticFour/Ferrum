@@ -1,6 +1,9 @@
 //! Federated ADS introspect gate + DRS/WES proxy smoke tests.
 
-use axum::{routing::{get, post}, Json, Router};
+use axum::{
+    routing::{get, post},
+    Json, Router,
+};
 use ferrum_core::FerrumConfig;
 use ferrum_gateway::access::access_router;
 use http::{Method, Request, StatusCode};

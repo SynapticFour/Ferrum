@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { FederatedComputeRunDialog } from '@/components/FederatedComputeRunDialog';
 import {
   listCatalogDatasets,
   listFederatedCatalog,
@@ -23,7 +24,6 @@ import {
   createProject,
   submitAccessRequest,
   federatedDrsUrl,
-  federatedWesRunsUrl,
   getAccessStatus,
   type DatasetCatalogEntry,
   type ResearchProject,
@@ -569,18 +569,9 @@ export function AccessManagement() {
                     )}
                     {g.resource_type === 'compute_pool' &&
                       (g.remote_wes_base_url || g.federation_origin) && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {t('access.remoteWesSubmit')}:{' '}
-                          <code className="rounded bg-muted px-1 text-[11px]">
-                            POST{' '}
-                            {federatedWesRunsUrl(
-                              g.remote_wes_base_url,
-                              g.federation_origin,
-                              g.dataset_id,
-                              g.ads_base_url,
-                            ) ?? '/access/v1/federated/wes/runs'}
-                          </code>
-                        </p>
+                        <div className="mt-2">
+                          <FederatedComputeRunDialog grant={g} />
+                        </div>
                       )}
                     {g.remote_wes_base_url && g.resource_type !== 'compute_pool' && (
                       <p className="mt-1 text-xs font-mono text-muted-foreground truncate">

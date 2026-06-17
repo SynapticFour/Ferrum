@@ -5,6 +5,8 @@ pub mod config;
 pub mod error;
 pub mod executor;
 pub mod executors;
+#[cfg(feature = "discovery")]
+pub mod federated_forward;
 pub mod handlers;
 pub mod helixtest_ferrum;
 pub mod log_stream;
@@ -104,6 +106,7 @@ pub fn router(
     drs_ingest_base_url: Option<String>,
     allowed_workflow_sources: Vec<String>,
     ads_introspect: Option<Arc<ferrum_core::AdsIntrospectClient>>,
+    #[cfg(feature = "discovery")] federation_config: Option<Arc<ferrum_core::FerrumConfig>>,
 ) -> Router {
     let checkpoint_store = Some(Arc::new(crate::checkpoint::CheckpointStore::new(
         pool.clone(),
@@ -145,6 +148,8 @@ pub fn router(
         allowed_workflow_sources,
         checkpoint_store,
         ads_introspect,
+        #[cfg(feature = "discovery")]
+        federation_config,
     };
     let state = Arc::new(state);
 

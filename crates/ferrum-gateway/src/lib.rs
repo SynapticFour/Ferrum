@@ -1,17 +1,17 @@
 //! API Gateway: merges all GA4GH service routers under standard paths.
 //! A01: Auth middleware on every request. A05: Security headers, CORS from config.
 
-#[cfg(feature = "full")]
-mod admin;
-pub mod audit;
 #[cfg(feature = "discovery")]
 pub mod access;
 #[cfg(feature = "full")]
-mod publish;
+mod admin;
+pub mod audit;
 #[cfg(feature = "full")]
 mod federation;
 pub mod outbreak;
 pub mod power;
+#[cfg(feature = "full")]
+mod publish;
 pub mod shutdown;
 use axum::http::header;
 use axum::response::IntoResponse;
@@ -239,6 +239,7 @@ pub fn app(
                 drs_ingest_base_url.clone(),
                 allowed_workflow_sources.clone(),
                 ads_introspect.clone(),
+                cfg.map(|c| std::sync::Arc::new(c.clone())),
             ),
             None => ferrum_wes::router_unconfigured(),
         };

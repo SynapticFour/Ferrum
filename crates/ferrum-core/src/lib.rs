@@ -1,7 +1,7 @@
 //! Ferrum core: config, database, errors, auth, GA4GH types, provenance.
 
-pub mod auth;
 pub mod ads;
+pub mod auth;
 pub mod config;
 pub mod db;
 pub mod dialect;
@@ -21,11 +21,11 @@ pub mod ssrf;
 pub mod types;
 pub mod workspace;
 
+pub use ads::{AdsIntrospectClient, AdsIntrospectError};
 pub use auth::{
     auth_layer, auth_middleware, auth_middleware_with_config, AuthClaims, AuthMiddlewareConfig,
     PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
 };
-pub use ads::{AdsIntrospectClient, AdsIntrospectError};
 pub use config::{
     AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, AuthMode, BandwidthConfig,
     DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig, FerrumConfig,

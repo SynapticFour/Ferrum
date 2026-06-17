@@ -976,17 +976,18 @@ impl DrsRepo {
         &self,
         object_id: &str,
     ) -> Result<Option<(Option<String>, Option<String>, String, String)>> {
-        let row: Option<(Option<String>, Option<String>, String, String)> = pool_query!(self, |p| {
-            sqlx::query_as(
-                "SELECT o.name, o.mime_type, sr.storage_backend, sr.storage_key
+        let row: Option<(Option<String>, Option<String>, String, String)> =
+            pool_query!(self, |p| {
+                sqlx::query_as(
+                    "SELECT o.name, o.mime_type, sr.storage_backend, sr.storage_key
                  FROM drs_objects o
                  JOIN storage_references sr ON sr.object_id = o.id
                  WHERE o.id = $1",
-            )
-            .bind(object_id)
-            .fetch_optional(p)
-            .await
-        })?;
+                )
+                .bind(object_id)
+                .fetch_optional(p)
+                .await
+            })?;
         Ok(row)
     }
 
@@ -997,26 +998,22 @@ impl DrsRepo {
         dataset_id: &str,
     ) -> Result<u64> {
         let rows = match &self.pool {
-            FerrumPool::Postgres(p) => {
-                sqlx::query(
-                    "UPDATE pathogen_annotations SET dataset_id = $1 WHERE drs_object_id = $2",
-                )
-                .bind(dataset_id)
-                .bind(drs_object_id)
-                .execute(p)
-                .await?
-                .rows_affected()
-            }
-            FerrumPool::Sqlite(p) => {
-                sqlx::query(
-                    "UPDATE pathogen_annotations SET dataset_id = ?1 WHERE drs_object_id = ?2",
-                )
-                .bind(dataset_id)
-                .bind(drs_object_id)
-                .execute(p)
-                .await?
-                .rows_affected()
-            }
+            FerrumPool::Postgres(p) => sqlx::query(
+                "UPDATE pathogen_annotations SET dataset_id = $1 WHERE drs_object_id = $2",
+            )
+            .bind(dataset_id)
+            .bind(drs_object_id)
+            .execute(p)
+            .await?
+            .rows_affected(),
+            FerrumPool::Sqlite(p) => sqlx::query(
+                "UPDATE pathogen_annotations SET dataset_id = ?1 WHERE drs_object_id = ?2",
+            )
+            .bind(dataset_id)
+            .bind(drs_object_id)
+            .execute(p)
+            .await?
+            .rows_affected(),
         };
         Ok(rows)
     }

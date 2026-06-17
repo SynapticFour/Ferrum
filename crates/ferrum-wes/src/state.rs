@@ -29,4 +29,7 @@ pub struct AppState {
     pub checkpoint_store: Option<Arc<CheckpointStore>>,
     /// When set, enforce ADS introspection for runs tagged with ADS resource ids.
     pub ads_introspect: Option<Arc<AdsIntrospectClient>>,
+    /// When set (gateway + discovery), POST /runs may forward to a remote WES for federated compute pools.
+    #[cfg(feature = "discovery")]
+    pub federation_config: Option<Arc<ferrum_core::FerrumConfig>>,
 }

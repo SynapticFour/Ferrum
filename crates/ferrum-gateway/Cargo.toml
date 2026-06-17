@@ -26,7 +26,7 @@ full = [
     "discovery",
 ]
 postgres = ["sqlx/postgres"]
-wes = ["dep:ferrum-wes"]
+wes = ["dep:ferrum-wes", "ferrum-wes/discovery"]
 tes = ["dep:ferrum-tes"]
 trs = ["dep:ferrum-trs"]
 passports = ["dep:ferrum-passports"]

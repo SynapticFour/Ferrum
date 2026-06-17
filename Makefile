@@ -11,7 +11,7 @@ COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-comp
 FERRUM_WES_TES_WORK_HOST_PREFIX ?= $(CURDIR)/deploy/.wes-runs
 export FERRUM_WES_TES_WORK_HOST_PREFIX
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes test-demo test-tes test-pilot test-pilot-cloud
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes test-demo test-tes test-pilot test-pilot-cloud test-federated
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -198,3 +198,7 @@ test-pilot:
 test-pilot-cloud:
 	chmod +x deploy/scripts/ci-pilot-cloud-e2e.sh
 	./deploy/scripts/ci-pilot-cloud-e2e.sh
+
+test-federated:
+	chmod +x deploy/scripts/ci-federated-e2e.sh
+	./deploy/scripts/ci-federated-e2e.sh

@@ -1,7 +1,7 @@
 //! Minimal VCF → Beacon variant indexing (SNV rows only, capped for publish-time use).
 
-use ferrum_core::Result;
 use ferrum_core::FerrumPool;
+use ferrum_core::Result;
 use std::io::{BufRead, BufReader, Cursor, Read};
 
 const MAX_VARIANT_ROWS: usize = 10_000;
@@ -66,11 +66,7 @@ fn parse_vcf_snvs(bytes: &[u8]) -> Result<Vec<VcfSnv>> {
 }
 
 /// Parse VCF bytes and insert SNV rows into `beacon_variants` (best-effort).
-pub async fn index_vcf_bytes(
-    pool: &FerrumPool,
-    dataset_id: &str,
-    bytes: &[u8],
-) -> Result<usize> {
+pub async fn index_vcf_bytes(pool: &FerrumPool, dataset_id: &str, bytes: &[u8]) -> Result<usize> {
     if bytes.len() > MAX_VCF_BYTES {
         return Ok(0);
     }

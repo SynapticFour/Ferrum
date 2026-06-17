@@ -87,7 +87,10 @@ pub fn local_service_url(gateway_base: &str, artifact: &str) -> Option<String> {
 }
 
 /// Resolve service URLs for gateway startup (TES, TRS register, ADS proxy).
-pub async fn resolve_service_urls(config: &FerrumConfig, gateway_base: &str) -> ResolvedServiceUrls {
+pub async fn resolve_service_urls(
+    config: &FerrumConfig,
+    gateway_base: &str,
+) -> ResolvedServiceUrls {
     let base = gateway_base.trim_end_matches('/').to_string();
     let mut resolved = ResolvedServiceUrls::local_defaults(&base);
 

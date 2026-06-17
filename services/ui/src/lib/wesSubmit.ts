@@ -1,4 +1,5 @@
 import { apiPost } from '@/api/client';
+import { federatedWesRunsUrl } from '@/api/access';
 import type { DrsObject } from '@/api/types';
 import { isPerSampleFileInput, wesParamKey, type WdlInput } from '@/lib/wdlInputs';
 
@@ -25,6 +26,47 @@ export async function submitWorkflowRun(opts: SubmitWorkflowRunOptions): Promise
     tags: opts.tags ?? { source: 'ferrum-ui' },
     ...(opts.workspaceId ? { workspace_id: opts.workspaceId } : {}),
   });
+}
+
+export interface SubmitFederatedWorkflowRunOptions extends SubmitWorkflowRunOptions {
+  computePoolId: string;
+  remoteWesBaseUrl?: string;
+  federationOrigin?: string;
+  adsBaseUrl?: string;
+}
+
+/** Submit a workflow run on a remote compute pool via the federated WES proxy (or local WES auto-forward). */
+export async function submitFederatedWorkflowRun(
+  opts: SubmitFederatedWorkflowRunOptions,
+): Promise<{ run_id?: string }> {
+  const federatedUrl = federatedWesRunsUrl(
+    opts.remoteWesBaseUrl,
+    opts.federationOrigin,
+    opts.computePoolId,
+    opts.adsBaseUrl,
+  );
+  const tags: Record<string, string> = {
+    ...(opts.tags ?? {}),
+    ads_compute_pool_id: opts.computePoolId,
+    source: 'ferrum-ui',
+  };
+  if (opts.federationOrigin) tags.federation_origin = opts.federationOrigin;
+  if (opts.adsBaseUrl) tags.ads_base_url = opts.adsBaseUrl;
+  if (opts.remoteWesBaseUrl) tags.remote_wes_base_url = opts.remoteWesBaseUrl;
+
+  const body = {
+    workflow_type: opts.workflowType,
+    workflow_type_version: opts.workflowTypeVersion ?? '1.0',
+    workflow_url: opts.workflowUrl,
+    workflow_params: opts.workflowParams,
+    tags,
+    ...(opts.workspaceId ? { workspace_id: opts.workspaceId } : {}),
+  };
+
+  if (federatedUrl) {
+    return apiPost<{ run_id?: string }>(federatedUrl, body);
+  }
+  return apiPost<{ run_id?: string }>('/ga4gh/wes/v1/runs', body);
 }
 
 export function buildFlatWorkflowParams(

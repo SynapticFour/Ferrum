@@ -2202,6 +2202,7 @@ dependencies = [
  "axum",
  "chrono",
  "ferrum-core",
+ "ferrum-discovery",
  "ferrum-reference",
  "futures-util",
  "hex",
