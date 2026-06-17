@@ -5,8 +5,9 @@ use axum::{extract::Request, middleware::Next, response::Response};
 use base64::Engine;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, LazyLock, Mutex};
+use std::time::{Duration, Instant};
 
 /// GA4GH Visa object (ga4gh_visa_v1 claim value).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,10 +192,20 @@ pub struct AuthMiddlewareConfig {
 
 impl AuthMiddlewareConfig {
     pub fn from_crate_config(cfg: &crate::config::AuthConfig) -> Self {
+        let jwks_url = cfg
+            .jwks_url
+            .clone()
+            .or_else(|| std::env::var("FERRUM_AUTH__JWKS_URL").ok())
+            .filter(|s| !s.is_empty());
+        let issuer = cfg
+            .issuer
+            .clone()
+            .or_else(|| std::env::var("FERRUM_AUTH__ISSUER").ok())
+            .filter(|s| !s.is_empty());
         Self {
             jwt_secret: cfg.jwt_secret.as_deref().map(|s| s.as_bytes().to_vec()),
-            issuer: cfg.issuer.clone(),
-            jwks_url: cfg.jwks_url.clone(),
+            issuer,
+            jwks_url,
             passport_endpoints: cfg.passport_endpoints.clone(),
             require_auth: cfg.require_auth,
             max_token_age_hours: cfg.max_token_age_hours,
@@ -283,16 +294,25 @@ pub async fn auth_middleware_with_config(
 
     if let Some(token) = token {
         if let Some(ref cfg) = config {
-            if let Ok(claims) = decode_jwt_or_passport(&token, cfg) {
-                let insert = if let (Some(jti), Some(check)) =
-                    (claims.jti(), cfg.revocation_check.as_ref())
-                {
-                    !check.is_revoked(jti).await
-                } else {
-                    true
-                };
-                if insert {
-                    request.extensions_mut().insert(claims);
+            match decode_jwt_or_passport(&token, cfg).await {
+                Ok(claims) => {
+                    let insert = if let (Some(jti), Some(check)) =
+                        (claims.jti(), cfg.revocation_check.as_ref())
+                    {
+                        !check.is_revoked(jti).await
+                    } else {
+                        true
+                    };
+                    if insert {
+                        request.extensions_mut().insert(claims);
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        jwks_url = ?cfg.jwks_url,
+                        "JWT/Passport validation failed"
+                    );
                 }
             }
         } else {
@@ -344,12 +364,12 @@ fn reject_token_if_too_old(
 }
 
 /// Decode as standard JWT (HS256) or as GA4GH Passport.
-fn decode_jwt_or_passport(
+async fn decode_jwt_or_passport(
     token: &str,
     cfg: &AuthMiddlewareConfig,
 ) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
     // Try as GA4GH Passport (has ga4gh_passport_v1 claim)
-    if let Ok(claims) = decode_passport_jwt(token, cfg) {
+    if let Ok(claims) = decode_passport_jwt(token, cfg).await {
         reject_token_if_too_old(claims.iat, cfg.max_token_age_hours)?;
         let visa_jwts = claims.ga4gh_passport_v1.as_deref().unwrap_or(&[]);
         let visas = if cfg.use_clearinghouse {
@@ -407,12 +427,58 @@ fn decode_jwt_fallback(token: &str) -> Result<AuthClaims, jsonwebtoken::errors::
     })
 }
 
-fn decode_passport_jwt(
+struct CachedJwks {
+    fetched_at: Instant,
+    set: jsonwebtoken::jwk::JwkSet,
+}
+
+static JWKS_CACHE: LazyLock<Mutex<HashMap<String, CachedJwks>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+const JWKS_CACHE_TTL: Duration = Duration::from_secs(300);
+
+async fn fetch_jwks_cached(
+    jwks_url: &str,
+) -> Result<jsonwebtoken::jwk::JwkSet, jsonwebtoken::errors::Error> {
+    if let Ok(cache) = JWKS_CACHE.lock() {
+        if let Some(entry) = cache.get(jwks_url) {
+            if entry.fetched_at.elapsed() < JWKS_CACHE_TTL {
+                return Ok(entry.set.clone());
+            }
+        }
+    }
+
+    let jwks_value = reqwest::Client::new()
+        .get(jwks_url)
+        .timeout(Duration::from_secs(15))
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::warn!(jwks_url = %jwks_url, error = %e, "JWKS fetch failed");
+            jsonwebtoken::errors::ErrorKind::InvalidToken
+        })?
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    let set: jsonwebtoken::jwk::JwkSet = serde_json::from_value(jwks_value)
+        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+
+    if let Ok(mut cache) = JWKS_CACHE.lock() {
+        cache.insert(
+            jwks_url.to_string(),
+            CachedJwks {
+                fetched_at: Instant::now(),
+                set: set.clone(),
+            },
+        );
+    }
+
+    Ok(set)
+}
+
+async fn decode_passport_jwt(
     token: &str,
-    _cfg: &AuthMiddlewareConfig,
+    cfg: &AuthMiddlewareConfig,
 ) -> Result<PassportClaims, jsonwebtoken::errors::Error> {
-    // Keep this function signature compatible: we still validate only when a passport-like JWT is presented.
-    // For RS256/ES256 tokens we verify the signature using the configured JWKS if available.
     let decoded_header = jsonwebtoken::decode_header(token)?;
 
     // OWASP A02: pin to RS256/ES256 for Passport; never HS256 or None.
@@ -421,52 +487,34 @@ fn decode_passport_jwt(
         return Err(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm.into());
     }
 
-    // The current call-site tries `decode_passport_jwt` first. If the caller isn't configured with a JWKS,
-    // we must fail signature verification (fail closed).
-    let jwks_url = _cfg
+    let jwks_url = cfg
         .jwks_url
         .as_deref()
         .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
+    let set = fetch_jwks_cached(jwks_url).await?;
     let kid = decoded_header.kid.unwrap_or_default();
-    let validation_jwks = async {
-        let jwks_json = reqwest::Client::new()
-            .get(jwks_url)
-            .send()
-            .await
-            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-        // Parse JWKS and select key by `kid` (if present).
-        let jwks_value = jwks_json
-            .json::<serde_json::Value>()
-            .await
-            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-        let set: jsonwebtoken::jwk::JwkSet = serde_json::from_value(jwks_value)
-            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
-        let jwk = if !kid.is_empty() {
-            set.find(&kid)
-        } else {
-            // If no `kid` is present, fall back to the first supported key.
-            set.keys.first()
-        }
-        .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    let jwk = if !kid.is_empty() {
+        set.find(&kid)
+    } else {
+        set.keys.first()
+    }
+    .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
-        let key = jsonwebtoken::DecodingKey::from_jwk(jwk)
-            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    let key = jsonwebtoken::DecodingKey::from_jwk(jwk)
+        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
-        let mut validation = Validation::new(alg);
-        validation.validate_exp = true;
-        validation.algorithms = vec![Algorithm::RS256, Algorithm::ES256];
+    let mut validation = Validation::new(alg);
+    validation.validate_exp = true;
+    validation.algorithms = vec![Algorithm::RS256, Algorithm::ES256];
+    if let Some(ref iss) = cfg.issuer {
+        validation.set_issuer(&[iss.as_str()]);
+    }
 
-        let data = jsonwebtoken::decode::<PassportClaims>(token, &key, &validation)
-            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-        Ok(data.claims)
-    };
-
-    // `decode_passport_jwt` is non-async by design. We currently execute verification through the request path,
-    // so we can use a small blocking runtime hop. This keeps changes localized and avoids touching call sites.
-    // If JWKS fetching is slow, consider adding caching later.
-    tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(validation_jwks))
+    let data = jsonwebtoken::decode::<PassportClaims>(token, &key, &validation)
+        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    Ok(data.claims)
 }
 
 fn decode_passport_visas_clearinghouse(

@@ -63,9 +63,9 @@ export function AccessManagement() {
             <li className="flex items-start gap-3">
               <Lock className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
               <span>
-                <strong>Authentication:</strong> Use Keycloak (or another IdP) to sign in; the UI can store a
-                Passport JWT for API calls. Set <code className="rounded bg-muted px-1">__ferrumPassport</code> or
-                use the login flow if configured.
+                <strong>Authentication:</strong> Sign in via the header button (AAI broker). The UI stores the
+                Passport JWT in <code className="rounded bg-muted px-1">sessionStorage</code> (
+                <code className="rounded bg-muted px-1">ferrum.passport</code>). See Settings → Profile.
               </span>
             </li>
             <li className="flex items-start gap-3">

@@ -21,6 +21,10 @@ export const en = {
     noSession: 'No session',
     signIn: 'Sign in',
     signOut: 'Sign out',
+    signInAgain: 'Sign in again',
+    sessionExpired: 'Your session has expired. Please sign in again to continue.',
+    sessionExpiresSoon: 'Your session expires in about {minutes} minutes.',
+    sessionExpiresVerySoon: 'Your session expires in {minutes} minutes — sign in again soon.',
     language: 'Language',
   },
     nav: {

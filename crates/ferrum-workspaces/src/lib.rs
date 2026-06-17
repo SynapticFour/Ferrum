@@ -3,6 +3,7 @@
 pub mod activity;
 pub mod email;
 pub mod error;
+pub mod extract;
 pub mod guard;
 pub mod handlers;
 pub mod repo;

@@ -23,6 +23,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 |----------|-------------|
 | [README.md](../README.md) | Project overview, badges, quick start, features, deployment. |
 | [INSTALLATION.md](INSTALLATION.md) | Prerequisites, demo, build from source, production install, Ansible, Helm, config reference, upgrading, troubleshooting. |
+| [PASTEUR-PILOT.md](PASTEUR-PILOT.md) | Pasteur Tunis Fly pilot — URLs, local `make up-pilot*` profiles, pointer to operator HANDOFF. |
 | [deployment/README.md](deployment/README.md) | Deployment paths matrix, update/bugfix delivery strategy, preflight checks. |
 | [deployment/OFFLINE-AIRGAP.md](deployment/OFFLINE-AIRGAP.md) | Air-gapped deployment flow (export/import bundles). |
 

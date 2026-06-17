@@ -1,0 +1,31 @@
+# Pilot-cloud overlay: local Ferrum demo stack + Fly.io ga4gh-infra / Keycloak AAI.
+# No local aai-broker or mock-idp — auth plane stays on Fly.
+#
+#   make up-pilot-cloud
+#
+# Requires: Fly pilot ga4gh-infra + keycloak running (./pilot.sh resume all --wait).
+# Override broker URL: PILOT_CLOUD_GA4GH_URL=https://your-ga4gh.fly.dev
+
+services:
+  ferrum-gateway:
+    build:
+      context: ${GA4GH_INFRA_SRC}/..
+      dockerfile: Ferrum/deploy/Dockerfile.gateway-monorepo
+      args:
+        FERRUM_GATEWAY_FEATURES: full,tes-docker,external-auth
+    environment:
+      FERRUM_AUTH__MODE: external
+      FERRUM_AUTH__REQUIRE_AUTH: "true"
+      FERRUM_AUTH__CLEARINGHOUSE: "true"
+      FERRUM_AUTH__ISSUER: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
+      FERRUM_AUTH__JWKS_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}/jwks.json
+      FERRUM_PUBLIC_BROKER_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
+      FERRUM_BROKER_LOGIN_IDP: keycloak
+      FERRUM_SERVICES__ENABLE_PASSPORTS: "false"
+      # Do not auto-register localhost into the Fly service registry by default.
+      FERRUM_DISCOVERY__ENABLED: "${PILOT_CLOUD_DISCOVERY:-false}"
+      FERRUM_DISCOVERY__AUTO_REGISTER: "false"
+
+  ferrum-ui:
+    environment:
+      VITE_API_BASE: ""

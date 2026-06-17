@@ -1,0 +1,49 @@
+# Pasteur Tunis Fly pilot (operator pointer)
+
+Hosted demo for Institut Pasteur de Tunis. **Operator runbooks, Fly URLs, credentials, seed, and troubleshooting** live in the private business repo:
+
+**`synapticfour-business/customers/pasteur-tunis/pilot-deploy/HANDOFF.md`**
+
+This Ferrum doc summarizes what developers need locally.
+
+## Public URLs (default Fly app names)
+
+| Service | URL |
+|---------|-----|
+| Ferrum UI | https://pasteur-pilot-ferrum.fly.dev/ui/ |
+| ga4gh-infra broker | https://pasteur-pilot-ga4gh-infra.fly.dev |
+| Login (Keycloak upstream) | https://pasteur-pilot-ga4gh-infra.fly.dev/login/keycloak |
+| Keycloak admin | https://pasteur-pilot-keycloak.fly.dev/admin/ |
+
+There is **no web UI on the ga4gh-infra root URL** (API/broker only). End users start at **Ferrum `/ui/`**.
+
+## Local profiles vs Fly
+
+| Goal | Command |
+|------|---------|
+| Open demo, no AAI | `make up` |
+| **AAI locally (mock-idp)** | `make up-pilot` → `make test-pilot` |
+| **AAI with Fly Keycloak** | `make up-pilot-cloud` → `make test-pilot-cloud` (Fly must be running) |
+| Real workflow compute | `make up-tes` |
+
+Pilot Fly uses **external auth** (`require_auth=true`, clearinghouse). Built-in Ferrum `/passports/v1` is **disabled** on pilot overlays (see ADR-017 / `docs/GA4GH-INFRA-INTEGRATION.md`).
+
+## After Fly deploy (operator)
+
+```bash
+cd synapticfour-business/customers/pasteur-tunis/pilot-deploy
+./pilot.sh resume all --wait    # if paused
+./scripts/obtain-passport.sh --write-env
+./pilot.sh seed all
+./scripts/pilot-smoke.sh
+```
+
+## Demo expectations
+
+- **Sign-in:** broker → Keycloak demo users (see HANDOFF; rotate before external share).
+- **Data:** DRS/Beacon after `./pilot.sh seed all`; workspaces created by seed when `FERRUM_PASSPORT_JWT` is set.
+- **WES on Fly:** TES `noop` — API lifecycle only; use `make up-tes` locally for real container runs.
+
+## Legal
+
+Ferrum is licensed under **BUSL-1.1** (see root `LICENSE`). The Fly pilot is a **non-production demo**; do not process real patient data. See also `docs/COMPLIANCE.md` and `README.md`.

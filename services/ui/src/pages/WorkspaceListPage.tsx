@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '@/api/client';
+import { apiGet, ApiAuthError } from '@/api/client';
 import { FolderPlus } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 
@@ -24,11 +24,16 @@ export function WorkspaceListPage() {
 
   if (isLoading) return <p className="text-muted-foreground">{t('workspaceList.loading')}</p>;
   if (error) {
+    const sessionExpired = error instanceof ApiAuthError && error.sessionExpired;
     const msg = error instanceof Error ? error.message : String(error);
     return (
       <div className="space-y-2">
-        <p className="text-destructive font-medium">{t('workspaceList.failed')}</p>
-        <p className="text-sm text-muted-foreground font-mono break-all">{t('common.error')}: {msg}</p>
+        <p className="text-destructive font-medium">
+          {sessionExpired ? t('common.sessionExpired') : t('workspaceList.failed')}
+        </p>
+        {!sessionExpired && (
+          <p className="text-sm text-muted-foreground font-mono break-all">{t('common.error')}: {msg}</p>
+        )}
       </div>
     );
   }

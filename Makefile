@@ -6,11 +6,12 @@ COMPOSE := docker compose -f $(COMPOSE_FILE)
 GA4GH_INFRA_SRC ?= $(abspath ../ga4gh-infra)
 export GA4GH_INFRA_SRC
 COMPOSE_PILOT := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml
+COMPOSE_PILOT_CLOUD := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-cloud.yml
 COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tes.yml
 FERRUM_WES_TES_WORK_HOST_PREFIX ?= $(CURDIR)/deploy/.wes-runs
 export FERRUM_WES_TES_WORK_HOST_PREFIX
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop up-pilot down-pilot up-tes
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes test-demo test-tes test-pilot test-pilot-cloud
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -19,6 +20,7 @@ help:
 	@echo "  make up        Start demo stack (alias: make demo)"
 	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
 	@echo "  make up-pilot  Start demo + ga4gh-infra with external auth (requires ../ga4gh-infra)"
+	@echo "  make up-pilot-cloud  Local Ferrum + Fly ga4gh-infra/Keycloak (Fly must be running)"
 	@echo "  make down      Stop stack; keep volumes"
 	@echo "  make destroy   Stop stack; remove volumes and project images"
 	@echo ""
@@ -85,6 +87,33 @@ up-pilot:
 
 down-pilot:
 	$(COMPOSE_PILOT) down
+
+# Local Ferrum demo stack; auth via Fly pasteur-pilot ga4gh-infra + Keycloak (return_url localhost OK).
+up-pilot-cloud:
+	@test -d "$(GA4GH_INFRA_SRC)" || (echo "GA4GH_INFRA_SRC not found: $(GA4GH_INFRA_SRC)" && exit 1)
+	@GA4GH_URL="$${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}"; \
+	  curl -sf "$$GA4GH_URL/service-info" >/dev/null \
+	  || (echo "Fly broker not reachable at $$GA4GH_URL — run: pilot-deploy ./pilot.sh resume all --wait" && exit 1)
+	$(COMPOSE_PILOT_CLOUD) pull
+	$(COMPOSE_PILOT_CLOUD) up -d --build
+	@echo "Waiting for gateway (max 90s)..."
+	@for i in $$(seq 1 45); do \
+		curl -sf http://localhost:$${GATEWAY_PORT:-8080}/health >/dev/null && echo "Gateway OK" && break; \
+		[ $$i -eq 45 ] && echo "Gateway did not become healthy. Check: $(COMPOSE_PILOT_CLOUD) logs ferrum-gateway" && exit 1; \
+		sleep 2; \
+	done
+	@GA4GH_URL="$${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}"; \
+	  echo ""; \
+	  echo "Ferrum pilot-cloud is up (local data plane + Fly AAI):"; \
+	  echo "  UI:       http://localhost:$${UI_PORT:-8082}/"; \
+	  echo "  Gateway:  http://localhost:$${GATEWAY_PORT:-8080}"; \
+	  echo "  Fly AAI:  $$GA4GH_URL/login/keycloak"; \
+	  echo "  Sign in:  pasteur-demo-1 / PasteurDemo1!"; \
+	  echo "  Smoke:    make test-pilot-cloud"
+	@command -v open >/dev/null 2>&1 && open "http://localhost:$${UI_PORT:-8082}/" || true
+
+down-pilot-cloud:
+	$(COMPOSE_PILOT_CLOUD) down
 
 down: stop
 
@@ -153,3 +182,19 @@ rebuild-gateway:
 # Pull only
 pull:
 	$(COMPOSE) pull
+
+test-demo:
+	chmod +x deploy/scripts/ci-docker-demo-e2e.sh
+	./deploy/scripts/ci-docker-demo-e2e.sh
+
+test-tes:
+	chmod +x deploy/scripts/ci-docker-tes-e2e.sh
+	./deploy/scripts/ci-docker-tes-e2e.sh
+
+test-pilot:
+	chmod +x deploy/scripts/ci-pilot-aai-e2e.sh
+	./deploy/scripts/ci-pilot-aai-e2e.sh
+
+test-pilot-cloud:
+	chmod +x deploy/scripts/ci-pilot-cloud-e2e.sh
+	./deploy/scripts/ci-pilot-cloud-e2e.sh

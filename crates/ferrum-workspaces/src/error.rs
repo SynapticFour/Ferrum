@@ -16,6 +16,9 @@ pub enum WorkspaceError {
     #[error("forbidden: {0}")]
     Forbidden(String),
 
+    #[error("unauthorized: {0}")]
+    Unauthorized(String),
+
     #[error("validation error: {0}")]
     Validation(String),
 
@@ -39,6 +42,7 @@ impl IntoResponse for WorkspaceError {
         let (status, msg) = match &self {
             WorkspaceError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
             WorkspaceError::Forbidden(_) => (StatusCode::FORBIDDEN, self.to_string()),
+            WorkspaceError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
             WorkspaceError::Validation(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             WorkspaceError::Conflict(_) => (StatusCode::CONFLICT, self.to_string()),
             WorkspaceError::Database(_) => (

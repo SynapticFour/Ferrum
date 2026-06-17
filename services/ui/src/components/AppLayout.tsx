@@ -1,8 +1,9 @@
 import { Link, useRouterState } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { useAuthConfig } from '@/hooks/useAuthConfig';
-import { buildBrokerLoginUrl } from '@/lib/auth';
+import { buildBrokerLoginUrl, isPassportExpired, passportExpiresAt } from '@/lib/auth';
 import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users, FolderOpen, LogIn, LogOut, BarChart3, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,56 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { t, dir } = useI18n();
 
   const brokerLoginUrl = authConfig?.broker_login_url;
-  const showSignIn = Boolean(authConfig?.require_auth && brokerLoginUrl && !passportJwt);
+  const tokenExpired = passportJwt ? isPassportExpired(passportJwt) : false;
+  const [expiredNotice, setExpiredNotice] = useState(false);
+  const [expiryBannerDismissed, setExpiryBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    if (tokenExpired) {
+      setExpiredNotice(true);
+      setPassport(null);
+    } else if (passportJwt) {
+      setExpiredNotice(false);
+    }
+  }, [tokenExpired, passportJwt, setPassport]);
+
+  useEffect(() => {
+    setExpiryBannerDismissed(false);
+  }, [passportJwt]);
+
+  useEffect(() => {
+    if (!passportJwt || tokenExpired) return;
+    const expiresAt = passportExpiresAt(passportJwt);
+    if (!expiresAt) return;
+    const ms = expiresAt.getTime() - Date.now();
+    if (ms <= 0) {
+      setExpiredNotice(true);
+      setPassport(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setExpiredNotice(true);
+      setPassport(null);
+    }, ms + 1000);
+    return () => window.clearTimeout(timer);
+  }, [passportJwt, tokenExpired, setPassport]);
+
+  const showSignIn = Boolean(
+    authConfig?.require_auth && brokerLoginUrl && (!passportJwt || tokenExpired),
+  );
+
+  const expiresAt = passportExpiresAt(passportJwt);
+  const expiresInMinutes =
+    expiresAt != null
+      ? Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 60_000))
+      : null;
+  const showExpirySoon =
+    Boolean(passportJwt && !tokenExpired && authConfig?.require_auth) &&
+    expiresInMinutes != null &&
+    expiresInMinutes <= 30 &&
+    !expiryBannerDismissed;
+  const showExpiredBanner =
+    Boolean(authConfig?.require_auth && expiredNotice && !expiryBannerDismissed);
 
   const handleSignIn = () => {
     if (!brokerLoginUrl) return;
@@ -93,6 +143,35 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <main className={cn('flex-1 flex flex-col', dir === 'rtl' ? 'pr-56' : 'pl-56')}>
+        {showExpirySoon && expiresInMinutes != null && expiresInMinutes <= 30 && (
+          <div className="border-b border-amber-500/40 bg-amber-500/10 px-6 py-2 text-sm flex items-center justify-between gap-4">
+            <span>
+              {expiresInMinutes <= 5
+                ? t('common.sessionExpiresVerySoon', { minutes: expiresInMinutes })
+                : t('common.sessionExpiresSoon', { minutes: expiresInMinutes })}
+            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              {brokerLoginUrl && (
+                <Button variant="outline" size="sm" onClick={handleSignIn}>
+                  {t('common.signInAgain')}
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setExpiryBannerDismissed(true)}>
+                {t('common.dismiss')}
+              </Button>
+            </div>
+          </div>
+        )}
+        {showExpiredBanner && (
+          <div className="border-b border-destructive/40 bg-destructive/10 px-6 py-2 text-sm flex items-center justify-between gap-4">
+            <span>{t('common.sessionExpired')}</span>
+            {brokerLoginUrl && (
+              <Button variant="outline" size="sm" onClick={handleSignIn}>
+                {t('common.signInAgain')}
+              </Button>
+            )}
+          </div>
+        )}
         <div className="container max-w-7xl py-6 flex-1">{children}</div>
         <Footer />
       </main>

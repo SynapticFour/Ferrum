@@ -1,4 +1,5 @@
 use crate::error::{Result, WorkspaceError};
+use crate::extract::RequireAuth;
 use crate::guard;
 use crate::repo::WorkspaceRepo;
 use crate::state::AppState;
@@ -6,9 +7,8 @@ use crate::types::*;
 use crate::validation;
 use axum::{
     extract::{Path, State},
-    Extension, Json,
+    Json,
 };
-use ferrum_core::AuthClaims;
 use std::sync::Arc;
 
 fn slug_from_name(name: &str) -> String {
@@ -33,7 +33,7 @@ fn slug_from_name(name: &str) -> String {
 
 pub async fn list_my_workspaces(
     State(state): State<Arc<AppState>>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<Vec<Workspace>>> {
     let sub = auth
         .sub()
@@ -45,7 +45,7 @@ pub async fn list_my_workspaces(
 
 pub async fn create_workspace(
     State(state): State<Arc<AppState>>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
     Json(req): Json<CreateWorkspaceRequest>,
 ) -> Result<Json<Workspace>> {
     let sub = auth
@@ -95,7 +95,7 @@ pub async fn create_workspace(
 pub async fn get_workspace(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<Workspace>> {
     let sub = auth
         .sub()
@@ -113,7 +113,7 @@ pub async fn get_workspace(
 pub async fn update_workspace(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
     Json(req): Json<UpdateWorkspaceRequest>,
 ) -> Result<Json<Workspace>> {
     let sub = auth
@@ -147,7 +147,7 @@ pub async fn update_workspace(
 pub async fn archive_workspace(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<serde_json::Value>> {
     let sub = auth
         .sub()
@@ -162,7 +162,7 @@ pub async fn archive_workspace(
 pub async fn list_members(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<Vec<WorkspaceMember>>> {
     let sub = auth
         .sub()
@@ -177,7 +177,7 @@ pub async fn list_members(
 pub async fn add_member(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
     Json(req): Json<AddMemberRequest>,
 ) -> Result<Json<WorkspaceMember>> {
     let sub = auth
@@ -211,7 +211,7 @@ pub async fn add_member(
 pub async fn update_member_role(
     State(state): State<Arc<AppState>>,
     Path((id, member_sub)): Path<(String, String)>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
     Json(req): Json<UpdateMemberRoleRequest>,
 ) -> Result<Json<WorkspaceMember>> {
     let sub = auth
@@ -234,7 +234,7 @@ pub async fn update_member_role(
 pub async fn remove_member(
     State(state): State<Arc<AppState>>,
     Path((id, member_sub)): Path<(String, String)>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<serde_json::Value>> {
     let sub = auth
         .sub()
@@ -258,7 +258,7 @@ pub async fn remove_member(
 pub async fn list_invites(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<Vec<WorkspaceInvite>>> {
     let sub = auth
         .sub()
@@ -273,7 +273,7 @@ pub async fn list_invites(
 pub async fn create_invite(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
     Json(req): Json<CreateInviteRequest>,
 ) -> Result<Json<WorkspaceInvite>> {
     let sub = auth
@@ -314,7 +314,7 @@ pub async fn create_invite(
 pub async fn revoke_invite(
     State(state): State<Arc<AppState>>,
     Path((id, invite_id)): Path<(String, String)>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<serde_json::Value>> {
     let sub = auth
         .sub()
@@ -329,7 +329,7 @@ pub async fn revoke_invite(
 pub async fn accept_invite(
     State(state): State<Arc<AppState>>,
     Path(token): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<Workspace>> {
     let sub = auth
         .sub()
@@ -362,7 +362,7 @@ pub async fn accept_invite(
 pub async fn get_activity(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<Vec<WorkspaceActivityItem>>> {
     let sub = auth
         .sub()
@@ -377,7 +377,7 @@ pub async fn get_activity(
 pub async fn get_workspace_contents(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
-    Extension(auth): Extension<AuthClaims>,
+    RequireAuth(auth): RequireAuth,
 ) -> Result<Json<WorkspaceContents>> {
     let sub = auth
         .sub()

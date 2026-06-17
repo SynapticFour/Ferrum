@@ -103,6 +103,15 @@ export function StudySetupPage() {
   });
 
   const wsList = Array.isArray(workspaces) ? workspaces : [];
+
+  useEffect(() => {
+    if (wsList.length === 0) return;
+    const ids = new Set(wsList.map((w) => w.id));
+    if (!ids.has(state.workspaceId)) {
+      setState((s) => ({ ...s, workspaceId: wsList[0].id }));
+    }
+  }, [wsList, state.workspaceId]);
+
   const step = state.step;
 
   async function createCohort() {

@@ -24,6 +24,10 @@ const deOverlay = {
     noSession: 'Keine Sitzung',
     signIn: 'Anmelden',
     signOut: 'Abmelden',
+    signInAgain: 'Erneut anmelden',
+    sessionExpired: 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.',
+    sessionExpiresSoon: 'Ihre Sitzung läuft in etwa {minutes} Minuten ab.',
+    sessionExpiresVerySoon: 'Ihre Sitzung läuft in {minutes} Minuten ab — bitte bald erneut anmelden.',
     language: 'Sprache',
   },
   nav: {

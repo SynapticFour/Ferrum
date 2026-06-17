@@ -1,24 +1,13 @@
 import { useAuthStore } from '@/stores/auth';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useAuthConfig } from '@/hooks/useAuthConfig';
+import { decodeJwtPayload } from '@/lib/auth';
 
 interface VisaClaim {
   type?: string;
   value?: string;
   source?: string;
   asserted?: number;
-}
-
-function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
-  const parts = jwt.split('.');
-  if (parts.length < 2) return null;
-  try {
-    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const json = atob(b64.padEnd(b64.length + ((4 - (b64.length % 4)) % 4), '='));
-    return JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }
 
 function decodeVisas(raw: unknown): VisaClaim[] {
