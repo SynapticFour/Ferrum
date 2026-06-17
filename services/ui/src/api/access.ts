@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/api/client';
+import { apiFetch, apiGet, apiPost } from '@/api/client';
 
 export interface DatasetCatalogEntry {
   id: string;
@@ -10,6 +10,9 @@ export interface DatasetCatalogEntry {
   auto_approve_enabled?: boolean;
   visibility?: 'draft' | 'institute' | 'public';
   resource_type?: 'dataset' | 'compute_pool';
+  remote_drs_base_url?: string;
+  ads_base_url?: string;
+  federation_origin?: string;
 }
 
 export interface ResearchProject {
@@ -91,11 +94,25 @@ export function createProject(body: {
   return apiPost<ResearchProject>('/access/v1/projects', body);
 }
 
-export function submitAccessRequest(body: {
-  researcher_id: string;
-  dataset_id: string;
-  project_id: string;
-  justification?: string;
-}) {
-  return apiPost<AccessRequest>('/access/v1/access-requests', body);
+export function submitAccessRequest(
+  body: {
+    researcher_id: string;
+    dataset_id: string;
+    project_id: string;
+    justification?: string;
+  },
+  adsBaseUrl?: string,
+) {
+  return apiFetch<AccessRequest>('/access/v1/access-requests', {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: adsBaseUrl ? { 'X-ADS-Base-URL': adsBaseUrl } : undefined,
+  });
+}
+
+export function federatedDrsUrl(remoteDrsBase: string, externalId?: string) {
+  const objectId = externalId?.startsWith('drs:') ? externalId.slice(4) : externalId;
+  if (!objectId) return null;
+  const base = remoteDrsBase.trim().replace(/\/$/, '');
+  return `/access/v1/federated/drs/objects/${encodeURIComponent(objectId)}?base_url=${encodeURIComponent(base)}`;
 }

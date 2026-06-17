@@ -20,7 +20,9 @@ pub async fn check_object_byte_access(
         })?;
         if let Some(client) = state.ads_introspect.as_ref() {
             enforce_ads_dataset_access(client, &dataset_id, canonical_object_id, claims).await?;
-        } else if !claims.has_dataset_grant(&dataset_id) && !claims.is_admin() {
+        } else if !claims.has_published_dataset_access(&dataset_id, canonical_object_id)
+            && !claims.is_admin()
+        {
             return Err(DrsError::Forbidden("dataset access not granted".into()));
         }
     } else if let Some(ws_id) = workspace_id {
@@ -54,14 +56,15 @@ async fn enforce_ads_dataset_access(
     object_id: &str,
     claims: &AuthClaims,
 ) -> Result<()> {
-    if claims.is_admin() || claims.has_dataset_grant(dataset_id) {
+    if claims.is_admin() || claims.has_published_dataset_access(dataset_id, object_id) {
         return Ok(());
     }
     let token = claims
         .raw_token()
         .ok_or_else(|| DrsError::Forbidden("Bearer token required for ADS access check".into()))?;
+    let resource = format!("drs:{object_id}");
     let active = client
-        .is_dataset_access_active(token, object_id, dataset_id)
+        .is_dataset_access_active(token, &resource, dataset_id)
         .await
         .map_err(|e| DrsError::Forbidden(format!("ADS access check failed: {e}")))?;
     if !active {

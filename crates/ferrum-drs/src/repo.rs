@@ -925,6 +925,25 @@ impl DrsRepo {
         Ok(id)
     }
 
+    /// Object metadata needed for publish-side Beacon indexing.
+    pub async fn get_object_publish_info(
+        &self,
+        object_id: &str,
+    ) -> Result<Option<(Option<String>, Option<String>, String, String)>> {
+        let row: Option<(Option<String>, Option<String>, String, String)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT o.name, o.mime_type, sr.storage_backend, sr.storage_key
+                 FROM drs_objects o
+                 JOIN storage_references sr ON sr.object_id = o.id
+                 WHERE o.id = $1",
+            )
+            .bind(object_id)
+            .fetch_optional(p)
+            .await
+        })?;
+        Ok(row)
+    }
+
     /// Link existing pathogen annotations to a published ADS/Beacon dataset id.
     pub async fn link_pathogen_to_dataset(
         &self,

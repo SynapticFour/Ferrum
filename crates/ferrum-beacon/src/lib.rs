@@ -6,6 +6,7 @@ pub mod handlers;
 pub mod pathogen;
 pub mod query;
 pub mod repo;
+pub mod vcf_index;
 
 use axum::routing::{get, post};
 use axum::Router;

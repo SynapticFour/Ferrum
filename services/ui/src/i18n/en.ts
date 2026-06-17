@@ -616,6 +616,7 @@ export const en = {
     noComputePools: 'No compute pools registered in ADS yet.',
     noFederated: 'No federated catalog entries found from peer ADS nodes.',
     federationOrigin: 'Origin',
+    remoteDrs: 'Open federated DRS object',
     computeHint: 'Request compute access via workflow tags (ads_compute_pool_id) after your DAC approves a grant.',
     tabRequests: 'My requests',
     tabProjects: 'My projects',

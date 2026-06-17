@@ -2,10 +2,10 @@
 
 use axum::{
     extract::State,
-    http::StatusCode,
     routing::post,
     Extension, Json, Router,
 };
+use axum::http::StatusCode;
 use ferrum_beacon::repo::BeaconRepo;
 use ferrum_core::{is_workspace_editor_or_owner, AuthClaims, FerrumConfig, FerrumPool};
 use ferrum_drs::repo::DrsRepo;
@@ -34,6 +34,9 @@ pub struct PublishDatasetRequest {
     /// When true (default), link pathogen annotations to Beacon on publish when organism metadata exists.
     #[serde(default = "default_true")]
     pub index_beacon: bool,
+    /// When true (default), index VCF variants into Beacon when the object looks like VCF.
+    #[serde(default = "default_true")]
+    pub index_variants: bool,
 }
 
 fn default_true() -> bool {
@@ -51,6 +54,8 @@ pub struct PublishDatasetResponse {
     pub visibility: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub beacon_indexed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variants_indexed: Option<usize>,
 }
 
 fn resolve_ads_datasets_url(config: &FerrumConfig) -> Option<String> {
@@ -126,6 +131,63 @@ async fn index_beacon_for_publish(
     }
 }
 
+fn local_drs_base_url(config: &FerrumConfig) -> Option<String> {
+    std::env::var("FERRUM_PUBLIC_BASE_URL")
+        .ok()
+        .filter(|u| !u.trim().is_empty())
+        .or_else(|| config.discovery.registration_base_url.clone())
+        .map(|base| format!("{}/ga4gh/drs/v1", base.trim_end_matches('/')))
+}
+
+async fn read_local_storage_bytes(storage_key: &str) -> Option<Vec<u8>> {
+    let base = std::env::var("FERRUM_STORAGE__LOCAL_PATH")
+        .or_else(|_| std::env::var("FERRUM_OBJECTS_DIR"))
+        .unwrap_or_else(|_| "./data".to_string());
+    let path = std::path::Path::new(&base).join(storage_key);
+    tokio::fs::read(&path).await.ok()
+}
+
+async fn index_variants_for_publish(pool: &sqlx::PgPool, object_id: &str, ads_dataset_id: &str) -> usize {
+    let ferrum_pool = FerrumPool::Postgres(pool.clone());
+    let drs = DrsRepo::new(ferrum_pool.clone(), "localhost".into());
+    let Some((name, mime, backend, storage_key)) = drs
+        .get_object_publish_info(object_id)
+        .await
+        .ok()
+        .flatten()
+    else {
+        return 0;
+    };
+    if backend != "local" || !ferrum_beacon::vcf_index::is_vcf_object(name.as_deref(), mime.as_deref())
+    {
+        return 0;
+    }
+    let Some(bytes) = read_local_storage_bytes(&storage_key).await else {
+        warn!(object_id, storage_key, "VCF indexing skipped: local bytes not found");
+        return 0;
+    };
+    let beacon = BeaconRepo::new(ferrum_pool.clone());
+    if beacon
+        .ensure_dataset(ads_dataset_id, name.as_deref().unwrap_or(object_id), None, "GRCh38")
+        .await
+        .is_err()
+    {
+        return 0;
+    }
+    match ferrum_beacon::vcf_index::index_vcf_bytes(&ferrum_pool, ads_dataset_id, &bytes).await {
+        Ok(n) => {
+            if n > 0 {
+                tracing::info!(object_id, ads_dataset_id, variants = n, "indexed VCF variants into Beacon");
+            }
+            n
+        }
+        Err(err) => {
+            warn!(object_id, error = %err, "VCF beacon indexing failed");
+            0
+        }
+    }
+}
+
 async fn publish_dataset(
     State(state): State<Arc<PublishState>>,
     Extension(auth): Extension<AuthClaims>,
@@ -196,6 +258,7 @@ async fn publish_dataset(
         "dac_group": body.dac_group,
         "visibility": body.visibility,
         "resource_type": "dataset",
+        "remote_drs_base_url": local_drs_base_url(&state.config),
     });
 
     let client = reqwest::Client::new();
@@ -251,11 +314,18 @@ async fn publish_dataset(
         None
     };
 
+    let variants_indexed = if body.index_variants {
+        Some(index_variants_for_publish(&state.pool, &body.object_id, &ads_id).await)
+    } else {
+        None
+    };
+
     Ok(Json(PublishDatasetResponse {
         ads_dataset_id: ads_id,
         object_id: body.object_id,
         visibility: body.visibility,
         beacon_indexed,
+        variants_indexed,
     }))
 }
 

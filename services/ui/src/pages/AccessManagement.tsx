@@ -22,6 +22,7 @@ import {
   listMyProjects,
   createProject,
   submitAccessRequest,
+  federatedDrsUrl,
   getAccessStatus,
   type DatasetCatalogEntry,
   type ResearchProject,
@@ -75,12 +76,15 @@ function RequestAccessDialog({
 
   const mutation = useMutation({
     mutationFn: () =>
-      submitAccessRequest({
-        researcher_id: researcherId,
-        dataset_id: dataset!.id,
-        project_id: projectId,
-        justification: justification.trim() || undefined,
-      }),
+      submitAccessRequest(
+        {
+          researcher_id: researcherId,
+          dataset_id: dataset!.id,
+          project_id: projectId,
+          justification: justification.trim() || undefined,
+        },
+        dataset!.ads_base_url,
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['access', 'requests'] });
       onOpenChange(false);
@@ -415,18 +419,24 @@ export function AccessManagement() {
                           {ds.external_id}
                         </p>
                       )}
-                      {catalogKind !== 'compute' && (
-                        <Button
-                          size="sm"
-                          disabled={!researcherId}
-                          onClick={() => setRequestDataset(ds)}
-                        >
-                          {t('access.requestAccess')}
-                        </Button>
+                      {ds.remote_drs_base_url && ds.external_id && (
+                        <p className="text-xs">
+                          <a
+                            href={federatedDrsUrl(ds.remote_drs_base_url, ds.external_id) ?? '#'}
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            {t('access.remoteDrs')}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </p>
                       )}
-                      {catalogKind === 'compute' && (
-                        <p className="text-xs text-muted-foreground">{t('access.computeHint')}</p>
-                      )}
+                      <Button
+                        size="sm"
+                        disabled={!researcherId}
+                        onClick={() => setRequestDataset(ds)}
+                      >
+                        {t('access.requestAccess')}
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}

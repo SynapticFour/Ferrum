@@ -1750,6 +1750,7 @@ dependencies = [
  "ferrum-core",
  "ferrum-federation",
  "ferrum-reference",
+ "flate2",
  "http 1.4.0",
  "hyper 1.9.0",
  "serde",

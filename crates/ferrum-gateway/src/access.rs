@@ -3,13 +3,14 @@
 
 use axum::{
     body::Body,
-    extract::{Path, State},
-    http::{header, Request, StatusCode},
+    extract::{Path, Query, State},
+    http::{header, HeaderMap, Request, StatusCode},
     response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
 use ferrum_core::FerrumConfig;
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -64,7 +65,15 @@ async fn forward(
     ads_path: &str,
     req: Request<Body>,
 ) -> Result<Response, (StatusCode, String)> {
-    let ads = state.ads_base_url().await?;
+    let ads = if let Some(header_url) = req
+        .headers()
+        .get("X-ADS-Base-URL")
+        .and_then(|v| v.to_str().ok())
+    {
+        normalize_ads_from_service_url(header_url)
+    } else {
+        state.ads_base_url().await?
+    };
     let mut url = format!("{ads}/{}", ads_path.trim_start_matches('/'));
     if let Some(query) = req.uri().query() {
         url.push('?');
@@ -154,6 +163,66 @@ async fn get_catalog_datasets(
     forward(state, "GET", "catalog/datasets", req).await
 }
 
+#[cfg(feature = "discovery")]
+fn drs_url_for_ads_origin(
+    services: &[ferrum_discovery::RegisteredService],
+    ads_origin: &str,
+) -> Option<String> {
+    let ads = services.iter().find(|s| s.info.id == ads_origin)?;
+    let org = &ads.info.organization.name;
+    services
+        .iter()
+        .find(|s| {
+            s.info.r#type.artifact.eq_ignore_ascii_case(ferrum_discovery::ARTIFACT_DRS)
+                && s.info.organization.name == *org
+        })
+        .map(|s| s.url.clone())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FederatedDrsQuery {
+    pub base_url: String,
+}
+
+async fn federated_drs_proxy(
+    Query(q): Query<FederatedDrsQuery>,
+    Path(path): Path<String>,
+    headers: HeaderMap,
+) -> Result<Response, (StatusCode, String)> {
+    let base = q.base_url.trim_end_matches('/');
+    if !base.starts_with("http://") && !base.starts_with("https://") {
+        return Err((StatusCode::BAD_REQUEST, "base_url must be http(s)".into()));
+    }
+    let url = format!("{base}/{}", path.trim_start_matches('/'));
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let mut builder = client.get(&url);
+    if let Some(token) = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()) {
+        builder = builder.header(header::AUTHORIZATION, token);
+    }
+    let resp = builder
+        .send()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, format!("remote DRS request failed: {e}")))?;
+    let status =
+        StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
+    let headers = resp.headers().clone();
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let mut response = Response::new(Body::from(bytes));
+    *response.status_mut() = status;
+    if let Some(ct) = headers.get(header::CONTENT_TYPE) {
+        response
+            .headers_mut()
+            .insert(header::CONTENT_TYPE, ct.clone());
+    }
+    Ok(response)
+}
+
 async fn get_federated_catalog(
     State(state): State<Arc<AccessProxyState>>,
     req: Request<Body>,
@@ -175,24 +244,33 @@ async fn get_federated_catalog(
     }
 
     #[cfg(feature = "discovery")]
+    let registry_services: Vec<ferrum_discovery::RegisteredService> = {
+        let mut services = Vec::new();
+        if state.config.discovery.enabled {
+            if let Ok(registry) =
+                ferrum_discovery::ServiceRegistryClient::from_config(&state.config.discovery)
+            {
+                if let Ok(list) = registry.list().await {
+                    services = list;
+                }
+            }
+        }
+        services
+    };
+
+    #[cfg(feature = "discovery")]
     if state.config.discovery.enabled {
-        if let Ok(registry) =
-            ferrum_discovery::ServiceRegistryClient::from_config(&state.config.discovery)
-        {
-            if let Ok(services) = registry.list().await {
-                for svc in services {
-                    if svc
-                        .info
-                        .r#type
-                        .artifact
-                        .eq_ignore_ascii_case(ferrum_discovery::ARTIFACT_ADS)
-                    {
-                        let base = normalize_ads_from_service_url(&svc.url);
-                        let origin = svc.info.id.clone();
-                        if !ads_bases.iter().any(|(_, u)| u == &base) {
-                            ads_bases.push((origin, base));
-                        }
-                    }
+        for svc in &registry_services {
+            if svc
+                .info
+                .r#type
+                .artifact
+                .eq_ignore_ascii_case(ferrum_discovery::ARTIFACT_ADS)
+            {
+                let base = normalize_ads_from_service_url(&svc.url);
+                let origin = svc.info.id.clone();
+                if !ads_bases.iter().any(|(_, u)| u == &base) {
+                    ads_bases.push((origin, base));
                 }
             }
         }
@@ -222,6 +300,19 @@ async fn get_federated_catalog(
                                     "ads_base_url".to_string(),
                                     serde_json::Value::String(base.clone()),
                                 );
+                                let remote_drs = obj
+                                    .get("remote_drs_base_url")
+                                    .and_then(|v| v.as_str())
+                                    .map(str::to_string)
+                                    .or_else(|| {
+                                        drs_url_for_ads_origin(&registry_services, origin)
+                                    });
+                                if let Some(drs) = remote_drs {
+                                    obj.insert(
+                                        "remote_drs_base_url".to_string(),
+                                        serde_json::Value::String(drs),
+                                    );
+                                }
                             }
                             merged.push(row);
                         }
@@ -328,6 +419,7 @@ pub fn access_router(config: &FerrumConfig) -> Router {
         .route("/status", get(get_status))
         .route("/catalog/datasets", get(get_catalog_datasets))
         .route("/catalog/federated", get(get_federated_catalog))
+        .route("/federated/drs/*path", get(federated_drs_proxy))
         .route("/datasets/:id", get(get_dataset))
         .route("/me/projects", get(get_me_projects))
         .route("/me/access-requests", get(get_me_access_requests))

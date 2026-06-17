@@ -124,6 +124,15 @@ impl AuthClaims {
         }
     }
 
+    /// Grant check for published DRS objects (ADS UUID and/or `drs:{object_id}` visa scope).
+    pub fn has_published_dataset_access(&self, ads_dataset_id: &str, object_id: &str) -> bool {
+        if self.is_admin() {
+            return true;
+        }
+        let drs_scope = format!("drs:{object_id}");
+        self.has_dataset_grant(ads_dataset_id) || self.has_dataset_grant(&drs_scope)
+    }
+
     /// True if JWT `scope` claim contains `required` (space or comma separated).
     pub fn has_scope(&self, required: &str) -> bool {
         match self {
@@ -655,4 +664,47 @@ pub fn auth_layer(config: Option<Arc<AuthMiddlewareConfig>>) -> impl Clone {
             auth_middleware(req, next).await
         })
     })
+}
+
+#[cfg(test)]
+mod published_access_tests {
+    use super::{AuthClaims, PassportClaims, VisaObject};
+
+    fn passport_with_grant(value: &str) -> AuthClaims {
+        AuthClaims::Passport {
+            claims: PassportClaims {
+                sub: Some("researcher@example.org".to_string()),
+                iss: None,
+                exp: None,
+                iat: None,
+                jti: None,
+                ga4gh_passport_v1: None,
+                scope: None,
+                aud: None,
+            },
+            visas: vec![VisaObject {
+                r#type: "ControlledAccessGrants".to_string(),
+                asserted: 0,
+                value: value.to_string(),
+                source: "ads".to_string(),
+                conditions: None,
+                by: None,
+            }],
+            raw_token: None,
+        }
+    }
+
+    #[test]
+    fn published_access_matches_ads_uuid_or_drs_scope() {
+        let ads_id = "550e8400-e29b-41d4-a716-446655440000";
+        let object_id = "obj-abc";
+        let by_uuid = passport_with_grant(ads_id);
+        assert!(by_uuid.has_published_dataset_access(ads_id, object_id));
+
+        let by_drs = passport_with_grant("drs:obj-abc");
+        assert!(by_drs.has_published_dataset_access(ads_id, object_id));
+
+        let no_grant = passport_with_grant("other-dataset");
+        assert!(!no_grant.has_published_dataset_access(ads_id, object_id));
+    }
 }
