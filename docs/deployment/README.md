@@ -6,7 +6,7 @@ This page is the entrypoint for Ferrum deployment paths.
 
 | Scenario | Recommended path | Internet required during install | Main doc |
 |---|---|---|---|
-| Local demo / evaluation | `ferrum demo start --edge` or `deploy/docker-compose.yml` | Optional (Edge mode: no) | `docs/AFRICA-DEPLOYMENT.md` (laptop) · `docs/INSTALLATION.md` (Docker) |
+| Local demo / evaluation | `ferrum demo start --edge` or `deploy/docker-compose.yml` | Optional (Edge mode: no) | `docs/AFRICA-DEPLOYMENT.md` (Edge) · `docs/INSTALLATION.md` (Docker) |
 | Single-node production (bare metal / VM) | Binary + systemd + external Postgres/S3 | Optional | `docs/INSTALLATION.md` |
 | Distributed HPC | Ansible inventory + playbooks | Usually yes | `docs/INSTALLATION.md` |
 | Kubernetes (AKS/on-prem) | Helm chart in `deploy/helm/` | Usually yes | `docs/INSTALLATION.md` |

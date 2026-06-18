@@ -20,7 +20,7 @@ Edge mode integration tests and offline E2E:
 
 ```bash
 cargo test -p ferrum-embed
-sh deploy/scripts/ci-laptop-demo-e2e.sh
+sh deploy/scripts/ci-edge-demo-e2e.sh
 ```
 
 See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for the one-command user path (`ferrum demo start --edge`).

@@ -15,12 +15,12 @@ See also: [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md), [AFRICA-DEPLOYME
 | Outbreak mode | Yes | No | **outbreak** profile (skips unless `[outbreak] enabled`) |
 | Federation (`federate=true`) | Yes | No | **federation** profile (needs `FERRUM_AFRICA_PEER_URL` + 2nd gateway) |
 | Reference genome registry | Yes | No | **offline** profile |
-| WES `REFERENCE_MISMATCH` warning | Yes | No | **Not covered** |
-| Bandwidth monitor / transfer queue / resume tokens | Yes | No | **Not covered** |
-| Power / solar mode / emergency checkpoint | Yes | No | **Not covered** |
+| WES `REFERENCE_MISMATCH` warning | Yes | No | **Rust** (`wes_mismatch` test) + ecosystem E2E |
+| Bandwidth monitor / transfer queue / resume tokens | Yes | No | **Rust** (`bandwidth` test) |
+| Power / solar mode / emergency checkpoint | Yes | No | **Rust** + `ci-field-ops-e2e.sh` (503) |
 | Data residency audit chain | Yes | No | Partial (outbreak profile verifies when entries exist) |
 | Chunked upload / resume | Yes | No | **Not covered** |
-| Laptop Mode (SQLite embed) | Yes | No (Docker stack uses Postgres) | No |
+| Edge embed E2E | Yes | No | No |
 
 **Legend:** “No (by design)” = intentionally out of scope for standard GA4GH conformance; Africa features are opt-in via `ferrum-africa`.
 
@@ -41,7 +41,7 @@ See also: [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md), [AFRICA-DEPLOYME
 
 ## Recommended follow-ups (priority)
 
-1. **HelixTest Africa:** add cases for WES `reference_genome` + `REFERENCE_MISMATCH`, bandwidth/resume, and power-mode headers (Rust coverage exists; HTTP E2E does not).
+1. **HelixTest Africa:** contribute upstream cases for `power` and `bandwidth/resume` profiles (Ferrum Rust coverage exists).
 2. **Demo config:** ship `[outbreak] enabled = true` variant or CI overlay so outbreak profile does not skip by default in Africa workflow.
 3. **Federation CI:** optional second-gateway job matrix for `federation` profile (heavier; keep skippable locally).
 4. **Standard conformance:** keep `--mode ferrum --all` unchanged; Africa remains opt-in per ADR-016.
@@ -55,4 +55,5 @@ See also: [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md), [AFRICA-DEPLOYME
 | Rust workspace | `cargo test --workspace` (crate `tests/` and `#[cfg(test)]` modules) |
 | Standard HelixTest | `.github/workflows/conformance.yml`, `deploy/scripts/run-helixtest-local.sh --full` |
 | Africa HelixTest | `.github/workflows/africa-conformance.yml`, `helixtest --mode ferrum-africa --africa-profile …` |
-| Laptop embed E2E | `deploy/scripts/ci-laptop-demo-e2e.sh`, job `test-laptop-mode` |
+| Edge embed E2E | `deploy/scripts/ci-edge-demo-e2e.sh`, job `test-edge-mode` |
+| Field ecosystem E2E | `deploy/scripts/ci-field-ecosystem-e2e.sh` |

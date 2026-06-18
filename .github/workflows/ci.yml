@@ -98,6 +98,8 @@ jobs:
         run: bash deploy/scripts/ci-field-pipeline-e2e.sh
       - name: Field ops E2E (Phase 6)
         run: bash deploy/scripts/ci-field-ops-e2e.sh
+      - name: Field ecosystem E2E (Phase 7)
+        run: bash deploy/scripts/ci-field-ecosystem-e2e.sh
 
   # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
   bench-and-features:

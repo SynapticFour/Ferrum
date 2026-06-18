@@ -2,6 +2,8 @@
 
 **Audience:** [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) and other **non-interactive** clients. Ferrum owns GA4GH DRS semantics, storage, and optional Crypt4GH; Lab Kit only configures backends and calls these endpoints.
 
+**Field Edge profile:** Lab Kit `field-edge` maps to Ferrum **Edge mode** (`--edge`, SQLite, local storage). Install via Ferrum [`install-field-edge.sh`](../scripts/install-field-edge.sh) or Lab Kit `install-edge.sh --profile field-edge`. See [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md).
+
 ## Overview
 
 | Path | Purpose |

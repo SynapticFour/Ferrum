@@ -14,7 +14,7 @@ Ferrum is a **first-class ARM64** target. Build flags live in [`.cargo/config.to
 
 Release profile: `opt-level = 3`, `lto = "thin"`, `codegen-units = 1`, `strip = "debuginfo"`. Architecture flags apply only under `[target.*]` — **debug builds** stay fast to compile.
 
-**Native Pi / laptop build:** `./scripts/build-laptop-native.sh --install` (adds `-C target-cpu=native` on-host).
+**Native Edge build:** `./scripts/build-edge-native.sh --install` (adds `-C target-cpu=native` on-host).
 
 ### Crypt4GH throughput (`ferrum-crypt4gh`)
 
@@ -40,7 +40,7 @@ cargo bench -p ferrum-crypt4gh --bench crypt_benchmark -- --noplot
 
 ### Binary size (ARM64 edge)
 
-`ferrum-gateway` release target: **<50 MB** (CI warns if exceeded). Smallest builds: `release-laptop` via `build-laptop-native.sh`.
+`ferrum-gateway` release target: **<50 MB** (CI hard-fail on ARM64). Smallest builds: `release-edge` via `build-edge-native.sh`.
 
 ### Results table (community — update via PR)
 

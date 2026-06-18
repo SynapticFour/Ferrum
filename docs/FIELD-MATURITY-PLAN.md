@@ -2,9 +2,9 @@
 
 Roadmap for resource-constrained, intermittently connected field genomics (Raspberry Pi / ARM edge nodes). Tracks gaps from the Edge mode analysis and maps them to **phases** so nothing is lost between releases.
 
-**Current tier:** **T6 operations** (backup + integrity + power E2E); **Phase 7** (ecosystem) is next.
+**Current tier:** **T7 ecosystem** (Lab-Kit/Demo/HelixTest aligned); **roadmap complete** — see [FIELD-GAP-REASSESSMENT.md](FIELD-GAP-REASSESSMENT.md).
 
-Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md), [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md), [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md), [FIELD-OPS.md](FIELD-OPS.md), [FIELD-REGULATORY.md](FIELD-REGULATORY.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–023).
+Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md), [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md), [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md), [FIELD-OPS.md](FIELD-OPS.md), [FIELD-REGULATORY.md](FIELD-REGULATORY.md), [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md), [FIELD-GAP-REASSESSMENT.md](FIELD-GAP-REASSESSMENT.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–024).
 
 ---
 
@@ -19,6 +19,7 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](F
 | **T4** | Sync | Queue + push objects/metadata when link returns |
 | **T5** | Pipeline | QC/variant calling orchestration (hub or lightweight local) |
 | **T6** | Operations | Backup/restore, integrity verify, solar power E2E, Pi deploy hygiene |
+| **T7** | Ecosystem | Lab-Kit/Demo/HelixTest alignment, i18n, deprecation inventory |
 
 ---
 
@@ -121,15 +122,25 @@ All items 2.1–2.7 done. See prior release notes.
 
 ---
 
-## Phase 7 — Ecosystem alignment — **next**
+## Phase 7 — Ecosystem alignment — **complete**
 
-| # | Gap | Deliverable |
-|---|-----|-------------|
-| 7.1 | Ferrum-Lab-Kit `field-edge` naming | Align docs with Edge mode |
-| 7.2 | Ferrum-GA4GH-Demo Pi scenario | Point to `install-field-edge.sh` |
-| 7.3 | HelixTest `ferrum-africa` expansion | WES ref mismatch, bandwidth, power |
-| 7.4 | Website / i18n | synapticfour.com ferrum-field copy |
-| 7.5 | Remove deprecated `laptop` aliases | Major release after one deprecation cycle |
+| # | Gap | Deliverable | Status |
+|---|-----|-------------|--------|
+| 7.1 | Ferrum-Lab-Kit `field-edge` naming | [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md), [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md) | Done |
+| 7.2 | Ferrum-GA4GH-Demo Pi scenario | [FIELD-GA4GH-DEMO-PI.md](FIELD-GA4GH-DEMO-PI.md) | Done |
+| 7.3 | HelixTest `ferrum-africa` expansion | Rust WES/bandwidth/power tests + `ci-field-ecosystem-e2e.sh` | Done |
+| 7.4 | Website / i18n | [FIELD-WEBSITE-COPY.md](FIELD-WEBSITE-COPY.md); CLI field strings (en/fr/de) | Done |
+| 7.5 | Remove deprecated `laptop` aliases | [DEPRECATED-LAPTOP-ALIASES.md](DEPRECATED-LAPTOP-ALIASES.md); removal v0.3 | Done (deferred removal) |
+
+**Phase 7 test gate (passed):** `ci-field-ecosystem-e2e.sh`, africa-conformance Rust job.
+
+**Post-roadmap reassessment:** [FIELD-GAP-REASSESSMENT.md](FIELD-GAP-REASSESSMENT.md)
+
+---
+
+## Follow-ups (post Phase 7)
+
+See [FIELD-GAP-REASSESSMENT.md](FIELD-GAP-REASSESSMENT.md) for non-blocking items (HelixTest upstream profiles, WES hub setup, v0.3 laptop removal, etc.). No Phase 8 defined.
 
 ---
 
@@ -150,6 +161,7 @@ bash deploy/scripts/ci-field-edge-install-smoke.sh
 bash deploy/scripts/ci-field-sync-e2e.sh
 bash deploy/scripts/ci-field-pipeline-e2e.sh
 bash deploy/scripts/ci-field-ops-e2e.sh
+bash deploy/scripts/ci-field-ecosystem-e2e.sh
 make test-demo   # full Docker stack unchanged
 ```
 
@@ -159,8 +171,8 @@ Optional: `helixtest --mode ferrum-africa --africa-profile ont,offline,federatio
 
 ## How to use this document
 
-1. Pick the **lowest incomplete phase** for your sprint (**Phase 7** is next).
+1. Roadmap **Phases 0–7 are complete** — use [FIELD-GAP-REASSESSMENT.md](FIELD-GAP-REASSESSMENT.md) for follow-ups.
 2. Mark items done in CHANGELOG + this file (or link PR).
-3. Re-assess tier (T0–T6) after each phase for stakeholder updates.
+3. Re-assess tier (T0–T7) after each phase for stakeholder updates.
 
-Last updated: 2026-06-19 (Phase 6 complete).
+Last updated: 2026-06-19 (Phase 7 complete; gap reassessment published).

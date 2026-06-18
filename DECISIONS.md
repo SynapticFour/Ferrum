@@ -37,6 +37,15 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-19 - ADR-024: Field ecosystem alignment (Phase 7)
+
+- **Status:** Accepted
+- **Context:** Ferrum Edge mode is deployed via Ferrum-Lab-Kit, compared in Ferrum-GA4GH-Demo docs, and validated by HelixTest Africa profiles. Naming drift (`laptop` vs `field-edge`) and Pi-vs-Demo confusion blocked operators.
+- **Decision:** Document canonical **`field-edge` / Edge mode** mapping in FIELD-ECOSYSTEM; Pi path uses `install-field-edge.sh` (not Demo Docker on ARM). Supplement HelixTest Africa with Ferrum Rust tests for WES reference mismatch, bandwidth, and power (503). Website copy deck + CLI field i18n (en/fr/de). **Defer** laptop alias removal to v0.3 major; inventory in DEPRECATED-LAPTOP-ALIASES.md.
+- **Consequences:** Post-roadmap follow-ups tracked in FIELD-GAP-REASSESSMENT; external Lab Kit repo may need separate PR.
+
+---
+
 ### 2026-06-19 - ADR-023: Field backup and integrity strategy (Phase 6)
 
 - **Status:** Accepted

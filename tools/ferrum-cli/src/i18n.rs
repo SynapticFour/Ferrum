@@ -143,6 +143,38 @@ pub fn docker_not_implemented(lang: Lang) -> &'static str {
     }
 }
 
+pub fn field_edge_tagline(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "Ferrum Field Edge — offline GA4GH on Pi and lab laptops",
+        Lang::Fr => "Ferrum Field Edge — GA4GH hors ligne sur Pi et portables",
+        Lang::De => "Ferrum Field Edge — Offline-GA4GH auf Pi und Feldlaptops",
+    }
+}
+
+pub fn field_sync_help(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "Field sync queue (Edge to hub upload)",
+        Lang::Fr => "File d'attente de sync terrain (Edge vers hub)",
+        Lang::De => "Feldsync-Warteschlange (Edge zum Hub)",
+    }
+}
+
+pub fn field_backup_help(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "SQLite backup and integrity verify (Edge)",
+        Lang::Fr => "Sauvegarde SQLite et vérification d'intégrité (Edge)",
+        Lang::De => "SQLite-Backup und Integritätsprüfung (Edge)",
+    }
+}
+
+pub fn field_pipeline_help(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "Field analysis pipeline (QC, Beacon, WES forward)",
+        Lang::Fr => "Pipeline d'analyse terrain (QC, Beacon, envoi WES)",
+        Lang::De => "Feldpipeline (QC, Beacon, WES-Weiterleitung)",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,5 +184,14 @@ mod tests {
         assert!(about(Lang::Fr).contains("CLI"));
         assert!(health_help(Lang::Fr).contains("santé"));
         assert!(demo_start_help(Lang::Fr).contains("Démarrer"));
+    }
+
+    #[test]
+    fn field_edge_strings() {
+        assert!(field_edge_tagline(Lang::En).contains("Field Edge"));
+        assert!(field_sync_help(Lang::Fr).contains("sync"));
+        assert!(field_backup_help(Lang::De).contains("SQLite"));
+        assert!(field_pipeline_help(Lang::En).contains("Beacon"));
+        assert!(edge_start(Lang::De).contains("Edge-Modus"));
     }
 }

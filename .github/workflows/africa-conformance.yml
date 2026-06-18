@@ -33,7 +33,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Start Ferrum offline (Laptop Mode)
+      - name: Start Ferrum offline (Edge mode)
         run: |
           cargo build -p ferrum-gateway --release --features edge
           FERRUM_OFFLINE=1 ./target/release/ferrum-gateway &
@@ -89,9 +89,9 @@ jobs:
           cargo run --bin helixtest --release -- \
             --all --mode ferrum-africa --africa-profile ont --fail-level 1
 
-  africa-reference-tests:
+  africa-field-rust:
     if: github.actor != 'dependabot[bot]'
-    name: Ferrum reference registry tests
+    name: Ferrum Africa HTTP gaps (Rust)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -99,4 +99,5 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test -p ferrum-reference
+      - name: WES reference mismatch + bandwidth + power
+        run: bash deploy/scripts/ci-field-ecosystem-e2e.sh

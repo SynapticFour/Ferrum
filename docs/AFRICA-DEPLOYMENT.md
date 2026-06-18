@@ -43,7 +43,7 @@ Verify:
 curl http://127.0.0.1:8080/health
 curl http://127.0.0.1:8080/ga4gh/drs/v1/service-info
 # Full offline round-trip (ingest → stream), same as CI:
-sh deploy/scripts/ci-laptop-demo-e2e.sh
+sh deploy/scripts/ci-edge-demo-e2e.sh
 ```
 
 ### What Edge mode includes (and excludes)

@@ -51,7 +51,7 @@ Repos that run a **local Docker stack** share the same verbs:
 | Repository | Deploy | Stop | Destroy | Notes |
 |------------|--------|------|---------|-------|
 | **ga4gh-infra** | `make up` / `just up` | `make down` | `make destroy` | Native binary: [getting-started.md](getting-started.md) |
-| **Ferrum** | `make up` / `ferrum demo start` | `make down` | `make destroy` | Laptop: `ferrum demo start --offline` |
+| **Ferrum** | `make up` / `ferrum demo start` | `make down` | `make destroy` | Edge: `ferrum demo start --edge` |
 | **Ferrum-Lab-Kit** | `make up` | `make down` | `make destroy` | Co-deploy: `make up-with-infra` |
 | **Ferrum-GA4GH-Demo** | `make up` / `./run` | `make down` | `make destroy` | Co-deploy: `make up-with-infra` |
 | **HelixTest** | — | — | — | Conformance runner (needs a running target) |
@@ -80,11 +80,17 @@ export GA4GH_INFRA_SRC=/path/to/ga4gh-infra
 cd Ferrum-GA4GH-Demo && ./run --with-infra
 ```
 
-**Field edge + infra (lab):**
+**Field edge + infra (lab / Pi hub):**
 
 ```bash
-cd Ferrum-Lab-Kit && ./install-edge.sh --with-infra
+# Pi or field node (from Ferrum repo)
+./scripts/install-field-edge.sh [--with-infra]
+
+# Or via Lab Kit profile field-edge
+cd Ferrum-Lab-Kit && ./install-edge.sh --profile field-edge
 ```
+
+See [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md) and [FIELD-GA4GH-DEMO-PI.md](FIELD-GA4GH-DEMO-PI.md).
 
 **Conformance:**
 
@@ -101,7 +107,7 @@ helixtest --all --mode ferrum+infra --profile ferrum-infra
 | Demo compose merge order | [Ferrum-GA4GH-Demo `docs/architecture.md`](https://github.com/SynapticFour/Ferrum-GA4GH-Demo/blob/main/docs/architecture.md) |
 | Lab co-deploy profiles | [Ferrum-Lab-Kit `config/profiles/field-edge+infra.toml`](https://github.com/SynapticFour/Ferrum-Lab-Kit/blob/main/config/profiles/field-edge+infra.toml) |
 | HelixTest co-deploy mode | [HelixTest `helixtest/docs/ferrum.md`](https://github.com/SynapticFour/HelixTest/blob/main/helixtest/docs/ferrum.md) |
-| Africa-Mode (SQLite) | [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [ga4gh-infra AFRICA-DEPLOYMENT](https://github.com/SynapticFour/ga4gh-infra/blob/main/docs/AFRICA-DEPLOYMENT.md) |
+| Africa-Mode (Edge / SQLite) | [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md) |
 
 ## CI
 
