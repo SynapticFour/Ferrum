@@ -16,9 +16,9 @@ tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 ferrum-core = { path = "../ferrum-core" }
 async-trait = "0.1"
-aws-config = "1"
+aws-config = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "default-https-client"] }
 aws-credential-types = "1"
-aws-sdk-s3 = { version = "1.18", features = ["rt-tokio"] }
+aws-sdk-s3 = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "default-https-client"] }
 aws-smithy-types = "1"
 bytes = "1"
 tokio = { version = "1", features = ["full"] }

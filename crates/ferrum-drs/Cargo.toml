@@ -53,10 +53,14 @@ s3_signed = ["dep:aws-config", "dep:aws-sdk-s3"]
 [dependencies.aws-config]
 version = "1"
 optional = true
+default-features = false
+features = ["behavior-version-latest", "rt-tokio", "default-https-client"]
 
 [dependencies.aws-sdk-s3]
-version = "1.18"
+version = "1"
 optional = true
+default-features = false
+features = ["behavior-version-latest", "rt-tokio", "default-https-client"]
 
 [[bin]]
 name = "ferrum-drs"
