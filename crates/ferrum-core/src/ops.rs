@@ -368,7 +368,10 @@ objects_path = "{objects}"
             .connect(&format!("sqlite:{}?mode=rwc", db.display()))
             .await
             .unwrap();
-        sqlx::migrate!("../ferrum-embed/migrations").run(&pool).await.unwrap();
+        sqlx::migrate!("../ferrum-embed/migrations")
+            .run(&pool)
+            .await
+            .unwrap();
         let pool = FerrumPool::Sqlite(pool);
         let key = "drs/obj1";
         let data = b"ACGT";
@@ -402,7 +405,10 @@ objects_path = "{objects}"
             .connect(&format!("sqlite:{}?mode=rwc", db.display()))
             .await
             .unwrap();
-        sqlx::migrate!("../ferrum-embed/migrations").run(&pool).await.unwrap();
+        sqlx::migrate!("../ferrum-embed/migrations")
+            .run(&pool)
+            .await
+            .unwrap();
         let pool = FerrumPool::Sqlite(pool);
         let key = "drs/bad";
         fs::create_dir_all(objects.join("drs")).unwrap();

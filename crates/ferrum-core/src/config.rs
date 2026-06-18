@@ -1,7 +1,7 @@
 //! Layered configuration: defaults, /etc/ferrum, ~/.ferrum, FERRUM_ env, optional --config file.
 
-use crate::pipeline::PipelineConfig;
 pub use crate::ops::OperationsConfig;
+use crate::pipeline::PipelineConfig;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
