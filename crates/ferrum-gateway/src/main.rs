@@ -390,6 +390,33 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         if let Ok(n) = drs_count {
             tracing::info!(drs_objects = n, dialect = ?pool.dialect(), "Gateway database ready");
         }
+        if let Some(ref cfg) = config {
+            if cfg.ops.verify_checksums_on_startup {
+                let objects_root = ferrum_core::resolve_objects_root(cfg);
+                match ferrum_core::verify_local_checksums(pool, &objects_root).await {
+                    Ok(report) if report.is_clean() => {
+                        tracing::info!(
+                            checked = report.checked,
+                            ok = report.ok,
+                            "startup checksum verification passed"
+                        );
+                    }
+                    Ok(report) => {
+                        for err in &report.errors {
+                            tracing::error!(error = %err, "startup checksum verification failed");
+                        }
+                        return Err(format!(
+                            "startup checksum verification failed: {} mismatch(es), {} missing file(s)",
+                            report.checksum_mismatches, report.missing_files
+                        )
+                        .into());
+                    }
+                    Err(e) => {
+                        return Err(format!("startup checksum verification error: {e}").into());
+                    }
+                }
+            }
+        }
     }
 
     let drs_hostname =

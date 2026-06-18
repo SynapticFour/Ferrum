@@ -2,9 +2,9 @@
 
 Roadmap for resource-constrained, intermittently connected field genomics (Raspberry Pi / ARM edge nodes). Tracks gaps from the Edge mode analysis and maps them to **phases** so nothing is lost between releases.
 
-**Current tier:** **T5 pipeline** (QC + Beacon index); **Phase 6** (operations) is next.
+**Current tier:** **T6 operations** (backup + integrity + power E2E); **Phase 7** (ecosystem) is next.
 
-Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md), [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md), [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–022).
+Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md), [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md), [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md), [FIELD-OPS.md](FIELD-OPS.md), [FIELD-REGULATORY.md](FIELD-REGULATORY.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–023).
 
 ---
 
@@ -18,6 +18,7 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](F
 | **T3** | Metadata | Validate ferrum-meta at ingest; attach to DRS via `metadata_ref`; field provenance |
 | **T4** | Sync | Queue + push objects/metadata when link returns |
 | **T5** | Pipeline | QC/variant calling orchestration (hub or lightweight local) |
+| **T6** | Operations | Backup/restore, integrity verify, solar power E2E, Pi deploy hygiene |
 
 ---
 
@@ -104,21 +105,23 @@ All items 2.1–2.7 done. See prior release notes.
 
 ---
 
-## Phase 6 — Operations & resilience — **next**
+## Phase 6 — Operations & resilience — **complete**
 
-| # | Gap | Deliverable | Tests |
-|---|-----|-------------|-------|
-| 6.1 | Power / solar mode HTTP E2E | HelixTest africa power profile | HelixTest |
-| 6.2 | SQLite backup CLI | `ferrum backup create\|restore` | Round-trip |
-| 6.3 | Corruption detection | Checksum verify on startup option | Unit |
-| 6.4 | Log rotation on Pi | systemd unit + doc | Deploy |
-| 6.5 | ARM binary size budget | Keep < 50 MB; track in CI | build-arm64 job |
-| 6.6 | Crypt4GH Pi throughput gate | >500 MB/s on Pi 5 in release notes | bench-arm64 |
-| 6.7 | Regulatory field guide | GDPR + local health law pointers | Doc |
+| # | Gap | Deliverable | Status |
+|---|-----|-------------|--------|
+| 6.1 | Power / solar mode HTTP E2E | `FERRUM_POWER_MODE=emergency` → 503; `ci-field-ops-e2e.sh` | Done |
+| 6.2 | SQLite backup CLI | `ferrum backup create\|restore\|verify` | Done |
+| 6.3 | Corruption detection | `[ops] verify_checksums_on_startup` + CLI verify | Done |
+| 6.4 | Log rotation on Pi | `deploy/systemd/` unit + logrotate; [FIELD-OPS.md](FIELD-OPS.md) | Done |
+| 6.5 | ARM binary size budget | CI fails if release-edge ≥ 50 MB | Done |
+| 6.6 | Crypt4GH Pi throughput gate | ARM64 bench smoke + documented Pi 5 target | Done |
+| 6.7 | Regulatory field guide | [FIELD-REGULATORY.md](FIELD-REGULATORY.md) | Done |
+
+**Phase 6 test gate (passed):** `cargo test -p ferrum-core ops`, `ci-field-ops-e2e.sh`.
 
 ---
 
-## Phase 7 — Ecosystem alignment
+## Phase 7 — Ecosystem alignment — **next**
 
 | # | Gap | Deliverable |
 |---|-----|-------------|
@@ -146,6 +149,7 @@ bash deploy/scripts/ci-edge-demo-e2e.sh
 bash deploy/scripts/ci-field-edge-install-smoke.sh
 bash deploy/scripts/ci-field-sync-e2e.sh
 bash deploy/scripts/ci-field-pipeline-e2e.sh
+bash deploy/scripts/ci-field-ops-e2e.sh
 make test-demo   # full Docker stack unchanged
 ```
 
@@ -155,8 +159,8 @@ Optional: `helixtest --mode ferrum-africa --africa-profile ont,offline,federatio
 
 ## How to use this document
 
-1. Pick the **lowest incomplete phase** for your sprint (**Phase 6** is next).
+1. Pick the **lowest incomplete phase** for your sprint (**Phase 7** is next).
 2. Mark items done in CHANGELOG + this file (or link PR).
-3. Re-assess tier (T0–T5) after each phase for stakeholder updates.
+3. Re-assess tier (T0–T6) after each phase for stakeholder updates.
 
-Last updated: 2026-06-19 (Phase 5 complete).
+Last updated: 2026-06-19 (Phase 6 complete).

@@ -418,6 +418,19 @@ ferrum reference install-field-bundle --gateway http://127.0.0.1:8080
 
 Configure post-ingest hooks via `[pipeline]` in `config.toml` (`auto_htsget_index`, `auto_index_beacon`, `default_beacon_dataset`). Dorado/Guppy runbook: [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md). Beacon limits: [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md). Variant calling strategy: ADR-022 in [DECISIONS.md](../DECISIONS.md).
 
+## Field operations (Phase 6)
+
+Backup, integrity checks, and Pi deployment:
+
+```bash
+ferrum backup create --output ~/backups/ferrum-$(date +%Y%m%d).tar.gz
+ferrum backup verify
+# stop gateway, then:
+ferrum backup restore --archive ~/backups/ferrum-20260619.tar.gz --force
+```
+
+Enable startup integrity gate: `[ops] verify_checksums_on_startup = true`. Full guide: [FIELD-OPS.md](FIELD-OPS.md). Regulatory pointers: [FIELD-REGULATORY.md](FIELD-REGULATORY.md).
+
 ## Localisation
 
 The Ferrum CLI supports English (default), French, and German via `FERRUM_LANG`:

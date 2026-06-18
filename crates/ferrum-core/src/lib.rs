@@ -15,6 +15,7 @@ pub mod io;
 pub mod pool;
 #[cfg(feature = "libdeflate")]
 pub use noodles_bgzf;
+pub mod ops;
 pub mod outbreak;
 pub mod pipeline;
 pub mod power;
@@ -37,9 +38,9 @@ pub use clock::{clock_status, ClockStatus, DEFAULT_MAX_SKEW_SECS, DEFAULT_NTP_HO
 pub use config::{
     AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, AuthMode, BandwidthConfig,
     DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig, FerrumConfig,
-    FerrumPeerConfig, IngestConfig, MultiQCConfig, OutbreakConfig, OutbreakPolicy, PowerConfig,
-    PricingConfig, PricingTier, SecurityConfig, ServicesConfig, StorageConfig, SyncConfig,
-    WesServiceConfig,
+    FerrumPeerConfig, IngestConfig, MultiQCConfig, OperationsConfig, OutbreakConfig,
+    OutbreakPolicy, PowerConfig, PricingConfig, PricingTier, SecurityConfig, ServicesConfig,
+    StorageConfig, SyncConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
 pub use dialect::{
@@ -57,6 +58,10 @@ pub use edge_accounts::{
 pub use error::{FerrumError, Result};
 pub use gisaid::{missing_gisaid_fields, validate_gisaid_metadata, GISAID_REQUIRED_FIELDS};
 pub use health::{health_router, set_health_clock_config, set_health_data_path};
+pub use ops::{
+    create_field_backup, resolve_sqlite_path, restore_field_backup, verify_local_checksums,
+    BackupManifest, IntegrityReport,
+};
 pub use outbreak::{
     build_gisaid_package, ActivateRequest, ApproveDownloadRequest, DeactivateRequest, GisaidEntry,
     OutbreakService, PathogenPackageRow,

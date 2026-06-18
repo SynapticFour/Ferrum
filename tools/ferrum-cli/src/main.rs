@@ -1,6 +1,7 @@
 //! Ferrum CLI for management and operations.
 
 mod auth_cmd;
+mod backup_cmd;
 mod edge_update;
 mod i18n;
 mod ingest_watch;
@@ -93,6 +94,11 @@ enum Commands {
     Reference {
         #[command(subcommand)]
         action: ReferenceAction,
+    },
+    /// Field backup and integrity (SQLite + local objects)
+    Backup {
+        #[command(subcommand)]
+        action: BackupAction,
     },
 }
 
@@ -372,6 +378,33 @@ enum ReferenceAction {
         bundle_dir: PathBuf,
         #[arg(long, default_value = "http://127.0.0.1:8080")]
         gateway: String,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum BackupAction {
+    /// Create a gzip tar backup of SQLite metadata and optional local objects
+    Create {
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long, default_value_t = true)]
+        include_objects: bool,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+    /// Restore a field backup (stop gateway first)
+    Restore {
+        #[arg(long)]
+        archive: PathBuf,
+        #[arg(long)]
+        force: bool,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+    /// Verify local object SHA-256 checksums against DRS metadata
+    Verify {
         #[arg(long)]
         config: Option<PathBuf>,
     },
@@ -749,6 +782,29 @@ async fn run_cli() -> Result<(), CliExit> {
                 config,
             } => {
                 reference_cmd::install_field_bundle(&bundle_dir, &gateway, config.as_ref())
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+        },
+        Commands::Backup { action } => match action {
+            BackupAction::Create {
+                output,
+                include_objects,
+                config,
+            } => {
+                backup_cmd::backup_create(&output, include_objects, config.as_ref())
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+            BackupAction::Restore {
+                archive,
+                force,
+                config,
+            } => {
+                backup_cmd::backup_restore(&archive, force, config.as_ref())
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+            BackupAction::Verify { config } => {
+                backup_cmd::backup_verify(config.as_ref())
                     .await
                     .map_err(CliExit::RuntimeFailed)?;
             }

@@ -1,0 +1,23 @@
+[Unit]
+Description=Ferrum Edge Gateway (GA4GH field node)
+Documentation=https://github.com/SynapticFour/Ferrum/blob/main/docs/FIELD-OPS.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ferrum
+Group=ferrum
+Environment=FERRUM_OFFLINE=1
+Environment=FERRUM_CONFIG=/etc/ferrum/config.toml
+ExecStart=/usr/local/bin/ferrum-gateway
+Restart=on-failure
+RestartSec=10
+# journald captures stdout/stderr; rotate via journald.conf or logrotate below
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ferrum-gateway
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

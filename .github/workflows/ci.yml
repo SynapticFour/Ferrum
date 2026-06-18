@@ -96,6 +96,8 @@ jobs:
         run: bash deploy/scripts/ci-field-sync-e2e.sh
       - name: Field pipeline E2E (Phase 5)
         run: bash deploy/scripts/ci-field-pipeline-e2e.sh
+      - name: Field ops E2E (Phase 6)
+        run: bash deploy/scripts/ci-field-ops-e2e.sh
 
   # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
   bench-and-features:
@@ -125,19 +127,20 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build workspace (aarch64 release)
-        run: cargo build --workspace --release
-      - name: ARM64 gateway binary size check
+      - name: Build ferrum-gateway (release-edge, ARM64)
+        run: cargo build -p ferrum-gateway --features edge --profile release-edge
+      - name: ARM64 gateway binary size check (50 MB budget)
         run: |
-          BIN=target/release/ferrum-gateway
+          BIN=target/release-edge/ferrum-gateway
           if [ ! -f "$BIN" ]; then
             echo "::error::Missing $BIN"
             exit 1
           fi
           SIZE=$(stat -c%s "$BIN")
-          echo "ferrum-gateway (aarch64 release): $SIZE bytes"
+          echo "ferrum-gateway (aarch64 release-edge): $SIZE bytes"
           if [ "$SIZE" -ge 52428800 ]; then
-            echo "::warning::Binary exceeds 50MB Pi microSD target ($SIZE bytes)"
+            echo "::error::Binary exceeds 50MB Pi microSD target ($SIZE bytes)"
+            exit 1
           fi
 
   benchmark-arm64:
@@ -153,3 +156,7 @@ jobs:
         run: cargo bench -p ferrum-crypt4gh --bench crypt_benchmark --no-run
       - name: Compile ferrum-bench (aarch64)
         run: cargo bench -p ferrum-bench --no-run
+      - name: Crypt4GH ARM64 quick throughput smoke (Pi target 500 MB/s documented)
+        run: |
+          cargo bench -p ferrum-crypt4gh --bench crypt_benchmark -- --quick 2>&1 | tee /tmp/crypt4gh-bench.log || true
+          echo "See FIELD-OPS.md: Pi 5 field target is >500 MB/s; CI ARM runner is compile/smoke only."

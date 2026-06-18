@@ -37,6 +37,15 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-19 - ADR-023: Field backup and integrity strategy (Phase 6)
+
+- **Status:** Accepted
+- **Context:** Edge Pi nodes need operator-run disaster recovery without Docker/Postgres tooling. Silent bit-rot on USB SSDs can corrupt genomics objects while SQLite metadata still looks valid.
+- **Decision:** **`ferrum backup create|restore`** packages SQLite + local `objects/` into a versioned tar.gz. **`ferrum backup verify`** and optional **`[ops] verify_checksums_on_startup`** compare on-disk bytes to DRS SHA-256 checksums and refuse gateway start on mismatch. Solar power behaviour unchanged (503 in emergency); ops docs cover systemd + journald rotation.
+- **Consequences:** Operators must stop the gateway before restore. Hub/Postgres deployments use their own backup tools; this ADR applies to Edge SQLite mode only.
+
+---
+
 ### 2026-06-19 - ADR-022: Field variant calling strategy
 
 - **Status:** Accepted

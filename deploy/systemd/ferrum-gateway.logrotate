@@ -1,0 +1,12 @@
+# Optional file log when redirecting ferrum-gateway to a file (default: use journald).
+# Install: sudo cp deploy/systemd/ferrum-gateway.logrotate /etc/logrotate.d/ferrum-gateway
+/var/log/ferrum/gateway.log {
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    maxsize 50M
+}

@@ -1,6 +1,7 @@
 //! Layered configuration: defaults, /etc/ferrum, ~/.ferrum, FERRUM_ env, optional --config file.
 
 use crate::pipeline::PipelineConfig;
+pub use crate::ops::OperationsConfig;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -58,6 +59,9 @@ pub struct FerrumConfig {
     /// Post-ingest analysis pipeline (QC, Beacon index, htsget metadata).
     #[serde(default)]
     pub pipeline: PipelineConfig,
+    /// Field operations: backup, integrity checks (Phase 6).
+    #[serde(default)]
+    pub ops: OperationsConfig,
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].

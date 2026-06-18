@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **Phase 6 — Operations & resilience (T6)** — `ferrum backup create|restore|verify`; `[ops] verify_checksums_on_startup`; systemd unit + logrotate; [FIELD-OPS.md](docs/FIELD-OPS.md), [FIELD-REGULATORY.md](docs/FIELD-REGULATORY.md); ADR-023; ARM64 50 MB hard gate; `ci-field-ops-e2e.sh`.
 - **Phase 5 — Analysis pipeline (T5)** — `[pipeline]` config; post-ingest htsget + Beacon VCF hooks; `ferrum pipeline qc|index-beacon|htsget-status|forward-wes`; `ferrum reference install-field-bundle`; [FIELD-ONT-BASECALLING.md](docs/FIELD-ONT-BASECALLING.md), [FIELD-BEACON-INDEX.md](docs/FIELD-BEACON-INDEX.md); ADR-022; `ci-field-pipeline-e2e.sh`.
 - **Phase 4 — Sync & federation (T4)** — `sync_queue` table; `ferrum sync status|enqueue|push|export`; hub multipart push + chunked resume; DUO/consent enqueue filter; sneakernet export; `/api/v1/sync/*`; ga4gh-infra registration on push; [FIELD-SYNC-HUB.md](docs/FIELD-SYNC-HUB.md); ADR-021; `ci-field-sync-e2e.sh`.
 - **Phase 3 — Auth & long offline (T2 hardened)** — 7-day JWKS cache + `jwks_file` offline validation; field roles (`ferrum:collector`, `ferrum:analyst`, `ferrum:sync_operator`); `edge_operator_accounts` + `ferrum auth account/login`; JWKS in update bundles; clock skew on `/health`; installer CI smoke; [FIELD-AUTH-OFFLINE.md](docs/FIELD-AUTH-OFFLINE.md); ADR-020.
