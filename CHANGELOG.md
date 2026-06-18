@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **Phase 3 — Auth & long offline (T2 hardened)** — 7-day JWKS cache + `jwks_file` offline validation; field roles (`ferrum:collector`, `ferrum:analyst`, `ferrum:sync_operator`); `edge_operator_accounts` + `ferrum auth account/login`; JWKS in update bundles; clock skew on `/health`; installer CI smoke; [FIELD-AUTH-OFFLINE.md](docs/FIELD-AUTH-OFFLINE.md); ADR-020.
 - **Phase 2 — Metadata & provenance (T3)** — `metadata_ref` on `drs_objects`; `metadata_submissions` table; ferrum-meta validation at ingest (`ferrum_meta` on register/ONT); pathogen + H3Africa profiles in `ferrum-meta-connect`; `ferrum meta init|import`; provenance on ONT ingest (`collection_recorded` residency audit); `ferrum ingest watch --meta-bundle`; schema sync script `scripts/sync-ferrum-meta-schemas.sh`.
 
 ## [0.2.0] — 2026-06-11 — Africa resilience release

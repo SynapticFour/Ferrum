@@ -37,6 +37,16 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-19 - ADR-020: Offline JWKS and Edge operator accounts
+
+- **Status:** Accepted
+- **Context:** Field Edge nodes may operate without internet for days. JWKS fetch every 5 minutes fails offline; shared MinION laptops need multiple operators without full ga4gh-infra UI.
+- **Decision:** Default JWKS cache TTL **7 days**; support **`jwks_file`** for local JSON (no HTTP). Field roles `ferrum:collector`, `ferrum:analyst`, `ferrum:sync_operator` enforced on ingest when `require_auth=true`. SQLite **`edge_operator_accounts`** + `ferrum auth account add|list|login` for PIN-based local tokens. Update bundles may include pre-provisioned JWKS sets. `/health` reports clock skew via NTP probe.
+- **Consequences:** Operators rotate keys via USB/signed bundle without broker uptime. See [docs/FIELD-AUTH-OFFLINE.md](docs/FIELD-AUTH-OFFLINE.md).
+- **Alternatives considered:** Permanent demo mode on Edge (rejected: no audit trail for multi-user devices).
+
+---
+
 ### 2026-06-12 - ADR-017: External auth plane owned by ga4gh-infra in co-deploy
 
 - **Status:** Accepted

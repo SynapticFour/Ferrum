@@ -2,19 +2,30 @@
 
 use sha2::{Digest, Sha256};
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct JwksBundleEntry {
+    kid: String,
+    filename: String,
+}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct UpdateManifest {
     version: String,
     gateway_sha256: String,
     gateway_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    jwks: Option<Vec<JwksBundleEntry>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    active_jwks_kid: Option<String>,
 }
 
 pub fn install_bundle(
     bundle: &Path,
     install_dir: &Path,
     expected_sha256: Option<&str>,
+    jwks_dir: Option<&Path>,
 ) -> Result<(), String> {
     let file = std::fs::File::open(bundle).map_err(|e| format!("open bundle: {e}"))?;
     let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
@@ -77,6 +88,28 @@ pub fn install_bundle(
         std::os::unix::fs::symlink(&dest, &ferrum_link).map_err(|e| e.to_string())?;
     }
 
+    if let Some(entries) = manifest.jwks {
+        let jdir = jwks_dir
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(format!("{}/../jwks", install_dir.display())));
+        std::fs::create_dir_all(&jdir).map_err(|e| e.to_string())?;
+        for entry in entries {
+            let src = extract_dir.path().join(&entry.filename);
+            if !src.is_file() {
+                return Err(format!("bundle missing JWKS file: {}", entry.filename));
+            }
+            let dest_jwk = jdir.join(format!("{}.json", entry.kid));
+            std::fs::copy(&src, &dest_jwk).map_err(|e| e.to_string())?;
+        }
+        if let Some(kid) = manifest.active_jwks_kid {
+            std::fs::write(jdir.join("active_kid"), &kid).map_err(|e| e.to_string())?;
+            println!(
+                "Installed JWKS key set (active kid={kid}) to {}",
+                jdir.display()
+            );
+        }
+    }
+
     println!(
         "Installed ferrum-gateway {} to {} (sha256={digest})",
         manifest.version,
@@ -85,7 +118,13 @@ pub fn install_bundle(
     Ok(())
 }
 
-pub fn create_bundle(gateway_bin: &Path, version: &str, output: &Path) -> Result<(), String> {
+pub fn create_bundle(
+    gateway_bin: &Path,
+    version: &str,
+    output: &Path,
+    jwks_files: &[(String, PathBuf)],
+    active_jwks_kid: Option<&str>,
+) -> Result<(), String> {
     if !gateway_bin.is_file() {
         return Err(format!(
             "gateway binary not found: {}",
@@ -94,10 +133,30 @@ pub fn create_bundle(gateway_bin: &Path, version: &str, output: &Path) -> Result
     }
     let bytes = std::fs::read(gateway_bin).map_err(|e| e.to_string())?;
     let digest = hex::encode(Sha256::digest(&bytes));
+    let jwks_entries: Vec<(JwksBundleEntry, PathBuf)> = jwks_files
+        .iter()
+        .map(|(kid, path)| {
+            let filename = format!("jwks-{kid}.json");
+            (
+                JwksBundleEntry {
+                    kid: kid.clone(),
+                    filename: filename.clone(),
+                },
+                path.clone(),
+            )
+        })
+        .collect();
+
     let manifest = UpdateManifest {
         version: version.to_string(),
         gateway_sha256: digest,
         gateway_name: "ferrum-gateway".to_string(),
+        jwks: if jwks_entries.is_empty() {
+            None
+        } else {
+            Some(jwks_entries.iter().map(|(e, _)| e.clone()).collect())
+        },
+        active_jwks_kid: active_jwks_kid.map(str::to_string),
     };
 
     let staging = tempfile::tempdir().map_err(|e| e.to_string())?;
@@ -108,6 +167,17 @@ pub fn create_bundle(gateway_bin: &Path, version: &str, output: &Path) -> Result
     .map_err(|e| e.to_string())?;
     std::fs::copy(gateway_bin, staging.path().join("ferrum-gateway")).map_err(|e| e.to_string())?;
 
+    for (entry, path) in &jwks_entries {
+        if !path.is_file() {
+            return Err(format!(
+                "JWKS file not found for kid {}: {}",
+                entry.kid,
+                path.display()
+            ));
+        }
+        std::fs::copy(path, staging.path().join(&entry.filename)).map_err(|e| e.to_string())?;
+    }
+
     let out_file = std::fs::File::create(output).map_err(|e| e.to_string())?;
     let enc = flate2::write::GzEncoder::new(out_file, flate2::Compression::default());
     let mut tar = tar::Builder::new(enc);
@@ -115,6 +185,13 @@ pub fn create_bundle(gateway_bin: &Path, version: &str, output: &Path) -> Result
         .map_err(|e| e.to_string())?;
     tar.append_path_with_name(staging.path().join("ferrum-gateway"), "ferrum-gateway")
         .map_err(|e| e.to_string())?;
+    for (entry, _) in &jwks_entries {
+        tar.append_path_with_name(
+            staging.path().join(&entry.filename),
+            entry.filename.as_str(),
+        )
+        .map_err(|e| e.to_string())?;
+    }
     tar.finish().map_err(|e| e.to_string())?;
     println!("Wrote signed update bundle to {}", output.display());
     Ok(())

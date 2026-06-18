@@ -62,6 +62,7 @@ async fn test_upload_writes_data_uploaded_event() {
         residency_audit: Some(audit.clone()),
         background_gate: None,
         ads_introspect: None,
+        ingest_require_auth: false,
     };
     process_upload_from_parts(
         Arc::new(state),

@@ -2,10 +2,12 @@
 
 pub mod ads;
 pub mod auth;
+pub mod clock;
 pub mod config;
 pub mod db;
 pub mod dialect;
 pub mod disk;
+pub mod edge_accounts;
 pub mod error;
 pub mod gisaid;
 pub mod health;
@@ -27,6 +29,7 @@ pub use auth::{
     auth_layer, auth_middleware, auth_middleware_with_config, AuthClaims, AuthMiddlewareConfig,
     PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
 };
+pub use clock::{clock_status, ClockStatus, DEFAULT_MAX_SKEW_SECS, DEFAULT_NTP_HOST};
 pub use config::{
     AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, AuthMode, BandwidthConfig,
     DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig, FerrumConfig,
@@ -42,9 +45,13 @@ pub use dialect::{
     sql_list_bundle_contents_page, sql_list_objects, sql_pathogen_count, sql_pathogen_exists,
     sql_update_drs_object,
 };
+pub use edge_accounts::{
+    create_account, list_accounts, mint_local_token, normalize_role, verify_account_pin,
+    visa_for_role, EdgeOperatorAccount, ROLE_ANALYST, ROLE_COLLECTOR, ROLE_SYNC_OPERATOR,
+};
 pub use error::{FerrumError, Result};
 pub use gisaid::{missing_gisaid_fields, validate_gisaid_metadata, GISAID_REQUIRED_FIELDS};
-pub use health::{health_router, set_health_data_path};
+pub use health::{health_router, set_health_clock_config, set_health_data_path};
 pub use outbreak::{
     build_gisaid_package, ActivateRequest, ApproveDownloadRequest, DeactivateRequest, GisaidEntry,
     OutbreakService, PathogenPackageRow,

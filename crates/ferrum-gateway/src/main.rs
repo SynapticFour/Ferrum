@@ -280,6 +280,16 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
                 .map(PathBuf::from)
                 .unwrap_or_else(|| data_dir.join("objects"));
             ferrum_core::set_health_data_path(disk_path);
+            if let Some(ref africa) = cfg.africa {
+                let ntp = africa
+                    .ntp_host
+                    .clone()
+                    .unwrap_or_else(|| ferrum_core::DEFAULT_NTP_HOST.to_string());
+                let skew = africa
+                    .clock_max_skew_secs
+                    .unwrap_or(ferrum_core::DEFAULT_MAX_SKEW_SECS);
+                ferrum_core::set_health_clock_config(ntp, skew);
+            }
         }
         if (EDGE_BUILD || cfg.is_offline_first())
             && cfg.africa.as_ref().and_then(|a| a.max_memory_mb).is_none()
@@ -472,6 +482,10 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             residency_audit: Some(residency_audit),
             background_gate: Some(background_gate),
             ads_introspect: ads_introspect.clone(),
+            ingest_require_auth: config
+                .as_ref()
+                .map(|c| c.auth.require_auth)
+                .unwrap_or(false),
         })
     } else {
         None

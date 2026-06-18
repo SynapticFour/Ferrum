@@ -806,11 +806,39 @@ pub async fn post_ont(
     }
 }
 
+fn ensure_ingest_allowed(
+    state: &AppState,
+    auth: Option<&Extension<ferrum_core::AuthClaims>>,
+) -> Result<(), IngestApiError> {
+    if !state.ingest_require_auth {
+        return Ok(());
+    }
+    let Some(Extension(claims)) = auth else {
+        return Err(IngestApiError {
+            status: StatusCode::FORBIDDEN,
+            code: "forbidden",
+            message: "ingest requires authentication".into(),
+            details: None,
+        });
+    };
+    if claims.can_ingest() {
+        Ok(())
+    } else {
+        Err(IngestApiError {
+            status: StatusCode::FORBIDDEN,
+            code: "forbidden",
+            message: "ingest requires ferrum:collector or admin role".into(),
+            details: None,
+        })
+    }
+}
+
 async fn do_ont_ingest(
     state: Arc<AppState>,
     multipart: &mut Multipart,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<serde_json::Value, IngestApiError> {
+    ensure_ingest_allowed(&state, auth.as_ref())?;
     let storage = state
         .storage
         .clone()

@@ -9,6 +9,14 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
+pub const VISA_ADMIN: &str = "ferrum:admin";
+pub const VISA_OUTBREAK: &str = "ferrum:outbreak_activator";
+pub const VISA_COLLECTOR: &str = "ferrum:collector";
+pub const VISA_ANALYST: &str = "ferrum:analyst";
+pub const VISA_SYNC_OPERATOR: &str = "ferrum:sync_operator";
+
+const DEFAULT_JWKS_CACHE_TTL: Duration = Duration::from_secs(604_800);
+
 /// GA4GH Visa object (ga4gh_visa_v1 claim value).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisaObject {
@@ -85,7 +93,7 @@ impl AuthClaims {
             AuthClaims::Jwt { .. } => false,
             AuthClaims::Passport { visas, .. } => visas
                 .iter()
-                .any(|v| v.value == "ferrum:admin" || v.value.contains("ferrum:admin")),
+                .any(|v| v.value == VISA_ADMIN || v.value.contains("ferrum:admin")),
         }
     }
 
@@ -93,9 +101,39 @@ impl AuthClaims {
     pub fn is_outbreak_activator(&self) -> bool {
         match self {
             AuthClaims::Jwt { .. } => false,
-            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| {
-                v.value == "ferrum:outbreak_activator" || v.value.contains("outbreak_activator")
-            }),
+            AuthClaims::Passport { visas, .. } => visas
+                .iter()
+                .any(|v| v.value == VISA_OUTBREAK || v.value.contains("outbreak_activator")),
+        }
+    }
+
+    /// True if token may ingest field data (collector visa or admin).
+    pub fn can_ingest(&self) -> bool {
+        self.is_admin() || self.has_field_visa(VISA_COLLECTOR) || self.has_scope(VISA_COLLECTOR)
+    }
+
+    /// True if token may run sync operations (sync operator or admin).
+    pub fn can_sync(&self) -> bool {
+        self.is_admin()
+            || self.has_field_visa(VISA_SYNC_OPERATOR)
+            || self.has_scope(VISA_SYNC_OPERATOR)
+    }
+
+    /// True if token may query/analyze data (analyst, collector, or admin).
+    pub fn can_analyze(&self) -> bool {
+        self.is_admin()
+            || self.has_field_visa(VISA_ANALYST)
+            || self.has_field_visa(VISA_COLLECTOR)
+            || self.has_scope(VISA_ANALYST)
+            || self.has_scope(VISA_COLLECTOR)
+    }
+
+    fn has_field_visa(&self, visa_value: &str) -> bool {
+        match self {
+            AuthClaims::Jwt { .. } => false,
+            AuthClaims::Passport { visas, .. } => visas
+                .iter()
+                .any(|v| v.value == visa_value || v.value.contains(visa_value)),
         }
     }
 
@@ -198,6 +236,9 @@ pub struct AuthMiddlewareConfig {
     pub jwt_secret: Option<Vec<u8>>,
     pub issuer: Option<String>,
     pub jwks_url: Option<String>,
+    /// Local JWKS JSON file (offline field rotation).
+    pub jwks_file: Option<String>,
+    pub jwks_cache_ttl: Duration,
     pub passport_endpoints: Vec<String>,
     /// When false, requests without a token get synthetic "demo-user" claims (for demo mode).
     pub require_auth: bool,
@@ -221,10 +262,21 @@ impl AuthMiddlewareConfig {
             .clone()
             .or_else(|| std::env::var("FERRUM_AUTH__ISSUER").ok())
             .filter(|s| !s.is_empty());
+        let jwks_file = cfg
+            .jwks_file
+            .clone()
+            .or_else(|| std::env::var("FERRUM_AUTH__JWKS_FILE").ok())
+            .filter(|s| !s.is_empty());
+        let ttl_secs = std::env::var("FERRUM_AUTH__JWKS_CACHE_TTL_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(cfg.jwks_cache_ttl_secs);
         Self {
             jwt_secret: cfg.jwt_secret.as_deref().map(|s| s.as_bytes().to_vec()),
             issuer,
             jwks_url,
+            jwks_file,
+            jwks_cache_ttl: Duration::from_secs(ttl_secs.max(60)),
             passport_endpoints: cfg.passport_endpoints.clone(),
             require_auth: cfg.require_auth,
             max_token_age_hours: cfg.max_token_age_hours,
@@ -239,6 +291,8 @@ impl AuthMiddlewareConfig {
             jwt_secret: None,
             issuer: None,
             jwks_url: None,
+            jwks_file: None,
+            jwks_cache_ttl: DEFAULT_JWKS_CACHE_TTL,
             passport_endpoints: Vec::new(),
             require_auth: false,
             max_token_age_hours: 24,
@@ -257,6 +311,8 @@ impl AuthMiddlewareConfig {
             jwt_secret: Some(secret.into_bytes()),
             issuer: std::env::var("FERRUM_AUTH__ISSUER").ok(),
             jwks_url: std::env::var("FERRUM_AUTH__JWKS_URL").ok(),
+            jwks_file: std::env::var("FERRUM_AUTH__JWKS_FILE").ok(),
+            jwks_cache_ttl: DEFAULT_JWKS_CACHE_TTL,
             passport_endpoints: Vec::new(),
             require_auth: true,
             max_token_age_hours: 0,
@@ -415,6 +471,19 @@ async fn decode_jwt_or_passport(
         }
         let data = decode::<PassportClaims>(token, &key, &validation)?;
         reject_token_if_too_old(data.claims.iat, cfg.max_token_age_hours)?;
+        if let Some(ref scope) = data.claims.scope {
+            if scope
+                .split(|c: char| c.is_whitespace() || c == ',')
+                .any(|s| {
+                    matches!(
+                        s,
+                        VISA_COLLECTOR | VISA_ANALYST | VISA_SYNC_OPERATOR | VISA_ADMIN
+                    )
+                })
+            {
+                return Ok(scope_to_passport_claims(&data.claims, token));
+            }
+        }
         return Ok(AuthClaims::Jwt {
             sub: data.claims.sub.unwrap_or_default(),
             iss: data.claims.iss,
@@ -457,37 +526,67 @@ struct CachedJwks {
 
 static JWKS_CACHE: LazyLock<Mutex<HashMap<String, CachedJwks>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
-const JWKS_CACHE_TTL: Duration = Duration::from_secs(300);
+
+fn resolve_jwks_path(jwks_file: &str) -> std::path::PathBuf {
+    jwks_file
+        .strip_prefix("file://")
+        .unwrap_or(jwks_file)
+        .into()
+}
+
+fn load_jwks_from_file(
+    path: &std::path::Path,
+) -> Result<jsonwebtoken::jwk::JwkSet, jsonwebtoken::errors::Error> {
+    let raw =
+        std::fs::read_to_string(path).map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    let value: serde_json::Value =
+        serde_json::from_str(&raw).map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    serde_json::from_value(value).map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken.into())
+}
 
 async fn fetch_jwks_cached(
-    jwks_url: &str,
+    cfg: &AuthMiddlewareConfig,
 ) -> Result<jsonwebtoken::jwk::JwkSet, jsonwebtoken::errors::Error> {
+    let cache_key = cfg
+        .jwks_file
+        .clone()
+        .or_else(|| cfg.jwks_url.clone())
+        .unwrap_or_default();
+
     if let Ok(cache) = JWKS_CACHE.lock() {
-        if let Some(entry) = cache.get(jwks_url) {
-            if entry.fetched_at.elapsed() < JWKS_CACHE_TTL {
+        if let Some(entry) = cache.get(&cache_key) {
+            if entry.fetched_at.elapsed() < cfg.jwks_cache_ttl {
                 return Ok(entry.set.clone());
             }
         }
     }
 
-    let jwks_value = reqwest::Client::new()
-        .get(jwks_url)
-        .timeout(Duration::from_secs(15))
-        .send()
-        .await
-        .map_err(|e| {
-            tracing::warn!(jwks_url = %jwks_url, error = %e, "JWKS fetch failed");
-            jsonwebtoken::errors::ErrorKind::InvalidToken
-        })?
-        .json::<serde_json::Value>()
-        .await
-        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-    let set: jsonwebtoken::jwk::JwkSet = serde_json::from_value(jwks_value)
-        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    let set = if let Some(ref file) = cfg.jwks_file {
+        load_jwks_from_file(&resolve_jwks_path(file))?
+    } else {
+        let jwks_url = cfg
+            .jwks_url
+            .as_deref()
+            .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        let jwks_value = reqwest::Client::new()
+            .get(jwks_url)
+            .timeout(Duration::from_secs(15))
+            .send()
+            .await
+            .map_err(|e| {
+                tracing::warn!(jwks_url = %jwks_url, error = %e, "JWKS fetch failed");
+                jsonwebtoken::errors::ErrorKind::InvalidToken
+            })?
+            .json::<serde_json::Value>()
+            .await
+            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        serde_json::from_value(jwks_value)
+            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?
+    };
 
     if let Ok(mut cache) = JWKS_CACHE.lock() {
         cache.insert(
-            jwks_url.to_string(),
+            cache_key,
             CachedJwks {
                 fetched_at: Instant::now(),
                 set: set.clone(),
@@ -496,6 +595,32 @@ async fn fetch_jwks_cached(
     }
 
     Ok(set)
+}
+
+fn scope_to_passport_claims(claims: &PassportClaims, token: &str) -> AuthClaims {
+    let visas = claims
+        .scope
+        .as_deref()
+        .unwrap_or("")
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|s| s.starts_with("ferrum:"))
+        .map(|value| VisaObject {
+            r#type: "AffiliationAndRole".to_string(),
+            asserted: claims.iat.unwrap_or(0),
+            value: value.to_string(),
+            source: claims
+                .iss
+                .clone()
+                .unwrap_or_else(|| "ferrum-edge-local".into()),
+            conditions: None,
+            by: claims.sub.clone(),
+        })
+        .collect();
+    AuthClaims::Passport {
+        claims: claims.clone(),
+        visas,
+        raw_token: Some(token.to_string()),
+    }
 }
 
 async fn decode_passport_jwt(
@@ -510,12 +635,13 @@ async fn decode_passport_jwt(
         return Err(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm.into());
     }
 
-    let jwks_url = cfg
+    let _jwks_ref = cfg
         .jwks_url
         .as_deref()
+        .or(cfg.jwks_file.as_deref())
         .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
-    let set = fetch_jwks_cached(jwks_url).await?;
+    let set = fetch_jwks_cached(cfg).await?;
     let kid = decoded_header.kid.unwrap_or_default();
 
     let jwk = if !kid.is_empty() {
@@ -706,5 +832,32 @@ mod published_access_tests {
 
         let no_grant = passport_with_grant("other-dataset");
         assert!(!no_grant.has_published_dataset_access(ads_id, object_id));
+    }
+
+    #[test]
+    fn collector_scope_allows_ingest() {
+        let claims = AuthClaims::Jwt {
+            sub: "alice".into(),
+            iss: Some("ferrum-edge-local".into()),
+            exp: 0,
+            jti: None,
+            scope: Some("ferrum:collector".into()),
+            raw_token: None,
+        };
+        assert!(claims.can_ingest());
+        assert!(!claims.can_sync());
+    }
+
+    #[test]
+    fn sync_operator_scope_allows_sync() {
+        let claims = AuthClaims::Jwt {
+            sub: "bob".into(),
+            iss: None,
+            exp: 0,
+            jti: None,
+            scope: Some("ferrum:sync_operator".into()),
+            raw_token: None,
+        };
+        assert!(claims.can_sync());
     }
 }

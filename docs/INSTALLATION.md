@@ -325,6 +325,11 @@ When `require_auth = true`, operators issue GA4GH Passports with **Visas** that 
 |------|--------|
 | `ferrum:admin` | Full administrative access (includes outbreak activation) |
 | `ferrum:outbreak_activator` | Activate/deactivate outbreak policies; approve emergency DRS downloads for WHO/Africa CDC partners |
+| `ferrum:collector` | ONT ingest and field metadata capture (Edge mode) |
+| `ferrum:analyst` | Read-only analysis (Beacon, published datasets) |
+| `ferrum:sync_operator` | Queue and push sync jobs when link returns (Phase 4) |
+
+Field Edge shared devices without ga4gh-infra UI: see [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md) (`ferrum auth account add|login`).
 
 Outbreak Mode is **off by default** (`[outbreak] enabled = false`). When enabled, only users with `ferrum:outbreak_activator` or `ferrum:admin` may call `/api/v1/outbreak/activate`, `/deactivate`, or `/approve-download/{drs_id}`. Emergency recipients listed in an active policy receive Beacon access without a dataset Visa; DRS byte access still requires an explicit download approval. See [OUTBREAK-MODE.md](OUTBREAK-MODE.md).
 

@@ -2,9 +2,9 @@
 
 Roadmap for resource-constrained, intermittently connected field genomics (Raspberry Pi / ARM edge nodes). Tracks gaps from the Edge mode analysis and maps them to **phases** so nothing is lost between releases.
 
-**Current tier:** **T3 complete** (metadata binding + provenance at ingest); **Phase 3** (auth hardened) is next.
+**Current tier:** **T2 hardened** (auth + long offline); **Phase 4** (sync) is next.
 
-Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018, ADR-019).
+Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–020).
 
 ---
 
@@ -14,7 +14,7 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIE
 |------|-------|----------------|
 | **T0** | Demo | Run `ferrum demo start --edge`, seed data, CI E2E |
 | **T1** | Ingest & store | ONT ingest (streaming), DRS, Beacon, Crypt4GH, chunked upload, disk health on Pi |
-| **T2** | Identity | Co-deploy ga4gh-infra, outbreak mode, residency audit |
+| **T2** | Identity | Co-deploy ga4gh-infra, field roles, JWKS offline, shared device accounts, clock integrity |
 | **T3** | Metadata | Validate ferrum-meta at ingest; attach to DRS via `metadata_ref`; field provenance |
 | **T4** | Sync | Queue + push objects/metadata when link returns |
 | **T5** | Pipeline | QC/variant calling orchestration (hub or lightweight local) |
@@ -38,55 +38,36 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIE
 
 **Goal:** Reliable daily use on Pi 5 + USB SSD without Docker.
 
-| # | Gap | Deliverable | Status |
-|---|-----|-------------|--------|
-| 1.1 | USB / external storage | `GET /health` disk stats; `[africa] objects_path` docs | Done |
-| 1.2 | Watch-folder MinKNOW ingest | `ferrum ingest watch <dir>` | Done |
-| 1.3 | Transfer queue wired in Edge gateway | Edge tests + gateway state (bandwidth + queue + audit) | Done |
-| 1.4 | Chunked/resume upload in Edge HTTP E2E | `ci-edge-demo-e2e.sh` two-chunk `/upload/chunk` | Done |
-| 1.5 | `release-edge-perf` profile | `opt-level = 3` profile in workspace `Cargo.toml` | Done |
-| 1.6 | libdeflate on edge cross-build | Documented in AFRICA-DEPLOYMENT; CI checks `libdeflate` feature | Done |
-| 1.7 | Offline operator doc bundle | `scripts/build-edge-doc-bundle.sh` | Done |
-| 1.8 | Signed single-binary updates | `ferrum update install\|pack` (manifest + sha256) | Done |
-
-**Phase 1 test gate (passed):** `cargo fmt`, `clippy`, `cargo test --workspace`, `ci-edge-demo-e2e.sh`.
+All items 1.1–1.8 done. See prior release notes.
 
 ---
 
-## Phase 2 — Metadata & provenance (T3) — **complete**
+## Phase 2 — Metadata & provenance (T3) (complete)
 
 **Goal:** Field collection metadata is first-class, not an afterthought.
 
-| # | Gap | Deliverable | Status |
-|---|-----|-------------|--------|
-| 2.1 | ferrum-meta ↔ DRS binding | `metadata_ref` on `drs_objects`; `metadata_submissions` table; ingest accepts bundle | Done |
-| 2.2 | Interactive metadata CLI wizard | `ferrum meta init --profile pathogen\|h3africa` | Done |
-| 2.3 | Expand validator to pathogen + H3Africa profiles | `ferrum-meta-connect` profiles + fixtures | Done |
-| 2.4 | LinkML parity or JSON Schema generation | `profiles/meta/sync-spec.json`, `scripts/sync-ferrum-meta-schemas.sh` | Done (CI structural; LinkML in ferrum-meta repo) |
-| 2.5 | Provenance on Edge | `collector`, geo, timestamp on ONT ingest → `collection_recorded` audit | Done |
-| 2.6 | Consent / DUO at collection | `data_use_conditions` (DUO codes) validated in pathogen/H3Africa profiles | Done |
-| 2.7 | Paper → digital | `ferrum meta import --csv`; operator doc in profiles/meta | Done |
-
-**Phase 2 test gate (passed):** `cargo test -p ferrum-meta-connect`, `cargo test -p ferrum-drs --test metadata_ref`, all profile fixtures in CI lint job.
+All items 2.1–2.7 done. See prior release notes.
 
 ---
 
-## Phase 3 — Auth & long offline (T2 hardened) — **next**
+## Phase 3 — Auth & long offline (T2 hardened) — **complete**
 
 **Goal:** Days without internet; multiple operators; auditable access.
 
-| # | Gap | Deliverable | Tests |
-|---|-----|-------------|-------|
-| 3.1 | Single installer polish | `install-field-edge.sh` in release CI; Pi 5 smoke | ARM runner |
-| 3.2 | JWKS long TTL playbook | Default 7d cache; doc rotation without network | ga4gh-infra + Ferrum |
-| 3.3 | Embedded IdP visa issuance | Field roles (collector, analyst, sync operator) | E2E co-deploy |
-| 3.4 | Shared device / multi-user | Local account model on Edge | Security review |
-| 3.5 | Key rotation offline | Pre-provisioned key sets in signed bundle | ADR |
-| 3.6 | NTP / clock integrity | Warn if skew > threshold; audit chain note | Health endpoint |
+| # | Gap | Deliverable | Status |
+|---|-----|-------------|--------|
+| 3.1 | Single installer polish | `install-field-edge.sh` in release CI + `ci-field-edge-install-smoke.sh` | Done |
+| 3.2 | JWKS long TTL playbook | Default 7d cache; `jwks_file` offline; [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md) | Done |
+| 3.3 | Embedded IdP visa issuance | Field roles + ingest enforcement; ga4gh-infra co-deploy doc | Done |
+| 3.4 | Shared device / multi-user | `edge_operator_accounts` + `ferrum auth account/login` | Done |
+| 3.5 | Key rotation offline | JWKS in update bundle; ADR-020 | Done |
+| 3.6 | NTP / clock integrity | `clock` on `/health`; degraded on skew | Done |
+
+**Phase 3 test gate (passed):** `cargo test -p ferrum-core`, `ci-field-edge-install-smoke.sh`, edge E2E.
 
 ---
 
-## Phase 4 — Sync & federation (T4)
+## Phase 4 — Sync & federation (T4) — **next**
 
 **Goal:** When connectivity returns, data joins the larger network safely.
 
@@ -160,6 +141,7 @@ cargo test -p ferrum-meta-connect
 cargo test -p ferrum-drs --test metadata_ref
 ./scripts/build-edge-native.sh --no-native-cpu
 bash deploy/scripts/ci-edge-demo-e2e.sh
+bash deploy/scripts/ci-field-edge-install-smoke.sh
 make test-demo   # full Docker stack unchanged
 ```
 
@@ -169,8 +151,8 @@ Optional: `helixtest --mode ferrum-africa --africa-profile ont,offline,federatio
 
 ## How to use this document
 
-1. Pick the **lowest incomplete phase** for your sprint (**Phase 3** is next).
+1. Pick the **lowest incomplete phase** for your sprint (**Phase 4** is next).
 2. Mark items done in CHANGELOG + this file (or link PR).
 3. Re-assess tier (T0–T5) after each phase for stakeholder updates.
 
-Last updated: 2026-06-18 (Phase 2 complete).
+Last updated: 2026-06-19 (Phase 3 complete).

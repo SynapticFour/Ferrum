@@ -97,6 +97,7 @@ async fn workspace_drs_state() -> (AppState, tempfile::TempDir) {
         residency_audit: None,
         background_gate: None,
         ads_introspect: None,
+        ingest_require_auth: false,
     };
     (state, tmp)
 }

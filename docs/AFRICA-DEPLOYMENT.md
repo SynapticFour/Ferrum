@@ -65,6 +65,17 @@ Edge mode is a **single-process, embedded stack** — not the full Docker demo.
 
 For conformance testing and the complete GA4GH surface, use `deploy/docker-compose.yml` or a Postgres-backed deployment — see [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md).
 
+### Auth & long offline (Phase 3)
+
+Co-deploy **ga4gh-infra** for Passport issuance (`scripts/install-field-edge.sh`), or use **local Edge accounts** on shared devices:
+
+```bash
+ferrum auth account add --username alice --role collector --pin '****'
+ferrum auth login --username alice --pin '****'   # Bearer token for ingest
+```
+
+Configure offline JWKS (`jwks_file`, 7-day cache), enforce roles with `require_auth = true`, and monitor clock skew on `/health`. Full playbook: [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md).
+
 ### Resource requirements (realistic expectations)
 
 These numbers set expectations for **Edge mode only** (one `ferrum-gateway` process, no Docker stack). They combine design targets from the Africa deep-dive, preflight checks, and typical Rust + SQLite behaviour. **Ferrum does not yet publish formal load-test benchmarks for Edge mode**; treat disk and RAM for *your data* as the main scaling factor.

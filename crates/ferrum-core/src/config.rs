@@ -332,6 +332,12 @@ pub struct AfricaProfile {
     /// Path for local object storage root. Default: ~/.ferrum/objects/
     #[serde(default)]
     pub objects_path: Option<PathBuf>,
+    /// Max clock skew vs NTP before `/health` is degraded (seconds). Default 300.
+    #[serde(default)]
+    pub clock_max_skew_secs: Option<i64>,
+    /// NTP host for clock probe. Default pool.ntp.org
+    #[serde(default)]
+    pub ntp_host: Option<String>,
 }
 
 /// Outbreak Mode configuration (opt-in; disabled by default).
@@ -603,6 +609,12 @@ pub struct AuthConfig {
     pub issuer: Option<String>,
     /// JWKS URL for RS256 validation. Env: FERRUM_AUTH__JWKS_URL
     pub jwks_url: Option<String>,
+    /// Local JWKS file for offline validation (path or file://). Env: FERRUM_AUTH__JWKS_FILE
+    #[serde(default)]
+    pub jwks_file: Option<String>,
+    /// JWKS cache TTL in seconds (default 7 days for field offline). Env: FERRUM_AUTH__JWKS_CACHE_TTL_SECS
+    #[serde(default = "default_jwks_cache_ttl_secs")]
+    pub jwks_cache_ttl_secs: u64,
     /// GA4GH Passport / token endpoints to trust. Env: FERRUM_AUTH__PASSPORT_ENDPOINTS
     #[serde(default)]
     pub passport_endpoints: Vec<String>,
@@ -631,6 +643,10 @@ pub enum AuthMode {
     Builtin,
     /// External ga4gh-infra AAI broker; disables ferrum-passports when combined with discovery.
     External,
+}
+
+fn default_jwks_cache_ttl_secs() -> u64 {
+    604_800 // 7 days
 }
 
 fn default_ads_api_key_env() -> String {

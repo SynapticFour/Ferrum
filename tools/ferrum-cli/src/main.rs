@@ -1,5 +1,6 @@
 //! Ferrum CLI for management and operations.
 
+mod auth_cmd;
 mod edge_update;
 mod i18n;
 mod ingest_watch;
@@ -74,6 +75,11 @@ enum Commands {
     Outbreak {
         #[command(subcommand)]
         action: OutbreakAction,
+    },
+    /// Edge operator accounts and local login (shared device)
+    Auth {
+        #[command(subcommand)]
+        action: AuthAction,
     },
 }
 
@@ -236,6 +242,8 @@ enum UpdateAction {
         install_dir: PathBuf,
         #[arg(long)]
         sha256: Option<String>,
+        #[arg(long)]
+        jwks_dir: Option<PathBuf>,
     },
     /// Create an offline update bundle from a built ferrum-gateway binary
     Pack {
@@ -245,6 +253,42 @@ enum UpdateAction {
         output: PathBuf,
         #[arg(long, default_value = "0.2.0")]
         version: String,
+        /// JWKS files as kid:path (repeatable) for offline key rotation
+        #[arg(long = "jwks")]
+        jwks: Vec<String>,
+        #[arg(long)]
+        active_jwks_kid: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum AuthAction {
+    /// Create a local Edge operator account (PIN + field role)
+    AccountAdd {
+        #[arg(long)]
+        username: String,
+        #[arg(long)]
+        role: String,
+        #[arg(long)]
+        pin: String,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+    /// List Edge operator accounts
+    AccountList {
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+    /// Login and print a local bearer token (HS256)
+    Login {
+        #[arg(long)]
+        username: String,
+        #[arg(long)]
+        pin: String,
+        #[arg(long, default_value = "12")]
+        ttl_hours: u64,
+        #[arg(long)]
+        config: Option<PathBuf>,
     },
 }
 
@@ -468,6 +512,7 @@ async fn run_cli() -> Result<(), CliExit> {
                 bundle,
                 install_dir,
                 sha256,
+                jwks_dir,
             } => {
                 let install_dir = if install_dir.starts_with("~/") {
                     std::env::var("HOME")
@@ -476,15 +521,62 @@ async fn run_cli() -> Result<(), CliExit> {
                 } else {
                     install_dir
                 };
-                edge_update::install_bundle(&bundle, &install_dir, sha256.as_deref())
-                    .map_err(CliExit::RuntimeFailed)?;
+                edge_update::install_bundle(
+                    &bundle,
+                    &install_dir,
+                    sha256.as_deref(),
+                    jwks_dir.as_deref(),
+                )
+                .map_err(CliExit::RuntimeFailed)?;
             }
             UpdateAction::Pack {
                 gateway,
                 output,
                 version,
+                jwks,
+                active_jwks_kid,
             } => {
-                edge_update::create_bundle(&gateway, &version, &output)
+                let jwks_files: Vec<(String, PathBuf)> = jwks
+                    .iter()
+                    .filter_map(|spec| {
+                        let (kid, path) = spec.split_once(':')?;
+                        Some((kid.to_string(), PathBuf::from(path)))
+                    })
+                    .collect();
+                edge_update::create_bundle(
+                    &gateway,
+                    &version,
+                    &output,
+                    &jwks_files,
+                    active_jwks_kid.as_deref(),
+                )
+                .map_err(CliExit::RuntimeFailed)?;
+            }
+        },
+        Commands::Auth { action } => match action {
+            AuthAction::AccountAdd {
+                username,
+                role,
+                pin,
+                config,
+            } => {
+                auth_cmd::account_add(&username, &role, &pin, config.as_ref())
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+            AuthAction::AccountList { config } => {
+                auth_cmd::account_list(config.as_ref())
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+            AuthAction::Login {
+                username,
+                pin,
+                ttl_hours,
+                config,
+            } => {
+                auth_cmd::account_login(&username, &pin, ttl_hours, config.as_ref())
+                    .await
                     .map_err(CliExit::RuntimeFailed)?;
             }
         },

@@ -43,4 +43,6 @@ pub struct AppState {
     pub background_gate: Option<Arc<BackgroundWorkGate>>,
     /// Optional ADS introspection for published datasets (ga4gh-infra co-deploy).
     pub ads_introspect: Option<Arc<ferrum_core::AdsIntrospectClient>>,
+    /// When true, ingest routes require collector/admin role (set by gateway from auth config).
+    pub ingest_require_auth: bool,
 }

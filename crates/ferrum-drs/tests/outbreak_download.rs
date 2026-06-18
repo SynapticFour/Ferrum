@@ -93,6 +93,7 @@ async fn outbreak_drs_state() -> AppState {
         residency_audit: None,
         background_gate: None,
         ads_introspect: None,
+        ingest_require_auth: false,
     }
 }
 

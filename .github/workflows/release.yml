@@ -65,7 +65,8 @@ jobs:
         run: |
           mkdir -p release
           cp target/${{ matrix.target }}/release-edge/ferrum-gateway release/
-          tar -czvf ${{ matrix.asset_name }}.tar.gz -C release ferrum-gateway
+          cp scripts/install-field-edge.sh release/
+          tar -czvf ${{ matrix.asset_name }}.tar.gz -C release ferrum-gateway install-field-edge.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

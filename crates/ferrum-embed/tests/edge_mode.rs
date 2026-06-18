@@ -23,6 +23,7 @@ fn edge_config(dir: &TempDir) -> FerrumConfig {
         max_memory_mb: None,
         sqlite_path: Some(db_path.clone()),
         objects_path: Some(objects_path),
+        ..Default::default()
     });
     cfg.apply_embedded_defaults();
     cfg.database.sqlite_path = db_path.to_string_lossy().into_owned();
@@ -52,6 +53,7 @@ fn drs_state_for_edge(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum
         residency_audit: Some(Arc::new(ferrum_core::ResidencyAuditLog::new(pool))),
         background_gate: Some(Arc::new(ferrum_core::BackgroundWorkGate::default())),
         ads_introspect: None,
+        ingest_require_auth: false,
     }
 }
 
