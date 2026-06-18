@@ -65,3 +65,9 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@hookform/resolvers"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
