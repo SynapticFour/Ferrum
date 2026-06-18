@@ -37,6 +37,15 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-19 - ADR-021: Field sync queue implementation (Phase 4)
+
+- **Status:** Accepted
+- **Context:** ADR-019 defined the sync queue design; Phase 3 delivered auth for `ferrum:sync_operator`. Operators need resumable hub upload, consent filtering, sneakernet export, and audit trail when connectivity returns.
+- **Decision:** Implement `sync_queue` in embedded SQLite; `ferrum sync` CLI (`status`, `enqueue`, `push`, `export`); hub adapter via `/api/v1/ingest/upload` (+ chunked resume); `[sync]` config for DUO/consent policy; optional `/api/v1/sync/*`; `register_on_push` for ga4gh-infra; 409 conflict documented in [docs/FIELD-SYNC-HUB.md](docs/FIELD-SYNC-HUB.md).
+- **Consequences:** Edge CLI skips re-running core migrations on existing Edge DBs (`run_migrations=false`). CI: `ci-field-sync-e2e.sh` covers enqueue/push/export and beacon `federate=true` smoke.
+
+---
+
 ### 2026-06-19 - ADR-020: Offline JWKS and Edge operator accounts
 
 - **Status:** Accepted

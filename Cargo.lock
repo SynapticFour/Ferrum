@@ -1782,6 +1782,7 @@ dependencies = [
  "chrono",
  "clap 4.5.60",
  "ferrum-core",
+ "ferrum-discovery",
  "ferrum-embed",
  "ferrum-meta-connect",
  "ferrum-mii-connect",

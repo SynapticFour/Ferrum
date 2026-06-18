@@ -391,6 +391,20 @@ POST /api/v1/ingest/register
 
 Metadata is stored on `drs_objects.gisaid_metadata`. On outbreak activation, Ferrum returns `gisaid_warnings` when tagged pathogen objects are missing required fields. Build archives with `ferrum outbreak package --policy <name>`.
 
+## Field sync (Edge → hub)
+
+When VSAT or a site visit restores connectivity, push queued objects to a hub Ferrum instance:
+
+```bash
+ferrum sync enqueue --all-local --target https://hub.example.org
+ferrum sync status
+ferrum sync push --target https://hub.example.org
+```
+
+Offline USB handoff: `ferrum sync export --output bundle.tar.gz --policy <outbreak-policy>`.
+
+Configure consent filtering via `[sync]` in `config.toml` (`allowed_duo_codes`, `require_metadata_ref`). Hub duplicate-sample policy: [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md).
+
 ## Localisation
 
 The Ferrum CLI supports English (default), French, and German via `FERRUM_LANG`:

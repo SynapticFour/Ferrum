@@ -12,6 +12,7 @@ pub mod metadata;
 pub mod presign;
 pub mod repo;
 pub mod state;
+pub mod sync_api;
 pub mod types;
 pub mod uri;
 
@@ -30,6 +31,7 @@ use handlers::{
 };
 pub use state::AppState;
 use std::sync::Arc;
+pub use sync_api::{sync_api_router, sync_api_router_unconfigured};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 

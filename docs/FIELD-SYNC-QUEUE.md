@@ -1,10 +1,10 @@
 # Field sync queue
 
-Design reference for **ADR-019**. Edge nodes queue DRS objects for upstream sync when connectivity returns.
+Design reference for **ADR-019** / **Phase 4 (T4)**. Edge nodes queue DRS objects for upstream sync when connectivity returns.
 
 ## Problem
 
-Researchers ingest sequencing data offline on a Raspberry Pi or edge SBC. Objects live in local SQLite + filesystem storage. When VSAT, mobile tether, or a visit to a connected site provides bandwidth, operators must upload selected objects (and linked ferrum-meta bundles) to a hub without re-running MinION ingest.
+Researchers ingest sequencing data offline on a Raspberry Pi or edge SBC. Objects live in local SQLite + filesystem storage. When VSAT, mobile tether, or a visit to a connected site provides bandwidth, operators upload selected objects (and linked ferrum-meta bundles) to a hub without re-running MinION ingest.
 
 ## Queue model
 
@@ -25,30 +25,55 @@ SQLite table `sync_queue` (edge / embedded backend):
 | `last_attempt_at` | TEXT | ISO8601 |
 | `error_message` | TEXT | Last failure (truncated) |
 
-## CLI (planned)
+## CLI
 
 ```bash
 ferrum sync status
-ferrum sync enqueue --all-local
+ferrum sync enqueue --all-local --target https://hub.example.org
 ferrum sync enqueue --object-id <drs-id> --target https://hub.example.org
 ferrum sync push --target https://hub.example.org
 ferrum sync push --dry-run
+ferrum sync export --output /media/usb/field-bundle.tar.gz [--policy outbreak-policy]
 ```
 
-Phase 1 (current): ADR + this document + CLI stub returning "not yet implemented".  
-Phase 4 (maturity plan): full push adapter with resume and residency audit.
+## HTTP API (optional)
+
+When DRS is configured on the gateway:
+
+```http
+GET /api/v1/sync/status
+POST /api/v1/sync/enqueue?object_id=…&target=…
+POST /api/v1/sync/enqueue?all_local=true&target=…
+```
+
+## Config (`[sync]`)
+
+```toml
+[sync]
+default_target_url = "https://hub.example.org"
+encrypt_on_push = false
+require_metadata_ref = false
+allowed_duo_codes = []
+allowed_consent_types = []
+outbreak_policy_on_export = "default"
+register_on_push = true   # ga4gh-infra service registry when online
+```
 
 ## Upload behaviour
 
 1. Operator runs `sync push` when link is available (no background daemon by default).
-2. For each `pending` item, gateway streams object bytes via existing DRS multipart/chunked paths.
-3. Optional `[sync] encrypt_on_push = true` re-wraps plaintext objects in Crypt4GH before upload.
+2. For each `pending` item, CLI streams object bytes via hub `/api/v1/ingest/upload` (multipart) or chunked resume.
+3. Optional `[sync] encrypt_on_push = true` re-wraps plaintext objects in Crypt4GH before upload (future).
 4. Successful push → `state = completed`, append `residency_audit` entry `sync_push_completed`.
 5. Failure → `state = failed`, retain `bytes_sent` + `resume_token` for retry.
 
 ## Hub conflict policy
 
-Document only (hub-side): duplicate `sample_id` / alias → reject with 409 or accept with version suffix. Edge node does not auto-merge.
+See [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md): duplicate sample → 409; Edge does not auto-merge.
+
+## Sneakernet export
+
+`ferrum sync export` builds a gzip tar: `manifest.json`, `objects/`, `meta/`, `audit/residency_slice.json`, optional GISAID package.
 
 ## Related
 

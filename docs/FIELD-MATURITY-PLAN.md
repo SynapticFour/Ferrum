@@ -2,9 +2,9 @@
 
 Roadmap for resource-constrained, intermittently connected field genomics (Raspberry Pi / ARM edge nodes). Tracks gaps from the Edge mode analysis and maps them to **phases** so nothing is lost between releases.
 
-**Current tier:** **T2 hardened** (auth + long offline); **Phase 4** (sync) is next.
+**Current tier:** **T4 sync** (queue + push); **Phase 5** (pipeline) is next.
 
-Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–020).
+Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–021).
 
 ---
 
@@ -67,27 +67,27 @@ All items 2.1–2.7 done. See prior release notes.
 
 ---
 
-## Phase 4 — Sync & federation (T4) — **next**
+## Phase 4 — Sync & federation (T4) — **complete**
 
 **Goal:** When connectivity returns, data joins the larger network safely.
 
-| # | Gap | Deliverable | Tests |
-|---|-----|-------------|-------|
-| 4.1 | `sync_queue` SQLite migration | Embed migration + repo | Unit |
-| 4.2 | `ferrum sync enqueue` | CLI + API optional | Integration |
-| 4.3 | `ferrum sync push --target` | Hub adapter: DRS multipart + Crypt4GH stream | Bandwidth/resume tests |
-| 4.4 | Selective sync (consent/DUO filter) | Policy before enqueue | Compliance review |
-| 4.5 | Hub conflict policy | 409 + operator message | Doc + mock hub |
-| 4.6 | Sneakernet export bundle | Tarball: objects + meta + audit slice | CLI |
-| 4.7 | Federated hub registration | Auto-register in ga4gh-infra registry when online | Discovery tests |
-| 4.8 | Beacon federation smoke on Edge | Two-edge CI job | HelixTest federation profile |
-| 4.9 | GISAID / outbreak package on sync | Tie to existing `ferrum outbreak package` | Existing Rust tests |
+| # | Gap | Deliverable | Status |
+|---|-----|-------------|--------|
+| 4.1 | `sync_queue` SQLite migration | Embed + core migration; `ferrum-core::sync_queue` | Done |
+| 4.2 | `ferrum sync enqueue` | CLI + `GET/POST /api/v1/sync/*` | Done |
+| 4.3 | `ferrum sync push --target` | Hub multipart + chunked resume; residency audit | Done |
+| 4.4 | Selective sync (consent/DUO filter) | `[sync] allowed_duo_codes` / `require_metadata_ref` | Done |
+| 4.5 | Hub conflict policy | 409 handling; [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md) | Done |
+| 4.6 | Sneakernet export bundle | `ferrum sync export` tar.gz | Done |
+| 4.7 | Federated hub registration | `[sync] register_on_push` + ga4gh-infra registry | Done |
+| 4.8 | Beacon federation smoke on Edge | `ci-field-sync-e2e.sh` two-edge federation query | Done |
+| 4.9 | GISAID / outbreak package on sync | `--policy` on export; ties to `ferrum outbreak package` | Done |
 
-See [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md) for queue schema and CLI contract.
+**Phase 4 test gate (passed):** `cargo test -p ferrum-core sync_queue`, `ci-field-sync-e2e.sh`, edge E2E.
 
 ---
 
-## Phase 5 — Analysis pipeline (T5)
+## Phase 5 — Analysis pipeline (T5) — **next**
 
 **Goal:** Close the loop from MinION run to Beacon query in the field or via hub.
 
@@ -142,6 +142,7 @@ cargo test -p ferrum-drs --test metadata_ref
 ./scripts/build-edge-native.sh --no-native-cpu
 bash deploy/scripts/ci-edge-demo-e2e.sh
 bash deploy/scripts/ci-field-edge-install-smoke.sh
+bash deploy/scripts/ci-field-sync-e2e.sh
 make test-demo   # full Docker stack unchanged
 ```
 
@@ -151,8 +152,8 @@ Optional: `helixtest --mode ferrum-africa --africa-profile ont,offline,federatio
 
 ## How to use this document
 
-1. Pick the **lowest incomplete phase** for your sprint (**Phase 4** is next).
+1. Pick the **lowest incomplete phase** for your sprint (**Phase 5** is next).
 2. Mark items done in CHANGELOG + this file (or link PR).
 3. Re-assess tier (T0–T5) after each phase for stakeholder updates.
 
-Last updated: 2026-06-19 (Phase 3 complete).
+Last updated: 2026-06-19 (Phase 4 complete).

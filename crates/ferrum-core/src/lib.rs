@@ -21,6 +21,9 @@ pub mod provenance;
 pub mod residency;
 pub mod security;
 pub mod ssrf;
+pub mod sync_export;
+pub mod sync_push;
+pub mod sync_queue;
 pub mod types;
 pub mod workspace;
 
@@ -34,7 +37,8 @@ pub use config::{
     AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, AuthMode, BandwidthConfig,
     DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig, FerrumConfig,
     FerrumPeerConfig, IngestConfig, MultiQCConfig, OutbreakConfig, OutbreakPolicy, PowerConfig,
-    PricingConfig, PricingTier, SecurityConfig, ServicesConfig, StorageConfig, WesServiceConfig,
+    PricingConfig, PricingTier, SecurityConfig, ServicesConfig, StorageConfig, SyncConfig,
+    WesServiceConfig,
 };
 pub use db::DatabasePool;
 pub use dialect::{
@@ -74,6 +78,15 @@ pub use security::{
     safe_join, validate_drs_name, ResourceAuthorizer, SecurityEvent, SecurityEventLogger,
 };
 pub use ssrf::{is_private_ip, validate_url_ssrf, SafeHttpClient, SsrfPolicy};
+pub use sync_export::{build_sneakernet_bundle, resolve_objects_root, SneakernetManifest};
+pub use sync_push::{push_pending_items, PushItemResult, PushOptions};
+pub use sync_queue::{
+    consent_allows_sync, enqueue_all_local, enqueue_object, hub_push_error_message,
+    list_local_object_ids, list_pending_for_target, list_queue_items, load_metadata_document,
+    load_object_sync_info, mark_completed, mark_failed, mark_in_progress, normalize_target_url,
+    submission_passes_policy, SyncObjectInfo, SyncQueueItem, STATE_COMPLETED, STATE_FAILED,
+    STATE_IN_PROGRESS, STATE_PENDING,
+};
 pub use types::{
     AccessMethod, AccessType, AccessUrl, Checksum, DrsObject, Organization, ServiceInfo,
     ServiceType,

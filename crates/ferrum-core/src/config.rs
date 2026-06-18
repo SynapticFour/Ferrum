@@ -51,6 +51,9 @@ pub struct FerrumConfig {
     /// GA4GH Service Registry discovery (ga4gh-infra integration).
     #[serde(default)]
     pub discovery: DiscoveryConfig,
+    /// Field sync queue: enqueue/push policy for Edge → hub upload.
+    #[serde(default)]
+    pub sync: SyncConfig,
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].
@@ -651,6 +654,26 @@ fn default_jwks_cache_ttl_secs() -> u64 {
 
 fn default_ads_api_key_env() -> String {
     "ADS_DAC_API_KEY".to_string()
+}
+
+/// Edge sync queue policy ([sync] config section).
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct SyncConfig {
+    /// Default hub base URL when `ferrum sync enqueue` omits `--target`.
+    pub default_target_url: Option<String>,
+    /// Re-wrap plaintext objects in Crypt4GH before hub upload.
+    pub encrypt_on_push: bool,
+    /// Only enqueue when ferrum-meta includes one of these DUO codes (empty = no DUO filter).
+    pub allowed_duo_codes: Vec<String>,
+    /// Require `metadata_ref` on objects before enqueue.
+    pub require_metadata_ref: bool,
+    /// When set, ferrum-meta individuals must include one of these consent types.
+    pub allowed_consent_types: Vec<String>,
+    /// Outbreak policy name for GISAID package in `ferrum sync export`.
+    pub outbreak_policy_on_export: Option<String>,
+    /// Register Ferrum services in ga4gh-infra registry before push when online.
+    pub register_on_push: bool,
 }
 
 /// GA4GH Service Registry discovery configuration.

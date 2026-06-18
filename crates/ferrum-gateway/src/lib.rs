@@ -196,6 +196,10 @@ pub fn app(
                     "/api/v1/ingest",
                     ferrum_drs::ingest_api_v1_router(std::sync::Arc::new(state.clone())),
                 );
+                app = app.nest(
+                    "/api/v1/sync",
+                    ferrum_drs::sync_api_router(std::sync::Arc::new(state.clone())),
+                );
             }
             None => {
                 app = app.nest("/ga4gh/drs/v1", ferrum_drs::router_unconfigured());
@@ -203,6 +207,7 @@ pub fn app(
                     "/api/v1/ingest",
                     ferrum_drs::ingest_api_v1_router_unconfigured(),
                 );
+                app = app.nest("/api/v1/sync", ferrum_drs::sync_api_router_unconfigured());
             }
         }
     }

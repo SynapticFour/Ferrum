@@ -6,6 +6,7 @@ mod i18n;
 mod ingest_watch;
 mod meta_import;
 mod meta_init;
+mod sync_cmd;
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use ferrum_mii_connect::{
@@ -51,7 +52,7 @@ enum Commands {
         #[command(subcommand)]
         action: MetaAction,
     },
-    /// Field sync queue (ADR-019; push in a later phase)
+    /// Field sync queue (ADR-019; Edge → hub upload)
     Sync {
         #[command(subcommand)]
         action: SyncAction,
@@ -191,16 +192,20 @@ enum MetaAction {
 
 #[derive(Subcommand)]
 enum SyncAction {
-    /// List pending/completed sync queue items (stub — see docs/FIELD-SYNC-QUEUE.md)
+    /// List pending/completed sync queue items
     Status,
-    /// Upload pending objects to a hub (stub — Phase 4)
+    /// Upload pending objects to a hub
     Push {
         #[arg(long)]
         target: Option<String>,
         #[arg(long)]
         dry_run: bool,
+        #[arg(long)]
+        bearer: Option<String>,
+        #[arg(long)]
+        config: Option<PathBuf>,
     },
-    /// Mark DRS objects for upstream sync (stub — Phase 4)
+    /// Mark DRS objects for upstream sync
     Enqueue {
         #[arg(long)]
         object_id: Option<String>,
@@ -208,6 +213,17 @@ enum SyncAction {
         all_local: bool,
         #[arg(long)]
         target: Option<String>,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+    /// Sneakernet export bundle (objects + meta + audit slice)
+    Export {
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long)]
+        policy: Option<String>,
+        #[arg(long)]
+        config: Option<PathBuf>,
     },
 }
 
@@ -466,23 +482,48 @@ async fn run_cli() -> Result<(), CliExit> {
         },
         Commands::Sync { action } => match action {
             SyncAction::Status => {
-                println!(
-                    "ferrum sync: queue not yet implemented (ADR-019). See docs/FIELD-SYNC-QUEUE.md"
-                );
+                sync_cmd::sync_status(None)
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
             }
-            SyncAction::Push { target, dry_run } => {
-                println!(
-                    "ferrum sync push: not yet implemented (target={target:?}, dry_run={dry_run}). See docs/FIELD-MATURITY-PLAN.md Phase 4.",
-                );
+            SyncAction::Push {
+                target,
+                dry_run,
+                bearer,
+                config,
+            } => {
+                sync_cmd::sync_push(
+                    target.as_deref(),
+                    dry_run,
+                    bearer.as_deref(),
+                    config.as_ref(),
+                )
+                .await
+                .map_err(CliExit::RuntimeFailed)?;
             }
             SyncAction::Enqueue {
                 object_id,
                 all_local,
                 target,
+                config,
             } => {
-                println!(
-                    "ferrum sync enqueue: not yet implemented (object_id={object_id:?}, all_local={all_local}, target={target:?})",
-                );
+                sync_cmd::sync_enqueue(
+                    object_id.as_deref(),
+                    all_local,
+                    target.as_deref(),
+                    config.as_ref(),
+                )
+                .await
+                .map_err(CliExit::RuntimeFailed)?;
+            }
+            SyncAction::Export {
+                output,
+                policy,
+                config,
+            } => {
+                sync_cmd::sync_export(&output, policy.as_deref(), config.as_ref())
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
             }
         },
         Commands::Ingest { action } => match action {

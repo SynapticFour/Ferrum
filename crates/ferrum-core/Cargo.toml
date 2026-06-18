@@ -31,7 +31,7 @@ utoipa = { version = "4", optional = true }
 jsonwebtoken = "9"
 async-trait = "0.1"
 ulid = "1"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "multipart"] }
 base64 = "0.22"
 url = "2"
 regex = "1"
