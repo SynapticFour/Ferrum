@@ -14,6 +14,7 @@ services/ui/*.tsbuildinfo
 # Local clones / tooling checkouts
 helixtest-repo/
 .helixtest-checkout/
+.ci-ferrum-bin/
 
 # TypeScript emit artifacts (source: vite.config.ts)
 services/ui/vite.config.js
