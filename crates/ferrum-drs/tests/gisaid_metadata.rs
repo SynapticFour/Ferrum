@@ -41,6 +41,7 @@ async fn test_gisaid_metadata_stored() {
         workspace_id: None,
         ont_metrics: None,
         gisaid_metadata: Some(gisaid.clone()),
+        metadata_ref: None,
     };
     let id = repo.create_object(&req).await.expect("create object");
     let obj = repo.get_object(&id, false).await.unwrap().expect("object");

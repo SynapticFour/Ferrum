@@ -223,6 +223,7 @@ pub async fn process_upload_from_parts(
         workspace_id: parsed.workspace_id,
         ont_metrics: None,
         gisaid_metadata: None,
+        metadata_ref: None,
     };
     state
         .repo
@@ -427,6 +428,7 @@ pub async fn ingest_url(
         workspace_id: req.workspace_id,
         ont_metrics: None,
         gisaid_metadata: None,
+        metadata_ref: None,
     };
     state
         .repo
@@ -508,6 +510,7 @@ pub async fn ingest_batch(
                     workspace_id: req.workspace_id.clone(),
                     ont_metrics: None,
                     gisaid_metadata: None,
+                    metadata_ref: None,
                 };
                 let id = state.repo.create_object(&create).await?;
                 if let Some(ref store) = state.provenance_store {
@@ -573,6 +576,7 @@ pub async fn ingest_batch(
                     workspace_id: req.workspace_id.clone(),
                     ont_metrics: None,
                     gisaid_metadata: None,
+                    metadata_ref: None,
                 };
                 let id = state
                     .repo

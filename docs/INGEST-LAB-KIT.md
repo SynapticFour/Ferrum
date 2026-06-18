@@ -70,6 +70,9 @@ If the same `client_request_id` was already processed, Ferrum returns the **exis
 {
   "client_request_id": "optional-stable-id",
   "workspace_id": "optional",
+  "ferrum_meta": { "...": "full ferrum-meta submission object" },
+  "metadata_profile": "pathogen",
+  "metadata_ref": "dataset_path001",
   "items": [
     {
       "kind": "url",
@@ -102,6 +105,9 @@ If the same `client_request_id` was already processed, Ferrum returns the **exis
 
 - **`url`:** SSRF-checked; creates a DRS object with `storage_backend: url` (no blob copy).
 - **`existing_object`:** **Register / index only** — creates DRS metadata pointing at the given `storage_backend` + `storage_key`. Ferrum does **not** verify that credentials or cluster visibility allow access; operators must align IAM/network with their deployment. Use `kind: "url"` for HTTPS references, not `existing_object` with `storage_backend: url`.
+- **`ferrum_meta` (optional):** Inline ferrum-meta submission (YAML-equivalent JSON). Validated via `ferrum-meta-connect`; stored in `metadata_submissions`; all registered objects get `metadata_ref` (dataset alias).
+- **`metadata_ref` (optional):** Link an existing stored submission by alias without inline bundle.
+- **`metadata_profile` (optional):** `core`, `pathogen`, or `h3africa` when validating `ferrum_meta`.
 - **`ont_metadata` (optional on `existing_object`):** Same JSON shape as ONT ingest (`format`, `run_id`, `sample_id`, `organism`, …). Ferrum stores QC in `drs_objects.ont_metrics` and adds a **pathogen annotation** for Beacon when `organism` is set.
 
 **Response (200):**
@@ -169,7 +175,8 @@ Verify DRS: `GET $BASE/ga4gh/drs/v1/objects/<object_id>`.
 
 | Part | Content |
 |------|---------|
-| `ont_metadata` | JSON [`OntIngestRequest`](../crates/ferrum-ont/src/types.rs): `format`, `run_id`, `sample_id`, `organism`, `dorado_basecalled`, optional `quality_metrics` |
+| `ont_metadata` | JSON [`OntIngestRequest`](../crates/ferrum-ont/src/types.rs): `format`, `run_id`, `sample_id`, `organism`, `dorado_basecalled`, optional `quality_metrics`, optional provenance (`collector`, `collected_at`, `location_label`, `latitude`, `longitude`) |
+| `ferrum_meta` | Optional YAML or JSON ferrum-meta submission; validated and linked as `metadata_ref` on created object(s) |
 | `file` | Raw ONT file bytes (POD5/FAST5/BLOW5) |
 | `fastq_file` | Optional pre-basecalled FASTQ; when present, Ferrum creates a **bundle** (raw member + FASTQ member) |
 

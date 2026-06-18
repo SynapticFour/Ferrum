@@ -83,10 +83,11 @@ jobs:
         run: |
           ./scripts/build-edge-native.sh --no-native-cpu
           cargo build -p ferrum-cli
-      - name: ferrum-meta validate fixture
+      - name: ferrum-meta validate fixtures
         run: |
-          cargo run -p ferrum-cli -- meta validate \
-            --input profiles/meta/fixtures/ferrum-core-minimal-submission.yaml
+          for f in profiles/meta/fixtures/*.yaml; do
+            cargo run -p ferrum-cli -- meta validate --input "$f"
+          done
       - name: E2E ferrum demo start --edge
         run: bash deploy/scripts/ci-edge-demo-e2e.sh
 

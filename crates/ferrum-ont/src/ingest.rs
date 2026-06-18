@@ -111,6 +111,21 @@ fn ont_metrics_json(req: &OntIngestRequest) -> Option<Value> {
     if let Some(ref qm) = req.quality_metrics {
         obj.insert("quality".into(), quality_metrics_value(qm));
     }
+    if let Some(ref c) = req.collector {
+        obj.insert("collector".into(), Value::String(c.clone()));
+    }
+    if let Some(ref t) = req.collected_at {
+        obj.insert("collected_at".into(), Value::String(t.clone()));
+    }
+    if let Some(ref l) = req.location_label {
+        obj.insert("location_label".into(), Value::String(l.clone()));
+    }
+    if let Some(lat) = req.latitude {
+        obj.insert("latitude".into(), Value::from(lat));
+    }
+    if let Some(lon) = req.longitude {
+        obj.insert("longitude".into(), Value::from(lon));
+    }
     Some(Value::Object(obj))
 }
 
@@ -146,6 +161,11 @@ mod tests {
             organism: "Plasmodium_falciparum".into(),
             dorado_basecalled: false,
             quality_metrics: None,
+            collector: None,
+            collected_at: None,
+            location_label: None,
+            latitude: None,
+            longitude: None,
         };
         assert!(validate_ingest_request(&req).is_err());
     }
@@ -165,6 +185,11 @@ mod tests {
                 n50: 15000,
                 read_length_histogram: vec![(1000, 50), (2000, 30)],
             }),
+            collector: None,
+            collected_at: None,
+            location_label: None,
+            latitude: None,
+            longitude: None,
         };
         let fields = build_create_request(&req, 4096, "local", "drs/abc");
         assert_eq!(fields.mime_type.as_deref(), Some("application/x-pod5"));

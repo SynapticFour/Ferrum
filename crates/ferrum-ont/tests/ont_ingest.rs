@@ -43,6 +43,11 @@ async fn test_pod5_ingest_round_trip() {
             n50: 12000,
             read_length_histogram: vec![(1000, 10)],
         }),
+        collector: None,
+        collected_at: None,
+        location_label: None,
+        latitude: None,
+        longitude: None,
     };
     ferrum_ont::validate_ingest_request(&ont_req).expect("valid");
 
@@ -65,6 +70,7 @@ async fn test_pod5_ingest_round_trip() {
         workspace_id: None,
         ont_metrics: fields.ont_metrics.clone(),
         gisaid_metadata: None,
+        metadata_ref: None,
     };
     repo.create_object_with_id(&create, Some(object_id.clone()))
         .await

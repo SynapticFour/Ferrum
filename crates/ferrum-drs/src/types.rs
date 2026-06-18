@@ -26,6 +26,9 @@ pub struct DrsObject {
     /// GISAID submission metadata (Ferrum extension; stored on `drs_objects.gisaid_metadata`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gisaid_metadata: Option<serde_json::Value>,
+    /// ferrum-meta submission alias (stored on `drs_objects.metadata_ref`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata_ref: Option<String>,
 }
 
 impl DrsObject {
@@ -95,6 +98,9 @@ pub struct CreateObjectRequest {
     /// GISAID submission metadata (JSON) captured at ingest.
     #[serde(default)]
     pub gisaid_metadata: Option<serde_json::Value>,
+    /// ferrum-meta submission alias bound at ingest.
+    #[serde(default)]
+    pub metadata_ref: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

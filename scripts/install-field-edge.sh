@@ -100,6 +100,7 @@ print_next_steps() {
   echo "  3. ga4gh-infra all-in-one --africa   # ports 8180–8190"
   echo "  4. ferrum demo start --edge            # port 8080, SQLite + local DRS"
   echo "  5. ferrum meta validate --input profiles/meta/fixtures/ferrum-core-minimal-submission.yaml"
+  echo "  6. ferrum meta init --profile pathogen --output ~/collection.yaml  # field metadata wizard"
   echo ""
   echo "Docs: docs/AFRICA-DEPLOYMENT.md · docs/FIELD-MATURITY-PLAN.md"
   echo ""

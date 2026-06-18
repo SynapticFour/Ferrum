@@ -48,6 +48,8 @@ pub async fn watch_and_ingest(
     gateway: &str,
     poll_secs: u64,
     dry_run: bool,
+    meta_bundle: Option<PathBuf>,
+    collector: Option<String>,
 ) -> Result<(), String> {
     if !watch_dir.is_dir() {
         return Err(format!(
@@ -61,13 +63,27 @@ pub async fn watch_and_ingest(
         .build()
         .map_err(|e| e.to_string())?;
 
+    let ferrum_meta = meta_bundle
+        .as_ref()
+        .map(std::fs::read_to_string)
+        .transpose()
+        .map_err(|e| e.to_string())?;
+
     let mut seen = HashSet::new();
     for entry in std::fs::read_dir(&watch_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         if path.is_file() && is_ont_candidate(&path) {
             seen.insert(path.clone());
-            ingest_file(&client, &gateway, &path, dry_run).await?;
+            ingest_file(
+                &client,
+                &gateway,
+                &path,
+                dry_run,
+                ferrum_meta.as_deref(),
+                collector.as_deref(),
+            )
+            .await?;
         }
     }
 
@@ -86,7 +102,15 @@ pub async fn watch_and_ingest(
                 continue;
             }
             if seen.insert(path.clone()) {
-                ingest_file(&client, &gateway, &path, dry_run).await?;
+                ingest_file(
+                    &client,
+                    &gateway,
+                    &path,
+                    dry_run,
+                    ferrum_meta.as_deref(),
+                    collector.as_deref(),
+                )
+                .await?;
             }
         }
     }
@@ -97,6 +121,8 @@ async fn ingest_file(
     gateway: &str,
     path: &Path,
     dry_run: bool,
+    ferrum_meta: Option<&str>,
+    collector: Option<&str>,
 ) -> Result<(), String> {
     let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("read");
     println!("[ferrum] New file: {file_name}");
@@ -107,7 +133,7 @@ async fn ingest_file(
 
     let format = infer_ont_format(path);
     let sample_id = sample_id_from_path(path);
-    let meta = serde_json::json!({
+    let mut meta = serde_json::json!({
         "format": format,
         "source_path": path.display().to_string(),
         "run_id": format!("watch-{}", chrono::Utc::now().format("%Y%m%dT%H%M%S")),
@@ -115,14 +141,21 @@ async fn ingest_file(
         "organism": "unknown",
         "dorado_basecalled": format == "fastq",
     });
+    if let Some(c) = collector {
+        meta["collector"] = serde_json::Value::String(c.to_string());
+        meta["collected_at"] = serde_json::Value::String(chrono::Utc::now().to_rfc3339());
+    }
     let bytes = tokio::fs::read(path).await.map_err(|e| e.to_string())?;
     let part = reqwest::multipart::Part::bytes(bytes)
         .file_name(file_name.to_string())
         .mime_str("application/octet-stream")
         .map_err(|e| e.to_string())?;
-    let form = reqwest::multipart::Form::new()
+    let mut form = reqwest::multipart::Form::new()
         .text("ont_metadata", meta.to_string())
         .part("file", part);
+    if let Some(bundle) = ferrum_meta {
+        form = form.text("ferrum_meta", bundle.to_string());
+    }
 
     let url = format!("{gateway}/api/v1/ingest/ont");
     let resp = client

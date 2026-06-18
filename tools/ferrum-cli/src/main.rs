@@ -3,6 +3,8 @@
 mod edge_update;
 mod i18n;
 mod ingest_watch;
+mod meta_import;
+mod meta_init;
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use ferrum_mii_connect::{
@@ -146,6 +148,38 @@ enum MetaAction {
         output: Option<PathBuf>,
         #[arg(long, default_value = "text")]
         format: String,
+        /// Profile: core, pathogen, h3africa (auto-detected when omitted)
+        #[arg(long)]
+        profile: Option<String>,
+    },
+    /// Generate a ferrum-meta submission template (interactive or via flags)
+    Init {
+        /// Profile: pathogen or h3africa (core also supported)
+        #[arg(long)]
+        profile: String,
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long)]
+        study_title: Option<String>,
+        #[arg(long)]
+        sample_alias: Option<String>,
+        #[arg(long)]
+        collection_site: Option<String>,
+        #[arg(long)]
+        country: Option<String>,
+        #[arg(long)]
+        pathogen_organism: Option<String>,
+        #[arg(long)]
+        non_interactive: bool,
+    },
+    /// Import paper form CSV into ferrum-meta YAML
+    Import {
+        #[arg(long)]
+        profile: String,
+        #[arg(long)]
+        csv: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
     },
 }
 
@@ -183,6 +217,12 @@ enum IngestAction {
         poll_secs: u64,
         #[arg(long)]
         dry_run: bool,
+        /// Optional ferrum-meta YAML bundle attached to each ingest
+        #[arg(long)]
+        meta_bundle: Option<PathBuf>,
+        /// Field collector name (provenance); set FERRUM_COLLECTOR env or pass --collector
+        #[arg(long)]
+        collector: Option<String>,
     },
 }
 
@@ -309,9 +349,16 @@ async fn run_cli() -> Result<(), CliExit> {
                 input,
                 output,
                 format,
+                profile,
             } => {
-                let report = ferrum_meta_connect::validate_submission_file(&input)
-                    .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+                let parsed_profile = profile
+                    .as_deref()
+                    .and_then(ferrum_meta_connect::MetaProfile::parse);
+                let report = ferrum_meta_connect::validate_submission_file_with_profile(
+                    &input,
+                    parsed_profile,
+                )
+                .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
                 let body = if format == "json" {
                     serde_json::to_string_pretty(&report).unwrap_or_default()
                 } else {
@@ -326,6 +373,51 @@ async fn run_cli() -> Result<(), CliExit> {
                 if !report.valid {
                     return Err(CliExit::ValidationFailed);
                 }
+            }
+            MetaAction::Init {
+                profile,
+                output,
+                study_title,
+                sample_alias,
+                collection_site,
+                country,
+                pathogen_organism,
+                non_interactive,
+            } => {
+                let parsed =
+                    ferrum_meta_connect::MetaProfile::parse(&profile).ok_or_else(|| {
+                        CliExit::RuntimeFailed(format!(
+                            "unknown profile `{profile}` (use core, pathogen, or h3africa)"
+                        ))
+                    })?;
+                let params = ferrum_meta_connect::InitParams {
+                    study_title,
+                    study_alias: None,
+                    sample_alias,
+                    individual_alias: None,
+                    collection_site,
+                    collection_date: None,
+                    country,
+                    consent_type: None,
+                    pathogen_organism,
+                    data_use_conditions: vec![],
+                };
+                meta_init::run_meta_init(parsed, &output, params, !non_interactive)
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+            MetaAction::Import {
+                profile,
+                csv,
+                output,
+            } => {
+                let parsed =
+                    ferrum_meta_connect::MetaProfile::parse(&profile).ok_or_else(|| {
+                        CliExit::RuntimeFailed(format!(
+                            "unknown profile `{profile}` (use pathogen or h3africa)"
+                        ))
+                    })?;
+                meta_import::run_meta_import(parsed, &csv, &output)
+                    .map_err(CliExit::RuntimeFailed)?;
             }
         },
         Commands::Sync { action } => match action {
@@ -355,10 +447,20 @@ async fn run_cli() -> Result<(), CliExit> {
                 gateway,
                 poll_secs,
                 dry_run,
+                meta_bundle,
+                collector,
             } => {
-                ingest_watch::watch_and_ingest(dir, &gateway, poll_secs, dry_run)
-                    .await
-                    .map_err(CliExit::RuntimeFailed)?;
+                let collector = collector.or_else(|| std::env::var("FERRUM_COLLECTOR").ok());
+                ingest_watch::watch_and_ingest(
+                    dir,
+                    &gateway,
+                    poll_secs,
+                    dry_run,
+                    meta_bundle,
+                    collector,
+                )
+                .await
+                .map_err(CliExit::RuntimeFailed)?;
             }
         },
         Commands::Update { action } => match action {

@@ -1,0 +1,40 @@
+ferrum_meta_version: "0.1.0"
+
+studies:
+  - alias: pathogen_study001
+    title: "West Africa pathogen surveillance pilot"
+    description: "Minimal pathogen profile fixture for ferrum-meta-connect validation."
+    type: PATHOGEN_SURVEILLANCE
+    data_use_conditions:
+      - DUO:0000007
+
+individuals:
+  - alias: ind_path001
+    sex: UNKNOWN
+    consent_type: RESEARCH
+
+samples:
+  - alias: sample_path001
+    individual_alias: ind_path001
+    tissue_type: "whole blood"
+    collection_date: "2026-06-01"
+    collection_site: "Monrovia, Liberia"
+
+experiments:
+  - alias: exp_path001
+    sample_alias: sample_path001
+    sequencing_platform: OXFORD_NANOPORE
+    library_strategy: AMPLICON
+    pathogen_organism: "Plasmodium_falciparum"
+
+files:
+  - alias: file_path001.fastq.gz
+    format: FASTQ
+    encryption: CRYPT4GH
+
+datasets:
+  - alias: dataset_path001
+    title: "Pathogen amplicon run"
+    description: "Edge pathogen validation fixture"
+    file_aliases:
+      - file_path001.fastq.gz

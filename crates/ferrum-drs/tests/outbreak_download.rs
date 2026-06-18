@@ -45,6 +45,7 @@ async fn outbreak_drs_state() -> AppState {
             workspace_id: None,
             ont_metrics: None,
             gisaid_metadata: None,
+            metadata_ref: None,
         },
         Some(object_id.clone()),
     )

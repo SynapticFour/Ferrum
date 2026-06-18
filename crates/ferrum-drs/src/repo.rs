@@ -169,6 +169,7 @@ impl DrsRepo {
         let access_methods = self.get_access_methods(id).await?;
         let ont_metrics = self.get_ont_metrics(id).await?;
         let gisaid_metadata = self.get_gisaid_metadata(id).await?;
+        let metadata_ref = self.get_metadata_ref(id).await?;
         let contents = if row.is_bundle && expand {
             Some(self.get_bundle_contents_expanded(id).await?)
         } else {
@@ -199,6 +200,7 @@ impl DrsRepo {
             aliases,
             ont_metrics,
             gisaid_metadata,
+            metadata_ref,
         }))
     }
 
@@ -222,6 +224,62 @@ impl DrsRepo {
         Ok(row
             .and_then(|r| r.0)
             .and_then(|raw| serde_json::from_str(&raw).ok()))
+    }
+
+    async fn get_metadata_ref(&self, object_id: &str) -> Result<Option<String>> {
+        let row: Option<(Option<String>,)> = pool_query!(self, |p| {
+            sqlx::query_as("SELECT metadata_ref FROM drs_objects WHERE id = $1")
+                .bind(object_id)
+                .fetch_optional(p)
+                .await
+        })?;
+        Ok(row.and_then(|r| r.0))
+    }
+
+    /// Upsert a ferrum-meta submission document keyed by alias.
+    pub async fn upsert_metadata_submission(
+        &self,
+        alias: &str,
+        profile: &str,
+        document: &str,
+    ) -> Result<()> {
+        let id = alias.to_string();
+        pool_query!(self, |p| {
+            sqlx::query(
+                "INSERT INTO metadata_submissions (id, alias, profile, document)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT(alias) DO UPDATE SET profile = $3, document = $4",
+            )
+            .bind(&id)
+            .bind(alias)
+            .bind(profile)
+            .bind(document)
+            .execute(p)
+            .await?;
+            Ok::<(), DrsError>(())
+        })?;
+        Ok(())
+    }
+
+    /// Set `metadata_ref` on an existing DRS object.
+    pub async fn set_object_metadata_ref(&self, object_id: &str, metadata_ref: &str) -> Result<()> {
+        let sql = if self.dialect == DbDialect::Postgres {
+            "UPDATE drs_objects SET metadata_ref = $1, updated_time = NOW() WHERE id = $2"
+        } else {
+            "UPDATE drs_objects SET metadata_ref = $1, updated_time = datetime('now') WHERE id = $2"
+        };
+        let affected = pool_query!(self, |p| {
+            sqlx::query(sql)
+                .bind(metadata_ref)
+                .bind(object_id)
+                .execute(p)
+                .await
+                .map(|r| r.rows_affected())
+        })?;
+        if affected == 0 {
+            return Err(DrsError::NotFound(object_id.to_string()));
+        }
+        Ok(())
     }
 
     async fn get_ont_metrics(&self, object_id: &str) -> Result<Option<serde_json::Value>> {
@@ -362,6 +420,7 @@ impl DrsRepo {
                 .bind(req.workspace_id.as_deref())
                 .bind(req.ont_metrics.as_ref())
                 .bind(req.gisaid_metadata.as_ref())
+                .bind(req.metadata_ref.as_deref())
                 .execute(p)
                 .await?;
             for c in &req.checksums {
@@ -1101,6 +1160,7 @@ impl DrsRepo {
         name: Option<String>,
         description: Option<String>,
         ont_metrics: Option<serde_json::Value>,
+        metadata_ref: Option<String>,
         members: &[(String, String, i64)],
     ) -> Result<()> {
         let total_size: i64 = members.iter().map(|(_, _, s)| s).sum();
@@ -1117,6 +1177,7 @@ impl DrsRepo {
             workspace_id: None,
             ont_metrics,
             gisaid_metadata: None,
+            metadata_ref,
         };
         self.create_object_with_id(&req, Some(bundle_id.to_string()))
             .await?;

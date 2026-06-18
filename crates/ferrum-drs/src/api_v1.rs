@@ -4,6 +4,7 @@
 use crate::error::DrsError;
 use crate::ingest::{parse_multipart_upload, process_upload_from_parts};
 use crate::ingest_chunk::process_chunked_upload_from_parts;
+use crate::metadata::{link_object_metadata_ref, provenance_destination, store_ferrum_meta_bundle};
 use crate::state::AppState;
 use crate::types::{ChecksumInput, CreateObjectRequest};
 use crate::uri;
@@ -13,6 +14,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
+use ferrum_meta_connect::{parse_submission_document, MetaProfile};
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -133,6 +135,15 @@ pub struct RegisterRequest {
     /// Optional GISAID metadata applied to all registered objects unless overridden per item.
     #[serde(default)]
     pub gisaid_metadata: Option<serde_json::Value>,
+    /// Optional ferrum-meta submission bundle (validated and stored; alias linked as metadata_ref).
+    #[serde(default)]
+    pub ferrum_meta: Option<serde_json::Value>,
+    /// Optional profile hint when validating ferrum_meta: core, pathogen, h3africa.
+    #[serde(default)]
+    pub metadata_profile: Option<String>,
+    /// Link existing stored submission by alias without inline bundle.
+    #[serde(default)]
+    pub metadata_ref: Option<String>,
     pub items: Vec<RegisterItem>,
 }
 
@@ -298,6 +309,7 @@ async fn process_register_items(
     self_uris: &mut Vec<String>,
 ) -> Result<(), IngestApiError> {
     let policy = ferrum_core::SsrfPolicy::default();
+    let metadata_ref = resolve_register_metadata_ref(state, body).await?;
     if let Some(ref gm) = body.gisaid_metadata {
         ferrum_core::validate_gisaid_metadata(gm)
             .map_err(|e| IngestApiError::validation(e.to_string()))?;
@@ -335,6 +347,7 @@ async fn process_register_items(
                     workspace_id: body.workspace_id.clone(),
                     ont_metrics: None,
                     gisaid_metadata: gisaid_metadata.clone(),
+                    metadata_ref: metadata_ref.clone(),
                 };
                 state
                     .repo
@@ -398,6 +411,7 @@ async fn process_register_items(
                     workspace_id: body.workspace_id.clone(),
                     ont_metrics: ont_metadata.clone(),
                     gisaid_metadata: item_gisaid.clone().or(gisaid_metadata),
+                    metadata_ref: metadata_ref.clone(),
                 };
                 state
                     .repo
@@ -427,6 +441,88 @@ fn resolve_gisaid_metadata(
         } => gisaid_metadata
             .clone()
             .or_else(|| body.gisaid_metadata.clone()),
+    }
+}
+
+async fn resolve_register_metadata_ref(
+    state: &AppState,
+    body: &RegisterRequest,
+) -> Result<Option<String>, IngestApiError> {
+    if let Some(ref alias) = body.metadata_ref {
+        if alias.trim().is_empty() {
+            return Err(IngestApiError::validation(
+                "metadata_ref must be non-empty".to_string(),
+            ));
+        }
+        return Ok(Some(alias.clone()));
+    }
+    if let Some(ref bundle) = body.ferrum_meta {
+        let profile = body
+            .metadata_profile
+            .as_deref()
+            .and_then(MetaProfile::parse);
+        let stored = store_ferrum_meta_bundle(&state.repo, bundle, profile)
+            .await
+            .map_err(|e| IngestApiError::validation(e.to_string()))?;
+        return Ok(Some(stored.metadata_ref));
+    }
+    Ok(None)
+}
+
+fn parse_ferrum_meta_text(raw: &str) -> Result<serde_json::Value, IngestApiError> {
+    let trimmed = raw.trim();
+    let is_yaml = trimmed.starts_with("ferrum_meta_version:")
+        || trimmed.starts_with("studies:")
+        || trimmed.starts_with("---");
+    parse_submission_document(trimmed, is_yaml)
+        .map_err(|e| IngestApiError::validation(format!("invalid ferrum_meta: {e}")))
+}
+
+async fn append_ont_residency_audit(
+    state: &AppState,
+    object_id: &str,
+    auth: Option<&ferrum_core::AuthClaims>,
+    ont_req: &ferrum_ont::OntIngestRequest,
+    metadata_ref: Option<&str>,
+    bytes: i64,
+) {
+    if let Some(ref audit) = state.residency_audit {
+        let requester = auth.and_then(|c| c.sub()).or(ont_req.collector.as_deref());
+        let _ = audit
+            .append(
+                "data_uploaded",
+                Some(object_id),
+                requester,
+                None,
+                false,
+                Some(bytes),
+            )
+            .await;
+        if ont_req.collector.is_some()
+            || ont_req.collected_at.is_some()
+            || ont_req.location_label.is_some()
+            || ont_req.latitude.is_some()
+            || metadata_ref.is_some()
+        {
+            let destination = provenance_destination(
+                metadata_ref,
+                ont_req.collector.as_deref(),
+                ont_req.collected_at.as_deref(),
+                ont_req.location_label.as_deref(),
+                ont_req.latitude,
+                ont_req.longitude,
+            );
+            let _ = audit
+                .append(
+                    "collection_recorded",
+                    Some(object_id),
+                    requester,
+                    Some(&destination),
+                    false,
+                    None,
+                )
+                .await;
+        }
     }
 }
 
@@ -575,6 +671,7 @@ async fn store_uploaded_object(
     size: i64,
     mime_type: Option<String>,
     fields: ferrum_ont::OntCreateFields,
+    metadata_ref: Option<String>,
 ) -> Result<(String, i64), IngestApiError> {
     let object_id = ulid::Ulid::new().to_string();
     let storage_key = format!("drs/{}", object_id);
@@ -595,6 +692,7 @@ async fn store_uploaded_object(
         workspace_id: None,
         ont_metrics: None,
         gisaid_metadata: None,
+        metadata_ref,
     };
     state
         .repo
@@ -721,6 +819,7 @@ async fn do_ont_ingest(
     let max_bytes = state.ingest.effective_max_upload_bytes();
 
     let mut ont_metadata: Option<String> = None;
+    let mut ferrum_meta_raw: Option<String> = None;
     let mut file_upload: Option<SpooledUpload> = None;
     let mut fastq_upload: Option<SpooledUpload> = None;
     let mut total_bytes: u64 = 0;
@@ -733,6 +832,14 @@ async fn do_ont_ingest(
         match field.name().unwrap_or("") {
             "ont_metadata" => {
                 ont_metadata = Some(
+                    field
+                        .text()
+                        .await
+                        .map_err(|e| IngestApiError::validation(e.to_string()))?,
+                );
+            }
+            "ferrum_meta" => {
+                ferrum_meta_raw = Some(
                     field
                         .text()
                         .await
@@ -768,6 +875,17 @@ async fn do_ont_ingest(
     ferrum_ont::validate_ingest_request(&ont_req)
         .map_err(|e| IngestApiError::validation(e.to_string()))?;
 
+    let metadata_ref = if let Some(ref raw) = ferrum_meta_raw {
+        let bundle = parse_ferrum_meta_text(raw)?;
+        let stored = store_ferrum_meta_bundle(&state.repo, &bundle, None)
+            .await
+            .map_err(|e| IngestApiError::validation(e.to_string()))?;
+        Some(stored.metadata_ref)
+    } else {
+        None
+    };
+    let metadata_ref_for_objects = metadata_ref.clone();
+
     let backend = state.object_storage_backend.clone();
     let raw_fields =
         ferrum_ont::build_create_request(&ont_req, file_upload.size as i64, &backend, "pending");
@@ -779,6 +897,7 @@ async fn do_ont_ingest(
         file_upload.size as i64,
         file_mime,
         raw_fields,
+        metadata_ref_for_objects.clone(),
     )
     .await?;
 
@@ -797,6 +916,7 @@ async fn do_ont_ingest(
                 fq.size as i64,
                 fq.mime_type.or(Some("application/x-fastq".into())),
                 fq_fields,
+                metadata_ref_for_objects.clone(),
             )
             .await?;
             members.push((fq_id, "fastq".into(), fq_size));
@@ -820,6 +940,7 @@ async fn do_ont_ingest(
                 bundle_fields.name,
                 bundle_fields.description,
                 bundle_fields.ont_metrics,
+                metadata_ref_for_objects.clone(),
                 &members,
             )
             .await
@@ -833,8 +954,24 @@ async fn do_ont_ingest(
                 .await
                 .map_err(IngestApiError::from_drs)?;
         }
+        if let Some(ref mref) = metadata_ref_for_objects {
+            link_object_metadata_ref(&state.repo, &raw_id, mref)
+                .await
+                .map_err(IngestApiError::from_drs)?;
+        }
         raw_id
     };
+
+    let total_bytes: i64 = members.iter().map(|(_, _, s)| s).sum();
+    append_ont_residency_audit(
+        &state,
+        &canonical_id,
+        auth.as_ref().map(|e| &e.0),
+        &ont_req,
+        metadata_ref.as_deref(),
+        total_bytes,
+    )
+    .await;
 
     state
         .repo
@@ -852,7 +989,7 @@ async fn do_ont_ingest(
 
     let _ = auth;
 
-    Ok(json!({
+    let mut response = json!({
         "object_id": canonical_id,
         "drs_object_id": canonical_id,
         "self_uri": format!("drs://{}/{}", state.repo.hostname(), canonical_id),
@@ -860,8 +997,12 @@ async fn do_ont_ingest(
         "format": ont_req.format,
         "bundle": members.len() > 1,
         "member_ids": members.iter().map(|(id, name, _)| json!({"name": name, "id": id})).collect::<Vec<_>>(),
-        "size": members.iter().map(|(_, _, s)| s).sum::<i64>(),
-    }))
+        "size": total_bytes,
+    });
+    if let Some(mref) = metadata_ref {
+        response["metadata_ref"] = json!(mref);
+    }
+    Ok(response)
 }
 
 /// Mount at `/api/v1/ingest` (gateway nests this router).

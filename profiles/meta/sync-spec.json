@@ -1,0 +1,22 @@
+{
+  "ferrum_meta_version": "0.1.0",
+  "source_repo": "https://github.com/SynapticFour/ferrum-meta",
+  "profiles": [
+    {
+      "id": "core",
+      "schema_path": "schemas/ferrum-core.yaml",
+      "fixture": "profiles/meta/fixtures/ferrum-core-minimal-submission.yaml"
+    },
+    {
+      "id": "pathogen",
+      "schema_path": "schemas/pathogen-surveillance.yaml",
+      "fixture": "profiles/meta/fixtures/ferrum-pathogen-minimal-submission.yaml"
+    },
+    {
+      "id": "h3africa",
+      "schema_path": "schemas/h3africa.yaml",
+      "fixture": "profiles/meta/fixtures/ferrum-h3africa-minimal-submission.yaml"
+    }
+  ],
+  "note": "Run scripts/sync-ferrum-meta-schemas.sh to refresh JSON Schema artifacts from ferrum-meta releases."
+}

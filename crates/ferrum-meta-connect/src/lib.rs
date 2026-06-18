@@ -1,7 +1,19 @@
 //! Offline validation for [ferrum-meta](https://github.com/SynapticFour/ferrum-meta) submissions.
 //!
 //! Phase 1: structural checks aligned with `ferrum-core` v0.1.0 (no LinkML runtime).
+//! Phase 2: pathogen + H3Africa profiles, init/import helpers.
 //! Full LinkML parity remains in the ferrum-meta Python toolchain.
+
+mod import;
+mod init;
+pub mod profiles;
+
+pub use import::import_csv_to_submission;
+pub use init::{build_init_template, InitParams};
+pub use profiles::{
+    detect_profile, parse_submission_document, submission_alias, submission_to_yaml,
+    validate_submission, MetaProfile,
+};
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -202,15 +214,20 @@ pub fn validate_core_submission(root: &serde_json::Value) -> MetaValidationRepor
     }
 }
 
-/// Read YAML or JSON from path and validate as ferrum-core submission.
+/// Read YAML or JSON from path and validate (profile auto-detected from study type).
 pub fn validate_submission_file(path: &Path) -> Result<MetaValidationReport, ValidateError> {
+    validate_submission_file_with_profile(path, None)
+}
+
+/// Read YAML or JSON from path and validate with an explicit profile.
+pub fn validate_submission_file_with_profile(
+    path: &Path,
+    profile: Option<MetaProfile>,
+) -> Result<MetaValidationReport, ValidateError> {
     let raw = std::fs::read_to_string(path)?;
-    let root: serde_json::Value = if path.extension().is_some_and(|e| e == "yaml" || e == "yml") {
-        serde_yaml::from_str(&raw).map_err(|e| ValidateError::Parse(e.to_string()))?
-    } else {
-        serde_json::from_str(&raw).map_err(|e| ValidateError::Parse(e.to_string()))?
-    };
-    Ok(validate_core_submission(&root))
+    let is_yaml = path.extension().is_some_and(|e| e == "yaml" || e == "yml");
+    let root = parse_submission_document(&raw, is_yaml).map_err(ValidateError::Parse)?;
+    Ok(validate_submission(&root, profile))
 }
 
 impl Display for MetaValidationReport {

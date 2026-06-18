@@ -242,6 +242,7 @@ async fn test_drs_repo_sqlite_crud() {
             workspace_id: None,
             ont_metrics: None,
             gisaid_metadata: None,
+            metadata_ref: None,
         })
         .await
         .expect("create");

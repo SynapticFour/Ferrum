@@ -14,7 +14,7 @@ Table `residency_audit`:
 
 | Column | Description |
 |--------|-------------|
-| `event_type` | e.g. `data_accessed`, `data_downloaded`, `data_uploaded`, `beacon_query`, `peer_query_sent`, `outbreak_activated` |
+| `event_type` | e.g. `data_accessed`, `data_downloaded`, `data_uploaded`, `collection_recorded`, `beacon_query`, `peer_query_sent`, `outbreak_activated` |
 | `drs_id` | Optional DRS object id |
 | `requester` | Passport `sub` or client IP |
 | `destination` | Peer name, issuer, or IP |
@@ -56,6 +56,8 @@ GET /api/v1/audit/residency/verify
 |-------|--------------|------------------|
 | DRS access URL | `data_accessed` | false |
 | DRS `/stream` | `data_downloaded` | true |
+| ONT / register ingest | `data_uploaded` | false |
+| ONT ingest with provenance | `collection_recorded` | false (`destination` holds JSON: collector, geo, metadata_ref) |
 | Beacon query | `beacon_query` | false |
 | Federation fan-out | `peer_query_sent` | false |
 

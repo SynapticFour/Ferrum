@@ -1,0 +1,40 @@
+ferrum_meta_version: "0.1.0"
+
+studies:
+  - alias: h3a_study001
+    title: "H3Africa population genomics pilot"
+    description: "Minimal H3Africa profile fixture for ferrum-meta-connect validation."
+    type: H3AFRICA
+    data_use_conditions:
+      - DUO:0000006
+      - DUO:0000007
+
+individuals:
+  - alias: ind_h3a001
+    sex: FEMALE
+    consent_type: H3AFRICA_BROAD
+
+samples:
+  - alias: sample_h3a001
+    individual_alias: ind_h3a001
+    tissue_type: "buccal mucosa"
+    country: "Kenya"
+    collection_date: "2026-05-15"
+
+experiments:
+  - alias: exp_h3a001
+    sample_alias: sample_h3a001
+    sequencing_platform: OXFORD_NANOPORE
+    library_strategy: WGS
+
+files:
+  - alias: file_h3a001_R1.fastq.gz
+    format: FASTQ
+    encryption: CRYPT4GH
+
+datasets:
+  - alias: dataset_h3a001
+    title: "H3Africa WGS dataset"
+    description: "Edge H3Africa validation fixture"
+    file_aliases:
+      - file_h3a001_R1.fastq.gz

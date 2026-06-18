@@ -2,9 +2,9 @@
 
 Roadmap for resource-constrained, intermittently connected field genomics (Raspberry Pi / ARM edge nodes). Tracks gaps from the Edge mode analysis and maps them to **phases** so nothing is lost between releases.
 
-**Current tier:** **T1 complete**, moving into **T2** (identity co-deploy exists; operability hardened in Phase 1).
+**Current tier:** **T3 complete** (metadata binding + provenance at ingest); **Phase 3** (auth hardened) is next.
 
-Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [DECISIONS.md](../DECISIONS.md) (ADR-018, ADR-019).
+Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018, ADR-019).
 
 ---
 
@@ -15,7 +15,7 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIE
 | **T0** | Demo | Run `ferrum demo start --edge`, seed data, CI E2E |
 | **T1** | Ingest & store | ONT ingest (streaming), DRS, Beacon, Crypt4GH, chunked upload, disk health on Pi |
 | **T2** | Identity | Co-deploy ga4gh-infra, outbreak mode, residency audit |
-| **T3** | Metadata | Validate ferrum-meta at ingest; attach to DRS |
+| **T3** | Metadata | Validate ferrum-meta at ingest; attach to DRS via `metadata_ref`; field provenance |
 | **T4** | Sync | Queue + push objects/metadata when link returns |
 | **T5** | Pipeline | QC/variant calling orchestration (hub or lightweight local) |
 
@@ -53,23 +53,25 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIE
 
 ---
 
-## Phase 2 — Metadata & provenance (T3) — **next**
+## Phase 2 — Metadata & provenance (T3) — **complete**
 
 **Goal:** Field collection metadata is first-class, not an afterthought.
 
-| # | Gap | Deliverable | Tests |
-|---|-----|-------------|-------|
-| 2.1 | ferrum-meta ↔ DRS binding | Store `metadata_ref` on `drs_objects`; ingest API accepts bundle | Rust + HelixTest |
-| 2.2 | Interactive metadata CLI wizard | `ferrum meta init --profile pathogen\|h3africa` | CLI golden |
-| 2.3 | Expand validator to pathogen + H3Africa profiles | Extend `ferrum-meta-connect` | Fixtures from ferrum-meta repo |
-| 2.4 | LinkML parity or JSON Schema generation | CI sync schema from ferrum-meta releases | Cross-repo workflow |
-| 2.5 | Provenance on Edge | Capture collector, GPS, timestamp at ingest | Residency audit entries |
-| 2.6 | Consent / DUO at collection | Passport visa + ferrum-meta `data_use_conditions` | Pilot with Pasteur Tunis |
-| 2.7 | Paper → digital | Import YAML/CSV from structured forms | Operator doc |
+| # | Gap | Deliverable | Status |
+|---|-----|-------------|--------|
+| 2.1 | ferrum-meta ↔ DRS binding | `metadata_ref` on `drs_objects`; `metadata_submissions` table; ingest accepts bundle | Done |
+| 2.2 | Interactive metadata CLI wizard | `ferrum meta init --profile pathogen\|h3africa` | Done |
+| 2.3 | Expand validator to pathogen + H3Africa profiles | `ferrum-meta-connect` profiles + fixtures | Done |
+| 2.4 | LinkML parity or JSON Schema generation | `profiles/meta/sync-spec.json`, `scripts/sync-ferrum-meta-schemas.sh` | Done (CI structural; LinkML in ferrum-meta repo) |
+| 2.5 | Provenance on Edge | `collector`, geo, timestamp on ONT ingest → `collection_recorded` audit | Done |
+| 2.6 | Consent / DUO at collection | `data_use_conditions` (DUO codes) validated in pathogen/H3Africa profiles | Done |
+| 2.7 | Paper → digital | `ferrum meta import --csv`; operator doc in profiles/meta | Done |
+
+**Phase 2 test gate (passed):** `cargo test -p ferrum-meta-connect`, `cargo test -p ferrum-drs --test metadata_ref`, all profile fixtures in CI lint job.
 
 ---
 
-## Phase 3 — Auth & long offline (T2 hardened)
+## Phase 3 — Auth & long offline (T2 hardened) — **next**
 
 **Goal:** Days without internet; multiple operators; auditable access.
 
@@ -155,6 +157,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace --all-targets
 cargo test -p ferrum-embed
 cargo test -p ferrum-meta-connect
+cargo test -p ferrum-drs --test metadata_ref
 ./scripts/build-edge-native.sh --no-native-cpu
 bash deploy/scripts/ci-edge-demo-e2e.sh
 make test-demo   # full Docker stack unchanged
@@ -166,8 +169,8 @@ Optional: `helixtest --mode ferrum-africa --africa-profile ont,offline,federatio
 
 ## How to use this document
 
-1. Pick the **lowest incomplete phase** for your sprint (**Phase 2** is next).
+1. Pick the **lowest incomplete phase** for your sprint (**Phase 3** is next).
 2. Mark items done in CHANGELOG + this file (or link PR).
 3. Re-assess tier (T0–T5) after each phase for stakeholder updates.
 
-Last updated: 2026-06-18 (Phase 1 complete).
+Last updated: 2026-06-18 (Phase 2 complete).

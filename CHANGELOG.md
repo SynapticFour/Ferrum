@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Phase 2 — Metadata & provenance (T3)** — `metadata_ref` on `drs_objects`; `metadata_submissions` table; ferrum-meta validation at ingest (`ferrum_meta` on register/ONT); pathogen + H3Africa profiles in `ferrum-meta-connect`; `ferrum meta init|import`; provenance on ONT ingest (`collection_recorded` residency audit); `ferrum ingest watch --meta-bundle`; schema sync script `scripts/sync-ferrum-meta-schemas.sh`.
+
 ## [0.2.0] — 2026-06-11 — Africa resilience release
 
 ### Added

@@ -20,6 +20,21 @@ pub struct OntIngestRequest {
     pub dorado_basecalled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quality_metrics: Option<OntQualityMetrics>,
+    /// Field collector (operator name or Passport sub).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collector: Option<String>,
+    /// ISO 8601 collection timestamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub collected_at: Option<String>,
+    /// Human-readable collection location label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location_label: Option<String>,
+    /// WGS84 latitude (decimal degrees).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latitude: Option<f64>,
+    /// WGS84 longitude (decimal degrees).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub longitude: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

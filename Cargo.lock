@@ -1917,6 +1917,7 @@ dependencies = [
  "chrono",
  "ferrum-core",
  "ferrum-crypt4gh",
+ "ferrum-meta-connect",
  "ferrum-ont",
  "ferrum-storage",
  "futures-util",

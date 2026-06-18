@@ -74,6 +74,7 @@ async fn workspace_drs_state() -> (AppState, tempfile::TempDir) {
             workspace_id: Some("ws-1".into()),
             ont_metrics: None,
             gisaid_metadata: None,
+            metadata_ref: None,
         },
         Some("ws-obj".into()),
     )

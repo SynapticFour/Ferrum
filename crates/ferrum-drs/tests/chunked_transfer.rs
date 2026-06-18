@@ -47,6 +47,7 @@ async fn drs_test_state() -> (AppState, tempfile::TempDir) {
             workspace_id: None,
             ont_metrics: None,
             gisaid_metadata: None,
+            metadata_ref: None,
         },
         Some("obj1".into()),
     )
@@ -206,6 +207,7 @@ async fn test_transfer_queue_defers_large_download() {
                 workspace_id: None,
                 ont_metrics: None,
                 gisaid_metadata: None,
+                metadata_ref: None,
             },
             Some("large1".into()),
         )

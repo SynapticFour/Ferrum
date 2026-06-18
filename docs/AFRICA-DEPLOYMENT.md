@@ -229,10 +229,24 @@ Field labs in Africa predominantly use **Oxford Nanopore MinION** sequencers. Fe
 POST /api/v1/ingest/ont
 Content-Type: multipart/form-data
 
-ont_metadata (JSON) + file (binary)
+ont_metadata (JSON) + file (binary) [+ optional ferrum_meta (YAML/JSON)]
 ```
 
-Basecalling runs **externally** (Dorado/Guppy). Ferrum stores the canonical DRS object plus optional `ont_metrics` JSON on `drs_objects.ont_metrics`. Pathogen organism tags are written to `pathogen_annotations` for Beacon queries.
+Optional multipart field **`ferrum_meta`** attaches a validated ferrum-meta submission; the dataset alias is stored as `drs_objects.metadata_ref`. Provenance fields on `ont_metadata` (`collector`, `collected_at`, `location_label`, `latitude`, `longitude`) are recorded in the residency audit as `collection_recorded`.
+
+**Field workflow:**
+
+```bash
+# 1. Generate collection metadata (pathogen or H3Africa profile)
+ferrum meta init --profile pathogen --output ~/collection.yaml
+
+# 2. Watch MinKNOW output and attach metadata + collector
+ferrum ingest watch ~/minion_runs --meta-bundle ~/collection.yaml --collector "Dr. A"
+```
+
+See [profiles/meta/README.md](../profiles/meta/README.md) and [FIELD-MATURITY-PLAN.md](FIELD-MATURITY-PLAN.md) Phase 2.
+
+Basecalling runs **externally** (Dorado/Guppy). Ferrum stores the canonical DRS object plus optional `ont_metrics` JSON on `drs_objects.ont_metrics`. Pathogen organism tags are written to `pathogen_annotations` for Beacon queries. ferrum-meta bundles are validated offline and linked via `metadata_ref`.
 
 WES workflow template: [`tools/workflows/ont-qc.wdl`](../tools/workflows/ont-qc.wdl) (NanoStat/NanoPlot → metrics back via ingest).
 
