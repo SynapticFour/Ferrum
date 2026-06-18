@@ -1,0 +1,36 @@
+ferrum_meta_version: "0.1.0"
+
+studies:
+  - alias: study001
+    title: "Example population genomics study in East Africa"
+    description: >-
+      A minimum valid ferrum-core submission fixture for offline validation testing.
+    type: POPULATION_GENOMICS
+
+individuals:
+  - alias: ind001
+    sex: FEMALE
+    consent_type: COMMUNITY
+
+samples:
+  - alias: sample001
+    individual_alias: ind001
+    tissue_type: "buccal mucosa"
+
+experiments:
+  - alias: exp001
+    sample_alias: sample001
+    sequencing_platform: OXFORD_NANOPORE
+    library_strategy: WGS
+
+files:
+  - alias: file001_R1.fastq.gz
+    format: FASTQ
+    encryption: CRYPT4GH
+
+datasets:
+  - alias: dataset001
+    title: "Example WGS dataset"
+    description: "Edge validation fixture"
+    file_aliases:
+      - file001_R1.fastq.gz

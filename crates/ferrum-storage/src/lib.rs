@@ -26,6 +26,14 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 pub trait ObjectStorage: Send + Sync {
     async fn put_bytes(&self, key: &str, data: &[u8]) -> Result<()>;
 
+    /// Store object bytes from a local file path (streaming; avoids loading entire file into RAM).
+    async fn put_file(&self, key: &str, path: &std::path::Path) -> Result<()> {
+        let data = tokio::fs::read(path).await.map_err(|e| {
+            ferrum_core::FerrumError::StorageError(anyhow::anyhow!("put_file read: {e}"))
+        })?;
+        self.put_bytes(key, &data).await
+    }
+
     async fn get(&self, key: &str) -> Result<Box<dyn AsyncRead + Send + Unpin>>;
 
     async fn delete(&self, key: &str) -> Result<()>;

@@ -26,14 +26,14 @@ const MODE_COPY: Record<
   { title: string; description: string; icon: typeof Laptop; tone: string }
 > = {
   offline: {
-    title: 'Laptop Mode',
+    title: 'Edge mode',
     description:
-      'Local SQLite + file storage. DRS ingest, Beacon, and htsget work out of the box. TRS/WES need a full gateway or federation.',
+      'Local SQLite + file storage on edge hardware (e.g. Raspberry Pi). DRS ingest, Beacon, and htsget work out of the box. TRS/WES need a full gateway or federation.',
     icon: Laptop,
     tone: 'border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100',
   },
   connected: {
-    title: 'Connected laptop',
+    title: 'Edge + remote services',
     description:
       'Offline-first storage with WES/TRS enabled. Join federation in Settings → Federation to browse remote tools.',
     icon: Network,
@@ -61,7 +61,7 @@ export function DeploymentModeBanner() {
   const mode = config.deployment_mode ?? 'full';
   const copy = MODE_COPY[mode] ?? MODE_COPY.full;
   const Icon = copy.icon;
-  const showLaptopHint = mode === 'offline';
+  const showEdgeHint = mode === 'offline';
 
   return (
     <section
@@ -75,7 +75,7 @@ export function DeploymentModeBanner() {
         <div>
           <p className="font-semibold">{copy.title}</p>
           <p className="text-sm opacity-90 mt-0.5">{copy.description}</p>
-          {showLaptopHint && (
+          {showEdgeHint && (
             <p className="text-xs mt-2 flex items-start gap-1.5 opacity-80">
               <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
               Run <code className="rounded bg-background/60 px-1">ferrum demo seed</code> in another

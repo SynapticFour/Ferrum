@@ -16,14 +16,14 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace --all-targets
 ```
 
-Laptop Mode integration tests and offline E2E:
+Edge mode integration tests and offline E2E:
 
 ```bash
 cargo test -p ferrum-embed
 sh deploy/scripts/ci-laptop-demo-e2e.sh
 ```
 
-See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for the one-command user path (`ferrum demo start --offline`).
+See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for the one-command user path (`ferrum demo start --edge`).
 
 ## Conformance testing
 

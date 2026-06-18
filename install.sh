@@ -47,34 +47,35 @@ esac
 
 if [ "$OFFLINE" = "1" ]; then
   echo "[ferrum] Offline install mode."
-  if [ -x "./scripts/build-laptop-native.sh" ]; then
-    echo "[ferrum] Building optimized Laptop Mode binary for this machine..."
-    ./scripts/build-laptop-native.sh --install
+  if [ -x "./scripts/build-edge-native.sh" ]; then
+    echo "[ferrum] Building optimized Edge mode binary for this machine..."
+    ./scripts/build-edge-native.sh --install
     exit 0
   fi
-  LAPTOP_BIN=""
+  EDGE_BIN=""
   for candidate in \
+    "./target/release-edge/ferrum-gateway" \
     "./target/release-laptop/ferrum-gateway" \
     "./target/release/ferrum-gateway" \
-    "./target/"*"/release-laptop/ferrum-gateway"; do
+    "./target/"*"/release-edge/ferrum-gateway"; do
     if [ -f "$candidate" ]; then
-      LAPTOP_BIN="$candidate"
+      EDGE_BIN="$candidate"
       break
     fi
   done
-  if [ -n "$LAPTOP_BIN" ]; then
+  if [ -n "$EDGE_BIN" ]; then
     mkdir -p "$INSTALL_DIR"
-    cp "$LAPTOP_BIN" "$INSTALL_DIR/$BIN_NAME"
+    cp "$EDGE_BIN" "$INSTALL_DIR/$BIN_NAME"
     ln -sf "$INSTALL_DIR/$BIN_NAME" "$INSTALL_DIR/ferrum"
-    echo "Installed local build from $LAPTOP_BIN"
-    echo "Run: ferrum demo start --offline"
+    echo "Installed local build from $EDGE_BIN"
+    echo "Run: ferrum demo start --edge"
     exit 0
   fi
   if [ -f "./ferrum-offline-bundle.tar.gz" ]; then
     echo "Import offline bundle with: ./scripts/import_offline_bundle.sh ./ferrum-offline-bundle.tar.gz"
     exit 0
   fi
-  echo "Error: offline install requires ./scripts/build-laptop-native.sh, a pre-built binary under ./target/,"
+  echo "Error: offline install requires ./scripts/build-edge-native.sh, a pre-built binary under ./target/,"
   echo "       or an offline bundle (see docs/deployment/OFFLINE-AIRGAP.md)."
   exit 1
 fi

@@ -506,8 +506,8 @@ pub fn app(
     app
 }
 
-/// Minimal gateway app for laptop/embed integration tests (hides full vs laptop `app` arg differences).
-pub fn app_laptop_embed(
+/// Minimal gateway app for Edge/embed integration tests (hides full vs edge `app` arg differences).
+pub fn app_edge_embed(
     config: Option<&ferrum_core::AppConfig>,
     drs_state: Option<ferrum_drs::AppState>,
     beacon_params: BeaconRouterParams,

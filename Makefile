@@ -11,7 +11,7 @@ COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-comp
 FERRUM_WES_TES_WORK_HOST_PREFIX ?= $(CURDIR)/deploy/.wes-runs
 export FERRUM_WES_TES_WORK_HOST_PREFIX
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes test-demo test-tes test-pilot test-pilot-cloud test-federated
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes test-demo test-tes test-pilot test-pilot-cloud test-federated
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -25,7 +25,8 @@ help:
 	@echo "  make destroy   Stop stack; remove volumes and project images"
 	@echo ""
 	@echo "  make demo      Pull, build, start, wait for health"
-	@echo "  make laptop    Native single-binary laptop mode (no Docker)"
+	@echo "  make edge      Native single-binary Edge mode (no Docker)"
+	@echo "  make laptop    Deprecated alias for make edge"
 	@echo "  make logs      Tail compose logs"
 	@echo "  make build     Build images only"
 
@@ -120,8 +121,12 @@ down: stop
 destroy: clean-all
 
 # Optimized single-binary Laptop Mode (native CPU when possible)
+edge:
+	./scripts/build-edge-native.sh --install
+
 laptop:
-	./scripts/build-laptop-native.sh --install
+	@echo "make laptop is deprecated; use make edge" >&2
+	$(MAKE) edge
 
 # Pull images, build, start stack. Wait for gateway and UI to be reachable; fail with hint if not.
 # Init seeds demo data (workspace, DRS, TRS, Keycloak). Use demo-user when auth is disabled.

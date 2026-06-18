@@ -11,8 +11,10 @@ path = "src/main.rs"
 
 [features]
 default = ["full"]
-# Slim embedded / Laptop Mode binary: DRS + Beacon + htsget + Crypt4GH on SQLite only.
-laptop = []
+# Slim embedded / Edge mode binary: DRS + Beacon + htsget + Crypt4GH on SQLite only.
+edge = []
+# Deprecated alias for `edge` (ADR-018).
+laptop = ["edge"]
 # Full production stack (Postgres-backed WES/TES/TRS/Passports, optional Swagger deps).
 full = [
     "postgres",

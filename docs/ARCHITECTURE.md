@@ -72,7 +72,7 @@ graph TD
 
 **ferrum-core** is the foundation: config, database, auth, shared errors/types, and **provenance** (optional lineage store and recursive lineage view). **ferrum-embed** selects embedded **SQLite** + **LocalStorage** vs production **PostgreSQL** + **S3** based on `[africa]` config, `FERRUM_OFFLINE=1`, or absent `database.url`. See [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md). **Object storage** (`LocalStorage`, `S3Storage`, optional OpenDAL) lives in **`ferrum-storage`**; DRS and the gateway depend on it for ingest and streaming. See [STORAGE-BACKENDS.md](STORAGE-BACKENDS.md) and [PERFORMANCE.md](../PERFORMANCE.md).
 
-### Backend selection (Laptop Mode)
+### Backend selection (Edge mode)
 
 | `EmbedMode` | When | Database | Object storage |
 |---|---|---|---|
@@ -80,7 +80,7 @@ graph TD
 | `Sqlite` | `FERRUM_OFFLINE=1`, `[africa] offline_first`, or default sqlite driver | SQLite file | Local path |
 | `Auto` | Resolved from config (default) | — | — |
 
-**Laptop binary:** Release artifacts and `./scripts/build-laptop-native.sh` produce a **slim single binary** (`--features laptop`, profile `release-laptop`) with DRS/Beacon/htsget only. The full Docker/production gateway is built with `--features full` (default for `cargo build -p ferrum-gateway`). See [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md).
+**Laptop binary:** Release artifacts and `./scripts/build-edge-native.sh` produce a **slim single binary** (`--features edge`, profile `release-edge`) with DRS/Beacon/htsget only. The full Docker/production gateway is built with `--features full` (default for `cargo build -p ferrum-gateway`). See [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md).
 
 ---
 
@@ -460,7 +460,7 @@ Ferrum treats **ARM64** (Raspberry Pi 5 / Cortex-A76, Apple M-series) as a **fir
 | **Beacon index** | SQLite queries — **no mmap** index files in current design |
 | **Binary size** | `ferrum-gateway` **<50 MB** target on ARM64 release (CI size check) |
 | **CI** | `build-arm64` cross-compiles workspace; `benchmark-arm64` compiles Crypt4GH benches on `main` |
-| **Field install** | [Ferrum-Lab-Kit `install-edge.sh`](https://github.com/SynapticFour/Ferrum-Lab-Kit/blob/main/install-edge.sh), `./scripts/build-laptop-native.sh` |
+| **Field install** | [Ferrum-Lab-Kit `install-edge.sh`](https://github.com/SynapticFour/Ferrum-Lab-Kit/blob/main/install-edge.sh), `./scripts/build-edge-native.sh` |
 
 Details: [PERFORMANCE.md](../PERFORMANCE.md) (repo root).
 

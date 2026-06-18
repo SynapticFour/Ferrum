@@ -1,4 +1,4 @@
-//! Integration tests for embedded / laptop mode.
+//! Integration tests for embedded / edge mode.
 
 use ferrum_core::{FerrumConfig, FerrumPool, IngestConfig};
 use ferrum_drs::repo::DrsRepo;
@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 
-fn laptop_config(dir: &TempDir) -> FerrumConfig {
+fn edge_config(dir: &TempDir) -> FerrumConfig {
     let db_path = dir.path().join("ferrum.db");
     if let Some(parent) = db_path.parent() {
         std::fs::create_dir_all(parent).unwrap();
@@ -32,7 +32,7 @@ fn laptop_config(dir: &TempDir) -> FerrumConfig {
     cfg
 }
 
-fn drs_state_for_laptop(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum_drs::AppState {
+fn drs_state_for_edge(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum_drs::AppState {
     let local = LocalStorage::new(objects_dir).expect("local storage");
     ferrum_drs::AppState {
         repo: Arc::new(DrsRepo::new(pool, "localhost".to_string())),
@@ -53,15 +53,15 @@ fn drs_state_for_laptop(pool: FerrumPool, objects_dir: &std::path::Path) -> ferr
     }
 }
 
-async fn spawn_laptop_gateway(
+async fn spawn_edge_gateway(
     cfg: &FerrumConfig,
     pool: FerrumPool,
     objects_dir: &std::path::Path,
 ) -> std::net::SocketAddr {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let drs_state = drs_state_for_laptop(pool.clone(), objects_dir);
-    let app = ferrum_gateway::app_laptop_embed(
+    let drs_state = drs_state_for_edge(pool.clone(), objects_dir);
+    let app = ferrum_gateway::app_edge_embed(
         Some(cfg),
         Some(drs_state),
         Some(pool),
@@ -84,7 +84,7 @@ fn beacon_variant_query_envelope(request_parameters: serde_json::Value) -> serde
 async fn seed_beacon_fixture_sqlite(pool: &sqlx::SqlitePool) {
     sqlx::query(
         "INSERT INTO beacon_datasets (id, name, description, assembly_id)
-         VALUES ('fixture-public', 'Laptop Beacon Fixture', 'SQLite laptop mode', 'GRCh38')",
+         VALUES ('fixture-public', 'Laptop Beacon Fixture', 'SQLite edge mode', 'GRCh38')",
     )
     .execute(pool)
     .await
@@ -111,10 +111,10 @@ async fn test_sqlite_full_lifecycle() {
         .expect("sqlite connect");
     storage.migrate().await.expect("migrate");
     let pool = storage.pool().clone();
-    let cfg = laptop_config(&dir);
-    let addr = spawn_laptop_gateway(&cfg, pool.clone(), &objects_dir).await;
+    let cfg = edge_config(&dir);
+    let addr = spawn_edge_gateway(&cfg, pool.clone(), &objects_dir).await;
 
-    let payload = b"GA4GH laptop mode round-trip payload";
+    let payload = b"GA4GH edge mode round-trip payload";
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .build()
@@ -261,7 +261,7 @@ async fn test_offline_startup() {
         .await
         .expect("connect");
     storage.migrate().await.expect("migrate");
-    let cfg = laptop_config(&dir);
+    let cfg = edge_config(&dir);
     ferrum_embed::probe_auth_endpoints(&cfg, true).await;
     std::env::remove_var("FERRUM_OFFLINE");
 }
@@ -273,7 +273,7 @@ async fn test_memory_cap_warning() {
     assert!(!state.is_over_limit());
 
     let dir = TempDir::new().unwrap();
-    let mut cfg = laptop_config(&dir);
+    let mut cfg = edge_config(&dir);
     cfg.africa.as_mut().unwrap().max_memory_mb = Some(512);
 
     let db_path = dir.path().join("ferrum.db");
@@ -284,7 +284,7 @@ async fn test_memory_cap_warning() {
     let pool = storage.pool().clone();
     let objects_dir = dir.path().join("objects");
     let _memory_guard = MemoryCapGuard::spawn_monitor(MemoryCapState::new(512));
-    let addr = spawn_laptop_gateway(&cfg, pool, &objects_dir).await;
+    let addr = spawn_edge_gateway(&cfg, pool, &objects_dir).await;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
@@ -341,9 +341,9 @@ async fn test_laptop_mode_health_endpoint() {
         .expect("connect");
     storage.migrate().await.expect("migrate");
     let pool = storage.pool().clone();
-    let cfg = laptop_config(&dir);
+    let cfg = edge_config(&dir);
     let objects_dir = dir.path().join("objects");
-    let addr = spawn_laptop_gateway(&cfg, pool, &objects_dir).await;
+    let addr = spawn_edge_gateway(&cfg, pool, &objects_dir).await;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
@@ -368,8 +368,8 @@ async fn test_laptop_mode_drs_list_objects() {
         .expect("connect");
     storage.migrate().await.expect("migrate");
     let pool = storage.pool().clone();
-    let cfg = laptop_config(&dir);
-    let addr = spawn_laptop_gateway(&cfg, pool, &objects_dir).await;
+    let cfg = edge_config(&dir);
+    let addr = spawn_edge_gateway(&cfg, pool, &objects_dir).await;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))

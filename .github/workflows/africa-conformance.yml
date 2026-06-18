@@ -35,7 +35,7 @@ jobs:
 
       - name: Start Ferrum offline (Laptop Mode)
         run: |
-          cargo build -p ferrum-gateway --release --features laptop
+          cargo build -p ferrum-gateway --release --features edge
           FERRUM_OFFLINE=1 ./target/release/ferrum-gateway &
           for i in $(seq 1 30); do
             curl -sf ${{ env.GATEWAY_BASE }}/health && break
@@ -72,7 +72,7 @@ jobs:
 
       - name: Start Ferrum offline
         run: |
-          cargo build -p ferrum-gateway --release --features laptop
+          cargo build -p ferrum-gateway --release --features edge
           FERRUM_OFFLINE=1 ./target/release/ferrum-gateway &
           for i in $(seq 1 30); do
             curl -sf ${{ env.GATEWAY_BASE }}/health && break

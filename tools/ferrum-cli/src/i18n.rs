@@ -39,25 +39,29 @@ pub fn health_help(lang: Lang) -> &'static str {
 
 pub fn demo_start_help(lang: Lang) -> &'static str {
     match lang {
-        Lang::En => "Start Ferrum (Docker demo or Laptop Mode fallback)",
-        Lang::Fr => "Démarrer Ferrum (démo Docker ou mode ordinateur portable)",
-        Lang::De => "Ferrum starten (Docker-Demo oder Laptop-Modus-Fallback)",
+        Lang::En => "Start Ferrum (Docker demo or Edge mode fallback)",
+        Lang::Fr => "Démarrer Ferrum (démo Docker ou mode Edge)",
+        Lang::De => "Ferrum starten (Docker-Demo oder Edge-Modus-Fallback)",
+    }
+}
+
+pub fn demo_edge_help(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "Force embedded SQLite + local storage (alias: --offline)",
+        Lang::Fr => "Forcer SQLite embarqué + stockage local (alias : --offline)",
+        Lang::De => "Eingebettetes SQLite + lokale Speicherung erzwingen (Alias: --offline)",
     }
 }
 
 pub fn demo_offline_help(lang: Lang) -> &'static str {
-    match lang {
-        Lang::En => "Force embedded SQLite + local storage",
-        Lang::Fr => "Forcer SQLite embarqué + stockage local",
-        Lang::De => "Eingebettetes SQLite + lokale Speicherung erzwingen",
-    }
+    demo_edge_help(lang)
 }
 
 pub fn demo_force_production_help(lang: Lang) -> &'static str {
     match lang {
-        Lang::En => "Fail if PostgreSQL/MinIO are unavailable (no Laptop Mode fallback)",
-        Lang::Fr => "Échouer si PostgreSQL/MinIO sont indisponibles (sans repli)",
-        Lang::De => "Fehler wenn PostgreSQL/MinIO nicht verfügbar (kein Laptop-Fallback)",
+        Lang::En => "Fail if PostgreSQL/MinIO are unavailable (no Edge mode fallback)",
+        Lang::Fr => "Échouer si PostgreSQL/MinIO sont indisponibles (sans repli Edge)",
+        Lang::De => "Fehler wenn PostgreSQL/MinIO nicht verfügbar (kein Edge-Fallback)",
     }
 }
 
@@ -69,20 +73,28 @@ pub fn migrations_ok(lang: Lang) -> &'static str {
     }
 }
 
-pub fn laptop_start(lang: Lang) -> &'static str {
+pub fn edge_start(lang: Lang) -> &'static str {
     match lang {
-        Lang::En => "[ferrum] Starting in Laptop Mode (SQLite + local storage).",
-        Lang::Fr => "[ferrum] Démarrage en mode ordinateur portable (SQLite + stockage local).",
-        Lang::De => "[ferrum] Start im Laptop-Modus (SQLite + lokaler Speicher).",
+        Lang::En => "[ferrum] Starting in Edge mode (SQLite + local storage).",
+        Lang::Fr => "[ferrum] Démarrage en mode Edge (SQLite + stockage local).",
+        Lang::De => "[ferrum] Start im Edge-Modus (SQLite + lokaler Speicher).",
     }
 }
 
-pub fn laptop_data_dir(lang: Lang, path: &str) -> String {
+pub fn laptop_start(lang: Lang) -> &'static str {
+    edge_start(lang)
+}
+
+pub fn edge_data_dir(lang: Lang, path: &str) -> String {
     match lang {
         Lang::En => format!("[ferrum] Data will be stored at {path}/"),
         Lang::Fr => format!("[ferrum] Les données seront stockées dans {path}/"),
         Lang::De => format!("[ferrum] Daten werden gespeichert unter {path}/"),
     }
+}
+
+pub fn laptop_data_dir(lang: Lang, path: &str) -> String {
+    edge_data_dir(lang, path)
 }
 
 pub fn production_config_hint(lang: Lang) -> &'static str {
@@ -110,13 +122,13 @@ pub fn production_timeout(lang: Lang) -> &'static str {
 pub fn production_fallback(lang: Lang) -> &'static str {
     match lang {
         Lang::En => {
-            "[ferrum] Production services not ready within 30s; falling back to Laptop Mode."
+            "[ferrum] Production services not ready within 30s; falling back to Edge mode."
         }
         Lang::Fr => {
-            "[ferrum] Services de production non prêts sous 30 s ; repli vers le mode ordinateur portable."
+            "[ferrum] Services de production non prêts sous 30 s ; repli vers le mode Edge."
         }
         Lang::De => {
-            "[ferrum] Produktionsdienste nach 30 s nicht bereit; Fallback auf Laptop-Modus."
+            "[ferrum] Produktionsdienste nach 30 s nicht bereit; Fallback auf Edge-Modus."
         }
     }
 }
@@ -124,13 +136,13 @@ pub fn production_fallback(lang: Lang) -> &'static str {
 pub fn docker_not_implemented(lang: Lang) -> &'static str {
     match lang {
         Lang::En => {
-            "Docker demo not implemented in ferrum-cli; use ferrum-gateway demo start or --offline"
+            "Docker demo not implemented in ferrum-cli; use ferrum-gateway demo start or --edge"
         }
         Lang::Fr => {
-            "Démo Docker non implémentée dans ferrum-cli ; utilisez ferrum-gateway demo start ou --offline"
+            "Démo Docker non implémentée dans ferrum-cli ; utilisez ferrum-gateway demo start ou --edge"
         }
         Lang::De => {
-            "Docker-Demo in ferrum-cli nicht implementiert; nutzen Sie ferrum-gateway demo start oder --offline"
+            "Docker-Demo in ferrum-cli nicht implementiert; nutzen Sie ferrum-gateway demo start oder --edge"
         }
     }
 }

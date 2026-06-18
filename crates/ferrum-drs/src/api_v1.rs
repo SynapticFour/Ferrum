@@ -16,6 +16,9 @@ use axum::Router;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
+use futures_util::StreamExt;
+use std::io::Write;
+use tempfile::NamedTempFile;
 
 #[derive(Serialize)]
 pub struct ApiErrorBody {
@@ -568,17 +571,17 @@ async fn apply_ont_side_effects(
 async fn store_uploaded_object(
     state: &AppState,
     storage: &Arc<dyn ferrum_storage::ObjectStorage>,
-    data: Vec<u8>,
+    file_path: &std::path::Path,
+    size: i64,
     mime_type: Option<String>,
     fields: ferrum_ont::OntCreateFields,
 ) -> Result<(String, i64), IngestApiError> {
     let object_id = ulid::Ulid::new().to_string();
     let storage_key = format!("drs/{}", object_id);
     storage
-        .put_bytes(&storage_key, &data)
+        .put_file(&storage_key, file_path)
         .await
         .map_err(|e| IngestApiError::internal(e.to_string()))?;
-    let size = data.len() as i64;
     let create = CreateObjectRequest {
         name: fields.name,
         description: fields.description,
@@ -604,6 +607,43 @@ async fn store_uploaded_object(
         .await
         .map_err(IngestApiError::from_drs)?;
     Ok((object_id, size))
+}
+
+struct SpooledUpload {
+    path: tempfile::TempPath,
+    size: u64,
+    mime_type: Option<String>,
+}
+
+/// Stream a multipart file field to disk without buffering the entire payload in RAM.
+async fn spool_multipart_field(
+    mut field: axum::extract::multipart::Field<'_>,
+    max_bytes: u64,
+    bytes_already: u64,
+) -> Result<SpooledUpload, IngestApiError> {
+    let mime_type = field.content_type().map(|c| c.to_string());
+    let mut temp = NamedTempFile::new().map_err(|e| IngestApiError::internal(e.to_string()))?;
+    let mut written: u64 = 0;
+    while let Some(chunk) = field.next().await {
+        let chunk = chunk.map_err(|e| IngestApiError::validation(e.to_string()))?;
+        written += chunk.len() as u64;
+        if bytes_already.saturating_add(written) > max_bytes {
+            return Err(IngestApiError::validation(format!(
+                "upload exceeds ingest.max_upload_bytes ({max_bytes})"
+            )));
+        }
+        temp.as_file_mut()
+            .write_all(&chunk)
+            .map_err(|e| IngestApiError::internal(e.to_string()))?;
+    }
+    temp.as_file()
+        .sync_all()
+        .map_err(|e| IngestApiError::internal(e.to_string()))?;
+    Ok(SpooledUpload {
+        path: temp.into_temp_path(),
+        size: written,
+        mime_type,
+    })
 }
 
 /// POST /api/v1/ingest/ont-metrics — update QC metrics from ont-qc WES workflow.
@@ -678,11 +718,12 @@ async fn do_ont_ingest(
         .clone()
         .ok_or_else(|| IngestApiError::not_configured("ingest not configured: no storage"))?;
 
+    let max_bytes = state.ingest.effective_max_upload_bytes();
+
     let mut ont_metadata: Option<String> = None;
-    let mut file_data: Vec<u8> = Vec::new();
-    let mut fastq_data: Vec<u8> = Vec::new();
-    let mut file_mime: Option<String> = None;
-    let mut fastq_mime: Option<String> = None;
+    let mut file_upload: Option<SpooledUpload> = None;
+    let mut fastq_upload: Option<SpooledUpload> = None;
+    let mut total_bytes: u64 = 0;
 
     while let Some(field) = multipart
         .next_field()
@@ -699,24 +740,14 @@ async fn do_ont_ingest(
                 );
             }
             "file" => {
-                if let Some(m) = field.content_type().map(|c| c.to_string()) {
-                    file_mime = Some(m);
-                }
-                file_data = field
-                    .bytes()
-                    .await
-                    .map_err(|e| IngestApiError::validation(e.to_string()))?
-                    .to_vec();
+                let spooled = spool_multipart_field(field, max_bytes, total_bytes).await?;
+                total_bytes += spooled.size;
+                file_upload = Some(spooled);
             }
             "fastq_file" => {
-                if let Some(m) = field.content_type().map(|c| c.to_string()) {
-                    fastq_mime = Some(m);
-                }
-                fastq_data = field
-                    .bytes()
-                    .await
-                    .map_err(|e| IngestApiError::validation(e.to_string()))?
-                    .to_vec();
+                let spooled = spool_multipart_field(field, max_bytes, total_bytes).await?;
+                total_bytes += spooled.size;
+                fastq_upload = Some(spooled);
             }
             _ => {}
         }
@@ -724,7 +755,10 @@ async fn do_ont_ingest(
 
     let meta_str = ont_metadata
         .ok_or_else(|| IngestApiError::validation("ont_metadata field is required".to_string()))?;
-    if file_data.is_empty() {
+    let file_upload = file_upload.ok_or_else(|| {
+        IngestApiError::validation("file field is required".to_string())
+    })?;
+    if file_upload.size == 0 {
         return Err(IngestApiError::validation(
             "file field is required".to_string(),
         ));
@@ -735,40 +769,47 @@ async fn do_ont_ingest(
     ferrum_ont::validate_ingest_request(&ont_req)
         .map_err(|e| IngestApiError::validation(e.to_string()))?;
 
-    let max_bytes = state.ingest.effective_max_upload_bytes();
-    let total_bytes = file_data.len() + fastq_data.len();
-    if total_bytes as u64 > max_bytes {
-        return Err(IngestApiError::validation(format!(
-            "upload exceeds ingest.max_upload_bytes ({max_bytes})"
-        )));
-    }
-
     let backend = state.object_storage_backend.clone();
-    let raw_fields =
-        ferrum_ont::build_create_request(&ont_req, file_data.len() as i64, &backend, "pending");
-    let (raw_id, raw_size) =
-        store_uploaded_object(&state, &storage, file_data, file_mime, raw_fields).await?;
+    let raw_fields = ferrum_ont::build_create_request(
+        &ont_req,
+        file_upload.size as i64,
+        &backend,
+        "pending",
+    );
+    let file_mime = file_upload.mime_type;
+    let (raw_id, raw_size) = store_uploaded_object(
+        &state,
+        &storage,
+        file_upload.path.as_ref(),
+        file_upload.size as i64,
+        file_mime,
+        raw_fields,
+    )
+    .await?;
 
     let mut members: Vec<(String, String, i64)> = vec![(raw_id.clone(), "raw".into(), raw_size)];
-    if !fastq_data.is_empty() {
-        let mut fastq_req = ont_req.clone();
-        fastq_req.format = ferrum_ont::OntFormat::Fastq;
-        fastq_req.dorado_basecalled = true;
-        let fq_fields = ferrum_ont::build_create_request(
-            &fastq_req,
-            fastq_data.len() as i64,
-            &backend,
-            "pending",
-        );
-        let (fq_id, fq_size) = store_uploaded_object(
-            &state,
-            &storage,
-            fastq_data,
-            fastq_mime.or(Some("application/x-fastq".into())),
-            fq_fields,
-        )
-        .await?;
-        members.push((fq_id, "fastq".into(), fq_size));
+    if let Some(fq) = fastq_upload {
+        if fq.size > 0 {
+            let mut fastq_req = ont_req.clone();
+            fastq_req.format = ferrum_ont::OntFormat::Fastq;
+            fastq_req.dorado_basecalled = true;
+            let fq_fields = ferrum_ont::build_create_request(
+                &fastq_req,
+                fq.size as i64,
+                &backend,
+                "pending",
+            );
+            let (fq_id, fq_size) = store_uploaded_object(
+                &state,
+                &storage,
+                fq.path.as_ref(),
+                fq.size as i64,
+                fq.mime_type.or(Some("application/x-fastq".into())),
+                fq_fields,
+            )
+            .await?;
+            members.push((fq_id, "fastq".into(), fq_size));
+        }
     }
 
     let bundle_fields = ferrum_ont::build_create_request(

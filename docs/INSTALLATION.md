@@ -72,7 +72,7 @@ The demo stack includes: **ferrum-gateway**, **PostgreSQL 16**, **MinIO**, **Key
 
 **Preflight (Docker demo):** `./scripts/deployment_preflight.sh --scenario demo` (8 GB RAM, 20 GB disk, ports 8080/8082 free).
 
-### Laptop Mode (no Docker — one command)
+### Edge mode (no Docker — one command)
 
 For offline or resource-constrained machines (shared laptops, field sites, Raspberry Pi with ARM64 Linux):
 
@@ -80,7 +80,7 @@ For offline or resource-constrained machines (shared laptops, field sites, Raspb
 curl -sSf https://raw.githubusercontent.com/SynapticFour/Ferrum/main/install.sh | sh
 export PATH="$HOME/.ferrum/bin:$PATH"
 
-ferrum demo start --offline
+ferrum demo start --edge
 ```
 
 - **One process:** `ferrum-gateway` with SQLite (`~/.ferrum/ferrum.db`) and local objects (`~/.ferrum/objects/`).
@@ -89,13 +89,13 @@ ferrum demo start --offline
 
 Verify: `curl http://127.0.0.1:8080/health`
 
-**Preflight (Laptop Mode):** `./scripts/deployment_preflight.sh --scenario laptop`
+**Preflight (Edge mode):** `./scripts/deployment_preflight.sh --scenario edge`
 
 **Native optimized binary** (single executable, auto-detect OS/CPU):
 
 ```bash
-./scripts/build-laptop-native.sh --install
-# or: make laptop
+./scripts/build-edge-native.sh --install
+# or: make edge
 ```
 
 Full guide, platform matrix, and RAM/disk expectations: [docs/AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md).

@@ -34,11 +34,11 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum DemoAction {
-    /// Start the full demo stack (PostgreSQL + Gateway + UI), or Laptop Mode when unavailable
+    /// Start the full demo stack (PostgreSQL + Gateway + UI), or Edge mode when unavailable
     Start {
         /// Force embedded SQLite + local storage (no Docker)
-        #[arg(long)]
-        offline: bool,
+        #[arg(long, alias = "offline")]
+        edge: bool,
     },
     /// Stop the demo stack
     Stop,
@@ -92,12 +92,12 @@ fn full_demo_compose() -> Option<PathBuf> {
     None
 }
 
-async fn start_laptop_mode() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    println!("[ferrum] Starting in Laptop Mode (SQLite + local storage).");
+async fn start_edge_mode() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    println!("[ferrum] Starting in Edge mode (SQLite + local storage).");
     if let Some(home) = ferrum_embed::default_ferrum_home() {
         println!("[ferrum] Data will be stored at {}/", home.display());
     }
-    println!("[ferrum] For the full Docker demo (Postgres, MinIO, Keycloak, WES): clone Ferrum and run `make demo`, or start Docker and run `ferrum demo start` again.");
+    println!("[ferrum] For the full Docker demo (Postgres, MinIO, Keycloak, WES): clone Ferrum and run `make up`, or start Docker and run `ferrum demo start` again.");
     println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
     std::env::set_var("FERRUM_OFFLINE", "1");
     run_gateway_server().await
@@ -259,7 +259,7 @@ async fn build_object_storage(
 }
 
 async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    const LAPTOP_BUILD: bool = !cfg!(feature = "full");
+    const EDGE_BUILD: bool = !cfg!(feature = "full");
 
     tracing_subscriber::registry()
         .with(
@@ -273,7 +273,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     if let Some(ref mut cfg) = config {
         cfg.apply_embedded_defaults();
         let _ = ensure_data_dirs(cfg);
-        if (LAPTOP_BUILD || cfg.is_offline_first())
+        if (EDGE_BUILD || cfg.is_offline_first())
             && cfg.africa.as_ref().and_then(|a| a.max_memory_mb).is_none()
         {
             if let Some(cap_mb) = ferrum_embed::suggested_memory_cap_mb() {
@@ -287,7 +287,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         }
     }
 
-    log_platform_startup(LAPTOP_BUILD);
+    log_platform_startup(EDGE_BUILD);
 
     let offline_first = config.as_ref().is_some_and(|c| c.is_offline_first());
     let embed_mode = config
@@ -296,7 +296,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         .unwrap_or(EmbedMode::Sqlite);
 
     if embed_mode == EmbedMode::Sqlite {
-        tracing::info!("starting in embedded laptop mode (SQLite + local storage)");
+        tracing::info!("starting in Edge mode (SQLite + local storage)");
     }
 
     if let Some(ref cfg) = config {
@@ -334,7 +334,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             #[cfg(not(feature = "full"))]
             EmbedMode::Full => {
                 tracing::warn!(
-                    "postgres/full embed mode requested but this binary was built with --features laptop; using SQLite"
+                    "postgres/full embed mode requested but this binary was built with --features edge; using SQLite"
                 );
                 let storage = SqliteStorage::connect(cfg).await?;
                 if cfg.database.run_migrations {
@@ -592,13 +592,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Some(Commands::Demo { action }) => {
             let demo = demo_dir();
             let status = match action {
-                DemoAction::Start { offline } => {
-                    if offline {
-                        return start_laptop_mode().await;
+                DemoAction::Start { edge } => {
+                    if edge {
+                        return start_edge_mode().await;
                     }
                     if !docker_available() {
-                        eprintln!("[ferrum] Docker is not running. Starting Laptop Mode instead.");
-                        return start_laptop_mode().await;
+                        eprintln!("[ferrum] Docker is not running. Starting Edge mode instead.");
+                        return start_edge_mode().await;
                     }
                     println!("\n  🧬 Ferrum Demo\n");
                     run_docker_demo(&demo)?

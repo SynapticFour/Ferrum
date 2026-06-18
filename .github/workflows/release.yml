@@ -53,18 +53,18 @@ jobs:
         if: contains(matrix.target, 'musl')
         run: cargo install cross --locked
 
-      - name: Build (musl via cross, laptop profile)
+      - name: Build (musl via cross, edge profile)
         if: contains(matrix.target, 'musl')
-        run: cross build --profile release-laptop -p ferrum-gateway --no-default-features --features laptop --target ${{ matrix.target }}
+        run: cross build --profile release-edge -p ferrum-gateway --no-default-features --features edge --target ${{ matrix.target }}
 
-      - name: Build (macOS native, laptop profile)
+      - name: Build (macOS native, edge profile)
         if: ${{ !contains(matrix.target, 'musl') }}
-        run: cargo build --profile release-laptop -p ferrum-gateway --no-default-features --features laptop --target ${{ matrix.target }}
+        run: cargo build --profile release-edge -p ferrum-gateway --no-default-features --features edge --target ${{ matrix.target }}
 
       - name: Package binary
         run: |
           mkdir -p release
-          cp target/${{ matrix.target }}/release-laptop/ferrum-gateway release/
+          cp target/${{ matrix.target }}/release-edge/ferrum-gateway release/
           tar -czvf ${{ matrix.asset_name }}.tar.gz -C release ferrum-gateway
 
       - name: Upload artifact

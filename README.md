@@ -161,13 +161,13 @@ export PATH="$HOME/.ferrum/bin:$PATH"
 ferrum demo start
 ```
 
-**Laptop Mode (one command, no Docker — SQLite + local storage):**
+**Edge mode (one command, no Docker — SQLite + local storage):**
 
 ```bash
-ferrum demo start --offline
+ferrum demo start --edge
 ```
 
-See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for resource requirements (Linux, macOS, Raspberry Pi, etc.) and what is included in Laptop Mode. Public overview: [synapticfour.com/en/ferrum-field](https://synapticfour.com/en/ferrum-field).
+See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for resource requirements (Linux, macOS, Raspberry Pi, etc.) and what is included in Edge mode. Public overview: [synapticfour.com/en/ferrum-field](https://synapticfour.com/en/ferrum-field).
 
 ### 3. Use the UI
 
@@ -268,10 +268,10 @@ ferrum demo start
 # or: make -C . demo  (from repo)
 ```
 
-**Laptop Mode (no Docker, single command):**
+**Edge mode (no Docker, single command):**
 
 ```bash
-ferrum demo start --offline
+ferrum demo start --edge
 ```
 
 Resource expectations and platform notes: [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md). Website: [Field & offline deployment](https://synapticfour.com/en/ferrum-field).

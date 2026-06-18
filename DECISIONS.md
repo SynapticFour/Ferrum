@@ -12,6 +12,31 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-18 - ADR-018: Rename Laptop Mode to Edge mode
+
+- **Status:** Accepted
+- **Context:** “Laptop Mode” implied shared lab laptops were the primary target, but those machines typically run the full Docker stack (`make up`). The single-binary embedded deployment targets Raspberry Pi 5, ARM SBCs, and other **edge** nodes at the periphery of a federated genomics network — often offline or intermittently connected.
+- **Decision:** Rename user-facing and build terminology to **Edge mode**. Cargo feature `edge` replaces `laptop` (`laptop` remains a deprecated alias for one release cycle). Build profile `release-edge` replaces `release-laptop`. Scripts: `build-edge-native.sh`, `ci-edge-demo-e2e.sh`, Makefile target `make edge`. CLI accepts `--edge` alongside existing `--offline`. Config section `[africa]` unchanged (geographic profile); deployment mode label `edge` in UI/API.
+- **Consequences:** Documentation, CI job names, and website copy updated. Prebuilt release artifacts unchanged (same binary contents). Operators using old script names see deprecation warnings. HelixTest and Lab Kit `field-edge` profile naming now align with Ferrum Edge mode.
+- **Alternatives considered:** “Embedded mode” (rejected: too implementation-focused); “Field mode” (rejected: overlaps with marketing URL `ferrum-field` but less precise for federation topology).
+
+---
+
+### 2026-06-18 - ADR-019: Field sync queue (design)
+
+- **Status:** Accepted (design); implementation phased per [docs/FIELD-MATURITY-PLAN.md](docs/FIELD-MATURITY-PLAN.md)
+- **Context:** Edge nodes accumulate DRS objects and metadata offline. When connectivity returns, operators need a reliable, resumable, auditable upload path to a hub (cloud S3, national node, or peer Ferrum instance) without re-ingesting from MinION.
+- **Decision:** Introduce a **sync queue** as an append-only SQLite table (`sync_queue`) on edge nodes, managed by `ferrum sync` CLI subcommands:
+  - `ferrum sync status` — list pending/completed/failed items with byte counts
+  - `ferrum sync enqueue [--object-id …] [--all-local]` — mark DRS objects for upstream sync
+  - `ferrum sync push --target <url>` — upload pending items (DRS PUT/multipart or hub-specific adapter)
+  - `ferrum sync pull` — optional: fetch hub metadata updates (future)
+  Each queue entry stores: `object_id`, `target_url`, `state` (pending|in_progress|completed|failed), `bytes_total`, `bytes_sent`, `resume_token`, `crypt4gh` flag, `metadata_bundle_ref` (ferrum-meta submission id), `created_at`, `last_attempt_at`, `error_message`. Upload uses existing `BandwidthMonitor` and `transfer_checkpoints` where applicable. All successful pushes append to `residency_audit`. Crypt4GH objects stream encrypted; plaintext objects may be re-wrapped on push when `[sync] encrypt_on_push = true`.
+- **Consequences:** Phase 1 implements schema + CLI skeleton + design doc; full push adapters in Phase 4 of maturity plan. Conflicts (same sample id at hub) resolved by hub policy (reject or version suffix) — documented, not auto-merged. No background daemon required; operator runs `sync push` when link is up (suitable for intermittent VSAT/USB tether).
+- **Alternatives considered:** Always-on background sync (rejected: bandwidth and power cost); manual `curl` re-upload (rejected: no resume, no audit); rsync of object directory (rejected: bypasses DRS metadata and consent bindings).
+
+---
+
 ### 2026-06-12 - ADR-017: External auth plane owned by ga4gh-infra in co-deploy
 
 - **Status:** Accepted

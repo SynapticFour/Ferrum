@@ -2,9 +2,9 @@
 
 > **Website:** [synapticfour.com/en/ferrum-field](https://synapticfour.com/en/ferrum-field) — public overview for resource-constrained and field-lab deployments.
 
-## Offline-First and Laptop Mode
+## Offline-First and Edge mode
 
-Genomics labs in resource-constrained settings often operate on shared laptops (16 GB RAM, spinning disks, Ubuntu 22.04), with intermittent or no internet, and without access to container registries or cloud object storage. Ferrum **Laptop Mode** addresses this with:
+Genomics labs in resource-constrained settings often operate on shared laptops (16 GB RAM, spinning disks, Ubuntu 22.04), with intermittent or no internet, and without access to container registries or cloud object storage. Ferrum **Edge mode** addresses this with:
 
 - **SQLite** instead of PostgreSQL (single file under `~/.ferrum/ferrum.db`)
 - **Local filesystem** object storage instead of MinIO/S3 (`~/.ferrum/objects/`)
@@ -17,10 +17,10 @@ After installing the `ferrum` binary (see [INSTALLATION.md](INSTALLATION.md)):
 
 ```bash
 export PATH="$HOME/.ferrum/bin:$PATH"
-ferrum demo start --offline
+ferrum demo start --edge
 ```
 
-That single command starts **ferrum-gateway** in Laptop Mode with SQLite + local storage. No Docker, PostgreSQL, or MinIO required.
+That single command starts **ferrum-gateway** in Edge mode with SQLite + local storage. No Docker, PostgreSQL, or MinIO required.
 
 Alternative equivalents:
 
@@ -32,7 +32,7 @@ FERRUM_OFFLINE=1 ferrum-gateway        # if you invoke the binary directly
 Expected console output:
 
 ```
-[ferrum] Starting in Laptop Mode (SQLite + local storage).
+[ferrum] Starting in Edge mode (SQLite + local storage).
 [ferrum] Data will be stored at ~/.ferrum/
 [ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml
 ```
@@ -46,9 +46,9 @@ curl http://127.0.0.1:8080/ga4gh/drs/v1/service-info
 sh deploy/scripts/ci-laptop-demo-e2e.sh
 ```
 
-### What Laptop Mode includes (and excludes)
+### What Edge mode includes (and excludes)
 
-Laptop Mode is a **single-process, embedded stack** — not the full Docker demo.
+Edge mode is a **single-process, embedded stack** — not the full Docker demo.
 
 | Available | Endpoint | Backend |
 |-----------|----------|---------|
@@ -67,7 +67,7 @@ For conformance testing and the complete GA4GH surface, use `deploy/docker-compo
 
 ### Resource requirements (realistic expectations)
 
-These numbers set expectations for **Laptop Mode only** (one `ferrum-gateway` process, no Docker stack). They combine design targets from the Africa deep-dive, preflight checks, and typical Rust + SQLite behaviour. **Ferrum does not yet publish formal load-test benchmarks for Laptop Mode**; treat disk and RAM for *your data* as the main scaling factor.
+These numbers set expectations for **Edge mode only** (one `ferrum-gateway` process, no Docker stack). They combine design targets from the Africa deep-dive, preflight checks, and typical Rust + SQLite behaviour. **Ferrum does not yet publish formal load-test benchmarks for Edge mode**; treat disk and RAM for *your data* as the main scaling factor.
 
 #### By deployment profile
 
@@ -81,13 +81,13 @@ These numbers set expectations for **Laptop Mode only** (one `ferrum-gateway` pr
 
 **RAM:** Idle gateway typically uses on the order of **~100–250 MB RSS** (platform-dependent; not CI-gated). Optional cap via `[africa] max_memory_mb` (see below). Leave headroom for OS, browser, and analysis tools on shared laptops.
 
-**CPU:** SQLite allows one writer at a time; Laptop Mode suits **single-user or low-concurrency** lab workflows, not multi-tenant throughput.
+**CPU:** SQLite allows one writer at a time; Edge mode suits **single-user or low-concurrency** lab workflows, not multi-tenant throughput.
 
 **Network:** Not required at **runtime** once the binary is installed. Internet may be needed once for `install.sh` or `cargo build --release`.
 
 #### By platform
 
-| Platform | Laptop Mode | Install path | Notes |
+| Platform | Edge mode | Install path | Notes |
 |----------|-------------|--------------|-------|
 | **Linux x86_64** | Supported | `install.sh`, musl release binary | Primary target; memory cap monitoring via `/proc/self/status` |
 | **Linux ARM64** (Raspberry Pi 4/5, ARM SBCs) | Supported | `install.sh` (`aarch64-unknown-linux-musl`) | **4 GB RAM is tight** — 8 GB recommended; prefer USB SSD over SD card for SQLite + objects |
@@ -100,10 +100,10 @@ These numbers set expectations for **Laptop Mode only** (one `ferrum-gateway` pr
 Before rollout on a target machine:
 
 ```bash
-./scripts/deployment_preflight.sh --scenario laptop
+./scripts/deployment_preflight.sh --scenario edge
 ```
 
-Use `--scenario offline` for the **air-gapped Docker bundle** path (heavier: expects Docker and 16 GB RAM). Use `--scenario laptop` for **embedded Laptop Mode** without containers.
+Use `--scenario offline` for the **air-gapped Docker bundle** path (heavier: expects Docker and 16 GB RAM). Use `--scenario edge` for **embedded Edge mode** without containers.
 
 ### Configuration
 
@@ -127,7 +127,7 @@ Environment overrides:
 | Mode | Trigger | Database | Storage |
 |---|---|---|---|
 | **Production** | `database.url = postgres://…` in config | PostgreSQL | S3 / MinIO |
-| **Laptop / offline** | `ferrum demo start --offline`, `FERRUM_OFFLINE=1`, `[africa] offline_first`, or default sqlite driver without Postgres URL | SQLite | Local path |
+| **Laptop / offline** | `ferrum demo start --edge`, `FERRUM_OFFLINE=1`, `[africa] offline_first`, or default sqlite driver without Postgres URL | SQLite | Local path |
 
 Production PostgreSQL and S3 code paths are unchanged. HelixTest conformance continues to run against the full Postgres stack.
 
@@ -152,21 +152,21 @@ grep -m1 Features /proc/cpuinfo | grep -o aes
 Build with ARM optimisations (from repo root):
 
 ```bash
-./scripts/build-laptop-native.sh --install
-# Uses .cargo/config.toml cortex-a76 + release-laptop profile
+./scripts/build-edge-native.sh --install
+# Uses .cargo/config.toml cortex-a76 + release-edge profile
 ```
 
 See [PERFORMANCE.md](../PERFORMANCE.md) for benchmark methodology and CI size targets (<50 MB gateway binary).
 
 ### Native optimized build (recommended)
 
-Ferrum ships a **single optimized binary** for Laptop Mode: DRS + Beacon + htsget + Crypt4GH on SQLite (no WES/TES/TRS/Postgres in the binary). GitHub Releases and `install.sh --offline` use this build.
+Ferrum ships a **single optimized binary** for Edge mode: DRS + Beacon + htsget + Crypt4GH on SQLite (no WES/TES/TRS/Postgres in the binary). GitHub Releases and `install.sh --offline` use this build.
 
 **Simplest path** — auto-detect OS, CPU, and apply native optimizations:
 
 ```bash
-./scripts/build-laptop-native.sh --install
-ferrum demo start --offline
+./scripts/build-edge-native.sh --install
+ferrum demo start --edge
 ```
 
 What the script does:
@@ -175,32 +175,32 @@ What the script does:
 |------|-----------|
 | OS / arch | Linux x86_64, Linux ARM64 (Raspberry Pi), macOS Intel/Apple Silicon |
 | CPU | `-C target-cpu=native` when building **on** the target machine (best performance) |
-| Profile | `release-laptop` — LTO, strip, size-optimized (`opt-level = "s"`) |
-| Features | `--no-default-features --features laptop` — slim embedded stack only |
+| Profile | `release-edge` — LTO, strip, size-optimized (`opt-level = "s"`) |
+| Features | `--no-default-features --features edge` — slim embedded stack only |
 
 Flags:
 
 ```bash
-./scripts/build-laptop-native.sh --install          # build + install to ~/.ferrum/bin
-./scripts/build-laptop-native.sh --no-native-cpu    # portable binary (same arch, generic CPU)
-./scripts/build-laptop-native.sh --target aarch64-unknown-linux-gnu  # cross-compile hint
-make laptop                                         # same as --install from repo root
+./scripts/build-edge-native.sh --install          # build + install to ~/.ferrum/bin
+./scripts/build-edge-native.sh --no-native-cpu    # portable binary (same arch, generic CPU)
+./scripts/build-edge-native.sh --target aarch64-unknown-linux-gnu  # cross-compile hint
+make edge                                         # same as --install from repo root
 ```
 
 At startup, the gateway **auto-detects** RAM and CPU model (Linux `/proc`, macOS `sysctl`) and logs a platform summary. If `[africa] max_memory_mb` is unset, it sets a cap to **80% of detected RAM** to reduce OOM risk on shared laptops.
 
-**Production / Docker stack** still uses the full gateway (`--features full`, default in `cargo build -p ferrum-gateway`). Laptop and full binaries share the same CLI: `ferrum demo start --offline` vs Docker demo.
+**Production / Docker stack** still uses the full gateway (`--features full`, default in `cargo build -p ferrum-gateway`). Laptop and full binaries share the same CLI: `ferrum demo start --edge` vs Docker demo.
 
 ### Build once, run offline (manual)
 
 On a build machine, then copy `~/.ferrum/bin/ferrum-gateway` to the field laptop:
 
 ```bash
-./scripts/build-laptop-native.sh --install
+./scripts/build-edge-native.sh --install
 # or from repo without install:
-./scripts/build-laptop-native.sh
-# Copy target/<triple>/release-laptop/ferrum-gateway to the target machine, then:
-ferrum demo start --offline
+./scripts/build-edge-native.sh
+# Copy target/<triple>/release-edge/ferrum-gateway to the target machine, then:
+ferrum demo start --edge
 ```
 
 See also [OFFLINE-AIRGAP.md](deployment/OFFLINE-AIRGAP.md) for signed bundles.
@@ -363,7 +363,7 @@ The Ferrum CLI supports English (default), French, and German via `FERRUM_LANG`:
 ```bash
 export FERRUM_LANG=fr   # or de
 ferrum --help
-ferrum demo start --offline
+ferrum demo start --edge
 ```
 
 User-facing CLI messages (help text, demo start, migration status) are translated. API responses remain English unless a future locale layer is added.
@@ -374,7 +374,7 @@ Ferrum is designed for **flexible deployment** rather than a single SaaS shape:
 
 | Model | Typical use | Notes |
 |-------|-------------|--------|
-| **Laptop Mode** | Field labs, intermittent connectivity | Single binary, SQLite, local disk; no cloud dependency |
+| **Edge mode** | Field labs, intermittent connectivity | Single binary, SQLite, local disk; no cloud dependency |
 | **Institutional server** | National public-health nodes | Postgres + object storage on-prem; full GA4GH stack |
 | **Federated network** | Cross-border surveillance | Beacon federation with residency audit |
 | **Managed hosting** | Partners / integrators | Operator-run; pricing negotiated (support, SLA, training) |

@@ -16,6 +16,7 @@ members = [
     "crates/ferrum-security-tests",
     "crates/ferrum-htsget",
     "crates/ferrum-mii-connect",
+    "crates/ferrum-meta-connect",
     "crates/ferrum-embed",
     "crates/ferrum-ont",
     "crates/ferrum-federation",
@@ -27,12 +28,16 @@ members = [
 [workspace.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
 
-[profile.release-laptop]
+[profile.release-edge]
 inherits = "release"
 lto = "thin"
 codegen-units = 1
 strip = true
 opt-level = "s"
+
+# Deprecated alias — use release-edge (removed in a future release).
+[profile.release-laptop]
+inherits = "release-edge"
 
 [profile.release]
 opt-level = 3

@@ -1,4 +1,4 @@
-//! Backend selection: full production stack vs embedded laptop mode.
+//! Backend selection: full production stack vs embedded Edge mode.
 
 use ferrum_core::FerrumConfig;
 

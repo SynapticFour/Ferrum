@@ -63,7 +63,7 @@ jobs:
           name: mii-conformance-report
           path: mii-conformance-report.json
 
-  test-laptop-mode:
+  test-edge-mode:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -72,19 +72,23 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
-      - name: Run ferrum-embed laptop mode tests (isolated network)
+      - name: Run ferrum-embed Edge mode tests (isolated network)
         run: |
           if command -v unshare >/dev/null 2>&1; then
             unshare --net cargo test -p ferrum-embed || cargo test -p ferrum-embed
           else
             cargo test -p ferrum-embed
           fi
-      - name: Build optimized laptop gateway + CLI
+      - name: Build optimized edge gateway + CLI
         run: |
-          ./scripts/build-laptop-native.sh --no-native-cpu
+          ./scripts/build-edge-native.sh --no-native-cpu
           cargo build -p ferrum-cli
-      - name: E2E ferrum demo start --offline
-        run: bash deploy/scripts/ci-laptop-demo-e2e.sh
+      - name: ferrum-meta validate fixture
+        run: |
+          cargo run -p ferrum-cli -- meta validate \
+            --input profiles/meta/fixtures/ferrum-core-minimal-submission.yaml
+      - name: E2E ferrum demo start --edge
+        run: bash deploy/scripts/ci-edge-demo-e2e.sh
 
   # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
   bench-and-features:
@@ -103,7 +107,7 @@ jobs:
       - run: cargo check -p ferrum-storage --features opendal
       - run: cargo check -p ferrum-core --features libdeflate
       - run: cargo check -p ferrum-drs --features bam-lazy-ingest
-      - run: cargo check -p ferrum-mii-connect
+      - run: cargo check -p ferrum-meta-connect
 
   build-arm64:
     if: github.actor != 'dependabot[bot]'

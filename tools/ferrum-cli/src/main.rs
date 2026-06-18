@@ -36,10 +36,20 @@ enum Commands {
         #[arg(long)]
         path: Option<std::path::PathBuf>,
     },
-    /// Demo / laptop mode helpers
+    /// Demo / Edge mode helpers
     Demo {
         #[command(subcommand)]
         action: DemoAction,
+    },
+    /// ferrum-meta offline validation (ferrum-core v0.1)
+    Meta {
+        #[command(subcommand)]
+        action: MetaAction,
+    },
+    /// Field sync queue (ADR-019; push in a later phase)
+    Sync {
+        #[command(subcommand)]
+        action: SyncAction,
     },
     /// MII-KDS conformance commands
     Mii {
@@ -55,16 +65,16 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum DemoAction {
-    /// Start Ferrum (Docker demo or Laptop Mode fallback)
+    /// Start Ferrum (Docker demo or Edge mode fallback)
     Start {
         /// Force embedded SQLite + local storage
-        #[arg(long)]
-        offline: bool,
+        #[arg(long, alias = "offline")]
+        edge: bool,
         /// Fail hard when PostgreSQL/MinIO are unavailable
         #[arg(long)]
         force_production: bool,
     },
-    /// Seed demo DRS + Beacon data against a running gateway (Laptop Mode friendly)
+    /// Seed demo DRS + Beacon data against a running gateway (Edge mode friendly)
     Seed {
         #[arg(long, default_value = "http://127.0.0.1:8080")]
         base_url: String,
@@ -111,6 +121,41 @@ enum MiiAction {
         /// Report format: text, json, sarif
         #[arg(long, default_value = "text")]
         format: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum MetaAction {
+    /// Validate a ferrum-core YAML/JSON submission offline
+    Validate {
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum SyncAction {
+    /// List pending/completed sync queue items (stub — see docs/FIELD-SYNC-QUEUE.md)
+    Status,
+    /// Upload pending objects to a hub (stub — Phase 4)
+    Push {
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Mark DRS objects for upstream sync (stub — Phase 4)
+    Enqueue {
+        #[arg(long)]
+        object_id: Option<String>,
+        #[arg(long)]
+        all_local: bool,
+        #[arg(long)]
+        target: Option<String>,
     },
 }
 
@@ -199,15 +244,61 @@ async fn run_cli() -> Result<(), CliExit> {
         }
         Commands::Demo { action } => match action {
             DemoAction::Start {
-                offline,
+                edge,
                 force_production,
             } => {
-                demo_start(offline, force_production)
+                demo_start(edge, force_production)
                     .await
                     .map_err(CliExit::RuntimeFailed)?;
             }
             DemoAction::Seed { base_url } => {
                 demo_seed(&base_url).await.map_err(CliExit::RuntimeFailed)?;
+            }
+        },
+        Commands::Meta { action } => match action {
+            MetaAction::Validate {
+                input,
+                output,
+                format,
+            } => {
+                let report = ferrum_meta_connect::validate_submission_file(&input)
+                    .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+                let body = if format == "json" {
+                    serde_json::to_string_pretty(&report).unwrap_or_default()
+                } else {
+                    report.to_string()
+                };
+                if let Some(path) = output {
+                    std::fs::write(&path, &body).map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+                } else {
+                    print!("{body}");
+                }
+                if !report.valid {
+                    return Err(CliExit::ValidationFailed);
+                }
+            }
+        },
+        Commands::Sync { action } => match action {
+            SyncAction::Status => {
+                println!(
+                    "ferrum sync: queue not yet implemented (ADR-019). See docs/FIELD-SYNC-QUEUE.md"
+                );
+            }
+            SyncAction::Push { target, dry_run } => {
+                println!(
+                    "ferrum sync push: not yet implemented (target={:?}, dry_run={dry_run}). See docs/FIELD-MATURITY-PLAN.md Phase 4.",
+                    target
+                );
+            }
+            SyncAction::Enqueue {
+                object_id,
+                all_local,
+                target,
+            } => {
+                println!(
+                    "ferrum sync enqueue: not yet implemented (object_id={:?}, all_local={all_local}, target={:?})",
+                    object_id, target
+                );
             }
         },
         Commands::Mii { action } => match action {
@@ -477,10 +568,10 @@ fn should_fail_validation(has_errors: bool, has_gaps: bool, strict_mode: bool) -
     has_errors || (strict_mode && has_gaps)
 }
 
-async fn demo_start(offline: bool, force_production: bool) -> Result<(), String> {
+async fn demo_start(edge: bool, force_production: bool) -> Result<(), String> {
     let lang = i18n::current_lang();
-    if offline {
-        return start_laptop_mode(lang).await;
+    if edge {
+        return start_edge_mode(lang).await;
     }
 
     let ready = wait_for_production_services(std::time::Duration::from_secs(30)).await;
@@ -491,14 +582,17 @@ async fn demo_start(offline: bool, force_production: bool) -> Result<(), String>
         return Err(i18n::production_timeout(lang).to_string());
     }
     eprintln!("{}", i18n::production_fallback(lang));
-    start_laptop_mode(lang).await
+    start_edge_mode(lang).await
 }
 
 async fn demo_seed(base_url: &str) -> Result<(), String> {
     let script = std::env::var("FERRUM_SEED_SCRIPT").ok().or_else(|| {
         for candidate in [
+            "scripts/seed-edge-demo.sh",
             "scripts/seed-laptop-demo.sh",
+            "../scripts/seed-edge-demo.sh",
             "../scripts/seed-laptop-demo.sh",
+            "../../scripts/seed-edge-demo.sh",
             "../../scripts/seed-laptop-demo.sh",
         ] {
             if std::path::Path::new(candidate).exists() {
@@ -521,13 +615,13 @@ async fn demo_seed(base_url: &str) -> Result<(), String> {
     Ok(())
 }
 
-async fn start_laptop_mode(lang: i18n::Lang) -> Result<(), String> {
+async fn start_edge_mode(lang: i18n::Lang) -> Result<(), String> {
     std::env::set_var("FERRUM_OFFLINE", "1");
-    println!("{}", i18n::laptop_start(lang));
+    println!("{}", i18n::edge_start(lang));
     if let Some(home) = ferrum_embed::default_ferrum_home() {
         println!(
             "{}",
-            i18n::laptop_data_dir(lang, &home.display().to_string())
+            i18n::edge_data_dir(lang, &home.display().to_string())
         );
     }
     println!("{}", i18n::production_config_hint(lang));
