@@ -19,9 +19,11 @@ if [ ! -x "$FERRUM_CLI" ]; then
   echo "ci-edge-demo-e2e: building ferrum-cli..." >&2
   cargo build -p ferrum-cli
 fi
-if [ ! -x "$FERRUM_GATEWAY" ]; then
-  echo "ci-edge-demo-e2e: building optimized laptop gateway ($PROFILE)..." >&2
-  "$ROOT/scripts/build-edge-native.sh" --no-native-cpu --profile "$PROFILE"
+echo "ci-edge-demo-e2e: building edge gateway ($PROFILE)..." >&2
+"$ROOT/scripts/build-edge-native.sh" --no-native-cpu --profile "$PROFILE"
+FERRUM_GATEWAY="$TARGET_DIR/$PROFILE/ferrum-gateway"
+if [ -n "$HOST_TRIPLE" ] && [ -x "$TARGET_DIR/$HOST_TRIPLE/$PROFILE/ferrum-gateway" ]; then
+  FERRUM_GATEWAY="$TARGET_DIR/$HOST_TRIPLE/$PROFILE/ferrum-gateway"
 fi
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ferrum-laptop-e2e.XXXXXX")"
@@ -110,4 +112,24 @@ if ! cmp -s "$PAYLOAD" "$TMP/downloaded.bin"; then
   exit 1
 fi
 
-echo "ci-edge-demo-e2e: OK (demo start --edge, ingest, metadata, stream round-trip)"
+health_json="$(curl -sf "${BASE}/health")"
+echo "$health_json" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert "disk" in d and d["disk"].get("free_bytes",0)>0, d'
+echo "ci-edge-demo-e2e: /health disk OK"
+
+# Chunked resume upload via /api/v1/ingest/upload/chunk (two 100-byte halves)
+python3 -c 'open("'"$TMP"'/full-chunk.bin","wb").write(bytes(range(200)))'
+head -c 100 "$TMP/full-chunk.bin" >"$TMP/chunk1.bin"
+tail -c +101 "$TMP/full-chunk.bin" >"$TMP/chunk2.bin"
+chunk1_json="$(curl -sf -F "file=@${TMP}/chunk1.bin" -F "total_bytes=200" -F "chunk_offset=0" \
+  "${BASE}/api/v1/ingest/upload/chunk")"
+token="$(printf '%s' "$chunk1_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["upload_token"])')"
+chunk2_json="$(curl -sf -F "file=@${TMP}/chunk2.bin" -F "upload_token=${token}" \
+  -F "total_bytes=200" -F "chunk_offset=100" "${BASE}/api/v1/ingest/upload/chunk")"
+complete="$(printf '%s' "$chunk2_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("complete"))')"
+if [ "$complete" != "True" ] && [ "$complete" != "true" ]; then
+  echo "ci-edge-demo-e2e: chunked upload not complete: ${chunk2_json}" >&2
+  exit 1
+fi
+echo "ci-edge-demo-e2e: chunked upload OK"
+
+echo "ci-edge-demo-e2e: OK (demo start --edge, ingest, metadata, stream, disk health, chunked upload)"

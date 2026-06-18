@@ -142,6 +142,16 @@ Raspberry Pi 5 (Cortex-A76, ARM64) is the primary **edge hardware** target for A
 | **DRS download** (plain `/stream`) | **~40–80 MB/s** on good microSD; **100+ MB/s** on USB SSD | Storage I/O, not CPU |
 | **Idle RAM** | ~100–250 MB RSS | Set `[africa] max_memory_mb` to leave headroom on 4 GB models |
 
+**USB / external storage:** Point `[africa] objects_path` (or `storage.base_path`) at a mounted USB SSD — e.g. `/mnt/ferrum-data/objects`. Ferrum reports free space on that path in `GET /health` (`disk.free_bytes`, `disk.warn_low_space` when below 10%).
+
+**Performance build:** Use profile `release-edge-perf` (`opt-level = 3`) when CPU throughput matters more than binary size:
+
+```bash
+CARGO_PROFILE=release-edge-perf ./scripts/build-edge-native.sh --install
+```
+
+**Optional BGZF/libdeflate:** For faster VCF/BGZF on edge builds, install `libdeflate-dev` and build with `cargo build -p ferrum-beacon --features libdeflate` (see [PERFORMANCE.md](../PERFORMANCE.md)).
+
 Verify hardware crypto extensions:
 
 ```bash

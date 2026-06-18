@@ -272,7 +272,15 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     let mut config = ferrum_core::FerrumConfig::load().ok();
     if let Some(ref mut cfg) = config {
         cfg.apply_embedded_defaults();
-        let _ = ensure_data_dirs(cfg);
+        if let Ok(data_dir) = ensure_data_dirs(cfg) {
+            let disk_path = cfg
+                .storage
+                .base_path
+                .as_ref()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| data_dir.join("objects"));
+            ferrum_core::set_health_data_path(disk_path);
+        }
         if (EDGE_BUILD || cfg.is_offline_first())
             && cfg.africa.as_ref().and_then(|a| a.max_memory_mb).is_none()
         {

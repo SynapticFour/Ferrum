@@ -5,6 +5,7 @@ pub mod auth;
 pub mod config;
 pub mod db;
 pub mod dialect;
+pub mod disk;
 pub mod error;
 pub mod gisaid;
 pub mod health;
@@ -43,7 +44,7 @@ pub use dialect::{
 };
 pub use error::{FerrumError, Result};
 pub use gisaid::{missing_gisaid_fields, validate_gisaid_metadata, GISAID_REQUIRED_FIELDS};
-pub use health::health_router;
+pub use health::{health_router, set_health_data_path};
 pub use outbreak::{
     build_gisaid_package, ActivateRequest, ApproveDownloadRequest, DeactivateRequest, GisaidEntry,
     OutbreakService, PathogenPackageRow,

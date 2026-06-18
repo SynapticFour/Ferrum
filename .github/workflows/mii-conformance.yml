@@ -12,6 +12,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  GA4GH_INFRA_REF: main
 
 jobs:
   mii-validate:
@@ -19,6 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/clone-ga4gh-infra
+        with:
+          ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Run MII validation report
         run: |

@@ -35,7 +35,7 @@ fn edge_config(dir: &TempDir) -> FerrumConfig {
 fn drs_state_for_edge(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum_drs::AppState {
     let local = LocalStorage::new(objects_dir).expect("local storage");
     ferrum_drs::AppState {
-        repo: Arc::new(DrsRepo::new(pool, "localhost".to_string())),
+        repo: Arc::new(DrsRepo::new(pool.clone(), "localhost".to_string())),
         storage: Some(Arc::new(local) as Arc<dyn ObjectStorage>),
         s3_presigner: None,
         provenance_store: None,
@@ -45,10 +45,12 @@ fn drs_state_for_edge(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum
         ingest: IngestConfig::default(),
         object_storage_backend: "local".to_string(),
         outbreak: None,
-        bandwidth: None,
-        transfer_queue: None,
-        residency_audit: None,
-        background_gate: None,
+        bandwidth: Some(Arc::new(ferrum_storage::BandwidthMonitor::new(
+            Default::default(),
+        ))),
+        transfer_queue: Some(Arc::new(ferrum_storage::TransferQueue::new(300))),
+        residency_audit: Some(Arc::new(ferrum_core::ResidencyAuditLog::new(pool))),
+        background_gate: Some(Arc::new(ferrum_core::BackgroundWorkGate::default())),
         ads_introspect: None,
     }
 }
@@ -112,6 +114,7 @@ async fn test_sqlite_full_lifecycle() {
     storage.migrate().await.expect("migrate");
     let pool = storage.pool().clone();
     let cfg = edge_config(&dir);
+    ferrum_core::set_health_data_path(objects_dir.clone());
     let addr = spawn_edge_gateway(&cfg, pool.clone(), &objects_dir).await;
 
     let payload = b"GA4GH edge mode round-trip payload";

@@ -121,15 +121,11 @@ pub fn production_timeout(lang: Lang) -> &'static str {
 
 pub fn production_fallback(lang: Lang) -> &'static str {
     match lang {
-        Lang::En => {
-            "[ferrum] Production services not ready within 30s; falling back to Edge mode."
-        }
+        Lang::En => "[ferrum] Production services not ready within 30s; falling back to Edge mode.",
         Lang::Fr => {
             "[ferrum] Services de production non prêts sous 30 s ; repli vers le mode Edge."
         }
-        Lang::De => {
-            "[ferrum] Produktionsdienste nach 30 s nicht bereit; Fallback auf Edge-Modus."
-        }
+        Lang::De => "[ferrum] Produktionsdienste nach 30 s nicht bereit; Fallback auf Edge-Modus.",
     }
 }
 

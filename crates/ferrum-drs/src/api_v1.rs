@@ -13,11 +13,11 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::Arc;
-use futures_util::StreamExt;
 use std::io::Write;
+use std::sync::Arc;
 use tempfile::NamedTempFile;
 
 #[derive(Serialize)]
@@ -755,9 +755,8 @@ async fn do_ont_ingest(
 
     let meta_str = ont_metadata
         .ok_or_else(|| IngestApiError::validation("ont_metadata field is required".to_string()))?;
-    let file_upload = file_upload.ok_or_else(|| {
-        IngestApiError::validation("file field is required".to_string())
-    })?;
+    let file_upload = file_upload
+        .ok_or_else(|| IngestApiError::validation("file field is required".to_string()))?;
     if file_upload.size == 0 {
         return Err(IngestApiError::validation(
             "file field is required".to_string(),
@@ -770,12 +769,8 @@ async fn do_ont_ingest(
         .map_err(|e| IngestApiError::validation(e.to_string()))?;
 
     let backend = state.object_storage_backend.clone();
-    let raw_fields = ferrum_ont::build_create_request(
-        &ont_req,
-        file_upload.size as i64,
-        &backend,
-        "pending",
-    );
+    let raw_fields =
+        ferrum_ont::build_create_request(&ont_req, file_upload.size as i64, &backend, "pending");
     let file_mime = file_upload.mime_type;
     let (raw_id, raw_size) = store_uploaded_object(
         &state,
@@ -793,12 +788,8 @@ async fn do_ont_ingest(
             let mut fastq_req = ont_req.clone();
             fastq_req.format = ferrum_ont::OntFormat::Fastq;
             fastq_req.dorado_basecalled = true;
-            let fq_fields = ferrum_ont::build_create_request(
-                &fastq_req,
-                fq.size as i64,
-                &backend,
-                "pending",
-            );
+            let fq_fields =
+                ferrum_ont::build_create_request(&fastq_req, fq.size as i64, &backend, "pending");
             let (fq_id, fq_size) = store_uploaded_object(
                 &state,
                 &storage,

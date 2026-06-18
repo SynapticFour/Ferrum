@@ -35,6 +35,13 @@ codegen-units = 1
 strip = true
 opt-level = "s"
 
+[profile.release-edge-perf]
+inherits = "release"
+lto = "thin"
+codegen-units = 1
+strip = true
+opt-level = 3
+
 # Deprecated alias — use release-edge (removed in a future release).
 [profile.release-laptop]
 inherits = "release-edge"

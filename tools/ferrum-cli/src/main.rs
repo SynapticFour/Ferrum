@@ -1,6 +1,8 @@
 //! Ferrum CLI for management and operations.
 
+mod edge_update;
 mod i18n;
+mod ingest_watch;
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use ferrum_mii_connect::{
@@ -50,6 +52,16 @@ enum Commands {
     Sync {
         #[command(subcommand)]
         action: SyncAction,
+    },
+    /// Watch MinKNOW output directory and ingest new reads (Edge mode)
+    Ingest {
+        #[command(subcommand)]
+        action: IngestAction,
+    },
+    /// Offline Edge binary update bundles
+    Update {
+        #[command(subcommand)]
+        action: UpdateAction,
     },
     /// MII-KDS conformance commands
     Mii {
@@ -156,6 +168,43 @@ enum SyncAction {
         all_local: bool,
         #[arg(long)]
         target: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum IngestAction {
+    /// Poll a directory for new ONT files and POST to a running gateway
+    Watch {
+        /// MinKNOW / Dorado output directory
+        dir: PathBuf,
+        #[arg(long, default_value = "http://127.0.0.1:8080")]
+        gateway: String,
+        #[arg(long, default_value = "30")]
+        poll_secs: u64,
+        #[arg(long)]
+        dry_run: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum UpdateAction {
+    /// Install a signed offline update bundle (tar.gz with manifest.json)
+    Install {
+        #[arg(long)]
+        bundle: PathBuf,
+        #[arg(long, default_value = "~/.ferrum/bin")]
+        install_dir: PathBuf,
+        #[arg(long)]
+        sha256: Option<String>,
+    },
+    /// Create an offline update bundle from a built ferrum-gateway binary
+    Pack {
+        #[arg(long)]
+        gateway: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+        #[arg(long, default_value = "0.2.0")]
+        version: String,
     },
 }
 
@@ -269,7 +318,8 @@ async fn run_cli() -> Result<(), CliExit> {
                     report.to_string()
                 };
                 if let Some(path) = output {
-                    std::fs::write(&path, &body).map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+                    std::fs::write(&path, &body)
+                        .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
                 } else {
                     print!("{body}");
                 }
@@ -286,8 +336,7 @@ async fn run_cli() -> Result<(), CliExit> {
             }
             SyncAction::Push { target, dry_run } => {
                 println!(
-                    "ferrum sync push: not yet implemented (target={:?}, dry_run={dry_run}). See docs/FIELD-MATURITY-PLAN.md Phase 4.",
-                    target
+                    "ferrum sync push: not yet implemented (target={target:?}, dry_run={dry_run}). See docs/FIELD-MATURITY-PLAN.md Phase 4.",
                 );
             }
             SyncAction::Enqueue {
@@ -296,9 +345,45 @@ async fn run_cli() -> Result<(), CliExit> {
                 target,
             } => {
                 println!(
-                    "ferrum sync enqueue: not yet implemented (object_id={:?}, all_local={all_local}, target={:?})",
-                    object_id, target
+                    "ferrum sync enqueue: not yet implemented (object_id={object_id:?}, all_local={all_local}, target={target:?})",
                 );
+            }
+        },
+        Commands::Ingest { action } => match action {
+            IngestAction::Watch {
+                dir,
+                gateway,
+                poll_secs,
+                dry_run,
+            } => {
+                ingest_watch::watch_and_ingest(dir, &gateway, poll_secs, dry_run)
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+        },
+        Commands::Update { action } => match action {
+            UpdateAction::Install {
+                bundle,
+                install_dir,
+                sha256,
+            } => {
+                let install_dir = if install_dir.starts_with("~/") {
+                    std::env::var("HOME")
+                        .map(|h| PathBuf::from(h).join(&install_dir.to_string_lossy()[2..]))
+                        .unwrap_or(install_dir)
+                } else {
+                    install_dir
+                };
+                edge_update::install_bundle(&bundle, &install_dir, sha256.as_deref())
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+            UpdateAction::Pack {
+                gateway,
+                output,
+                version,
+            } => {
+                edge_update::create_bundle(&gateway, &version, &output)
+                    .map_err(CliExit::RuntimeFailed)?;
             }
         },
         Commands::Mii { action } => match action {
@@ -619,10 +704,7 @@ async fn start_edge_mode(lang: i18n::Lang) -> Result<(), String> {
     std::env::set_var("FERRUM_OFFLINE", "1");
     println!("{}", i18n::edge_start(lang));
     if let Some(home) = ferrum_embed::default_ferrum_home() {
-        println!(
-            "{}",
-            i18n::edge_data_dir(lang, &home.display().to_string())
-        );
+        println!("{}", i18n::edge_data_dir(lang, &home.display().to_string()));
     }
     println!("{}", i18n::production_config_hint(lang));
 

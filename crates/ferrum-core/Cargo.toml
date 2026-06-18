@@ -41,6 +41,7 @@ flate2 = "1"
 tar = "0.4"
 sha2 = "0.10"
 hex = "0.4"
+libc = "0.2"
 ga4gh-clearinghouse = { path = "../../../ga4gh-infra/crates/ga4gh-clearinghouse", optional = true }
 noodles-bgzf = { version = "0.46", optional = true, default-features = false, features = [
     "libdeflate",
@@ -48,6 +49,11 @@ noodles-bgzf = { version = "0.46", optional = true, default-features = false, fe
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
+tempfile = "3"
+tower = { version = "0.4", features = ["util"] }
+http-body-util = "0.1"
+axum = "0.7"
+http = "1"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "postgres", "migrate"] }
 flate2 = "1"
 tar = "0.4"

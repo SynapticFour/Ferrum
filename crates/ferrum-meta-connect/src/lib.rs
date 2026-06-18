@@ -49,7 +49,11 @@ pub enum ValidateError {
     Parse(String),
 }
 
-fn issue(severity: IssueSeverity, path: impl Into<String>, message: impl Into<String>) -> ValidationIssue {
+fn issue(
+    severity: IssueSeverity,
+    path: impl Into<String>,
+    message: impl Into<String>,
+) -> ValidationIssue {
     ValidationIssue {
         severity,
         path: path.into(),
@@ -57,7 +61,12 @@ fn issue(severity: IssueSeverity, path: impl Into<String>, message: impl Into<St
     }
 }
 
-fn require_str(obj: &serde_json::Value, path: &str, key: &str, issues: &mut Vec<ValidationIssue>) -> bool {
+fn require_str(
+    obj: &serde_json::Value,
+    path: &str,
+    key: &str,
+    issues: &mut Vec<ValidationIssue>,
+) -> bool {
     match obj.get(key).and_then(|v| v.as_str()) {
         Some(s) if !s.trim().is_empty() => true,
         _ => {
@@ -71,7 +80,11 @@ fn require_str(obj: &serde_json::Value, path: &str, key: &str, issues: &mut Vec<
     }
 }
 
-fn validate_entity_aliases(items: &[serde_json::Value], section: &str, issues: &mut Vec<ValidationIssue>) {
+fn validate_entity_aliases(
+    items: &[serde_json::Value],
+    section: &str,
+    issues: &mut Vec<ValidationIssue>,
+) {
     let mut seen = HashSet::new();
     for (i, item) in items.iter().enumerate() {
         let path = format!("{section}[{i}]");
@@ -209,7 +222,11 @@ impl Display for MetaValidationReport {
             self.error_count()
         )?;
         for issue in &self.issues {
-            writeln!(f, "  [{:?}] {} — {}", issue.severity, issue.path, issue.message)?;
+            writeln!(
+                f,
+                "  [{:?}] {} — {}",
+                issue.severity, issue.path, issue.message
+            )?;
         }
         Ok(())
     }

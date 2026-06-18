@@ -69,13 +69,13 @@ impl ObjectStorage for LocalStorage {
     async fn put_file(&self, key: &str, src: &std::path::Path) -> Result<()> {
         let dest = self.path_for(key)?;
         if let Some(parent) = dest.parent() {
-            tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                FerrumError::StorageError(anyhow::anyhow!("put_file mkdir: {e}"))
-            })?;
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| FerrumError::StorageError(anyhow::anyhow!("put_file mkdir: {e}")))?;
         }
-        tokio::fs::copy(src, &dest).await.map_err(|e| {
-            FerrumError::StorageError(anyhow::anyhow!("put_file copy: {e}"))
-        })?;
+        tokio::fs::copy(src, &dest)
+            .await
+            .map_err(|e| FerrumError::StorageError(anyhow::anyhow!("put_file copy: {e}")))?;
         Ok(())
     }
 

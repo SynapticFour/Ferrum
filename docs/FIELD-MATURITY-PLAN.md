@@ -2,7 +2,7 @@
 
 Roadmap for resource-constrained, intermittently connected field genomics (Raspberry Pi / ARM edge nodes). Tracks gaps from the Edge mode analysis and maps them to **phases** so nothing is lost between releases.
 
-**Current tier:** T1–T2 (ingest/store + partial identity) after ADR-018/019 and Edge rename.
+**Current tier:** **T1 complete**, moving into **T2** (identity co-deploy exists; operability hardened in Phase 1).
 
 Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [DECISIONS.md](../DECISIONS.md) (ADR-018, ADR-019).
 
@@ -13,7 +13,7 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIE
 | Tier | Label | Operator can… |
 |------|-------|----------------|
 | **T0** | Demo | Run `ferrum demo start --edge`, seed data, CI E2E |
-| **T1** | Ingest & store | ONT ingest (streaming), DRS, Beacon, Crypt4GH on Pi |
+| **T1** | Ingest & store | ONT ingest (streaming), DRS, Beacon, Crypt4GH, chunked upload, disk health on Pi |
 | **T2** | Identity | Co-deploy ga4gh-infra, outbreak mode, residency audit |
 | **T3** | Metadata | Validate ferrum-meta at ingest; attach to DRS |
 | **T4** | Sync | Queue + push objects/metadata when link returns |
@@ -21,7 +21,7 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIE
 
 ---
 
-## Phase 0 — Foundation (done in this release)
+## Phase 0 — Foundation (complete)
 
 | Item | Status | Notes |
 |------|--------|-------|
@@ -34,24 +34,26 @@ Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-SYNC-QUEUE.md](FIE
 
 ---
 
-## Phase 1 — Edge operability (next)
+## Phase 1 — Edge operability (complete)
 
 **Goal:** Reliable daily use on Pi 5 + USB SSD without Docker.
 
-| # | Gap | Deliverable | Tests |
-|---|-----|-------------|-------|
-| 1.1 | USB / external storage | Config docs + `objects_path` on mount; disk free-space health in `/health` | Preflight + integration |
-| 1.2 | Watch-folder MinKNOW ingest | `ferrum ingest watch <dir>` → DRS registration | E2E with fake POD5 drop |
-| 1.3 | Transfer queue wired in Edge gateway | Enable `transfer_queue` in embed state (migrations exist) | `edge_mode` tests |
-| 1.4 | Chunked/resume upload in Edge HTTP E2E | HelixTest africa profile cases | HelixTest |
-| 1.5 | `release-edge-perf` profile | Optional size vs speed trade-off | ARM bench job |
-| 1.6 | libdeflate on edge cross-build | Document + optional CI matrix | Beacon/BGZF bench |
-| 1.7 | Offline operator doc bundle | Tarball: AFRICA-DEPLOYMENT + quick refs (no network) | Manual QA |
-| 1.8 | Signed single-binary updates | `ferrum update --bundle` (verify + replace) | Security review |
+| # | Gap | Deliverable | Status |
+|---|-----|-------------|--------|
+| 1.1 | USB / external storage | `GET /health` disk stats; `[africa] objects_path` docs | Done |
+| 1.2 | Watch-folder MinKNOW ingest | `ferrum ingest watch <dir>` | Done |
+| 1.3 | Transfer queue wired in Edge gateway | Edge tests + gateway state (bandwidth + queue + audit) | Done |
+| 1.4 | Chunked/resume upload in Edge HTTP E2E | `ci-edge-demo-e2e.sh` two-chunk `/upload/chunk` | Done |
+| 1.5 | `release-edge-perf` profile | `opt-level = 3` profile in workspace `Cargo.toml` | Done |
+| 1.6 | libdeflate on edge cross-build | Documented in AFRICA-DEPLOYMENT; CI checks `libdeflate` feature | Done |
+| 1.7 | Offline operator doc bundle | `scripts/build-edge-doc-bundle.sh` | Done |
+| 1.8 | Signed single-binary updates | `ferrum update install\|pack` (manifest + sha256) | Done |
+
+**Phase 1 test gate (passed):** `cargo fmt`, `clippy`, `cargo test --workspace`, `ci-edge-demo-e2e.sh`.
 
 ---
 
-## Phase 2 — Metadata & provenance (T3)
+## Phase 2 — Metadata & provenance (T3) — **next**
 
 **Goal:** Field collection metadata is first-class, not an afterthought.
 
@@ -164,8 +166,8 @@ Optional: `helixtest --mode ferrum-africa --africa-profile ont,offline,federatio
 
 ## How to use this document
 
-1. Pick the **lowest incomplete phase** for your sprint.
+1. Pick the **lowest incomplete phase** for your sprint (**Phase 2** is next).
 2. Mark items done in CHANGELOG + this file (or link PR).
 3. Re-assess tier (T0–T5) after each phase for stakeholder updates.
 
-Last updated: 2026-06-18 (Phase 0 complete).
+Last updated: 2026-06-18 (Phase 1 complete).
