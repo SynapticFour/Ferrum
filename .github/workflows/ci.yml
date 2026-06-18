@@ -94,6 +94,8 @@ jobs:
         run: bash deploy/scripts/ci-field-edge-install-smoke.sh
       - name: Field sync E2E + beacon federation smoke (Phase 4)
         run: bash deploy/scripts/ci-field-sync-e2e.sh
+      - name: Field pipeline E2E (Phase 5)
+        run: bash deploy/scripts/ci-field-pipeline-e2e.sh
 
   # Lesson 8: keep benchmark targets and optional features compiling (no full bench run in CI).
   bench-and-features:

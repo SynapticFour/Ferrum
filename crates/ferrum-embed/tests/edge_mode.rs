@@ -54,6 +54,7 @@ fn drs_state_for_edge(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum
         background_gate: Some(Arc::new(ferrum_core::BackgroundWorkGate::default())),
         ads_introspect: None,
         ingest_require_auth: false,
+        pipeline: ferrum_core::PipelineConfig::default(),
     }
 }
 

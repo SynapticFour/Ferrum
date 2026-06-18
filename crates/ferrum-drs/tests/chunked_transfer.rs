@@ -73,6 +73,7 @@ async fn drs_test_state() -> (AppState, tempfile::TempDir) {
             background_gate: None,
             ads_introspect: None,
             ingest_require_auth: false,
+            pipeline: ferrum_core::PipelineConfig::default(),
         },
         tmp,
     )

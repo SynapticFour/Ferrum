@@ -10,6 +10,10 @@ name = "ferrum"
 path = "src/main.rs"
 
 [dependencies]
+ferrum-drs = { path = "../../crates/ferrum-drs" }
+ferrum-beacon = { path = "../../crates/ferrum-beacon" }
+ferrum-ont = { path = "../../crates/ferrum-ont" }
+ferrum-reference = { path = "../../crates/ferrum-reference" }
 ferrum-core = { path = "../../crates/ferrum-core" }
 ferrum-embed = { path = "../../crates/ferrum-embed" }
 ferrum-mii-connect = { path = "../../crates/ferrum-mii-connect" }

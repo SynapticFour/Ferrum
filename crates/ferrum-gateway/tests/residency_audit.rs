@@ -63,6 +63,7 @@ async fn test_upload_writes_data_uploaded_event() {
         background_gate: None,
         ads_introspect: None,
         ingest_require_auth: false,
+        pipeline: ferrum_core::PipelineConfig::default(),
     };
     process_upload_from_parts(
         Arc::new(state),

@@ -405,6 +405,19 @@ Offline USB handoff: `ferrum sync export --output bundle.tar.gz --policy <outbre
 
 Configure consent filtering via `[sync]` in `config.toml` (`allowed_duo_codes`, `require_metadata_ref`). Hub duplicate-sample policy: [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md).
 
+## Field analysis pipeline (Phase 5)
+
+After ingest, Edge nodes can run lightweight QC, Beacon indexing, and optional hub WES forward:
+
+```bash
+ferrum pipeline qc --object-id <drs-id> --fastq reads.fastq --gateway http://127.0.0.1:8080
+ferrum pipeline index-beacon --object-id <drs-id>
+ferrum pipeline htsget-status --object-id <drs-id>
+ferrum reference install-field-bundle --gateway http://127.0.0.1:8080
+```
+
+Configure post-ingest hooks via `[pipeline]` in `config.toml` (`auto_htsget_index`, `auto_index_beacon`, `default_beacon_dataset`). Dorado/Guppy runbook: [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md). Beacon limits: [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md). Variant calling strategy: ADR-022 in [DECISIONS.md](../DECISIONS.md).
+
 ## Localisation
 
 The Ferrum CLI supports English (default), French, and German via `FERRUM_LANG`:

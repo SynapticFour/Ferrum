@@ -1,0 +1,21 @@
+{
+  "version": "1",
+  "description": "Minimal reference FASTA stubs for offline Edge field deployments (not production references).",
+  "references": [
+    {
+      "id": "GRCh38",
+      "file": "GRCh38-stub.fasta",
+      "display_name": "GRCh38 field stub"
+    },
+    {
+      "id": "Pf3D7_v3",
+      "file": "Pf3D7-stub.fasta",
+      "display_name": "P. falciparum 3D7 field stub"
+    },
+    {
+      "id": "MTB_H37Rv",
+      "file": "MTB_H37Rv-stub.fasta",
+      "display_name": "M. tuberculosis H37Rv field stub"
+    }
+  ]
+}

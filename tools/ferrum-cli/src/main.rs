@@ -6,6 +6,8 @@ mod i18n;
 mod ingest_watch;
 mod meta_import;
 mod meta_init;
+mod pipeline_cmd;
+mod reference_cmd;
 mod sync_cmd;
 
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
@@ -81,6 +83,16 @@ enum Commands {
     Auth {
         #[command(subcommand)]
         action: AuthAction,
+    },
+    /// Field analysis pipeline (QC, Beacon index, WES forward)
+    Pipeline {
+        #[command(subcommand)]
+        action: PipelineAction,
+    },
+    /// Reference genome registry helpers
+    Reference {
+        #[command(subcommand)]
+        action: ReferenceAction,
     },
 }
 
@@ -303,6 +315,63 @@ enum AuthAction {
         pin: String,
         #[arg(long, default_value = "12")]
         ttl_hours: u64,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum PipelineAction {
+    /// Run NanoStat (or stub) and POST metrics to /api/v1/ingest/ont-metrics
+    Qc {
+        #[arg(long)]
+        object_id: String,
+        #[arg(long)]
+        fastq: PathBuf,
+        #[arg(long, default_value = "http://127.0.0.1:8080")]
+        gateway: String,
+        #[arg(long)]
+        allow_stub: bool,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+    /// Index a local VCF object into Beacon (field dataset)
+    IndexBeacon {
+        #[arg(long)]
+        object_id: String,
+        #[arg(long)]
+        dataset: Option<String>,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+    /// Show htsget index metadata for an object
+    HtsgetStatus {
+        #[arg(long)]
+        object_id: String,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+    /// Forward a variant-calling WES run to hub (when online)
+    ForwardWes {
+        #[arg(long)]
+        object_id: String,
+        #[arg(long, default_value = "tools/workflows/ont-qc.wdl")]
+        workflow: String,
+        #[arg(long)]
+        wes_url: Option<String>,
+        #[arg(long)]
+        config: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ReferenceAction {
+    /// Ingest stub FASTAs from profiles/references/field-bundle and link registry entries
+    InstallFieldBundle {
+        #[arg(long, default_value = "profiles/references/field-bundle")]
+        bundle_dir: PathBuf,
+        #[arg(long, default_value = "http://127.0.0.1:8080")]
+        gateway: String,
         #[arg(long)]
         config: Option<PathBuf>,
     },
@@ -617,6 +686,69 @@ async fn run_cli() -> Result<(), CliExit> {
                 config,
             } => {
                 auth_cmd::account_login(&username, &pin, ttl_hours, config.as_ref())
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+        },
+        Commands::Pipeline { action } => match action {
+            PipelineAction::Qc {
+                object_id,
+                fastq,
+                gateway,
+                allow_stub,
+                config,
+            } => {
+                pipeline_cmd::pipeline_qc(
+                    &object_id,
+                    &fastq,
+                    &gateway,
+                    allow_stub,
+                    config.as_ref(),
+                )
+                .await
+                .map_err(CliExit::RuntimeFailed)?;
+            }
+            PipelineAction::IndexBeacon {
+                object_id,
+                dataset,
+                config,
+            } => {
+                pipeline_cmd::pipeline_index_beacon(
+                    &object_id,
+                    dataset.as_deref(),
+                    config.as_ref(),
+                )
+                .await
+                .map_err(CliExit::RuntimeFailed)?;
+            }
+            PipelineAction::HtsgetStatus { object_id, config } => {
+                pipeline_cmd::pipeline_htsget_status(&object_id, config.as_ref())
+                    .await
+                    .map_err(CliExit::RuntimeFailed)?;
+            }
+            PipelineAction::ForwardWes {
+                object_id,
+                workflow,
+                wes_url,
+                config,
+            } => {
+                pipeline_cmd::pipeline_forward_wes(
+                    &workflow,
+                    &object_id,
+                    wes_url.as_deref(),
+                    config.as_ref(),
+                )
+                .await
+                .map_err(CliExit::RuntimeFailed)?;
+            }
+        },
+        Commands::Reference { action } => match action {
+            ReferenceAction::InstallFieldBundle {
+                bundle_dir,
+                gateway,
+                config,
+            } => {
+                reference_cmd::install_field_bundle(&bundle_dir, &gateway, config.as_ref())
                     .await
                     .map_err(CliExit::RuntimeFailed)?;
             }

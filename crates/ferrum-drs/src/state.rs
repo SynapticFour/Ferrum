@@ -8,7 +8,8 @@
 use crate::presign::S3Presigner;
 use crate::repo::DrsRepo;
 use ferrum_core::{
-    BackgroundWorkGate, IngestConfig, OutbreakService, ProvenanceStore, ResidencyAuditLog,
+    BackgroundWorkGate, IngestConfig, OutbreakService, PipelineConfig, ProvenanceStore,
+    ResidencyAuditLog,
 };
 use ferrum_storage::{BandwidthMonitor, ObjectStorage, TransferQueue};
 use std::path::PathBuf;
@@ -45,4 +46,6 @@ pub struct AppState {
     pub ads_introspect: Option<Arc<ferrum_core::AdsIntrospectClient>>,
     /// When true, ingest routes require collector/admin role (set by gateway from auth config).
     pub ingest_require_auth: bool,
+    /// Post-ingest QC / Beacon / htsget automation (Phase 5).
+    pub pipeline: PipelineConfig,
 }

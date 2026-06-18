@@ -257,6 +257,15 @@ pub async fn process_upload_from_parts(
         storage_key,
     );
 
+    let hook_name = req.name.clone();
+    let hook_mime = req.mime_type.clone();
+    crate::pipeline_hooks::schedule_post_ingest_hooks(
+        Arc::clone(&state),
+        object_id.clone(),
+        hook_name,
+        hook_mime,
+    );
+
     Ok(IngestFileResponse {
         id: object_id,
         size,

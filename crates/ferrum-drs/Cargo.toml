@@ -6,6 +6,7 @@ description = "GA4GH Data Repository Service 1.4"
 license = "BUSL-1.1"
 
 [dependencies]
+ferrum-beacon = { path = "../ferrum-beacon" }
 ferrum-core = { path = "../ferrum-core", features = ["openapi"] }
 ferrum-ont = { path = "../ferrum-ont" }
 ferrum-meta-connect = { path = "../ferrum-meta-connect" }

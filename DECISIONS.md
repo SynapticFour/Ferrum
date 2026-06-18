@@ -37,6 +37,15 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-06-19 - ADR-022: Field variant calling strategy
+
+- **Status:** Accepted
+- **Context:** Phase 5 closes the MinION → analysis loop. Edge Pi nodes cannot run full GATK/DeepVariant locally; operators need a clear split between field QC and hub variant calling.
+- **Decision:** **Default:** lightweight QC on Edge (`ferrum pipeline qc`, NanoStat → `/api/v1/ingest/ont-metrics`); **variant calling** forwarded to hub WES when online (`ferrum pipeline forward-wes`, federated WES in `ferrum-wes`); **local minimap2/small-caller** reserved for future opt-in profile (not Phase 5). VCF results indexed locally via `vcf_index` (capped) for Beacon queries before sync.
+- **Consequences:** Hub must expose WES + sufficient compute; offline field nodes queue VCF/FASTQ via Phase 4 sync. See [FIELD-ONT-BASECALLING.md](docs/FIELD-ONT-BASECALLING.md).
+
+---
+
 ### 2026-06-19 - ADR-021: Field sync queue implementation (Phase 4)
 
 - **Status:** Accepted

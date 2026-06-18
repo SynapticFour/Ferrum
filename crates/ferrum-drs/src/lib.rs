@@ -9,6 +9,7 @@ pub mod handlers;
 pub mod ingest;
 pub mod ingest_chunk;
 pub mod metadata;
+pub mod pipeline_hooks;
 pub mod presign;
 pub mod repo;
 pub mod state;

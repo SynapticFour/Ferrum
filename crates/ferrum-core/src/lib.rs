@@ -16,6 +16,7 @@ pub mod pool;
 #[cfg(feature = "libdeflate")]
 pub use noodles_bgzf;
 pub mod outbreak;
+pub mod pipeline;
 pub mod power;
 pub mod provenance;
 pub mod residency;
@@ -59,6 +60,9 @@ pub use health::{health_router, set_health_clock_config, set_health_data_path};
 pub use outbreak::{
     build_gisaid_package, ActivateRequest, ApproveDownloadRequest, DeactivateRequest, GisaidEntry,
     OutbreakService, PathogenPackageRow,
+};
+pub use pipeline::{
+    classify_htsget_file, is_htsget_supported, is_vcf_like, HtsgetFileKind, PipelineConfig,
 };
 pub use pool::{postgres_pool_from_config, DbDialect, FerrumPool};
 pub use power::{

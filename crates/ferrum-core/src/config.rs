@@ -1,5 +1,6 @@
 //! Layered configuration: defaults, /etc/ferrum, ~/.ferrum, FERRUM_ env, optional --config file.
 
+use crate::pipeline::PipelineConfig;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -54,6 +55,9 @@ pub struct FerrumConfig {
     /// Field sync queue: enqueue/push policy for Edge → hub upload.
     #[serde(default)]
     pub sync: SyncConfig,
+    /// Post-ingest analysis pipeline (QC, Beacon index, htsget metadata).
+    #[serde(default)]
+    pub pipeline: PipelineConfig,
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].

@@ -2,9 +2,9 @@
 
 Roadmap for resource-constrained, intermittently connected field genomics (Raspberry Pi / ARM edge nodes). Tracks gaps from the Edge mode analysis and maps them to **phases** so nothing is lost between releases.
 
-**Current tier:** **T4 sync** (queue + push); **Phase 5** (pipeline) is next.
+**Current tier:** **T5 pipeline** (QC + Beacon index); **Phase 6** (operations) is next.
 
-Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–021).
+Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md), [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md), [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md), [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md), [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md), [profiles/meta/README.md](../profiles/meta/README.md), [DECISIONS.md](../DECISIONS.md) (ADR-018–022).
 
 ---
 
@@ -87,22 +87,24 @@ All items 2.1–2.7 done. See prior release notes.
 
 ---
 
-## Phase 5 — Analysis pipeline (T5) — **next**
+## Phase 5 — Analysis pipeline (T5) — **complete**
 
 **Goal:** Close the loop from MinION run to Beacon query in the field or via hub.
 
-| # | Gap | Deliverable | Tests |
-|---|-----|-------------|-------|
-| 5.1 | External Dorado/Guppy integration doc | Runbook + `ont-metrics` callback | Manual |
-| 5.2 | Lightweight QC on Edge | Optional subprocess NanoStat → metrics API | WES optional / CLI |
-| 5.3 | Variant calling strategy | Hub WES forward vs local minimap2/pipeline | ADR |
-| 5.4 | Beacon indexing pipeline | VCF → SQLite index job; document limits | Benchmark |
-| 5.5 | htsget index automation | Post-ingest index hook | Integration |
-| 5.6 | Reference genome field bundle | Pre-seeded refs for pathogen + GRCh38 | Reference registry tests |
+| # | Gap | Deliverable | Status |
+|---|-----|-------------|--------|
+| 5.1 | External Dorado/Guppy integration doc | [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md) + ont-metrics callback | Done |
+| 5.2 | Lightweight QC on Edge | `ferrum pipeline qc` (NanoStat or stub) | Done |
+| 5.3 | Variant calling strategy | ADR-022 hub WES forward vs local | Done |
+| 5.4 | Beacon indexing pipeline | Auto + `ferrum pipeline index-beacon`; [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md) | Done |
+| 5.5 | htsget index automation | Post-ingest `htsget_index_status=ready` hook | Done |
+| 5.6 | Reference genome field bundle | `profiles/references/field-bundle` + `ferrum reference install-field-bundle` | Done |
+
+**Phase 5 test gate (passed):** `cargo test -p ferrum-core pipeline`, `ci-field-pipeline-e2e.sh`.
 
 ---
 
-## Phase 6 — Operations & resilience
+## Phase 6 — Operations & resilience — **next**
 
 | # | Gap | Deliverable | Tests |
 |---|-----|-------------|-------|
@@ -143,6 +145,7 @@ cargo test -p ferrum-drs --test metadata_ref
 bash deploy/scripts/ci-edge-demo-e2e.sh
 bash deploy/scripts/ci-field-edge-install-smoke.sh
 bash deploy/scripts/ci-field-sync-e2e.sh
+bash deploy/scripts/ci-field-pipeline-e2e.sh
 make test-demo   # full Docker stack unchanged
 ```
 
@@ -152,8 +155,8 @@ Optional: `helixtest --mode ferrum-africa --africa-profile ont,offline,federatio
 
 ## How to use this document
 
-1. Pick the **lowest incomplete phase** for your sprint (**Phase 5** is next).
+1. Pick the **lowest incomplete phase** for your sprint (**Phase 6** is next).
 2. Mark items done in CHANGELOG + this file (or link PR).
 3. Re-assess tier (T0–T5) after each phase for stakeholder updates.
 
-Last updated: 2026-06-19 (Phase 4 complete).
+Last updated: 2026-06-19 (Phase 5 complete).

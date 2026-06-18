@@ -1017,6 +1017,15 @@ async fn do_ont_ingest(
 
     let _ = auth;
 
+    for (id, name, _) in &members {
+        crate::pipeline_hooks::schedule_post_ingest_hooks(
+            Arc::clone(&state),
+            id.clone(),
+            Some(name.clone()),
+            Some("application/octet-stream".into()),
+        );
+    }
+
     let mut response = json!({
         "object_id": canonical_id,
         "drs_object_id": canonical_id,
