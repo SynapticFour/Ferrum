@@ -14,6 +14,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
 COPY tools ./tools
+COPY third_party ./third_party
 
 # Optional path deps (ga4gh-clearinghouse, ga4gh-types) must exist even when features are off.
 RUN git clone --depth 1 --branch main https://github.com/SynapticFour/ga4gh-infra.git /ga4gh-infra

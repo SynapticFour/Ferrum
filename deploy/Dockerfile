@@ -11,6 +11,7 @@ RUN cargo install cargo-chef
 COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
 COPY tools ./tools
+COPY third_party ./third_party
 RUN git clone --depth 1 --branch main https://github.com/SynapticFour/ga4gh-infra.git /ga4gh-infra
 RUN cargo chef prepare --recipe-path recipe.json
 
@@ -24,6 +25,7 @@ RUN rustup target add x86_64-unknown-linux-musl
 COPY --from=chef /usr/local/cargo/bin/cargo-chef /usr/local/cargo/bin/cargo-chef
 
 COPY --from=chef /app/recipe.json recipe.json
+COPY --from=chef /app/third_party ./third_party
 RUN git clone --depth 1 --branch main https://github.com/SynapticFour/ga4gh-infra.git /ga4gh-infra
 RUN cargo chef cook --release --recipe-path recipe.json -p ferrum-gateway --target x86_64-unknown-linux-musl
 

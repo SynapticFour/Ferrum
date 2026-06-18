@@ -38,9 +38,9 @@ use std::sync::Arc;
 #[cfg(feature = "s3_signed")]
 mod aws_impl {
     use super::*;
+    use crate::error::DrsError;
     use aws_sdk_s3::presigning::PresigningConfig;
     use aws_sdk_s3::Client;
-    use std::sync::Arc;
 
     pub struct AwsS3Presigner {
         client: Client,
@@ -98,6 +98,6 @@ pub async fn create_presigner(
     if let Some(ep) = endpoint {
         builder = builder.endpoint_url(ep);
     }
-    let client = Client::new(&builder.build());
+    let client = Client::from_conf(builder.build());
     Some(Arc::new(AwsS3Presigner::new(client, bucket)))
 }

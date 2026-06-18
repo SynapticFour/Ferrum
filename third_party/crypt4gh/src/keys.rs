@@ -7,11 +7,11 @@ use std::io::{BufRead, BufReader, Cursor, Read, Write};
 use std::path::Path;
 use std::sync::Once;
 
-use aes::cipher::{block_padding::NoPadding, BlockDecryptMut, KeyIvInit};
+use aes::cipher::{block_padding::NoPadding, BlockDecryptMut};
 use aes::{Aes128, Aes192, Aes256};
 use bcrypt_pbkdf::bcrypt_pbkdf;
 use cbc::Decryptor as CbcDecryptor;
-use ctr::cipher::{KeyIvInit as CtrKeyIvInit, StreamCipher};
+use ctr::cipher::{KeyIvInit, StreamCipher};
 use ctr::Ctr64BE;
 use itertools::Itertools;
 use lazy_static::lazy_static;
