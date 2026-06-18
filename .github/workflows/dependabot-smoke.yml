@@ -38,5 +38,6 @@ jobs:
           done
           if [ "$found" -eq 0 ]; then echo "No npm lockfiles found; skipping npm smoke."; fi
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/clone-ga4gh-infra
       - name: Cargo smoke
         run: cargo check --workspace --all-targets

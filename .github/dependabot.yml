@@ -63,3 +63,5 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "eslint-plugin-react-hooks"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@hookform/resolvers"
+        update-types: ["version-update:semver-major"]
