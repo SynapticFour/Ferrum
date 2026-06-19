@@ -12,6 +12,7 @@ trap cleanup EXIT
 
 export FERRUM_TES_DOCKER_PLATFORM="${FERRUM_TES_DOCKER_PLATFORM:-linux/amd64}"
 export SMOKE_REQUIRE_COMPLETE=1
+export DOCKER_BIN="${DOCKER_BIN:-$(command -v docker)}"
 
 echo "ci-tes-pilot-e2e: make up-tes"
 make up-tes

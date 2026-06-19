@@ -193,8 +193,8 @@ exec nextflow run workflow.nf -ansi-log false
             ),
             &format!(
                 "{RESOLVE_URL_SH}[ -n \"${{FERRUM_TES_DOCKER_CLI:-}}\" ] && [ -x \"${{FERRUM_TES_DOCKER_CLI}}\" ] && mkdir -p /tmp/ferrum-bin && ln -sf \"${{FERRUM_TES_DOCKER_CLI}}\" /tmp/ferrum-bin/docker && export PATH=\"/tmp/ferrum-bin:${{PATH}}\"
-wget -qO workflow.cwl \"$URL\"
-exec cwltool --quiet workflow.cwl
+curl -fsSL \"$URL\" -o workflow.cwl
+if [ -f inputs.json ]; then exec cwltool --quiet workflow.cwl inputs.json; else exec cwltool --quiet workflow.cwl; fi
 "
             ),
             env,
@@ -271,6 +271,13 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
         std::fs::write(&path, json)?;
     }
 
+    if wt == "cwl" && workflow_params_meaningful(&run.workflow_params) {
+        let path = work_dir.join("inputs.json");
+        let json = serde_json::to_string_pretty(&run.workflow_params)
+            .map_err(|e| WesError::Executor(format!("serialize workflow_params: {}", e)))?;
+        std::fs::write(&path, json)?;
+    }
+
     let mut volumes: Option<Vec<serde_json::Value>> = None;
     if let Some(ref prefix) = host_prefix {
         let host_run = format!("{}/{}", prefix.trim_end_matches('/'), run.run_id);
@@ -301,10 +308,12 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
                     .map(|p| format!("{}/{}", p.trim_end_matches('/'), run.run_id))
             })
     });
-    let executor_workdir = container_workdir.clone().or(if bash_or_file_mode {
-        per_run_mount
-    } else {
-        None
+    let executor_workdir = container_workdir.clone().or_else(|| {
+        if bash_or_file_mode || host_prefix.is_some() {
+            per_run_mount.clone()
+        } else {
+            None
+        }
     });
 
     let mut base_env = HashMap::new();

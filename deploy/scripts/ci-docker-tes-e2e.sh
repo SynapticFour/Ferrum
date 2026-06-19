@@ -44,6 +44,22 @@ for _ in $(seq 1 90); do
   esac
   sleep 2
 done
-[[ "$state" == "COMPLETE" ]] || die "run did not COMPLETE (state=$state)"
+if [[ "$state" != "COMPLETE" ]]; then
+  task_id="$(curl -sf "$BASE/ga4gh/tes/v1/tasks?limit=1" | python3 -c "import sys,json; t=json.load(sys.stdin).get('tasks',[]); print(t[0]['id'] if t else '')" 2>/dev/null || true)"
+  if [[ -n "$task_id" ]]; then
+    echo "ci-docker-tes-e2e: TES task $task_id logs:" >&2
+    curl -sf "$BASE/ga4gh/tes/v1/tasks/${task_id}" | python3 -c "
+import sys, json
+t = json.load(sys.stdin)
+for i, log in enumerate(t.get('logs') or []):
+    for k in ('stdout', 'stderr'):
+        v = (log.get(k) or '').strip()
+        if v:
+            print(f'--- {k} [{i}] ---')
+            print(v)
+" 2>/dev/null || true
+  fi
+  die "run did not COMPLETE (state=$state)"
+fi
 
 echo "ci-docker-tes-e2e: OK (ingest, stream, WES COMPLETE)"
