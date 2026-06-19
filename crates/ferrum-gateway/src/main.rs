@@ -449,8 +449,11 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
     });
 
     #[cfg(feature = "full")]
-    let provenance_store: Option<Arc<ferrum_core::ProvenanceStore>> =
-        pg_pool.clone().map(|pool| Arc::new(ferrum_core::ProvenanceStore::new(pool)));
+    let provenance_store: Option<Arc<ferrum_core::ProvenanceStore>> = pg_pool
+        .clone()
+        .map(|pool| Arc::new(ferrum_core::ProvenanceStore::new(pool)));
+    #[cfg(not(feature = "full"))]
+    let provenance_store: Option<Arc<ferrum_core::ProvenanceStore>> = None;
 
     let drs_state: Option<ferrum_drs::AppState> = if let Some(ref pool) = ferrum_pool {
         let repo = Arc::new(ferrum_drs::repo::DrsRepo::new(

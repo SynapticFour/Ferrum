@@ -14,12 +14,20 @@ FIXTURE_DIR="${REPO_ROOT}/profiles/pipeline/fixtures"
 FIXTURE_VCF="${FIXTURE_DIR}/tiny.vcf"
 FIXTURE_BAM="${FIXTURE_DIR}/tiny.bam"
 FIXTURE_BAI="${FIXTURE_DIR}/tiny.bam.bai"
+REF_FASTA="${FIXTURE_DIR}/pilot-ref.fa"
+REF_FAI="${FIXTURE_DIR}/pilot-ref.fa.fai"
+TRUTH_VCF="${FIXTURE_DIR}/pilot-truth.vcf.gz"
+TRUTH_TBI="${FIXTURE_DIR}/pilot-truth.vcf.gz.tbi"
 WORKSPACE_ID="${PILOT_WORKSPACE_ID:-demo-workspace-01}"
 COHORT_ID="${PILOT_COHORT_ID:-demo-cohort-01}"
 SAMPLE_ID="${PILOT_SAMPLE_ID:-pilot-demo-01}"
 PILOT_VCF_NAME="Pilot demo VCF (MinIO)"
 PILOT_BAM_NAME="Pilot demo BAM (MinIO)"
 PILOT_BAI_NAME="Pilot demo BAM index (MinIO)"
+PILOT_REF_NAME="Pilot reference FASTA (MinIO)"
+PILOT_REF_INDEX_NAME="Pilot reference FASTA index (MinIO)"
+PILOT_TRUTH_NAME="Pilot truth VCF (MinIO)"
+PILOT_TRUTH_INDEX_NAME="Pilot truth VCF index (MinIO)"
 
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
@@ -29,15 +37,21 @@ POSTGRES_DB="${POSTGRES_DB:-ferrum}"
 
 die() { echo "seed-pilot-demo: $*" >&2; exit 1; }
 
-curl -sf "$BASE_URL/health" >/dev/null || die "Gateway not reachable at $BASE_URL (start stack first)"
+CURL_AUTH=()
+if [[ -n "${FERRUM_PASSPORT_JWT:-}" ]]; then
+  CURL_AUTH=(-H "Authorization: Bearer ${FERRUM_PASSPORT_JWT}")
+fi
+
+curl -sf "${CURL_AUTH[@]}" "$BASE_URL/health" >/dev/null || die "Gateway not reachable at $BASE_URL (start stack first)"
 [[ -f "$FIXTURE_VCF" ]] || die "Missing fixture: $FIXTURE_VCF"
 [[ -f "$FIXTURE_BAM" && -f "$FIXTURE_BAI" ]] || die "Missing BAM fixtures — run: bash profiles/pipeline/fixtures/build-tiny-bam.sh"
+[[ -f "$REF_FASTA" && -f "$REF_FAI" && -f "$TRUTH_VCF" && -f "$TRUTH_TBI" ]] || die "Missing reference bundle — run: bash profiles/pipeline/fixtures/build-pilot-ref-bundle.sh"
 
 poll_ingest_job() {
   local job_id="$1"
   local status
   for _ in $(seq 1 60); do
-    status="$(curl -fsS "$BASE_URL/api/v1/ingest/jobs/${job_id}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || true)"
+    status="$(curl -fsS "${CURL_AUTH[@]}" "$BASE_URL/api/v1/ingest/jobs/${job_id}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || true)"
     case "$status" in
       succeeded) return 0 ;;
       failed) die "ingest job $job_id failed" ;;
@@ -52,13 +66,13 @@ ingest_file() {
   local name="$2"
   local client_id="$3"
   local resp job_id object_id
-  resp="$(curl -fsS -X POST "$BASE_URL/api/v1/ingest/upload" \
+  resp="$(curl -fsS -X POST "${CURL_AUTH[@]}" "$BASE_URL/api/v1/ingest/upload" \
     -F "file=@${path}" \
     -F "name=${name}" \
     -F "client_request_id=${client_id}")"
   job_id="$(printf '%s' "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin)['job_id'])")"
   poll_ingest_job "$job_id"
-  object_id="$(curl -fsS "$BASE_URL/api/v1/ingest/jobs/${job_id}" | python3 -c "import sys,json; j=json.load(sys.stdin); print((j.get('result') or {}).get('object_ids',[''])[0])")"
+  object_id="$(curl -fsS "${CURL_AUTH[@]}" "$BASE_URL/api/v1/ingest/jobs/${job_id}" | python3 -c "import sys,json; j=json.load(sys.stdin); print((j.get('result') or {}).get('object_ids',[''])[0])")"
   [[ -n "$object_id" ]] || die "no object_id from ingest job $job_id"
   printf '%s' "$object_id"
 }
@@ -133,10 +147,43 @@ BAI_ID="$(seed_named_object \
   "BAM index (.bai) for pilot-demo.bam." \
   "application/octet-stream")"
 
+echo "==> Pilot reference bundle (TinyGermlineHC ref + truth)"
+REF_ID="$(seed_named_object \
+  "$PILOT_REF_NAME" \
+  "$REF_FASTA" \
+  "pilot-ref.fa" \
+  "pilot-seed-ref-v1" \
+  "chr22 stub FASTA for germline workflow inputs." \
+  "application/x-fasta")"
+
+REF_FAI_ID="$(seed_named_object \
+  "$PILOT_REF_INDEX_NAME" \
+  "$REF_FAI" \
+  "pilot-ref.fa.fai" \
+  "pilot-seed-ref-fai-v1" \
+  "FASTA index (.fai) for pilot reference." \
+  "application/octet-stream")"
+
+TRUTH_ID="$(seed_named_object \
+  "$PILOT_TRUTH_NAME" \
+  "$TRUTH_VCF" \
+  "pilot-truth.vcf.gz" \
+  "pilot-seed-truth-v1" \
+  "Gzipped truth VCF for TinyGermlineHC --alleles." \
+  "application/gzip")"
+
+TRUTH_TBI_ID="$(seed_named_object \
+  "$PILOT_TRUTH_INDEX_NAME" \
+  "$TRUTH_TBI" \
+  "pilot-truth.vcf.gz.tbi" \
+  "pilot-seed-truth-tbi-v1" \
+  "Tabix index (.tbi) for pilot truth VCF." \
+  "application/octet-stream")"
+
 echo "==> Cohort + lineage wiring"
 psql_exec <<SQL
 UPDATE drs_objects SET workspace_id = '${WORKSPACE_ID}'
-WHERE id IN ('${VCF_ID}', '${BAM_ID}', '${BAI_ID}', 'microbench-plain-v1');
+WHERE id IN ('${VCF_ID}', '${BAM_ID}', '${BAI_ID}', '${REF_ID}', '${REF_FAI_ID}', '${TRUTH_ID}', '${TRUTH_TBI_ID}', 'microbench-plain-v1');
 
 INSERT INTO cohort_samples (id, cohort_id, sample_id, drs_object_ids, phenotype, added_by)
 VALUES (
@@ -162,4 +209,6 @@ SQL
 echo "==> Pilot seed complete"
 echo "  VCF: ${VCF_ID} — inline preview in Data Browser"
 echo "  BAM: ${BAM_ID} + index ${BAI_ID} — cohort germline inputs"
+echo "  Ref: ${REF_ID} + index ${REF_FAI_ID} — TinyGermlineHC ref_fasta inputs"
+echo "  Truth: ${TRUTH_ID} + index ${TRUTH_TBI_ID} — TinyGermlineHC truth inputs"
 echo "  Cohort: ${SAMPLE_ID} in ${COHORT_ID}"

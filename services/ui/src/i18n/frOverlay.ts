@@ -70,6 +70,8 @@ export const frOverlay = {
     getStarted: 'Premiers pas',
     getStartedHint:
       'Suivez l\'assistant d\'étude ou créez un espace de travail et lancez votre première analyse.',
+    pilotEnrichHint:
+      'Fichiers démo sur stockage géré : exécutez make seed-pilot après make up-tes — voir docs/PASTEUR-PILOT.md.',
     studySetup: 'Configuration guidée',
     runWorkflow: 'Lancer une analyse',
   },

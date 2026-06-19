@@ -68,6 +68,8 @@ export const en = {
     systemHealth: 'System health',
     getStarted: 'Get started',
     getStartedHint: 'Follow the guided study setup or create a workspace and submit your first analysis.',
+    pilotEnrichHint:
+      'For managed-storage demo files (BAM, VCF, reference bundle), operators run make seed-pilot after make up-tes — see docs/PASTEUR-PILOT.md.',
     studySetup: 'Guided setup',
     runWorkflow: 'Run analysis',
   },

@@ -25,9 +25,10 @@ There is **no web UI on the ga4gh-infra root URL** (API/broker only). End users 
 | **AAI locally (mock-idp)** | `make up-pilot` → `make test-pilot` |
 | **AAI with Fly Keycloak** | `make up-pilot-cloud` → `make test-pilot-cloud` (Fly must be running) |
 | Real workflow compute | `make up-tes` |
-| Optional pilot files (local) | `make seed-pilot` after stack is up — real BAM+VCF on MinIO |
+| Optional pilot files (local) | `make seed-pilot` after stack is up — BAM, VCF, chr22 ref+truth on MinIO |
+| Optional pilot files (Fly) | `FERRUM_PASSPORT_JWT=… ./scripts/seed-pilot-remote.sh` (WES noop on Fly) |
 
-`init-demo.sh` (container init) keeps conformance IDs and honest URL catalog placeholders. **`make seed-pilot`** is optional post-start enrichment: uploads `tiny.bam`, `.bai`, and `tiny.vcf` to MinIO, wires `pilot-demo-01` in `demo-cohort-01`, and adds provenance edges. Idempotent — safe to re-run. Verify with **`make smoke-pilot`**.
+`init-demo.sh` (container init) keeps conformance IDs and honest URL catalog placeholders. **`make seed-pilot`** is optional post-start enrichment: uploads `tiny.bam`, `.bai`, `tiny.vcf`, and a **TinyGermlineHC reference bundle** (`pilot-ref.fa`, truth `.vcf.gz`/`.tbi`) to MinIO, wires `pilot-demo-01` in `demo-cohort-01`, and adds provenance edges. Build fixtures first if missing: `bash profiles/pipeline/fixtures/build-pilot-ref-bundle.sh` and `build-tiny-bam.sh`. Idempotent — safe to re-run. Verify with **`make smoke-pilot`**.
 
 `make up-tes` enables `FERRUM_TES_DOCKER_MOUNT_SOCKET` and passes the host `docker` CLI into cwltool tasks. On **Docker Desktop Mac**, nested `docker run` bind paths may still fail (`host_mnt`); Linux CI is the reference for WES `COMPLETE`.
 

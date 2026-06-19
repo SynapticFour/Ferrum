@@ -71,6 +71,8 @@ const deOverlay = {
     systemHealth: 'Systemstatus',
     getStarted: 'Erste Schritte',
     getStartedHint: 'Folgen Sie der geführten Einrichtung oder legen Sie einen Arbeitsbereich an und starten Sie Ihre erste Analyse.',
+    pilotEnrichHint:
+      'Für Demo-Dateien auf verwaltetem Speicher (BAM, VCF, Referenzpaket): nach make up-tes make seed-pilot ausführen — siehe docs/PASTEUR-PILOT.md.',
     studySetup: 'Geführte Einrichtung',
     runWorkflow: 'Analyse starten',
   },

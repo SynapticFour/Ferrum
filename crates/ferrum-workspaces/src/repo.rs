@@ -400,7 +400,11 @@ impl WorkspaceRepo {
     }
 
     /// Associate existing DRS objects with a workspace (sets `drs_objects.workspace_id`).
-    pub async fn link_drs_objects(&self, workspace_id: &str, object_ids: &[String]) -> Result<usize> {
+    pub async fn link_drs_objects(
+        &self,
+        workspace_id: &str,
+        object_ids: &[String],
+    ) -> Result<usize> {
         let mut linked = 0usize;
         for oid in object_ids {
             let result = sqlx::query("UPDATE drs_objects SET workspace_id = $1 WHERE id = $2")

@@ -387,6 +387,7 @@ export function Dashboard() {
               <CardContent className="pt-6">
                 <p className="text-sm font-medium text-foreground">{t('dashboard.getStarted')}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{t('dashboard.getStartedHint')}</p>
+                <p className="mt-2 text-xs text-muted-foreground/90">{t('dashboard.pilotEnrichHint')}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button asChild size="sm">
                     <Link to={'/study/setup' as any}>{t('dashboard.studySetup')}</Link>

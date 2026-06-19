@@ -21,7 +21,7 @@ help:
 	@echo ""
 	@echo "  make up        Start demo stack (alias: make demo)"
 	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
-	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF fixtures to MinIO (stack must be running)"
+	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF+ref bundle to MinIO (stack must be running)"
 	@echo "  make smoke-pilot Local smoke after up-tes (health, lineage, preview, cohort, WES)"
 	@echo "  make up-pilot  Start demo + ga4gh-infra with external auth (requires ../ga4gh-infra)"
 	@echo "  make up-pilot-cloud  Local Ferrum + Fly ga4gh-infra/Keycloak (Fly must be running)"

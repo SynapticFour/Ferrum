@@ -69,6 +69,8 @@ export const arOverlay = {
     systemHealth: 'صحة النظام',
     getStarted: 'البدء',
     getStartedHint: 'اتبع معالج إعداد الدراسة أو أنشئ مساحة عمل وابدأ تحليلك الأول.',
+    pilotEnrichHint:
+      'لملفات العرض على التخزين المُدار: نفّذ make seed-pilot بعد make up-tes — راجع docs/PASTEUR-PILOT.md.',
     studySetup: 'إعداد موجّه',
     runWorkflow: 'تشغيل تحليل',
   },

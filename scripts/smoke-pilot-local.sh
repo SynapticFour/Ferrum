@@ -125,6 +125,21 @@ print(f'bam={bam} bai={bai}')
 " || die "germline cohort wiring failed"
 ok "germline BAM+BAI resolved for pilot-demo-01"
 
+echo "smoke-pilot-local: reference bundle (TinyGermlineHC ref + truth)"
+ref_count="$(curl -fsS "$BASE_URL/ga4gh/drs/v1/objects" | python3 -c "
+import sys, json
+need = {
+    'Pilot reference FASTA (MinIO)',
+    'Pilot reference FASTA index (MinIO)',
+    'Pilot truth VCF (MinIO)',
+    'Pilot truth VCF index (MinIO)',
+}
+found = {o.get('name') for o in json.load(sys.stdin)}
+print(len(need & found))
+" 2>/dev/null || echo 0)"
+[[ "$ref_count" -ge 4 ]] || die "expected 4 pilot reference objects (got $ref_count) — run make seed-pilot"
+ok "reference bundle objects=$ref_count"
+
 echo "smoke-pilot-local: WES submit (TES lifecycle)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
