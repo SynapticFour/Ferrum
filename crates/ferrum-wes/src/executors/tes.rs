@@ -193,7 +193,8 @@ exec nextflow run workflow.nf -ansi-log false
             ),
             &format!(
                 "{RESOLVE_URL_SH}[ -n \"${{FERRUM_TES_DOCKER_CLI:-}}\" ] && [ -x \"${{FERRUM_TES_DOCKER_CLI}}\" ] && mkdir -p /tmp/ferrum-bin && ln -sf \"${{FERRUM_TES_DOCKER_CLI}}\" /tmp/ferrum-bin/docker && export PATH=\"/tmp/ferrum-bin:${{PATH}}\"
-curl -fsSL \"$URL\" -o workflow.cwl
+export URL
+python3 -c 'import os,urllib.request; urllib.request.urlretrieve(os.environ[\"URL\"],\"workflow.cwl\")'
 if [ -f inputs.json ]; then exec cwltool --quiet workflow.cwl inputs.json; else exec cwltool --quiet workflow.cwl; fi
 "
             ),
