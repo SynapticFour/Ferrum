@@ -217,9 +217,15 @@ VALUES
   ('demo-ena-run', 'ENA run XML example', 'European Nucleotide Archive run XML (URL)', 0, 'application/xml', false, '[]'::jsonb),
   ('demo-ga4gh-sample', 'GA4GH OpenAPI (URL)', 'External OpenAPI YAML at a public URL — not stored in Ferrum.', 0, 'application/yaml', false, '["openapi.yaml"]'::jsonb),
   ('demo-sample-bam', 'External alignment README (URL)', 'URL pointer only — not a BAM file. Use make seed-pilot for real pilot files on MinIO.', 0, 'text/plain', false, '[]'::jsonb),
-  ('demo-sample-vcf', 'E2E workflow output (URL)', 'HelixTest/conformance placeholder: HTTPS URL reference, not a stored VCF.', 0, 'text/plain', false, '[]'::jsonb),
+  ('demo-sample-vcf', 'demo-sample.vcf (URL)', 'HelixTest/conformance placeholder: HTTPS URL reference classified as VCF for htsget.', 0, 'text/vcf', false, '[]'::jsonb),
   ('demo-bam-to-vcf-demo-bam-to-vcf-1.0-input', 'E2E workflow input', 'DRS object used by HelixTest E2E pipeline as input for demo-bam-to-vcf.', 0, 'application/octet-stream', false, '[]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
+
+UPDATE drs_objects
+SET mime_type = 'text/vcf',
+    name = 'demo-sample.vcf (URL)',
+    description = 'HelixTest/conformance placeholder: HTTPS URL reference classified as VCF for htsget.'
+WHERE id = 'demo-sample-vcf';
 
 INSERT INTO storage_references (object_id, storage_backend, storage_key, is_encrypted)
 VALUES
