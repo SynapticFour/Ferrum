@@ -289,7 +289,12 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
             .as_ref()
             .map(|cp| format!("{}/{}", cp.trim_end_matches('/'), run.run_id))
             .unwrap_or_else(|| host_run.clone());
-        let bind = format!("{host_run}:{container_run}:rw");
+        // Nested docker (cwltool) requires the same absolute path on host and in the task container.
+        let bind = if env_truthy("FERRUM_TES_DOCKER_MOUNT_SOCKET") {
+            format!("{host_run}:{host_run}:rw")
+        } else {
+            format!("{host_run}:{container_run}:rw")
+        };
         volumes = Some(vec![serde_json::Value::String(bind)]);
     }
 
@@ -302,15 +307,16 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
     // Derive per-run `workdir` if CONTAINER_WORKDIR is unset (stock Ferrum only supported a static env).
     let bash_or_file_mode =
         (wdl_bash && wt == "wdl") || (nf_file && matches!(wt.as_str(), "nextflow" | "nxf" | "nfl"));
-    let per_run_mount = host_prefix.as_ref().and_then(|_| {
-        container_mount_prefix
-            .as_ref()
-            .map(|cp| format!("{}/{}", cp.trim_end_matches('/'), run.run_id))
-            .or_else(|| {
-                host_prefix
-                    .as_ref()
-                    .map(|p| format!("{}/{}", p.trim_end_matches('/'), run.run_id))
-            })
+    let per_run_mount = host_prefix.as_ref().map(|prefix| {
+        let host_run = format!("{}/{}", prefix.trim_end_matches('/'), run.run_id);
+        if env_truthy("FERRUM_TES_DOCKER_MOUNT_SOCKET") {
+            host_run
+        } else {
+            container_mount_prefix
+                .as_ref()
+                .map(|cp| format!("{}/{}", cp.trim_end_matches('/'), run.run_id))
+                .unwrap_or(host_run)
+        }
     });
     let executor_workdir = container_workdir.clone().or_else(|| {
         if bash_or_file_mode || host_prefix.is_some() {

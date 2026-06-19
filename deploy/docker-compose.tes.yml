@@ -16,7 +16,8 @@ services:
       FERRUM_WES_WORK_DIR: /wes-runs
       # Host path for Docker volume binds (set by Makefile `up-tes` via CURDIR).
       FERRUM_WES_TES_WORK_HOST_PREFIX: ${FERRUM_WES_TES_WORK_HOST_PREFIX}
-      FERRUM_WES_TES_CONTAINER_MOUNT_PREFIX: /wes-runs
+      # Symmetric host paths so cwltool nested docker binds resolve on the daemon host.
+      FERRUM_WES_TES_CONTAINER_MOUNT_PREFIX: "${FERRUM_WES_TES_WORK_HOST_PREFIX}"
       FERRUM_WES_TES_WDL_BASH_LAUNCH: "true"
       # arm64 Macs: pull/run amd64 images via emulation (nextflow, some Cromwell tags).
       FERRUM_TES_DOCKER_PLATFORM: "${FERRUM_TES_DOCKER_PLATFORM:-linux/amd64}"
