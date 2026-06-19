@@ -599,6 +599,9 @@ export const arOverlay = {
     runNoSamples: 'الفوج لا يحتوي على عينات.',
     runProgress: 'إرسال {current}/{total}: {sample}',
     runMissingData: 'العينة {sample} تفتقد بيانات DRS لـ: {fields}',
+    runUrlBackedWarning: 'بعض العينات مرتبطة بكائنات URL فقط (غير مخزنة في Ferrum).',
+    runUrlBackedHint:
+      'تتطلب سير العمل ملفات مُدارة على MinIO. نفّذ make seed-pilot أو استورد BAM/VCF حقيقية.',
   },
   cohortList: {
     title: 'متصفح الأفواج',

@@ -18,16 +18,8 @@ import {
   fetchPreviewText,
   wouldPreviewByType,
 } from '@/lib/filePreview';
+import { drsStorageKind } from '@/lib/drsStorage';
 import { StartAnalysisDialog } from '@/components/StartAnalysisDialog';
-
-function storageKind(obj: DrsObject): 'managed' | 'url' | 'unknown' {
-  const backend = (obj as DrsObject & { storage_backend?: string }).storage_backend;
-  if (backend === 'url') return 'url';
-  if (backend === 's3' || backend === 'local') return 'managed';
-  const am = obj.access_methods?.[0];
-  if (am?.type === 'https' && am.access_url?.url?.startsWith('http')) return 'url';
-  return 'managed';
-}
 
 function externalUrl(obj: DrsObject): string | null {
   const am = obj.access_methods?.find((m) => m.type === 'https');
@@ -50,7 +42,7 @@ export function ObjectDetailPage() {
     enabled: !!id,
   });
 
-  const kind = obj ? storageKind(obj) : 'unknown';
+  const kind = obj ? drsStorageKind(obj) : 'unknown';
   const displayName = obj?.name ?? id;
   const previewByType = obj ? wouldPreviewByType(displayName, obj.mime_type, obj.size) : false;
   const streamPreviewable = obj

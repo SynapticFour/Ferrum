@@ -604,6 +604,9 @@ const deOverlay = {
     runNoSamples: 'Kohorte hat keine Proben.',
     runProgress: 'Sende {current}/{total}: {sample}',
     runMissingData: 'Probe {sample} ohne DRS-Daten für: {fields}',
+    runUrlBackedWarning: 'Einige Proben verknüpfen nur URL-Referenzen (nicht in Ferrum gespeichert).',
+    runUrlBackedHint:
+      'Workflows benötigen verwaltete Dateien auf MinIO. Lokal make seed-pilot ausführen oder echte BAM/VCF importieren.',
   },
   cohortList: {
     title: 'Kohorten-Browser',

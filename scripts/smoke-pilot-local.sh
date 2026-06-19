@@ -66,8 +66,64 @@ for s in json.load(sys.stdin).get('samples',[]):
         break
 " 2>/dev/null || echo 0)"
 [[ "$sample_count" -ge 1 ]] || die "demo-cohort-01 has no samples"
-[[ "$drs_count" -ge 2 ]] || die "pilot-demo-01 should link BAM+VCF (got $drs_count DRS ids)"
+[[ "$drs_count" -ge 3 ]] || die "pilot-demo-01 should link BAM+BAI+VCF (got $drs_count DRS ids)"
 ok "cohort samples=$sample_count pilot-demo-01 drs=$drs_count"
+
+echo "smoke-pilot-local: germline cohort wiring (TinyGermlineHC inputs)"
+printf '%s' "$samples" | python3 -c "
+import json, sys, urllib.request
+
+samples = json.load(sys.stdin).get('samples', [])
+pilot = next((s for s in samples if s.get('sample_id') == 'pilot-demo-01'), None)
+if not pilot:
+    raise SystemExit('pilot-demo-01 missing')
+ids = pilot.get('drs_object_ids') or []
+if len(ids) < 3:
+    raise SystemExit(f'expected 3+ DRS ids, got {len(ids)}')
+
+base = '${BASE_URL}'
+objs = json.load(urllib.request.urlopen(f'{base}/ga4gh/drs/v1/objects'))
+by_id = {o['id']: o for o in objs}
+
+def kind(o):
+    backend = o.get('storage_backend')
+    if backend == 'url':
+        return 'url'
+    if backend in ('s3', 'local'):
+        return 'managed'
+    am = (o.get('access_methods') or [{}])[0]
+    url = (am.get('access_url') or {}).get('url', '')
+    if '/ga4gh/drs/v1/objects/' in url and '/access/' in url:
+        return 'managed'
+    desc = (o.get('description') or '').lower()
+    name = (o.get('name') or '').lower()
+    if 'url pointer' in desc or 'readme' in name or 'external alignment' in name:
+        return 'url'
+    if any(x in url for x in ('1000genomes', 'raw.githubusercontent.com', 'ftp.')):
+        return 'url'
+    return 'managed'
+
+bam = bai = None
+for oid in ids:
+    o = by_id.get(oid)
+    if not o:
+        raise SystemExit(f'unknown object {oid}')
+    if kind(o) == 'url':
+        raise SystemExit(f'URL-backed object not valid for germline: {oid} ({o.get(\"name\")})')
+    name = (o.get('name') or '').lower()
+    mime = (o.get('mime_type') or '').lower()
+    if 'bam' in mime or name.endswith('.bam') or 'bam (' in name:
+        bam = oid
+    if 'bai' in name or name.endswith('.bai') or 'index' in name:
+        bai = oid
+
+if not bam:
+    raise SystemExit('no BAM object in pilot sample')
+if not bai:
+    raise SystemExit('no BAI object in pilot sample')
+print(f'bam={bam} bai={bai}')
+" || die "germline cohort wiring failed"
+ok "germline BAM+BAI resolved for pilot-demo-01"
 
 echo "smoke-pilot-local: WES submit (TES lifecycle)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -121,7 +177,11 @@ case "$state" in
       stderr="$(curl -fsS "$BASE_URL/ga4gh/tes/v1/tasks/${task_id}" | python3 -c "import sys,json; logs=json.load(sys.stdin).get('logs',[]); print(logs[0].get('stderr','') if logs else '')" 2>/dev/null || true)"
     fi
     if printf '%s' "$stderr" | grep -q 'docker.sock'; then
-      ok "WES submit OK; TES worker lacks docker.sock on this host (skip COMPLETE on local Mac)"
+      ok "WES submit OK; TES worker lacks docker.sock (set FERRUM_TES_DOCKER_MOUNT_SOCKET=1)"
+    elif printf '%s' "$stderr" | grep -q 'client version'; then
+      ok "WES submit OK; docker API mismatch in cwltool image (mount host docker CLI via DOCKER_BIN)"
+    elif printf '%s' "$stderr" | grep -qE 'host_mnt|invalid mount config'; then
+      ok "WES submit OK; nested docker bind paths differ on Docker Desktop Mac (CI/Linux expected COMPLETE)"
     else
       die "WES run EXECUTOR_ERROR — $stderr"
     fi

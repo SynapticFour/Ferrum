@@ -110,7 +110,7 @@ fn tes_task_gateway_base() -> String {
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "http://host.docker.internal:8082".to_string())
+        .unwrap_or_else(|| "http://host.docker.internal:8080".to_string())
 }
 
 fn legacy_task_env(workflow_url: &str) -> HashMap<String, String> {
@@ -123,6 +123,16 @@ fn legacy_task_env(workflow_url: &str) -> HashMap<String, String> {
         "FERRUM_WES_GATEWAY_BASE".to_string(),
         tes_task_gateway_base(),
     );
+    if let Ok(cli) = std::env::var("FERRUM_TES_DOCKER_CLI_CONTAINER_PATH") {
+        let cli = cli.trim();
+        if !cli.is_empty() {
+            env.insert("FERRUM_TES_DOCKER_CLI".to_string(), cli.to_string());
+        }
+    }
+    if env_truthy("FERRUM_TES_DOCKER_MOUNT_SOCKET") {
+        // cwltool images ship an older docker CLI; match modern Docker Desktop daemons.
+        env.insert("DOCKER_API_VERSION".to_string(), "1.44".to_string());
+    }
     env
 }
 
@@ -182,7 +192,8 @@ exec nextflow run workflow.nf -ansi-log false
                 "quay.io/commonwl/cwltool:3.2.20260413085819",
             ),
             &format!(
-                "{RESOLVE_URL_SH}wget -qO workflow.cwl \"$URL\"
+                "{RESOLVE_URL_SH}[ -n \"${{FERRUM_TES_DOCKER_CLI:-}}\" ] && [ -x \"${{FERRUM_TES_DOCKER_CLI}}\" ] && mkdir -p /tmp/ferrum-bin && ln -sf \"${{FERRUM_TES_DOCKER_CLI}}\" /tmp/ferrum-bin/docker && export PATH=\"/tmp/ferrum-bin:${{PATH}}\"
+wget -qO workflow.cwl \"$URL\"
 exec cwltool --quiet workflow.cwl
 "
             ),

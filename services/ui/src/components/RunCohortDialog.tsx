@@ -30,6 +30,7 @@ import {
   submitWorkflowRun,
 } from '@/lib/wesSubmit';
 import { isPerSampleFileInput } from '@/lib/wdlInputs';
+import { drsStorageKind } from '@/lib/drsStorage';
 import { Play, Loader2, Users } from 'lucide-react';
 
 const COHORTS_BASE = '/cohorts/v1';
@@ -104,6 +105,18 @@ export function RunCohortDialog({
   });
 
   const { data: wdlParsed, isLoading: wdlLoading } = useWdlDescriptor(workflowUrl, workflowType, open);
+
+  const urlBackedSamples = useMemo(() => {
+    const hits: Array<{ sampleId: string; objectIds: string[] }> = [];
+    for (const sample of samples) {
+      const urlIds = (sample.drs_object_ids ?? []).filter((oid) => {
+        const obj = drsLookup.get(oid);
+        return obj && drsStorageKind(obj) === 'url';
+      });
+      if (urlIds.length) hits.push({ sampleId: sample.sample_id, objectIds: urlIds });
+    }
+    return hits;
+  }, [samples, drsLookup]);
 
   useEffect(() => {
     if (wdlParsed?.inputs.length) {
@@ -263,6 +276,20 @@ export function RunCohortDialog({
             onChange={setParamValues}
             hidePerSampleFiles
           />
+        )}
+
+        {urlBackedSamples.length > 0 && (
+          <div className="text-sm border rounded-md p-3 bg-amber-500/10 text-amber-900 dark:text-amber-200 space-y-1">
+            <p className="font-medium">{t('cohort.runUrlBackedWarning')}</p>
+            <p className="text-muted-foreground">{t('cohort.runUrlBackedHint')}</p>
+            <ul className="list-disc list-inside text-xs text-muted-foreground">
+              {urlBackedSamples.map((s) => (
+                <li key={s.sampleId}>
+                  {s.sampleId}: {s.objectIds.join(', ')}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {progress && <p className="text-sm text-muted-foreground">{progress}</p>}

@@ -10,6 +10,8 @@ COMPOSE_PILOT_CLOUD := docker compose -f deploy/docker-compose.yml -f deploy/doc
 COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tes.yml
 FERRUM_WES_TES_WORK_HOST_PREFIX ?= $(CURDIR)/deploy/.wes-runs
 export FERRUM_WES_TES_WORK_HOST_PREFIX
+DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
+export DOCKER_BIN
 
 .PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot test-demo test-tes test-pilot test-pilot-cloud test-federated
 

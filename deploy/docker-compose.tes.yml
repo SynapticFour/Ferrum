@@ -21,8 +21,13 @@ services:
       # arm64 Macs: pull/run amd64 images via emulation (nextflow, some Cromwell tags).
       FERRUM_TES_DOCKER_PLATFORM: "${FERRUM_TES_DOCKER_PLATFORM:-linux/amd64}"
       FERRUM_TES_DOCKER_EXTRA_HOSTS: "${FERRUM_TES_DOCKER_EXTRA_HOSTS:-host.docker.internal:host-gateway}"
-      # TRS descriptor URLs (/ga4gh/trs/...) resolve inside task containers.
-      FERRUM_WES_GATEWAY_INTERNAL_URL: "${FERRUM_WES_GATEWAY_INTERNAL_URL:-http://host.docker.internal:8082}"
+      # cwltool / Nextflow nested docker: expose host daemon inside TES task containers.
+      FERRUM_TES_DOCKER_MOUNT_SOCKET: "1"
+      # Use host docker CLI (newer API) inside cwltool task images.
+      FERRUM_TES_DOCKER_CLI_HOST_PATH: "${DOCKER_BIN:-/usr/local/bin/docker}"
+      FERRUM_TES_DOCKER_CLI_CONTAINER_PATH: "/usr/local/bin/docker-host"
+      # TRS descriptor URLs (/ga4gh/trs/...) resolve inside task containers via gateway API.
+      FERRUM_WES_GATEWAY_INTERNAL_URL: "${FERRUM_WES_GATEWAY_INTERNAL_URL:-http://host.docker.internal:8080}"
       FERRUM_PUBLIC_BASE_URL: "http://localhost:${GATEWAY_PORT:-8080}"
       FERRUM_WES_TES_URL: "http://localhost:${GATEWAY_PORT:-8080}/ga4gh/tes/v1"
       FERRUM_DISCOVERY__ENABLED: "true"

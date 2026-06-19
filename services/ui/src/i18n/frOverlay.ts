@@ -616,6 +616,9 @@ export const frOverlay = {
     runNoSamples: 'La cohorte n\'a aucun échantillon.',
     runProgress: 'Soumission {current}/{total} : {sample}',
     runMissingData: 'Échantillon {sample} sans données DRS pour : {fields}',
+    runUrlBackedWarning: 'Certaines échantillons lient des objets URL uniquement (non stockés dans Ferrum).',
+    runUrlBackedHint:
+      'Les workflows nécessitent des fichiers gérés sur MinIO. Exécutez make seed-pilot ou importez de vrais BAM/VCF.',
   },
   cohortList: {
     title: 'Navigateur de cohortes',

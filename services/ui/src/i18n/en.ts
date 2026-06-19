@@ -676,6 +676,9 @@ export const en = {
     runNoSamples: 'Cohort has no samples.',
     runProgress: 'Submitting {current}/{total}: {sample}',
     runMissingData: 'Sample {sample} missing DRS data for: {fields}',
+    runUrlBackedWarning: 'Some samples link URL-only objects (not stored in Ferrum).',
+    runUrlBackedHint:
+      'Workflows need managed files on MinIO. Run make seed-pilot locally, or import/upload real BAM/VCF before running on cohort.',
   },
   study: {
     title: 'Guided setup',

@@ -67,7 +67,12 @@ impl DockerExecutor {
     fn collect_binds(request: &CreateTaskRequest) -> Vec<String> {
         let mut binds = Vec::new();
         if std::env::var("FERRUM_TES_DOCKER_MOUNT_SOCKET")
-            .map(|s| s == "1")
+            .map(|s| {
+                matches!(
+                    s.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
+            })
             .unwrap_or(false)
         {
             binds.push("/var/run/docker.sock:/var/run/docker.sock".to_string());
