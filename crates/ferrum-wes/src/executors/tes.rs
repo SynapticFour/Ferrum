@@ -193,9 +193,12 @@ exec nextflow run workflow.nf -ansi-log false
             ),
             &format!(
                 "{RESOLVE_URL_SH}[ -n \"${{FERRUM_TES_DOCKER_CLI:-}}\" ] && [ -x \"${{FERRUM_TES_DOCKER_CLI}}\" ] && mkdir -p /tmp/ferrum-bin && ln -sf \"${{FERRUM_TES_DOCKER_CLI}}\" /tmp/ferrum-bin/docker && export PATH=\"/tmp/ferrum-bin:${{PATH}}\"
-export URL
-python3 -c 'import os,urllib.request; urllib.request.urlretrieve(os.environ[\"URL\"],\"workflow.cwl\")'
-if [ -f inputs.json ]; then exec cwltool --quiet workflow.cwl inputs.json; else exec cwltool --quiet workflow.cwl; fi
+RUN_DIR=\"${{FERRUM_WES_HOST_RUN_DIR:-.}}\"
+mkdir -p \"$RUN_DIR/tmp\"
+export TMPDIR=\"$RUN_DIR/tmp\"
+export URL RUN_DIR
+python3 -c 'import os,urllib.request; d=os.environ[\"RUN_DIR\"]; urllib.request.urlretrieve(os.environ[\"URL\"], os.path.join(d,\"workflow.cwl\"))'
+if [ -f \"$RUN_DIR/inputs.json\" ]; then exec cwltool --tmpdir \"$RUN_DIR/tmp\" --outdir \"$RUN_DIR\" --quiet \"$RUN_DIR/workflow.cwl\" \"$RUN_DIR/inputs.json\"; else exec cwltool --tmpdir \"$RUN_DIR/tmp\" --outdir \"$RUN_DIR\" --quiet \"$RUN_DIR/workflow.cwl\"; fi
 "
             ),
             env,
@@ -322,6 +325,12 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
         "FERRUM_WES_WORKFLOW_URL".to_string(),
         run.workflow_url.clone(),
     );
+    if let Some(ref prefix) = host_prefix {
+        base_env.insert(
+            "FERRUM_WES_HOST_RUN_DIR".to_string(),
+            format!("{}/{}", prefix.trim_end_matches('/'), run.run_id),
+        );
+    }
 
     let executor = if wdl_bash && wt == "wdl" {
         TesExecutorBody {
@@ -362,6 +371,9 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
         if let Some(ref wd) = executor_workdir {
             exec.workdir = Some(wd.clone());
         }
+        let mut env = exec.env.take().unwrap_or_else(|| legacy_task_env(wf_url));
+        env.extend(base_env);
+        exec.env = Some(env);
         exec
     };
 
