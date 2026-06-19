@@ -244,7 +244,18 @@ export function CohortDetailPage() {
             </CardHeader>
             <CardContent>
               {samples.length === 0 ? (
-                <p className="text-muted-foreground">{t('cohortDetail.noSamples')}</p>
+                <div className="space-y-3 text-sm">
+                  <p className="font-medium">{t('cohortDetail.emptySamplesTitle')}</p>
+                  <p className="text-muted-foreground">{t('cohortDetail.emptySamplesBody')}</p>
+                  <p className="text-muted-foreground border rounded-md p-3 bg-muted/30">
+                    {t('cohortDetail.emptySamplesSeedHint')}
+                  </p>
+                  <ol className="list-decimal list-inside text-muted-foreground space-y-1">
+                    <li>{t('cohortDetail.emptySamplesStep1')}</li>
+                    <li>{t('cohortDetail.emptySamplesStep2')}</li>
+                    <li>{t('cohortDetail.emptySamplesStep3')}</li>
+                  </ol>
+                </div>
               ) : (
                 <div className="rounded-md border">
                   <table className="w-full text-sm">

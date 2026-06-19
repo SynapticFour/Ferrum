@@ -20,6 +20,8 @@ export interface SanitizedConfig {
     enable_beacon?: boolean;
     enable_passports?: boolean;
     enable_crypt4gh?: boolean;
+    /** Gateway has Crypt4GH key dir — ingest encrypt-on-upload will work. */
+    crypt4gh_ingest_ready?: boolean;
   };
   compute?: { tes_backend?: string; wes_trs_auto_register?: boolean };
   discovery?: {
@@ -46,4 +48,8 @@ export function isNoopExecutor(config?: SanitizedConfig | null): boolean {
   if (!config) return false;
   const backend = config.compute?.tes_backend?.toLowerCase();
   return backend === 'noop';
+}
+
+export function isCrypt4ghIngestReady(config?: SanitizedConfig | null): boolean {
+  return config?.services?.crypt4gh_ingest_ready === true;
 }

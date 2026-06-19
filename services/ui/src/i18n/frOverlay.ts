@@ -31,7 +31,7 @@ export const frOverlay = {
   },
   nav: {
     dashboard: 'Tableau de bord',
-    studySetup: 'Assistant d\'étude',
+    studySetup: 'Configuration guidée',
     workspaces: 'Espaces de travail',
     data: 'Données',
     cohorts: 'Cohortes',
@@ -70,7 +70,7 @@ export const frOverlay = {
     getStarted: 'Premiers pas',
     getStartedHint:
       'Suivez l\'assistant d\'étude ou créez un espace de travail et lancez votre première analyse.',
-    studySetup: 'Assistant d\'étude',
+    studySetup: 'Configuration guidée',
     runWorkflow: 'Lancer une analyse',
   },
   health: {
@@ -132,6 +132,8 @@ export const frOverlay = {
     mimePlaceholder: 'application/octet-stream',
     encryptDefault: 'Chiffrer au téléversement (Crypt4GH)',
     encryptHint: 'Recommandé pour les données génomiques sensibles. Utilise la clé serveur.',
+    encryptPilotUnavailable:
+      'Le chiffrement Crypt4GH au téléversement est prêt pour la production mais n’est pas configuré sur cette pile pilote. Les téléversements sont stockés en clair.',
     objects: 'Vos données',
     objectsHint: 'Fichiers enregistrés et téléversés disponibles pour les analyses.',
     noObjects: 'Aucune donnée pour l\'instant. Téléversez des fichiers ou enregistrez des emplacements existants.',
@@ -198,6 +200,12 @@ export const frOverlay = {
     preview: 'Aperçu',
     previewTruncated: 'Aperçu tronqué',
     previewTooLarge: 'Fichier trop volumineux pour l\'aperçu — utilisez le téléchargement.',
+    previewUrlBacked:
+      'Référence URL externe — l\'aperçu fonctionne uniquement pour les fichiers stockés dans Ferrum (MinIO).',
+    previewStreamFailed: 'Impossible de charger l\'aperçu depuis le stockage.',
+    lineageLoading: 'Chargement de la provenance…',
+    lineageFailed: 'Impossible de charger la provenance.',
+    lineageEmpty: 'Aucun lien de provenance enregistré pour cet objet.',
     useInAnalysis: 'Utiliser dans une analyse',
     storageKind: 'Stockage',
     storageUrl: 'URL enregistrée (non copiée)',
@@ -615,6 +623,12 @@ export const frOverlay = {
     loading: 'Chargement des cohortes…',
     failed: 'Impossible de charger les cohortes',
     empty: 'Aucune cohorte pour l\'instant. Créez-en une pour commencer.',
+    emptyTitle: 'Aucune cohorte pour l\'instant',
+    emptyBody:
+      'Les cohortes regroupent des échantillons et lient chacun à des objets DRS (BAM, VCF, FASTQ). Lancez des workflows sur tous les échantillons en une fois.',
+    emptySeedHint:
+      'Démo locale : après make up-tes, exécutez make seed-pilot pour ajouter un échantillon BAM+VCF réel sur MinIO à demo-cohort-01.',
+    emptyStudyLink: 'Ouvrir la configuration guidée',
     new: 'Nouvelle cohorte',
     cardTitle: 'Cohortes',
     frozen: 'Figée',
@@ -649,6 +663,14 @@ export const frOverlay = {
     samplesTitle: 'Échantillons',
     samplesHint: '{count} échantillon(s). Ajoutez manuellement ou importez une feuille d\'échantillons.',
     noSamples: 'Aucun échantillon dans cette cohorte pour l\'instant.',
+    emptySamplesTitle: 'Aucun échantillon lié',
+    emptySamplesBody:
+      'Ajoutez des échantillons manuellement, importez une feuille CSV (sample_id → objets DRS) ou utilisez l\'assistant de configuration.',
+    emptySamplesSeedHint:
+      'Démo pilote : make seed-pilot ajoute l\'échantillon pilot-demo-01 avec BAM indexé et VCF sur stockage géré.',
+    emptySamplesStep1: 'Importez ou liez des données dans DRS (navigateur de données ou étape 3).',
+    emptySamplesStep2: 'Importez une feuille d\'échantillons ou utilisez Ajouter un échantillon.',
+    emptySamplesStep3: 'Exécuter sur la cohorte lance le workflow pour chaque échantillon.',
     colSampleId: 'Identifiant d\'échantillon',
     colDrs: 'Objets DRS',
     colPhenotype: 'Phénotype',
@@ -656,9 +678,11 @@ export const frOverlay = {
     objectCount: '{count} objet(s)',
   },
   study: {
-    title: 'Assistant d\'étude',
+    title: 'Configuration guidée',
     subtitle:
-      'Parcours aligné GA4GH de la connexion aux résultats : espace de travail → données → outils → cohorte → exécutions.',
+      'Checklist de la connexion aux résultats : espace de travail → données → outils → cohorte → exécutions.',
+    pilotDisclaimer:
+      'Checklist d\'intégration pilote — pas de gestion d\'étude complète. En production, utilisez espaces de travail, DUO/consentement et workflows institut directement.',
     step1: '1. Identité',
     step2: '2. Espace de travail',
     step3: '3. Données',
@@ -797,9 +821,9 @@ export const frOverlay = {
     openFederation: 'Configurer la fédération',
     security: 'Sécurité et calcul',
     recentEvents: 'Événements d\'audit récents (échantillon)',
-    securityHint: 'Journal complet sous Paramètres → Sécurité.',
+    securityHint: 'Événements d’audit et révocation de jetons : Paramètres → Sécurité (visa admin).',
     tesBackend: 'Backend TES',
-    openSecurity: 'Ouvrir le panneau de sécurité',
+    openSecurity: 'Ouvrir le journal d’audit (Paramètres → Sécurité)',
     platformHealth: 'État des services',
   },
   ont: {

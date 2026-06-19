@@ -12,10 +12,11 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { useState } from 'react';
 import { formatBytes } from '@/lib/utils';
 import {
-  canPreviewFile,
+  canStreamPreview,
   downloadWithAuth,
   drsStreamUrl,
   fetchPreviewText,
+  wouldPreviewByType,
 } from '@/lib/filePreview';
 import { StartAnalysisDialog } from '@/components/StartAnalysisDialog';
 
@@ -49,12 +50,20 @@ export function ObjectDetailPage() {
     enabled: !!id,
   });
 
+  const kind = obj ? storageKind(obj) : 'unknown';
   const displayName = obj?.name ?? id;
-  const previewable = obj ? canPreviewFile(displayName, obj.mime_type, obj.size) : false;
+  const previewByType = obj ? wouldPreviewByType(displayName, obj.mime_type, obj.size) : false;
+  const streamPreviewable = obj
+    ? canStreamPreview(kind, displayName, obj.mime_type, obj.size)
+    : false;
 
-  const { data: previewText, isLoading: previewLoading } = useQuery({
+  const {
+    data: previewText,
+    isLoading: previewLoading,
+    error: previewError,
+  } = useQuery({
     queryKey: ['drs', 'object', id, 'preview'],
-    enabled: showPreview && previewable && !!id,
+    enabled: showPreview && streamPreviewable && !!id,
     queryFn: () => fetchPreviewText(drsStreamUrl(id, true), t('object.previewTruncated')),
   });
 
@@ -71,7 +80,6 @@ export function ObjectDetailPage() {
   if (isLoading) return <p className="text-muted-foreground">{t('object.loading')}</p>;
   if (error || !obj) return <p className="text-destructive">{t('object.notFound')}</p>;
 
-  const kind = storageKind(obj);
   const remote = externalUrl(obj);
   const workspaceId = (obj as DrsObject & { workspace_id?: string }).workspace_id ?? 'demo-workspace-01';
 
@@ -93,7 +101,7 @@ export function ObjectDetailPage() {
             initialStep={search.analyze ? 2 : undefined}
             triggerLabelKey="object.useInAnalysis"
           />
-          {previewable && (
+          {streamPreviewable && (
             <Button
               variant="outline"
               size="sm"
@@ -117,7 +125,7 @@ export function ObjectDetailPage() {
         </div>
       </div>
 
-      {showPreview && (
+      {showPreview && streamPreviewable && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t('object.preview')}</CardTitle>
@@ -125,6 +133,8 @@ export function ObjectDetailPage() {
           <CardContent>
             {previewLoading ? (
               <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+            ) : previewError ? (
+              <p className="text-sm text-destructive">{t('object.previewStreamFailed')}</p>
             ) : (
               <pre className="max-h-96 overflow-auto text-xs whitespace-pre-wrap break-all bg-muted/30 rounded p-3">
                 {previewText ?? ''}
@@ -134,7 +144,13 @@ export function ObjectDetailPage() {
         </Card>
       )}
 
-      {!previewable && obj.size != null && obj.size > 256_000 && (
+      {kind === 'url' && previewByType && (
+        <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
+          {t('object.previewUrlBacked')}
+        </p>
+      )}
+
+      {!streamPreviewable && previewByType && obj.size != null && obj.size > 256_000 && (
         <p className="text-xs text-muted-foreground">{t('object.previewTooLarge')}</p>
       )}
 

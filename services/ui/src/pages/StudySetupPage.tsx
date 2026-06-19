@@ -136,6 +136,9 @@ export function StudySetupPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t('study.title')}</h1>
         <p className="text-muted-foreground">{t('study.subtitle')}</p>
+        <p className="mt-3 text-sm border rounded-md p-3 bg-muted/30 text-muted-foreground">
+          {t('study.pilotDisclaimer')}
+        </p>
       </div>
 
       <ol className="flex flex-wrap gap-2 text-xs">

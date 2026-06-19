@@ -149,7 +149,7 @@ export function InsightsPage() {
             <p className="text-muted-foreground">{t('insights.securityHint')}</p>
             <p>{t('insights.tesBackend')}: <code className="text-xs bg-muted px-1">{config?.compute?.tes_backend ?? '—'}</code></p>
             <Button asChild size="sm" variant="outline">
-              <Link to={'/settings' as any}>{t('insights.openSecurity')}</Link>
+              <a href="/settings#security">{t('insights.openSecurity')}</a>
             </Button>
           </CardContent>
         </Card>

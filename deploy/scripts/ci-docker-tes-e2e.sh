@@ -6,8 +6,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BASE="${FERRUM_BASE_URL:-http://localhost:${GATEWAY_PORT:-8080}}"
 PAYLOAD="${TMPDIR:-/tmp}/ferrum-tes-e2e-$$.bin"
-WORKFLOW="$(cat <<'JSON'
-{"workflow_type":"CWL","workflow_type_version":"v1.0","workflow_url":"https://raw.githubusercontent.com/common-workflow-language/user_guide/main/metadata/test_cwl/hello.cwl","workflow_params":{"message":"tes-e2e"}}
+WORKFLOW="$(cat <<JSON
+{"workflow_type":"CWL","workflow_type_version":"v1.0","workflow_url":"https://raw.githubusercontent.com/SynapticFour/Ferrum/main/profiles/pipeline/fixtures/smoke-hello.cwl","workflow_params":{"message":"tes-e2e"}}
 JSON
 )"
 

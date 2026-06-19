@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/api/client';
 import type { ProvenanceGraphResponse } from '@/api/types';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const ProvenanceGraph = lazy(() =>
   import('./ProvenanceGraph').then((m) => ({ default: m.ProvenanceGraph })),
@@ -12,6 +13,7 @@ function nodeId(type: string, id: string): string {
 }
 
 export function ObjectLineageTab({ objectId }: { objectId: string }) {
+  const { t } = useI18n();
   const { data, isLoading, error } = useQuery({
     queryKey: ['drs', 'provenance', objectId],
     queryFn: () =>
@@ -20,9 +22,9 @@ export function ObjectLineageTab({ objectId }: { objectId: string }) {
       ),
   });
 
-  if (isLoading) return <p className="text-muted-foreground">Loading lineage…</p>;
-  if (error) return <p className="text-destructive">Failed to load lineage.</p>;
-  if (!data?.graph) return <p className="text-muted-foreground">No provenance data.</p>;
+  if (isLoading) return <p className="text-muted-foreground">{t('object.lineageLoading')}</p>;
+  if (error) return <p className="text-destructive">{t('object.lineageFailed')}</p>;
+  if (!data?.graph?.nodes?.length) return <p className="text-muted-foreground">{t('object.lineageEmpty')}</p>;
 
   const g = data.graph;
   const nodes = g.nodes.map((n) => ({
@@ -38,7 +40,7 @@ export function ObjectLineageTab({ objectId }: { objectId: string }) {
   }));
 
   return (
-    <Suspense fallback={<p className="text-muted-foreground">Loading graph…</p>}>
+    <Suspense fallback={<p className="text-muted-foreground">{t('object.lineageLoading')}</p>}>
       <ProvenanceGraph
         nodes={nodes}
         edges={edges}

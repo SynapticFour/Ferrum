@@ -91,6 +91,21 @@ pub struct SanitizedServices {
     pub enable_beacon: bool,
     pub enable_passports: bool,
     pub enable_crypt4gh: bool,
+    /// True when a Crypt4GH key directory is configured so ingest can encrypt uploads.
+    pub crypt4gh_ingest_ready: bool,
+}
+
+fn crypt4gh_ingest_ready(c: &ferrum_core::FerrumConfig) -> bool {
+    if std::env::var("FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR")
+        .ok()
+        .is_some_and(|s| !s.trim().is_empty())
+    {
+        return true;
+    }
+    c.encryption
+        .crypt4gh_key_dir
+        .as_ref()
+        .is_some_and(|s| !s.trim().is_empty())
 }
 
 /// POST /admin/tokens/revoke — revoke a token by jti (A07).
@@ -355,6 +370,7 @@ pub fn admin_router(
                 enable_beacon: c.services.enable_beacon,
                 enable_passports: c.services.enable_passports,
                 enable_crypt4gh: c.services.enable_crypt4gh,
+                crypt4gh_ingest_ready: crypt4gh_ingest_ready(c),
             },
             compute: SanitizedCompute {
                 tes_backend,

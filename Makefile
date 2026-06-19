@@ -11,7 +11,7 @@ COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-comp
 FERRUM_WES_TES_WORK_HOST_PREFIX ?= $(CURDIR)/deploy/.wes-runs
 export FERRUM_WES_TES_WORK_HOST_PREFIX
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes test-demo test-tes test-pilot test-pilot-cloud test-federated
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot test-demo test-tes test-pilot test-pilot-cloud test-federated
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -19,6 +19,8 @@ help:
 	@echo ""
 	@echo "  make up        Start demo stack (alias: make demo)"
 	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
+	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF fixtures to MinIO (stack must be running)"
+	@echo "  make smoke-pilot Local smoke after up-tes (health, lineage, preview, cohort, WES)"
 	@echo "  make up-pilot  Start demo + ga4gh-infra with external auth (requires ../ga4gh-infra)"
 	@echo "  make up-pilot-cloud  Local Ferrum + Fly ga4gh-infra/Keycloak (Fly must be running)"
 	@echo "  make down      Stop stack; keep volumes"
@@ -61,6 +63,12 @@ up-tes:
 	@echo "  UI:      http://localhost:$${UI_PORT:-8082}"
 	@echo "  TES:     FERRUM_TES_BACKEND=docker — submit a run and watch docker ps during RUNNING"
 	@command -v open >/dev/null 2>&1 && open "http://localhost:$${UI_PORT:-8082}/" || true
+
+seed-pilot:
+	@bash scripts/seed-pilot-demo.sh
+
+smoke-pilot:
+	@bash scripts/smoke-pilot-local.sh
 
 # Pilot profile: Ferrum + ga4gh-infra AAI (mock-idp). Sibling ga4gh-infra checkout required.
 up-pilot:

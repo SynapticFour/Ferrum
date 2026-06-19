@@ -34,7 +34,7 @@ const deOverlay = {
   },
   nav: {
     dashboard: 'Übersicht',
-    studySetup: 'Studien-Assistent',
+    studySetup: 'Geführte Einrichtung',
     workspaces: 'Arbeitsbereiche',
     data: 'Daten',
     cohorts: 'Kohorten',
@@ -70,8 +70,8 @@ const deOverlay = {
     beaconDiscovery: 'Beacon-Suche',
     systemHealth: 'Systemstatus',
     getStarted: 'Erste Schritte',
-    getStartedHint: 'Folgen Sie dem Studien-Assistenten oder legen Sie einen Arbeitsbereich an und starten Sie Ihre erste Analyse.',
-    studySetup: 'Studien-Assistent',
+    getStartedHint: 'Folgen Sie der geführten Einrichtung oder legen Sie einen Arbeitsbereich an und starten Sie Ihre erste Analyse.',
+    studySetup: 'Geführte Einrichtung',
     runWorkflow: 'Analyse starten',
   },
   health: {
@@ -130,6 +130,8 @@ const deOverlay = {
     mimePlaceholder: 'application/octet-stream',
     encryptDefault: 'Beim Upload verschlüsseln (Crypt4GH)',
     encryptHint: 'Empfohlen für sensible Genomdaten. Nutzt den Server-Schlüssel.',
+    encryptPilotUnavailable:
+      'Crypt4GH-Verschlüsselung beim Upload ist produktionsreif, in dieser Pilot-Umgebung aber nicht angebunden. Uploads werden unverschlüsselt gespeichert.',
     objects: 'Ihre Daten',
     objectsHint: 'Registrierte und hochgeladene Dateien für Analysen.',
     noObjects: 'Noch keine Daten. Laden Sie Dateien hoch oder registrieren Sie bestehende Speicherorte.',
@@ -196,6 +198,12 @@ const deOverlay = {
     preview: 'Vorschau',
     previewTruncated: 'Vorschau gekürzt',
     previewTooLarge: 'Datei zu groß für Vorschau — bitte herunterladen.',
+    previewUrlBacked:
+      'Externe URL-Referenz — Vorschau funktioniert nur für in Ferrum (MinIO) gespeicherte Dateien. Quell-URL öffnen oder herunterladen.',
+    previewStreamFailed: 'Vorschau konnte nicht aus dem Speicher geladen werden.',
+    lineageLoading: 'Herkunft wird geladen…',
+    lineageFailed: 'Herkunft konnte nicht geladen werden.',
+    lineageEmpty: 'Noch keine Provenienz-Verknüpfungen für dieses Objekt.',
     useInAnalysis: 'In Analyse verwenden',
     storageKind: 'Speicher',
     storageUrl: 'Registrierte URL (nicht kopiert)',
@@ -603,6 +611,12 @@ const deOverlay = {
     loading: 'Kohorten werden geladen…',
     failed: 'Kohorten konnten nicht geladen werden',
     empty: 'Noch keine Kohorten. Legen Sie eine an, um zu starten.',
+    emptyTitle: 'Noch keine Kohorten',
+    emptyBody:
+      'Kohorten gruppieren Proben und verknüpfen jede Probe mit DRS-Objekten (BAM, VCF, FASTQ). Damit starten Sie Workflows für alle Proben auf einmal.',
+    emptySeedHint:
+      'Lokale Demo: nach make up-tes optional make seed-pilot ausführen — fügt eine Probe mit echtem BAM+VCF auf MinIO zu demo-cohort-01 hinzu.',
+    emptyStudyLink: 'Geführte Einrichtung öffnen',
     new: 'Neue Kohorte',
     cardTitle: 'Kohorten',
     frozen: 'Eingefroren',
@@ -637,6 +651,14 @@ const deOverlay = {
     samplesTitle: 'Proben',
     samplesHint: '{count} Probe(n). Manuell hinzufügen oder Probentabelle importieren.',
     noSamples: 'Noch keine Proben in dieser Kohorte.',
+    emptySamplesTitle: 'Noch keine Proben verknüpft',
+    emptySamplesBody:
+      'Proben manuell hinzufügen, CSV-Probentabelle importieren (sample_id → DRS-IDs) oder den Einrichtungs-Assistenten nutzen.',
+    emptySamplesSeedHint:
+      'Pilot-Demo: make seed-pilot legt Probe pilot-demo-01 mit indexiertem BAM und VCF auf verwaltetem Speicher an.',
+    emptySamplesStep1: 'Daten in DRS importieren oder verknüpfen (Datenbrowser oder Schritt 3 der Einrichtung).',
+    emptySamplesStep2: 'Probentabelle importieren oder „Probe hinzufügen“ für die Zuordnung zu DRS-Objekten.',
+    emptySamplesStep3: '„Auf Kohorte ausführen“ startet den Workflow pro Probe.',
     colSampleId: 'Proben-ID',
     colDrs: 'DRS-Objekte',
     colPhenotype: 'Phänotyp',
@@ -644,8 +666,10 @@ const deOverlay = {
     objectCount: '{count} Objekt(e)',
   },
   study: {
-    title: 'Studien-Assistent',
-    subtitle: 'GA4GH-orientierter Weg von der Anmeldung bis zu den Ergebnissen: Arbeitsbereich → Daten → Werkzeuge → Kohorte → Läufe.',
+    title: 'Geführte Einrichtung',
+    subtitle: 'Checkliste von der Anmeldung bis zu den Ergebnissen: Arbeitsbereich → Daten → Werkzeuge → Kohorte → Läufe.',
+    pilotDisclaimer:
+      'Pilot-Onboarding-Checkliste — kein vollständiges Studienmanagement. In Produktion nutzen Sie Arbeitsbereiche, DUO/Einwilligung und Instituts-Workflows direkt.',
     step1: '1. Identität',
     step2: '2. Arbeitsbereich',
     step3: '3. Daten',
@@ -777,9 +801,9 @@ const deOverlay = {
     openFederation: 'Föderation konfigurieren',
     security: 'Sicherheit & Compute',
     recentEvents: 'Letzte Audit-Ereignisse (Auszug)',
-    securityHint: 'Vollständiges Protokoll unter Einstellungen → Sicherheit.',
+    securityHint: 'Audit-Ereignisse und Token-Widerruf unter Einstellungen → Sicherheit (Admin-Visa).',
     tesBackend: 'TES-Backend',
-    openSecurity: 'Sicherheitsbereich öffnen',
+    openSecurity: 'Audit-Protokoll öffnen (Einstellungen → Sicherheit)',
     platformHealth: 'Dienststatus',
   },
   ont: {

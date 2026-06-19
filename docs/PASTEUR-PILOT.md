@@ -25,6 +25,9 @@ There is **no web UI on the ga4gh-infra root URL** (API/broker only). End users 
 | **AAI locally (mock-idp)** | `make up-pilot` → `make test-pilot` |
 | **AAI with Fly Keycloak** | `make up-pilot-cloud` → `make test-pilot-cloud` (Fly must be running) |
 | Real workflow compute | `make up-tes` |
+| Optional pilot files (local) | `make seed-pilot` after stack is up — real BAM+VCF on MinIO |
+
+`init-demo.sh` (container init) keeps conformance IDs and honest URL catalog placeholders. **`make seed-pilot`** is optional post-start enrichment: uploads `tiny.bam`, `.bai`, and `tiny.vcf` to MinIO, wires `pilot-demo-01` in `demo-cohort-01`, and adds provenance edges. Idempotent — safe to re-run. Verify with **`make smoke-pilot`**.
 
 Pilot Fly uses **external auth** (`require_auth=true`, clearinghouse). Built-in Ferrum `/passports/v1` is **disabled** on pilot overlays (see ADR-017 / `docs/GA4GH-INFRA-INTEGRATION.md`).
 

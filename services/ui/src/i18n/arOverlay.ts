@@ -31,7 +31,7 @@ export const arOverlay = {
   },
   nav: {
     dashboard: 'لوحة التحكم',
-    studySetup: 'إعداد الدراسة',
+    studySetup: 'إعداد موجّه',
     workspaces: 'مساحات العمل',
     data: 'البيانات',
     cohorts: 'الأفواج',
@@ -69,7 +69,7 @@ export const arOverlay = {
     systemHealth: 'صحة النظام',
     getStarted: 'البدء',
     getStartedHint: 'اتبع معالج إعداد الدراسة أو أنشئ مساحة عمل وابدأ تحليلك الأول.',
-    studySetup: 'إعداد الدراسة الموجّه',
+    studySetup: 'إعداد موجّه',
     runWorkflow: 'تشغيل تحليل',
   },
   health: {
@@ -131,6 +131,8 @@ export const arOverlay = {
     mimePlaceholder: 'application/octet-stream',
     encryptDefault: 'تشفير عند الرفع (Crypt4GH)',
     encryptHint: 'موصى به للبيانات الجينومية الحساسة. يستخدم مفتاح تشفير الخادم.',
+    encryptPilotUnavailable:
+      'تشفير Crypt4GH عند الرفع جاهز للإنتاج لكنه غير مُعدّ في بيئة الطيار هذه. تُخزَّن الملفات دون تشفير.',
     objects: 'بياناتك',
     objectsHint: 'الملفات المسجلة والمرفوعة المتاحة للتحليلات.',
     noObjects: 'لا توجد بيانات بعد. ارفع ملفات أو سجّل مواقع موجودة.',
@@ -197,6 +199,12 @@ export const arOverlay = {
     preview: 'معاينة',
     previewTruncated: 'معاينة مقطوعة',
     previewTooLarge: 'الملف كبير جدًا للمعاينة المضمنة — استخدم التنزيل.',
+    previewUrlBacked:
+      'مرجع URL خارجي — المعاينة المضمنة تعمل فقط للملفات المخزنة في Ferrum (MinIO).',
+    previewStreamFailed: 'تعذر تحميل المعاينة من التخزين.',
+    lineageLoading: 'جارٍ تحميل النسب…',
+    lineageFailed: 'تعذر تحميل النسب.',
+    lineageEmpty: 'لا توجد روابط نسب مسجلة لهذا الكائن بعد.',
     useInAnalysis: 'استخدام في التحليل',
     storageKind: 'التخزين',
     storageUrl: 'URL مسجّل (غير منسوخ)',
@@ -598,6 +606,12 @@ export const arOverlay = {
     loading: 'جارٍ تحميل الأفواج…',
     failed: 'تعذّر تحميل الأفواج',
     empty: 'لا توجد أفواج بعد. أنشئ فوجًا للبدء.',
+    emptyTitle: 'لا توجد أفواج بعد',
+    emptyBody:
+      'تجمع الأفواج العينات وتربط كل عينة بكائنات DRS (BAM وVCF وFASTQ). شغّل سير العمل على كل العينات دفعة واحدة.',
+    emptySeedHint:
+      'عرض محلي: بعد make up-tes نفّذ make seed-pilot لإضافة عينة بـ BAM+VCF حقيقي على MinIO إلى demo-cohort-01.',
+    emptyStudyLink: 'فتح الإعداد الموجّه',
     new: 'فوج جديد',
     cardTitle: 'الأفواج',
     frozen: 'مجمّد',
@@ -632,6 +646,14 @@ export const arOverlay = {
     samplesTitle: 'العينات',
     samplesHint: '{count} عينة. أضف يدويًا أو استورد جدول عينات.',
     noSamples: 'لا توجد عينات في هذا الفوج بعد.',
+    emptySamplesTitle: 'لا توجد عينات مرتبطة بعد',
+    emptySamplesBody:
+      'أضف عينات يدويًا أو استورد جدول CSV (sample_id → كائنات DRS) أو استخدم معالج الإعداد الموجّه.',
+    emptySamplesSeedHint:
+      'عرض تجريبي: make seed-pilot يضيف العينة pilot-demo-01 مع BAM مفهرس وVCF على التخزين المُدار.',
+    emptySamplesStep1: 'استورد أو اربط البيانات في DRS (متصفح البيانات أو الخطوة 3).',
+    emptySamplesStep2: 'استورد جدول عينات أو استخدم إضافة عينة للربط بكائنات DRS.',
+    emptySamplesStep3: 'تشغيل على الفوج ينفّذ سير العمل لكل عينة.',
     colSampleId: 'معرّف العينة',
     colDrs: 'كائنات DRS',
     colPhenotype: 'النمط الظاهري',
@@ -639,8 +661,10 @@ export const arOverlay = {
     objectCount: '{count} كائن',
   },
   study: {
-    title: 'إعداد الدراسة الموجّه',
-    subtitle: 'مسار متوافق مع GA4GH من تسجيل الدخول إلى النتائج: مساحة عمل → بيانات → أدوات → فوج → تشغيلات.',
+    title: 'إعداد موجّه',
+    subtitle: 'قائمة تحقق من تسجيل الدخول إلى النتائج: مساحة عمل → بيانات → أدوات → فوج → تشغيلات.',
+    pilotDisclaimer:
+      'قائمة تحقق للعرض التجريبي — وليست إدارة دراسة كاملة. في الإنتاج استخدم مساحات العمل وDUO/الموافقة وسير عمل المعهد مباشرة.',
     step1: '1. الهوية',
     step2: '2. مساحة العمل',
     step3: '3. البيانات',
@@ -772,9 +796,9 @@ export const arOverlay = {
     openFederation: 'تكوين الاتحاد',
     security: 'الأمان والحوسبة',
     recentEvents: 'أحداث التدقيق الأخيرة (عينة)',
-    securityHint: 'السجل الكامل ضمن الإعدادات → الأمان.',
+    securityHint: 'أحداث التدقيق وإبطال الرموز: الإعدادات → الأمان (تأشيرة المسؤول).',
     tesBackend: 'خلفية TES',
-    openSecurity: 'فتح لوحة الأمان',
+    openSecurity: 'فتح سجل التدقيق (الإعدادات → الأمان)',
     platformHealth: 'صحة الخدمات',
   },
   ont: {

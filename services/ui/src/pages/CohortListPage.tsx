@@ -60,7 +60,21 @@ export function CohortListPage() {
         </CardHeader>
         <CardContent>
           {cohorts.length === 0 ? (
-            <p className="text-muted-foreground">{t('cohortList.empty')}</p>
+            <div className="space-y-3 text-sm">
+              <p className="font-medium">{t('cohortList.emptyTitle')}</p>
+              <p className="text-muted-foreground">{t('cohortList.emptyBody')}</p>
+              <p className="text-muted-foreground border rounded-md p-3 bg-muted/30">
+                {t('cohortList.emptySeedHint')}
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button asChild variant="outline" size="sm">
+                  <Link to={'/study/setup' as any}>{t('cohortList.emptyStudyLink')}</Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link to={'/cohorts/new' as any}>{t('cohortList.new')}</Link>
+                </Button>
+              </div>
+            </div>
           ) : (
             <div className="space-y-2">
               {cohorts.map((c) => (

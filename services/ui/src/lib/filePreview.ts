@@ -12,6 +12,8 @@ export function isPreviewableName(name: string): boolean {
     n.endsWith('.csv') ||
     n.endsWith('.tsv') ||
     n.endsWith('.vcf') ||
+    n.endsWith('.yaml') ||
+    n.endsWith('.yml') ||
     n.endsWith('.cwl') ||
     n.endsWith('.wdl') ||
     n.endsWith('.nf') ||
@@ -29,6 +31,8 @@ export function isPreviewableMime(mime?: string | null): boolean {
     m.startsWith('text/') ||
     m.includes('json') ||
     m.includes('vcf') ||
+    m.includes('yaml') ||
+    m.includes('yml') ||
     m.includes('csv') ||
     m.includes('tab-separated')
   );
@@ -37,6 +41,21 @@ export function isPreviewableMime(mime?: string | null): boolean {
 export function canPreviewFile(name: string, mime?: string | null, size?: number | null): boolean {
   if (size != null && size > PREVIEW_MAX_BYTES) return false;
   return isPreviewableName(name) || isPreviewableMime(mime);
+}
+
+/** True when Ferrum can inline-preview via DRS /stream (managed storage only). */
+export function canStreamPreview(
+  storageKind: 'managed' | 'url' | 'unknown',
+  name: string,
+  mime?: string | null,
+  size?: number | null,
+): boolean {
+  if (storageKind !== 'managed') return false;
+  return canPreviewFile(name, mime, size);
+}
+
+export function wouldPreviewByType(name: string, mime?: string | null, size?: number | null): boolean {
+  return canPreviewFile(name, mime, size);
 }
 
 export function drsStreamUrl(objectId: string, inline = false): string {

@@ -215,9 +215,9 @@ VALUES
   ('test-object-1', 'HelixTest object 1', 'Seed object for HelixTest (DRS + htsget reads/BAM class).', 0, 'application/vnd.ga4gh.bam', false, '[]'::jsonb),
   ('demo-1000genomes-chr22', '1000 Genomes chr22 example', 'Public 1000 Genomes test data (URL)', 0, 'text/plain', false, '[]'::jsonb),
   ('demo-ena-run', 'ENA run XML example', 'European Nucleotide Archive run XML (URL)', 0, 'application/xml', false, '[]'::jsonb),
-  ('demo-ga4gh-sample', 'GA4GH sample metadata example', 'Public sample metadata (URL)', 0, 'application/yaml', false, '[]'::jsonb),
-  ('demo-sample-bam', 'Demo BAM file', 'Example aligned reads (BAM) for demo', 0, 'application/octet-stream', false, '["demo.bam"]'::jsonb),
-  ('demo-sample-vcf', 'Demo VCF file', 'Example variants (VCF) for demo', 0, 'text/vcf', false, '["demo.vcf"]'::jsonb),
+  ('demo-ga4gh-sample', 'GA4GH OpenAPI (URL)', 'External OpenAPI YAML at a public URL — not stored in Ferrum.', 0, 'application/yaml', false, '["openapi.yaml"]'::jsonb),
+  ('demo-sample-bam', 'External alignment README (URL)', 'URL pointer only — not a BAM file. Use make seed-pilot for real pilot files on MinIO.', 0, 'text/plain', false, '[]'::jsonb),
+  ('demo-sample-vcf', 'E2E workflow output (URL)', 'HelixTest/conformance placeholder: HTTPS URL reference, not a stored VCF.', 0, 'text/plain', false, '[]'::jsonb),
   ('demo-bam-to-vcf-demo-bam-to-vcf-1.0-input', 'E2E workflow input', 'DRS object used by HelixTest E2E pipeline as input for demo-bam-to-vcf.', 0, 'application/octet-stream', false, '[]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
@@ -299,7 +299,7 @@ INSERT INTO cohorts (id, name, description, owner_sub, workspace_id, sample_coun
 VALUES (
   'demo-cohort-01',
   'Demo cohort',
-  'Two public-reference samples for trying cohort views and analyses.',
+  'Pilot samples: microbench object plus optional URL catalog references. Run make seed-pilot for real VCF/BAM on MinIO.',
   'demo-user',
   'demo-workspace-01',
   2,
@@ -310,10 +310,10 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO cohort_samples (id, cohort_id, sample_id, drs_object_ids, phenotype, added_by)
 VALUES
   (
-    'demo-sample-na12878',
+    'NA12878',
     'demo-cohort-01',
     'NA12878',
-    '["demo-sample-bam","demo-sample-vcf"]'::jsonb,
+    '["microbench-plain-v1"]'::jsonb,
     '{"sex":"female","ancestry":"CEU","sequencing_type":"WGS"}'::jsonb,
     'demo-user'
   ),
@@ -663,6 +663,13 @@ WHERE run_id = 'demo-run-seed-01' AND (outputs IS NULL OR outputs = '{}'::jsonb)
 INSERT INTO workspace_activity (id, workspace_id, sub, action, resource_type, resource_id, details)
 VALUES
   ('act-demo-3', 'demo-workspace-01', 'demo-user', 'run.completed', 'wes_run', 'demo-run-seed-01', '{"workflow":"tiny_hc.wdl"}'::jsonb)
+ON CONFLICT (id) DO NOTHING;
+
+-- Lineage graph for UI (demo run consumed microbench, produced E2E URL output object)
+INSERT INTO provenance_edges (id, from_type, from_id, to_type, to_id, edge_type, metadata)
+VALUES
+  ('prov-seed-in-01', 'drs_object', 'microbench-plain-v1', 'wes_run', 'demo-run-seed-01', 'input', '{}'::jsonb),
+  ('prov-seed-out-01', 'wes_run', 'demo-run-seed-01', 'drs_object', 'demo-sample-vcf', 'output', '{}'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 WSRECON
 

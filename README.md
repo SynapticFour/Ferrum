@@ -177,6 +177,9 @@ From a clone (without the `ferrum` CLI installer), the same stack is available v
 
 ```bash
 make up      # start demo (alias: make demo)
+make up-tes  # demo + Docker-backed TES (real WES lifecycle locally)
+make seed-pilot   # optional: real BAM+VCF on MinIO (after stack is up)
+make smoke-pilot  # smoke: lineage, preview, cohort, WES submit
 make down    # stop; keep volumes
 make destroy # stop; remove volumes and project images
 ```

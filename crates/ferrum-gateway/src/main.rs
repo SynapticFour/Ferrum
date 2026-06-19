@@ -448,6 +448,10 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         })
     });
 
+    #[cfg(feature = "full")]
+    let provenance_store: Option<Arc<ferrum_core::ProvenanceStore>> =
+        pg_pool.clone().map(|pool| Arc::new(ferrum_core::ProvenanceStore::new(pool)));
+
     let drs_state: Option<ferrum_drs::AppState> = if let Some(ref pool) = ferrum_pool {
         let repo = Arc::new(ferrum_drs::repo::DrsRepo::new(
             pool.clone(),
@@ -492,7 +496,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             repo,
             storage,
             s3_presigner: None,
-            provenance_store: None,
+            provenance_store: provenance_store.clone(),
             crypt4gh_key_dir,
             crypt4gh_master_key_id,
             crypt4gh_decrypt_stream,
@@ -581,7 +585,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             Some(work_dir),
             Some(tes_url),
             trs_url,
-            None,
+            provenance_store.clone(),
             None,
             None,
             None,

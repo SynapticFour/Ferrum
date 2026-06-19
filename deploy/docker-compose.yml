@@ -102,8 +102,8 @@ services:
       FERRUM_AUTH__REQUIRE_AUTH: "${FERRUM_AUTH__REQUIRE_AUTH:-false}"
       FERRUM_AUTH__JWT_SECRET: "${FERRUM_AUTH__JWT_SECRET:-}"
       FERRUM_AUTH__ISSUER: "${FERRUM_AUTH__ISSUER:-}"
-      # htsget ticket URLs (DRS /stream); CI sets http://localhost:8080 — omit locally to use https://{FERRUM_DRS_HOSTNAME}
-      FERRUM_PUBLIC_BASE_URL: "${FERRUM_PUBLIC_BASE_URL:-}"
+      # WES→TES, htsget tickets, DRS self-URIs — must match the host:port clients use (not https://localhost).
+      FERRUM_PUBLIC_BASE_URL: "${FERRUM_PUBLIC_BASE_URL:-http://localhost:8080}"
       FERRUM_WES_TRS_AUTO_REGISTER: "${FERRUM_WES_TRS_AUTO_REGISTER:-true}"
       # Service discovery: resolve TES/TRS via registry when co-deployed; fall back to local gateway paths.
       FERRUM_DISCOVERY__ENABLED: "${FERRUM_DISCOVERY__ENABLED:-true}"

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,9 +18,18 @@ interface CacheStats {
   top_cached_tasks?: Array<{ task_name: string; hits: number; size_gb: number }>;
 }
 
+const SETTINGS_TABS = ['config', 'storage', 'keys', 'cache', 'federation', 'security', 'profile'] as const;
+
+function tabFromHash(): (typeof SETTINGS_TABS)[number] {
+  if (typeof window === 'undefined') return 'config';
+  const h = window.location.hash.replace('#', '');
+  return (SETTINGS_TABS as readonly string[]).includes(h) ? (h as (typeof SETTINGS_TABS)[number]) : 'config';
+}
+
 export function Settings() {
   const { t } = useI18n();
   const { data: config, isLoading: configLoading, error: configError } = useAdminConfig();
+  const [activeTab, setActiveTab] = useState<(typeof SETTINGS_TABS)[number]>(tabFromHash);
   const { data: cacheStats } = useQuery({
     queryKey: ['wes', 'cache', 'stats'],
     queryFn: () => apiGet<CacheStats>('/ga4gh/wes/v1/cache/stats'),
@@ -31,9 +41,12 @@ export function Settings() {
   const db = config?.database;
   const services = config?.services;
 
-  const hashTab =
-    typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
-  const defaultTab = ['federation', 'security', 'profile'].includes(hashTab) ? hashTab : 'config';
+  useEffect(() => {
+    const sync = () => setActiveTab(tabFromHash());
+    sync();
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -44,7 +57,14 @@ export function Settings() {
 
       <DemoModeNote />
 
-      <Tabs defaultValue={defaultTab}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          const tab = v as (typeof SETTINGS_TABS)[number];
+          setActiveTab(tab);
+          window.location.hash = tab;
+        }}
+      >
         <TabsList>
           <TabsTrigger value="config">{t('settings.server')}</TabsTrigger>
           <TabsTrigger value="storage">{t('settings.storage')}</TabsTrigger>

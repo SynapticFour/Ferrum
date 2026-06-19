@@ -31,7 +31,7 @@ export const en = {
   },
     nav: {
     dashboard: 'Dashboard',
-    studySetup: 'Study setup',
+    studySetup: 'Guided setup',
     workspaces: 'Workspaces',
     data: 'Data',
     cohorts: 'Cohorts',
@@ -68,7 +68,7 @@ export const en = {
     systemHealth: 'System health',
     getStarted: 'Get started',
     getStartedHint: 'Follow the guided study setup or create a workspace and submit your first analysis.',
-    studySetup: 'Guided study setup',
+    studySetup: 'Guided setup',
     runWorkflow: 'Run analysis',
   },
   health: {
@@ -128,6 +128,8 @@ export const en = {
     mimePlaceholder: 'application/octet-stream',
     encryptDefault: 'Encrypt on upload (Crypt4GH)',
     encryptHint: 'Recommended for sensitive genomics data. Uses the server encryption key.',
+    encryptPilotUnavailable:
+      'Crypt4GH encrypt-on-upload is production-ready but not configured on this pilot stack. Uploads are stored in plaintext.',
     objects: 'Your data',
     objectsHint: 'Registered and uploaded files available for analyses.',
     noObjects: 'No data yet. Upload files or add existing locations to get started.',
@@ -216,6 +218,12 @@ export const en = {
     preview: 'Preview',
     previewTruncated: 'Preview truncated',
     previewTooLarge: 'File is too large for inline preview — use download.',
+    previewUrlBacked:
+      'This object is an external URL reference. Inline preview only works for files stored in Ferrum (MinIO). Open the source URL or download instead.',
+    previewStreamFailed: 'Could not load preview from storage.',
+    lineageLoading: 'Loading lineage…',
+    lineageFailed: 'Could not load lineage.',
+    lineageEmpty: 'No provenance links recorded for this object yet.',
     useInAnalysis: 'Use in analysis',
     storageKind: 'Storage',
     storageUrl: 'Registered URL (not copied)',
@@ -473,6 +481,12 @@ export const en = {
     loading: 'Loading cohorts…',
     failed: 'Failed to load cohorts',
     empty: 'No cohorts yet. Create one to get started.',
+    emptyTitle: 'No cohorts yet',
+    emptyBody:
+      'Cohorts group samples and link each sample to DRS objects (BAM, VCF, FASTQ). Use them to run workflows on every sample at once.',
+    emptySeedHint:
+      'Local demo: run make seed-pilot after make up-tes to add a sample with real BAM+VCF on MinIO to demo-cohort-01.',
+    emptyStudyLink: 'Open guided setup',
     new: 'New cohort',
     cardTitle: 'Cohorts',
     frozen: 'Frozen',
@@ -507,6 +521,14 @@ export const en = {
     samplesTitle: 'Samples',
     samplesHint: '{count} sample(s). Add manually or import a sample sheet.',
     noSamples: 'No samples in this cohort yet.',
+    emptySamplesTitle: 'No samples linked yet',
+    emptySamplesBody:
+      'Add samples manually, import a CSV sample sheet (sample_id → DRS object IDs), or use the guided setup wizard.',
+    emptySamplesSeedHint:
+      'Pilot demo: make seed-pilot adds sample pilot-demo-01 with indexed BAM and VCF on managed storage.',
+    emptySamplesStep1: 'Import or link data in DRS (Data browser or guided setup step 3).',
+    emptySamplesStep2: 'Import a sample sheet or use Add sample to map sample IDs to DRS objects.',
+    emptySamplesStep3: 'Run on cohort to execute a workflow once per sample.',
     colSampleId: 'Sample ID',
     colDrs: 'DRS objects',
     colPhenotype: 'Phenotype',
@@ -643,7 +665,7 @@ export const en = {
     importSheetTitle: 'Import sample sheet',
     importSheetHint: 'Upload CSV or TSV (Excel: Save As → CSV). Columns: sample_id, drs_object_id or drs_name, sex, sequencing_type, …',
     chooseSheet: 'Choose CSV / TSV file',
-    sheetExample: 'sample_id,drs_object_id,sex,sequencing_type\nNA12878,demo-sample-bam,female,WGS\nSAMPLE02,demo-sample-vcf,,WES',
+    sheetExample: 'sample_id,drs_object_id,sex,sequencing_type\npilot-demo-01,pilot-demo-vcf,female,WGS\nSAMPLE02,microbench-plain-v1,,benchmark',
     importSheetConfirm: 'Import {count} sample(s)',
     sheetEmpty: 'No valid rows in sheet.',
     sheetParseError: 'Could not parse sheet.',
@@ -656,8 +678,10 @@ export const en = {
     runMissingData: 'Sample {sample} missing DRS data for: {fields}',
   },
   study: {
-    title: 'Guided study setup',
-    subtitle: 'GA4GH-aligned path from login to results: workspace → data → tools → cohort → runs.',
+    title: 'Guided setup',
+    subtitle: 'Checklist from login to results: workspace → data → tools → cohort → runs.',
+    pilotDisclaimer:
+      'Pilot onboarding checklist — not full study management. For production studies you will use workspaces, DUO/consent, and institute workflows directly.',
     step1: '1. Identity',
     step2: '2. Workspace',
     step3: '3. Data',
@@ -791,9 +815,9 @@ export const en = {
     openFederation: 'Configure federation',
     security: 'Security & compute',
     recentEvents: 'Recent audit events (sample)',
-    securityHint: 'Full log under Settings → Security. Requires admin visa.',
+    securityHint: 'Audit events and token revoke live under Settings → Security (admin visa).',
     tesBackend: 'TES backend',
-    openSecurity: 'Open security panel',
+    openSecurity: 'Open audit log (Settings → Security)',
     platformHealth: 'Service health',
   },
   ont: {

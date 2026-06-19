@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiPost, apiPostFormData } from '@/api/client';
-import { useAdminConfig } from '@/hooks/useAdminConfig';
+import { useAdminConfig, isCrypt4ghIngestReady } from '@/hooks/useAdminConfig';
 import { useIngestJobPoller } from '@/hooks/useIngestJobs';
 import { useIngestJobsStore, type IngestJobKind } from '@/stores/ingestJobs';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -20,6 +20,7 @@ import { decodeJwtPayload } from '@/lib/auth';
 import { ingestClientRequestId } from '@/lib/ingestClientRequestId';
 import { useAuthStore } from '@/stores/auth';
 import { Database, Loader2, Upload } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface IngestJobResponse {
   job_id: string;
@@ -74,7 +75,14 @@ export function ImportToDrsDialog({
   activeJobIdRef.current = activeJobId;
 
   const defaultBackend = config?.storage?.backend ?? 'local';
+  const crypt4ghIngestReady = isCrypt4ghIngestReady(config);
   const workspaceToLink = alsoLinkWorkspace ? linkToWorkspaceId : undefined;
+
+  useEffect(() => {
+    if (config && !crypt4ghIngestReady) {
+      setEncryptUpload(false);
+    }
+  }, [config, crypt4ghIngestReady]);
 
   const finishImport = async (objectId: string) => {
     if (workspaceToLink) {
@@ -244,15 +252,24 @@ export function ImportToDrsDialog({
               {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               {t('data.upload')}
             </Button>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <label
+              className={cn(
+                'flex items-center gap-2 text-sm',
+                !crypt4ghIngestReady ? 'cursor-not-allowed opacity-50' : 'cursor-pointer text-muted-foreground',
+              )}
+            >
               <input
                 type="checkbox"
                 checked={encryptUpload}
+                disabled={!crypt4ghIngestReady || pending}
                 onChange={(e) => setEncryptUpload(e.target.checked)}
-                className="rounded border-border"
+                className="rounded border-border disabled:cursor-not-allowed"
               />
               {t('data.encryptDefault')}
             </label>
+            {!crypt4ghIngestReady && (
+              <p className="text-xs text-muted-foreground">{t('data.encryptPilotUnavailable')}</p>
+            )}
           </TabsContent>
           <TabsContent value="url" className="space-y-3 pt-2">
             <div className="space-y-2">
