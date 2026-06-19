@@ -193,7 +193,7 @@ jobs:
     if: github.actor != 'dependabot[bot]'
     name: Docker TES + pilot smoke (WES COMPLETE)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/clone-ga4gh-infra

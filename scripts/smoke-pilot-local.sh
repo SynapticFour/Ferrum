@@ -216,4 +216,95 @@ case "$state" in
     ;;
 esac
 
+SMOKE_GERMLINE="${SMOKE_GERMLINE:-1}"
+if [[ "$SMOKE_GERMLINE" == "1" ]]; then
+  echo "smoke-pilot-local: germline WES (TinyGermlineHC)"
+  germline_json="$(curl -fsS "$BASE_URL/ga4gh/drs/v1/objects" | python3 -c "
+import json, os, sys, urllib.request
+
+base = os.environ['TES_BASE']
+objs = json.load(sys.stdin)
+by_name = {o.get('name'): o['id'] for o in objs}
+
+def stream(name):
+    oid = by_name.get(name)
+    if not oid:
+        raise SystemExit(f'missing object: {name}')
+    return f\"{base}/ga4gh/drs/v1/objects/{oid}/stream\"
+
+need = [
+    'Pilot demo BAM (MinIO)',
+    'Pilot demo BAM index (MinIO)',
+    'Pilot reference FASTA (MinIO)',
+    'Pilot reference FASTA index (MinIO)',
+    'Pilot truth VCF (MinIO)',
+    'Pilot truth VCF index (MinIO)',
+]
+for n in need:
+    if n not in by_name:
+        raise SystemExit(f'missing pilot object: {n}')
+
+params = {
+    'TinyGermlineHC.input_bam': stream('Pilot demo BAM (MinIO)'),
+    'TinyGermlineHC.input_bam_index': stream('Pilot demo BAM index (MinIO)'),
+    'TinyGermlineHC.ref_fasta': stream('Pilot reference FASTA (MinIO)'),
+    'TinyGermlineHC.ref_fasta_index': stream('Pilot reference FASTA index (MinIO)'),
+    'TinyGermlineHC.truth_vcf': stream('Pilot truth VCF (MinIO)'),
+    'TinyGermlineHC.truth_vcf_index': stream('Pilot truth VCF index (MinIO)'),
+    'TinyGermlineHC.interval': '22:1700-2300',
+}
+body = {
+    'workflow_type': 'WDL',
+    'workflow_type_version': '1.0',
+    'workflow_url': 'https://raw.githubusercontent.com/SynapticFour/Ferrum-GA4GH-Demo/main/workflows/tiny_hc.wdl',
+    'workflow_params': params,
+}
+print(json.dumps(body))
+" TES_BASE="$TES_BASE")" || die "germline param wiring failed"
+
+  germline_run="$(curl -fsS -H 'Content-Type: application/json' -d "$germline_json" "$BASE_URL/ga4gh/wes/v1/runs")"
+  germline_id="$(printf '%s' "$germline_run" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("run_id",""))')"
+  [[ -n "$germline_id" ]] || die "germline WES submit failed: $germline_run"
+  ok "germline WES run $germline_id"
+
+  g_state=""
+  g_poll=90
+  if [[ "${SMOKE_REQUIRE_COMPLETE:-}" == "1" || -n "${GITHUB_ACTIONS:-}" ]]; then
+    g_poll=200
+  fi
+  for _ in $(seq 1 "$g_poll"); do
+    g_state="$(curl -fsS "$BASE_URL/ga4gh/wes/v1/runs/${germline_id}/status" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("state",""))' 2>/dev/null || true)"
+    case "$g_state" in
+      COMPLETE|CANCELED|EXECUTOR_ERROR|SYSTEM_ERROR) break ;;
+    esac
+    sleep 3
+  done
+  case "$g_state" in
+    COMPLETE)
+      ok "germline WES run reached COMPLETE"
+      ;;
+    EXECUTOR_ERROR|SYSTEM_ERROR)
+      task_id="$(curl -fsS "$BASE_URL/ga4gh/tes/v1/tasks?limit=3" | python3 -c "import sys,json; t=json.load(sys.stdin).get('tasks',[]); print(t[0]['id'] if t else '')" 2>/dev/null || true)"
+      stderr=""
+      if [[ -n "$task_id" ]]; then
+        stderr="$(curl -fsS "$BASE_URL/ga4gh/tes/v1/tasks/${task_id}" | python3 -c "import sys,json; logs=json.load(sys.stdin).get('logs',[]); print(logs[0].get('stderr','') if logs else '')" 2>/dev/null || true)"
+      fi
+      if [[ "${SMOKE_REQUIRE_COMPLETE:-}" == "1" || -n "${GITHUB_ACTIONS:-}" ]]; then
+        die "germline WES run $g_state (CI requires COMPLETE) — $stderr"
+      fi
+      if printf '%s' "$stderr" | grep -qE 'host_mnt|invalid mount config'; then
+        ok "germline submit OK; nested docker bind limits on this host ($g_state)"
+      else
+        ok "germline submit OK; state=$g_state (see TES logs for GATK pull/runtime)"
+      fi
+      ;;
+    *)
+      if [[ "${SMOKE_REQUIRE_COMPLETE:-}" == "1" || -n "${GITHUB_ACTIONS:-}" ]]; then
+        die "germline WES unexpected state=$g_state"
+      fi
+      ok "germline WES state=$g_state (non-fatal on local Mac)"
+      ;;
+  esac
+fi
+
 echo "smoke-pilot-local: all checks passed"

@@ -29,6 +29,8 @@ import {
   buildFlatWorkflowParams,
   drsStreamUrl,
   resolvePerSampleFileParams,
+  resolveSharedFileFormValues,
+  resolveSharedFileParams,
   submitWorkflowRun,
 } from '@/lib/wesSubmit';
 import { isPerSampleFileInput } from '@/lib/wdlInputs';
@@ -85,6 +87,7 @@ export function StartAnalysisDialog({
   const [selectedObject, setSelectedObject] = useState<DrsObject | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
+  const [fileLabels, setFileLabels] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
 
@@ -120,6 +123,15 @@ export function StartAnalysisDialog({
     queryFn: () =>
       apiGet<DrsObject>(`/ga4gh/drs/v1/objects/${encodeURIComponent(defaultDrsObjectId!)}`),
     enabled: !!defaultDrsObjectId,
+  });
+
+  const { data: workspaceObjects } = useQuery({
+    queryKey: ['drs', 'workspace', workspaceId, 'analysis-wizard'],
+    queryFn: () =>
+      apiGet<DrsObject[]>(
+        `/ga4gh/drs/v1/objects?workspace_id=${encodeURIComponent(workspaceId)}&limit=200`,
+      ),
+    enabled: open,
   });
 
   const { data: drsObjects } = useQuery({
@@ -163,10 +175,22 @@ export function StartAnalysisDialog({
   }, [defaultDrsObjectId, drsLookup]);
 
   useEffect(() => {
-    if (wdlParsed?.inputs.length) {
-      setParamValues(initParamValues(wdlParsed.inputs, inputMode === 'cohort'));
+    if (!wdlParsed?.inputs.length) return;
+    const hidePerSample = inputMode === 'cohort';
+    const base = initParamValues(wdlParsed.inputs, hidePerSample);
+    if (inputMode === 'cohort') {
+      const fileInputs = wdlParsed.inputs.filter((i) => i.wdlType === 'File');
+      const ws = Array.isArray(workspaceObjects) ? workspaceObjects : [];
+      const { values: shared, labels } = ws.length
+        ? resolveSharedFileFormValues(fileInputs, ws)
+        : { values: {} as Record<string, string>, labels: {} as Record<string, string> };
+      setParamValues({ ...base, ...shared });
+      setFileLabels(labels);
+      return;
     }
-  }, [wdlParsed?.workflowName, wdlParsed?.inputs.length, inputMode]);
+    setParamValues(base);
+    setFileLabels({});
+  }, [wdlParsed?.workflowName, wdlParsed?.inputs, inputMode, workspaceObjects]);
 
   useEffect(() => {
     if (!selectedObject || !wdlParsed?.inputs.length) return;
@@ -206,11 +230,28 @@ export function StartAnalysisDialog({
         CURATED_WORKFLOWS.find((c) => c.id === curatedId)?.paramPrefix ??
         'Workflow';
       const sharedParams = buildFlatWorkflowParams(workflowName, paramValues);
+      const fileInputs = wdlParsed?.inputs.filter((i) => i.wdlType === 'File') ?? [];
 
       if (inputMode === 'cohort') {
         if (!cohortId) throw new Error(t('analysisWizard.noCohortSelected'));
         if (!samples.length) throw new Error(t('cohort.runNoSamples'));
-        const fileInputs = wdlParsed?.inputs.filter((i) => i.wdlType === 'File') ?? [];
+        const ws = Array.isArray(workspaceObjects) ? workspaceObjects : [];
+        const autoShared = ws.length
+          ? resolveSharedFileParams(workflowName, fileInputs, ws)
+          : {};
+        const mergedShared = { ...autoShared, ...sharedParams };
+        const missingShared = fileInputs.filter(
+          (inp) =>
+            !isPerSampleFileInput(inp.name) &&
+            !mergedShared[`${workflowName}.${inp.name}`],
+        );
+        if (missingShared.length) {
+          throw new Error(
+            t('cohort.runMissingShared', {
+              fields: missingShared.map((m) => m.name).join(', '),
+            }),
+          );
+        }
         const runIds: string[] = [];
         for (let i = 0; i < samples.length; i++) {
           const sample = samples[i];
@@ -227,7 +268,7 @@ export function StartAnalysisDialog({
             sample.drs_object_ids ?? [],
             drsLookup,
           );
-          const workflow_params = { ...sharedParams, ...perSample };
+          const workflow_params = { ...mergedShared, ...perSample };
           const missing = fileInputs.filter(
             (inp) =>
               isPerSampleFileInput(inp.name) &&
@@ -435,6 +476,7 @@ export function StartAnalysisDialog({
                   values={paramValues}
                   onChange={setParamValues}
                   hidePerSampleFiles={inputMode === 'cohort'}
+                  fileLabels={fileLabels}
                 />
               )}
               {progress && <p className="text-sm text-muted-foreground">{progress}</p>}

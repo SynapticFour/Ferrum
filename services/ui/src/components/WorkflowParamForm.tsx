@@ -20,6 +20,8 @@ interface WorkflowParamFormProps {
   onChange: (values: Record<string, string>) => void;
   /** Hide per-sample File inputs (filled automatically in cohort batch runs). */
   hidePerSampleFiles?: boolean;
+  /** Optional display labels for File inputs (e.g. DRS object name). */
+  fileLabels?: Record<string, string>;
 }
 
 export function WorkflowParamForm({
@@ -28,6 +30,7 @@ export function WorkflowParamForm({
   values,
   onChange,
   hidePerSampleFiles = false,
+  fileLabels = {},
 }: WorkflowParamFormProps) {
   const { t } = useI18n();
   const [pickerFor, setPickerFor] = useState<string | null>(null);
@@ -56,6 +59,9 @@ export function WorkflowParamForm({
       {visible.map((inp) => {
         const id = `wf-param-${inp.name}`;
         const val = values[inp.name] ?? defaultValueForInput(inp);
+        const display =
+          fileLabels[inp.name] ||
+          (val.startsWith('http') ? (val.match(/\/objects\/([^/]+)\/stream/)?.[1] ?? val.split('/').pop() ?? val) : val);
         if (inp.wdlType === 'File') {
           return (
             <div key={inp.name} className="space-y-1">
@@ -67,7 +73,7 @@ export function WorkflowParamForm({
                 <Input
                   id={id}
                   readOnly
-                  value={val.startsWith('http') ? val.split('/').pop() ?? val : val}
+                  value={display}
                   placeholder={t('workflows.pickData')}
                 />
                 <Button type="button" variant="outline" size="icon" onClick={() => setPickerFor(inp.name)}>

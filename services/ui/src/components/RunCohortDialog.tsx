@@ -27,6 +27,8 @@ import type { DrsObject } from '@/api/types';
 import {
   buildFlatWorkflowParams,
   resolvePerSampleFileParams,
+  resolveSharedFileFormValues,
+  resolveSharedFileParams,
   submitWorkflowRun,
 } from '@/lib/wesSubmit';
 import { isPerSampleFileInput } from '@/lib/wdlInputs';
@@ -73,6 +75,7 @@ export function RunCohortDialog({
   const [workflowUrl, setWorkflowUrl] = useState(CURATED_WORKFLOWS[0]?.workflowUrl ?? '');
   const [workflowType, setWorkflowType] = useState('WDL');
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
+  const [fileLabels, setFileLabels] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
 
@@ -97,6 +100,15 @@ export function RunCohortDialog({
     return m;
   }, [drsObjects]);
 
+  const { data: workspaceObjects } = useQuery({
+    queryKey: ['drs', 'workspace', workspaceId, 'cohort-run'],
+    queryFn: () =>
+      apiGet<DrsObject[]>(
+        `/ga4gh/drs/v1/objects?workspace_id=${encodeURIComponent(workspaceId!)}&limit=200`,
+      ),
+    enabled: open && !!workspaceId,
+  });
+
   const { data: trsTools } = useQuery({
     queryKey: ['trs', 'tools', 'cohort-run'],
     queryFn: () => apiGet<Array<{ id: string; name?: string; versions?: Array<{ id: string }> }>>('/ga4gh/trs/v2/tools'),
@@ -118,11 +130,23 @@ export function RunCohortDialog({
     return hits;
   }, [samples, drsLookup]);
 
+  const sharedAutoCount = useMemo(() => {
+    if (!wdlParsed?.inputs.length || !workspaceObjects?.length) return 0;
+    const fileInputs = wdlParsed.inputs.filter((i) => i.wdlType === 'File');
+    return Object.keys(resolveSharedFileFormValues(fileInputs, workspaceObjects).values).length;
+  }, [wdlParsed, workspaceObjects]);
+
   useEffect(() => {
-    if (wdlParsed?.inputs.length) {
-      setParamValues(initParamValues(wdlParsed.inputs, true));
-    }
-  }, [wdlParsed?.workflowName, wdlParsed?.inputs.length]);
+    if (!wdlParsed?.inputs.length) return;
+    const base = initParamValues(wdlParsed.inputs, true);
+    const fileInputs = wdlParsed.inputs.filter((i) => i.wdlType === 'File');
+    const ws = Array.isArray(workspaceObjects) ? workspaceObjects : [];
+    const { values: shared, labels } = ws.length
+      ? resolveSharedFileFormValues(fileInputs, ws)
+      : { values: {} as Record<string, string>, labels: {} as Record<string, string> };
+    setParamValues({ ...base, ...shared });
+    setFileLabels(labels);
+  }, [wdlParsed?.workflowName, wdlParsed?.inputs, workspaceObjects, workspaceId]);
 
   const applyCurated = (id: string) => {
     const wf = CURATED_WORKFLOWS.find((c) => c.id === id);
@@ -152,9 +176,27 @@ export function RunCohortDialog({
         wdlParsed?.workflowName ??
         CURATED_WORKFLOWS.find((c) => c.id === curatedId)?.paramPrefix ??
         'Workflow';
-      const sharedParams = buildFlatWorkflowParams(workflowName, paramValues);
       const fileInputs = wdlParsed?.inputs.filter((i) => i.wdlType === 'File') ?? [];
+      const sharedParams = buildFlatWorkflowParams(workflowName, paramValues);
+      const ws = Array.isArray(workspaceObjects) ? workspaceObjects : [];
+      const autoShared = ws.length
+        ? resolveSharedFileParams(workflowName, fileInputs, ws)
+        : {};
+      const mergedShared = { ...autoShared, ...sharedParams };
       const runIds: string[] = [];
+
+      const missingShared = fileInputs.filter(
+        (inp) =>
+          !isPerSampleFileInput(inp.name) &&
+          !mergedShared[`${workflowName}.${inp.name}`],
+      );
+      if (missingShared.length) {
+        throw new Error(
+          t('cohort.runMissingShared', {
+            fields: missingShared.map((m) => m.name).join(', '),
+          }),
+        );
+      }
 
       for (let i = 0; i < samples.length; i++) {
         const sample = samples[i];
@@ -171,7 +213,7 @@ export function RunCohortDialog({
           sample.drs_object_ids ?? [],
           drsLookup,
         );
-        const workflow_params = { ...sharedParams, ...perSample };
+        const workflow_params = { ...mergedShared, ...perSample };
         const missing = fileInputs.filter(
           (inp) =>
             isPerSampleFileInput(inp.name) &&
@@ -275,7 +317,12 @@ export function RunCohortDialog({
             values={paramValues}
             onChange={setParamValues}
             hidePerSampleFiles
+            fileLabels={fileLabels}
           />
+        )}
+
+        {sharedAutoCount > 0 && (
+          <p className="text-xs text-muted-foreground">{t('cohort.runSharedAutoFilled', { count: String(sharedAutoCount) })}</p>
         )}
 
         {urlBackedSamples.length > 0 && (

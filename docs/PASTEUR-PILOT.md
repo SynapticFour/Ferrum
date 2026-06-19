@@ -30,7 +30,7 @@ There is **no web UI on the ga4gh-infra root URL** (API/broker only). End users 
 
 `init-demo.sh` (container init) keeps conformance IDs and honest URL catalog placeholders. **`make seed-pilot`** is optional post-start enrichment: uploads `tiny.bam`, `.bai`, `tiny.vcf`, and a **TinyGermlineHC reference bundle** (`pilot-ref.fa`, truth `.vcf.gz`/`.tbi`) to MinIO, wires `pilot-demo-01` in `demo-cohort-01`, and adds provenance edges. Build fixtures first if missing: `bash profiles/pipeline/fixtures/build-pilot-ref-bundle.sh` and `build-tiny-bam.sh`. Idempotent — safe to re-run. Verify with **`make smoke-pilot`**.
 
-`make up-tes` enables `FERRUM_TES_DOCKER_MOUNT_SOCKET` and passes the host `docker` CLI into cwltool tasks. On **Docker Desktop Mac**, nested `docker run` bind paths may still fail (`host_mnt`); **Linux CI** runs `make test-tes` + `make smoke-pilot` with `SMOKE_REQUIRE_COMPLETE=1` (see CI job `test-tes`).
+`make up-tes` enables `FERRUM_TES_DOCKER_MOUNT_SOCKET` and passes the host `docker` CLI into cwltool tasks. On **Docker Desktop Mac**, nested `docker run` bind paths may still fail (`host_mnt`); **Linux CI** runs `make test-tes` + `make smoke-pilot` with `SMOKE_REQUIRE_COMPLETE=1` (see CI job `test-tes`). Smoke includes optional **TinyGermlineHC** submit when `SMOKE_GERMLINE=1` (default).
 
 Pilot Fly uses **external auth** (`require_auth=true`, clearinghouse). Built-in Ferrum `/passports/v1` is **disabled** on pilot overlays (see ADR-017 / `docs/GA4GH-INFRA-INTEGRATION.md`).
 

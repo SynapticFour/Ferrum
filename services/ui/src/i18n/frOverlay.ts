@@ -613,11 +613,13 @@ export const frOverlay = {
     runOnCohort: 'Exécuter sur la cohorte',
     runOnCohortTitle: 'Exécuter le workflow sur toute la cohorte',
     runOnCohortHint:
-      'Soumet une analyse par échantillon dans « {name} » ({count} échantillons). BAM/FASTQ depuis les objets DRS liés.',
+      'Soumet une analyse par échantillon dans « {name} » ({count} échantillons). BAM/FASTQ depuis la cohorte ; référence et truth préremplies depuis l\'espace de travail (make seed-pilot).',
     runOnCohortConfirm: 'Démarrer {count} exécution(s)',
     runNoSamples: 'La cohorte n\'a aucun échantillon.',
     runProgress: 'Soumission {current}/{total} : {sample}',
     runMissingData: 'Échantillon {sample} sans données DRS pour : {fields}',
+    runMissingShared: 'Entrées de référence manquantes dans l\'espace de travail : {fields}. Exécutez make seed-pilot ou importez les fichiers.',
+    runSharedAutoFilled: '{count} entrée(s) de référence partagée(s) remplie(s) depuis l\'espace de travail.',
     runUrlBackedWarning: 'Certaines échantillons lient des objets URL uniquement (non stockés dans Ferrum).',
     runUrlBackedHint:
       'Les workflows nécessitent des fichiers gérés sur MinIO. Exécutez make seed-pilot ou importez de vrais BAM/VCF.',
