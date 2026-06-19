@@ -38,7 +38,7 @@ export async function registerWorkflowInTrs(
   const tool = await apiPost<TrsRegisteredTool>('/ga4gh/trs/v2/internal/register', {
     name: opts.name?.trim() || undefined,
     description: opts.description?.trim() || undefined,
-    organization: 'Ferrum UI',
+    organization: 'Ferrum',
     toolclass: 'Workflow',
     workflow_type: opts.workflowType,
     workflow_type_version: opts.workflowTypeVersion ?? '1.0',

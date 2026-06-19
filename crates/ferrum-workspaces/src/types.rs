@@ -135,6 +135,16 @@ pub struct UpdateMemberRoleRequest {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct LinkDrsObjectsRequest {
+    pub object_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LinkDrsObjectsResponse {
+    pub linked: usize,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct CreateInviteRequest {
     pub email: String,
     pub role: String,

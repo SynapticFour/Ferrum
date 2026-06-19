@@ -43,7 +43,7 @@ const DialogContent = React.forwardRef<
 DialogContent.displayName = 'DialogContent';
 
 const DialogHeader = (props: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className="flex flex-col space-y-1.5 text-center sm:text-left" {...props} />
+  <div className="flex flex-col space-y-1.5 text-center sm:text-start" {...props} />
 );
 const DialogFooter = (props: React.HTMLAttributes<HTMLDivElement>) => (
   <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2" {...props} />

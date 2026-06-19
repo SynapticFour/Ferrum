@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiGet, apiPost } from '@/api/client';
 import { loadFederationPrefs, saveFederationPrefs } from '@/stores/federation';
+import { useI18n } from '@/i18n/I18nProvider';
 import { Globe, Loader2, Network, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface FederationStatus {
@@ -32,6 +33,7 @@ interface RegisteredService {
 }
 
 export function FederationPanel() {
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [prefs, setPrefs] = useState(loadFederationPrefs);
   const [apiKey, setApiKey] = useState('');
@@ -60,7 +62,7 @@ export function FederationPanel() {
         api_key: apiKey || undefined,
       }),
     onSuccess: () => {
-      setMessage('Registry services loaded.');
+      setMessage(t('federationSetup.registryLoaded'));
       qc.invalidateQueries({ queryKey: ['admin', 'federation', 'services'] });
     },
     onError: (e: Error) => setMessage(e.message),
@@ -85,81 +87,89 @@ export function FederationPanel() {
         node_id_prefix: prefs.nodeIdPrefix,
         organization_name: prefs.organizationName,
       }),
-    onSuccess: (res) => setMessage(`Registered: ${res.registered.join(', ')}`),
+    onSuccess: (res) =>
+      setMessage(t('federationSetup.registered', { services: res.registered.join(', ') })),
     onError: (e: Error) => setMessage(e.message),
   });
 
   const services = registryData?.services ?? [];
+  const yn = (v: boolean) => (v ? t('common.yes') : t('common.no'));
 
   return (
     <div className="space-y-4">
       <ol className="flex flex-wrap gap-2 text-xs text-muted-foreground list-none">
-        <li className="rounded-full border px-2 py-0.5">1. Configure registry URL & tunnel</li>
-        <li className="rounded-full border px-2 py-0.5">2. List peers</li>
-        <li className="rounded-full border px-2 py-0.5">3. Register & verify</li>
+        <li className="rounded-full border px-2 py-0.5">{t('federationSetup.step1')}</li>
+        <li className="rounded-full border px-2 py-0.5">{t('federationSetup.step2')}</li>
+        <li className="rounded-full border px-2 py-0.5">{t('federationSetup.step3')}</li>
       </ol>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Network className="h-4 w-4" />
-            Join GA4GH federation
+            {t('federationSetup.title')}
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Connect this Ferrum node to a ga4gh-infra service registry. List peers, then register
-            this node&apos;s DRS/Beacon/WES/TRS endpoints. Requires a reachable public URL (tunnel if
-            on a laptop).
-          </p>
+          <p className="text-sm text-muted-foreground">{t('federationSetup.intro')}</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {statusLoading && <p className="text-sm text-muted-foreground">Loading status…</p>}
+          {statusLoading && (
+            <p className="text-sm text-muted-foreground">{t('federationSetup.loadingStatus')}</p>
+          )}
           {status && (
             <div className="rounded-md border border-border bg-muted/30 p-3 text-sm space-y-1">
               <p>
-                Server auto-register:{' '}
-                <strong>{status.auto_register ? 'on' : 'off'}</strong>
+                {t('federationSetup.autoRegister', {
+                  state: status.auto_register ? t('common.on') : t('common.off'),
+                })}
                 {status.service_registry_url && (
-                  <> · Registry: <code className="text-xs">{status.service_registry_url}</code></>
+                  <>
+                    {' '}
+                    · {t('federationSetup.registryLabel')}:{' '}
+                    <code className="text-xs">{status.service_registry_url}</code>
+                  </>
                 )}
               </p>
               <p className="text-muted-foreground text-xs">
-                Enabled services — DRS: {status.services.drs ? 'yes' : 'no'} · Beacon:{' '}
-                {status.services.beacon ? 'yes' : 'no'} · TRS: {status.services.trs ? 'yes' : 'no'}{' '}
-                · WES: {status.services.wes ? 'yes' : 'no'}
+                {t('federationSetup.servicesLine', {
+                  drs: yn(status.services.drs),
+                  beacon: yn(status.services.beacon),
+                  trs: yn(status.services.trs),
+                  wes: yn(status.services.wes),
+                })}
               </p>
             </div>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="registry-url">Service registry URL</Label>
+              <Label htmlFor="registry-url">{t('federationSetup.registryUrlLabel')}</Label>
               <Input
                 id="registry-url"
                 value={prefs.registryUrl}
                 onChange={(e) => setPrefs({ ...prefs, registryUrl: e.target.value })}
-                placeholder="https://pasteur-pilot-ga4gh-infra.fly.dev"
+                placeholder={t('federationSetup.registryUrlPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="api-key">Registration API key</Label>
+              <Label htmlFor="api-key">{t('federationSetup.apiKeyLabel')}</Label>
               <Input
                 id="api-key"
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Not stored — enter each session"
+                placeholder={t('federationSetup.apiKeyPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="public-url">This node public URL</Label>
+              <Label htmlFor="public-url">{t('federationSetup.publicUrlLabel')}</Label>
               <Input
                 id="public-url"
                 value={prefs.publicBaseUrl}
                 onChange={(e) => setPrefs({ ...prefs, publicBaseUrl: e.target.value })}
-                placeholder="https://your-tunnel.example.com"
+                placeholder={t('federationSetup.publicUrlPlaceholder')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="node-prefix">Node ID prefix</Label>
+              <Label htmlFor="node-prefix">{t('federationSetup.nodePrefixLabel')}</Label>
               <Input
                 id="node-prefix"
                 value={prefs.nodeIdPrefix}
@@ -181,7 +191,7 @@ export function FederationPanel() {
               ) : (
                 <Globe className="h-4 w-4" />
               )}
-              List registry services
+              {t('federationSetup.listServices')}
             </Button>
             <Button
               type="button"
@@ -194,16 +204,14 @@ export function FederationPanel() {
               ) : (
                 <CheckCircle2 className="h-4 w-4" />
               )}
-              Register this node
+              {t('federationSetup.registerNode')}
             </Button>
           </div>
 
-          {message && (
-            <p className="text-sm text-muted-foreground">{message}</p>
-          )}
+          {message && <p className="text-sm text-muted-foreground">{message}</p>}
 
           {registryLoading && (
-            <p className="text-sm text-muted-foreground">Loading registry…</p>
+            <p className="text-sm text-muted-foreground">{t('federationSetup.loadingRegistry')}</p>
           )}
           {services.length > 0 && (
             <ul className="space-y-2 text-sm">
@@ -220,13 +228,7 @@ export function FederationPanel() {
 
           <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-            <p>
-              For persistent auto-register on startup, set{' '}
-              <code className="text-xs">FERRUM_DISCOVERY__ENABLED=true</code>,{' '}
-              <code className="text-xs">FERRUM_DISCOVERY__AUTO_REGISTER=true</code>, and{' '}
-              <code className="text-xs">SERVICE_REGISTRY_REGISTRATION_KEY</code> in the gateway
-              environment, then restart Ferrum.
-            </p>
+            <p>{t('federationSetup.envHint')}</p>
           </div>
         </CardContent>
       </Card>

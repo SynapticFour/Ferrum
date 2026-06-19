@@ -94,7 +94,7 @@ export function AddCohortSampleDialog({
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>{t('cohort.sampleIdLabel')}</Label>
-              <Input value={sampleId} onChange={(e) => setSampleId(e.target.value)} placeholder="PT-0042" />
+              <Input value={sampleId} onChange={(e) => setSampleId(e.target.value)} placeholder={t('cohort.sampleIdPlaceholder')} />
             </div>
             <div className="space-y-1">
               <Label>{t('cohort.linkedData')}</Label>
@@ -108,11 +108,11 @@ export function AddCohortSampleDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>{t('cohort.sexLabel')}</Label>
-                <Input value={sex} onChange={(e) => setSex(e.target.value)} placeholder="female" />
+                <Input value={sex} onChange={(e) => setSex(e.target.value)} placeholder={t('cohort.sexPlaceholder')} />
               </div>
               <div className="space-y-1">
                 <Label>{t('cohort.sequencingLabel')}</Label>
-                <Input value={sequencingType} onChange={(e) => setSequencingType(e.target.value)} placeholder="WGS" />
+                <Input value={sequencingType} onChange={(e) => setSequencingType(e.target.value)} placeholder={t('cohort.sequencingPlaceholder')} />
               </div>
             </div>
             {schema && schema.length > 0 && (

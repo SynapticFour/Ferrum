@@ -1,23 +1,45 @@
+import { lazy, Suspense, type ComponentType } from 'react';
 import { createRootRoute, createRoute, Outlet } from '@tanstack/react-router';
 import { AppLayout } from '@/components/AppLayout';
+import { PageLoader } from '@/components/PageLoader';
 import { AuthCallback } from '@/pages/AuthCallback';
-import { Dashboard } from '@/pages/Dashboard';
-import { DataBrowser } from '@/pages/DataBrowser';
-import { ObjectDetailPage } from '@/pages/ObjectDetailPage';
-import { WorkflowCenter } from '@/pages/WorkflowCenter';
-import { RunDetailPage } from '@/pages/RunDetailPage';
-import { ToolRegistry } from '@/pages/ToolRegistry';
-import { BeaconExplorer } from '@/pages/BeaconExplorer';
-import { AccessManagement } from '@/pages/AccessManagement';
-import { Settings } from '@/pages/Settings';
-import { CohortListPage } from '@/pages/CohortListPage';
-import { CohortDetailPage } from '@/pages/CohortDetailPage';
-import { NewCohortPage } from '@/pages/NewCohortPage';
-import { WorkspaceListPage } from '@/pages/WorkspaceListPage';
-import { WorkspaceDetailPage } from '@/pages/WorkspaceDetailPage';
-import { InsightsPage } from '@/pages/InsightsPage';
-import { StudySetupPage } from '@/pages/StudySetupPage';
-import { NewWorkspacePage } from '@/pages/NewWorkspacePage';
+
+function lazyPage<T extends Record<string, ComponentType<unknown>>>(
+  importer: () => Promise<T>,
+  exportName: keyof T,
+) {
+  const Lazy = lazy(() =>
+    importer().then((module) => ({ default: module[exportName] as ComponentType })),
+  );
+  return function LazyRoutePage() {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Lazy />
+      </Suspense>
+    );
+  };
+}
+
+const Dashboard = lazyPage(() => import('@/pages/Dashboard'), 'Dashboard');
+const DataBrowser = lazyPage(() => import('@/pages/DataBrowser'), 'DataBrowser');
+const ObjectDetailPage = lazyPage(() => import('@/pages/ObjectDetailPage'), 'ObjectDetailPage');
+const WorkflowCenter = lazyPage(() => import('@/pages/WorkflowCenter'), 'WorkflowCenter');
+const RunDetailPage = lazyPage(() => import('@/pages/RunDetailPage'), 'RunDetailPage');
+const ToolRegistry = lazyPage(() => import('@/pages/ToolRegistry'), 'ToolRegistry');
+const BeaconExplorer = lazyPage(() => import('@/pages/BeaconExplorer'), 'BeaconExplorer');
+const AccessManagement = lazyPage(() => import('@/pages/AccessManagement'), 'AccessManagement');
+const Settings = lazyPage(() => import('@/pages/Settings'), 'Settings');
+const CohortListPage = lazyPage(() => import('@/pages/CohortListPage'), 'CohortListPage');
+const CohortDetailPage = lazyPage(() => import('@/pages/CohortDetailPage'), 'CohortDetailPage');
+const NewCohortPage = lazyPage(() => import('@/pages/NewCohortPage'), 'NewCohortPage');
+const WorkspaceListPage = lazyPage(() => import('@/pages/WorkspaceListPage'), 'WorkspaceListPage');
+const WorkspaceDetailPage = lazyPage(
+  () => import('@/pages/WorkspaceDetailPage'),
+  'WorkspaceDetailPage',
+);
+const InsightsPage = lazyPage(() => import('@/pages/InsightsPage'), 'InsightsPage');
+const StudySetupPage = lazyPage(() => import('@/pages/StudySetupPage'), 'StudySetupPage');
+const NewWorkspacePage = lazyPage(() => import('@/pages/NewWorkspacePage'), 'NewWorkspacePage');
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -45,6 +67,12 @@ const objectDetailRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: '/data/objects/$objectId',
   component: ObjectDetailPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    analyze:
+      search.analyze === '1' ||
+      search.analyze === true ||
+      search.analyze === 'true',
+  }),
 });
 const workflowsRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/workflows', component: WorkflowCenter });
 const runDetailRoute = createRoute({

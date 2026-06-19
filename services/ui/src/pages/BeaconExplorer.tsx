@@ -12,6 +12,15 @@ interface VariantQueryResponse {
   response: { exists?: boolean; count?: number };
 }
 
+interface BeaconQuerySnapshot {
+  assemblyId: string;
+  referenceName: string;
+  start: string;
+  referenceBases: string;
+  alternateBases: string;
+  federate: boolean;
+}
+
 const DEMO_PRESETS = [
   {
     id: 'local',
@@ -46,6 +55,7 @@ export function BeaconExplorer() {
   const [federate, setFederate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VariantQueryResponse | null>(null);
+  const [lastQuery, setLastQuery] = useState<BeaconQuerySnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function applyPreset(preset: (typeof DEMO_PRESETS)[number]) {
@@ -56,13 +66,23 @@ export function BeaconExplorer() {
     setReferenceBases(preset.referenceBases);
     setAlternateBases(preset.alternateBases);
     setResult(null);
+    setLastQuery(null);
     setError(null);
   }
 
   async function handleQuery() {
+    const querySnapshot: BeaconQuerySnapshot = {
+      assemblyId,
+      referenceName,
+      start,
+      referenceBases,
+      alternateBases,
+      federate,
+    };
     setLoading(true);
     setError(null);
     setResult(null);
+    setLastQuery(null);
     try {
       const path = federate
         ? `/ga4gh/beacon/v2/g_variants?federate=true&referenceName=${encodeURIComponent(referenceName)}&start=${start}&referenceBases=${referenceBases}&alternateBases=${alternateBases}`
@@ -85,6 +105,7 @@ export function BeaconExplorer() {
           };
       const res = await apiPost<VariantQueryResponse>(path, body);
       setResult(res);
+      setLastQuery(querySnapshot);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -93,6 +114,14 @@ export function BeaconExplorer() {
   }
 
   const exists = result?.response?.exists;
+  const formChanged =
+    lastQuery != null &&
+    (assemblyId !== lastQuery.assemblyId ||
+      referenceName !== lastQuery.referenceName ||
+      start !== lastQuery.start ||
+      referenceBases !== lastQuery.referenceBases ||
+      alternateBases !== lastQuery.alternateBases ||
+      federate !== lastQuery.federate);
 
   return (
     <div className="space-y-6">
@@ -172,9 +201,16 @@ export function BeaconExplorer() {
                 <p className="font-medium">
                   {exists ? t('beacon.variantFound') : t('beacon.variantNotFound')}
                 </p>
-                <p className="text-muted-foreground mt-1">
-                  {assemblyId} · chr{referenceName}:{start} {referenceBases}&gt;{alternateBases}
-                </p>
+                {lastQuery && (
+                  <p className="text-muted-foreground mt-1">
+                    {lastQuery.federate ? t('beacon.federate') : lastQuery.assemblyId} · chr
+                    {lastQuery.referenceName}:{lastQuery.start} {lastQuery.referenceBases}&gt;
+                    {lastQuery.alternateBases}
+                  </p>
+                )}
+                {formChanged && (
+                  <p className="text-muted-foreground mt-1 text-xs italic">{t('beacon.formChanged')}</p>
+                )}
               </div>
             </div>
           )}

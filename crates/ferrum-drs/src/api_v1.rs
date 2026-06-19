@@ -644,6 +644,24 @@ pub async fn get_job(
     }
 }
 
+pub async fn list_jobs(
+    State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> impl IntoResponse {
+    let result = if let Some(sub) = auth.as_ref().and_then(|e| e.0.sub()) {
+        state.repo.ingest_job_list_for_subject(sub, 50).await
+    } else {
+        state.repo.ingest_job_list_recent(50).await
+    };
+    match result {
+        Ok(rows) => {
+            let jobs: Vec<IngestJobResponse> = rows.iter().map(job_row_to_response).collect();
+            Json(serde_json::json!({ "jobs": jobs })).into_response()
+        }
+        Err(e) => IngestApiError::internal(e.to_string()).into_response(),
+    }
+}
+
 async fn apply_ont_side_effects(
     state: &AppState,
     object_id: &str,
@@ -1050,6 +1068,7 @@ pub fn ingest_api_v1_router(state: Arc<AppState>) -> Router {
         .route("/upload/chunk", post(post_upload_chunk))
         .route("/ont", post(post_ont))
         .route("/ont-metrics", post(post_ont_metrics))
+        .route("/jobs", get(list_jobs))
         .route("/jobs/:job_id", get(get_job))
         .with_state(state)
 }
@@ -1064,6 +1083,7 @@ pub fn ingest_api_v1_router_unconfigured() -> Router {
         .route("/upload/chunk", post(no))
         .route("/ont", post(no))
         .route("/ont-metrics", post(no))
+        .route("/jobs", get(no))
         .route("/jobs/:job_id", get(no))
 }
 

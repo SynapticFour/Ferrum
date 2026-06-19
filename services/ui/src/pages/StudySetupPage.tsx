@@ -10,7 +10,8 @@ import { useAuthConfig } from '@/hooks/useAuthConfig';
 import { useAuthStore } from '@/stores/auth';
 import { buildBrokerLoginUrl } from '@/lib/auth';
 import { useI18n } from '@/i18n/I18nProvider';
-import { AddDataDialog } from '@/components/AddDataDialog';
+import { ImportToDrsDialog } from '@/components/ImportToDrsDialog';
+import { LinkWorkspaceDataDialog } from '@/components/LinkWorkspaceDataDialog';
 import { RegisterToolDialog } from '@/components/RegisterToolDialog';
 import { SampleSheetImportDialog } from '@/components/SampleSheetImportDialog';
 import { RunCohortDialog } from '@/components/RunCohortDialog';
@@ -131,7 +132,7 @@ export function StudySetupPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-3xl" data-testid="study-setup-wizard">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{t('study.title')}</h1>
         <p className="text-muted-foreground">{t('study.subtitle')}</p>
@@ -209,7 +210,10 @@ export function StudySetupPage() {
           {step === 3 && (
             <>
               <p className="text-sm text-muted-foreground">{t('study.step3Body')}</p>
-              <AddDataDialog defaultWorkspaceId={state.workspaceId} />
+              <div className="flex flex-wrap gap-2">
+                <ImportToDrsDialog linkToWorkspaceId={state.workspaceId} />
+                <LinkWorkspaceDataDialog workspaceId={state.workspaceId} />
+              </div>
               <Button asChild variant="outline">
                 <Link to={'/data' as any}>{t('study.openDataBrowser')}</Link>
               </Button>
@@ -257,6 +261,9 @@ export function StudySetupPage() {
           {step === 6 && state.cohortId && (
             <>
               <p className="text-sm text-muted-foreground">{t('study.step6Body')}</p>
+              <p className="text-xs text-muted-foreground border rounded-md p-3 bg-muted/30">
+                {t('analysisWizard.inputCohortHint')}
+              </p>
               <RunCohortDialog
                 cohortId={state.cohortId}
                 cohortName={state.cohortName}

@@ -148,6 +148,28 @@ On validation failure after the job row is created, `status` becomes `failed` an
 
 Returns the same job shape as the POST responses: `job_id`, `status` (`running` \| `succeeded` \| `failed`), `job_type`, optional `result`, optional `error`.
 
+## `GET /api/v1/ingest/jobs`
+
+Lists recent ingest jobs (newest first, default limit **50**). Response:
+
+```json
+{
+  "jobs": [
+    {
+      "job_id": "01HXYZ…",
+      "status": "running",
+      "job_type": "upload",
+      "result": null,
+      "error": null
+    }
+  ]
+}
+```
+
+The Ferrum UI Data Browser polls this endpoint to show in-progress uploads and registrations after the import dialog is closed.
+
+When the request includes a valid Passport JWT, the list is **scoped to that user**: only jobs whose `client_request_id` matches the Ferrum UI prefix `ferrum-ui:{sub}:…` or `ferrum-ui-register:{sub}:…` (URL-safe base64 of the JWT `sub` claim). Unauthenticated calls return the global recent list (dev/demo).
+
 ## Example: curl
 
 ```bash
@@ -163,6 +185,8 @@ curl -sS "${HDR[@]}" "$BASE/api/v1/ingest/upload" \
   -F "file=@./README.md;type=text/plain"
 
 curl -sS "${HDR[@]}" "$BASE/api/v1/ingest/jobs/<job_id_from_response>"
+
+curl -sS "${HDR[@]}" "$BASE/api/v1/ingest/jobs"
 ```
 
 Verify DRS: `GET $BASE/ga4gh/drs/v1/objects/<object_id>`.

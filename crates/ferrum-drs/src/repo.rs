@@ -608,6 +608,46 @@ impl DrsRepo {
         Ok(row)
     }
 
+    /// Recent ingest jobs for UI status banners (newest first).
+    pub async fn ingest_job_list_recent(&self, limit: i64) -> Result<Vec<DrsIngestJobRow>> {
+        let rows: Vec<DrsIngestJobRow> = pool_query!(self, |p| {
+            sqlx::query_as(
+                r#"SELECT id, client_request_id, job_type, status, created_at, updated_at, result_json, error_json
+                   FROM drs_ingest_jobs ORDER BY created_at DESC LIMIT $1"#,
+            )
+            .bind(limit)
+            .fetch_all(p)
+            .await
+        })?;
+        Ok(rows)
+    }
+
+    /// Ingest jobs whose `client_request_id` was scoped to this Passport `sub` (Ferrum UI prefix).
+    pub async fn ingest_job_list_for_subject(
+        &self,
+        subject_sub: &str,
+        limit: i64,
+    ) -> Result<Vec<DrsIngestJobRow>> {
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        use base64::Engine;
+        let token = URL_SAFE_NO_PAD.encode(subject_sub.as_bytes());
+        let upload_pat = format!("ferrum-ui:{}:%", token);
+        let register_pat = format!("ferrum-ui-register:{}:%", token);
+        let rows: Vec<DrsIngestJobRow> = pool_query!(self, |p| {
+            sqlx::query_as(
+                r#"SELECT id, client_request_id, job_type, status, created_at, updated_at, result_json, error_json
+                   FROM drs_ingest_jobs
+                   WHERE client_request_id LIKE $1 OR client_request_id LIKE $2
+                   ORDER BY created_at DESC LIMIT $3"#,
+            )
+            .bind(&upload_pat)
+            .bind(&register_pat)
+            .fetch_all(p)
+            .await
+        })?;
+        Ok(rows)
+    }
+
     pub async fn ingest_job_insert(
         &self,
         id: &str,

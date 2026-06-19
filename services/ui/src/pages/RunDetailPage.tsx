@@ -1,15 +1,16 @@
+import { lazy, Suspense } from 'react';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiGetText, apiPost } from '@/api/client';
 import { RunLineageTab } from '@/components/RunLineageTab';
-import { RunMetricsTab } from '@/components/RunMetricsTab';
 import { RunResultsTab } from '@/components/RunResultsTab';
 import { LiveLogViewer } from '@/components/LiveLogViewer';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, RotateCw } from 'lucide-react';
 import { WorkflowStateBadge } from '@/components/WorkflowStateBadge';
+import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
 import { useLiveRunLogs } from '@/hooks/useIngestJobs';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
@@ -21,6 +22,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+
+const RunMetricsTab = lazy(() =>
+  import('@/components/RunMetricsTab').then((m) => ({ default: m.RunMetricsTab })),
+);
 
 interface RunLog {
   run_id: string;
@@ -94,6 +99,7 @@ export function RunDetailPage() {
 
   return (
     <div className="space-y-6">
+      <NoopExecutorBanner />
       <div className="flex items-center gap-2 flex-wrap">
         <Button variant="ghost" size="icon" asChild>
           <Link to={'/workflows' as any}>
@@ -161,7 +167,9 @@ export function RunDetailPage() {
           <RunResultsTab runId={id} />
         </TabsContent>
         <TabsContent value="metrics">
-          <RunMetricsTab runId={id} />
+          <Suspense fallback={<p className="text-muted-foreground">{t('common.loading')}</p>}>
+            <RunMetricsTab runId={id} />
+          </Suspense>
         </TabsContent>
         <TabsContent value="lineage">
           <RunLineageTab runId={id} />

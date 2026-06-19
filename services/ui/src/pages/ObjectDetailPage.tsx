@@ -1,4 +1,4 @@
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery } from '@tanstack/react-query';
@@ -7,11 +7,17 @@ import type { DrsObject } from '@/api/types';
 import { ObjectLineageTab } from '@/components/ObjectLineageTab';
 import { DataTypeIcon } from '@/components/DataTypeIcon';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Loader2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, ExternalLink, Eye } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { useAuthStore } from '@/stores/auth';
 import { useState } from 'react';
 import { formatBytes } from '@/lib/utils';
+import {
+  canPreviewFile,
+  downloadWithAuth,
+  drsStreamUrl,
+  fetchPreviewText,
+} from '@/lib/filePreview';
+import { StartAnalysisDialog } from '@/components/StartAnalysisDialog';
 
 function storageKind(obj: DrsObject): 'managed' | 'url' | 'unknown' {
   const backend = (obj as DrsObject & { storage_backend?: string }).storage_backend;
@@ -32,8 +38,10 @@ function externalUrl(obj: DrsObject): string | null {
 export function ObjectDetailPage() {
   const { t } = useI18n();
   const params = useParams({ strict: false }) as { objectId?: string };
+  const search = useSearch({ strict: false }) as { analyze?: boolean };
   const id = params.objectId ?? '';
   const [downloading, setDownloading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const { data: obj, isLoading, error } = useQuery({
     queryKey: ['drs', 'object', id],
@@ -41,21 +49,19 @@ export function ObjectDetailPage() {
     enabled: !!id,
   });
 
+  const displayName = obj?.name ?? id;
+  const previewable = obj ? canPreviewFile(displayName, obj.mime_type, obj.size) : false;
+
+  const { data: previewText, isLoading: previewLoading } = useQuery({
+    queryKey: ['drs', 'object', id, 'preview'],
+    enabled: showPreview && previewable && !!id,
+    queryFn: () => fetchPreviewText(drsStreamUrl(id, true), t('object.previewTruncated')),
+  });
+
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      const jwt = useAuthStore.getState().passportJwt;
-      const res = await fetch(`/ga4gh/drs/v1/objects/${encodeURIComponent(id)}/stream`, {
-        headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = obj?.name ?? id;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadWithAuth(drsStreamUrl(id), obj?.name ?? id);
     } finally {
       setDownloading(false);
     }
@@ -67,6 +73,7 @@ export function ObjectDetailPage() {
 
   const kind = storageKind(obj);
   const remote = externalUrl(obj);
+  const workspaceId = (obj as DrsObject & { workspace_id?: string }).workspace_id ?? 'demo-workspace-01';
 
   return (
     <div className="space-y-6">
@@ -79,9 +86,24 @@ export function ObjectDetailPage() {
         <DataTypeIcon mimeType={obj.mime_type} className="text-primary" />
         <h1 className="text-2xl font-bold">{obj.name ?? obj.id}</h1>
         <div className="ml-auto flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="gap-2" asChild>
-            <Link to={'/workflows' as any}>{t('object.useInAnalysis')}</Link>
-          </Button>
+          <StartAnalysisDialog
+            workspaceId={workspaceId}
+            defaultDrsObjectId={id}
+            autoOpen={search.analyze}
+            initialStep={search.analyze ? 2 : undefined}
+            triggerLabelKey="object.useInAnalysis"
+          />
+          {previewable && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setShowPreview((v) => !v)}
+            >
+              <Eye className="h-4 w-4" />
+              {t('object.preview')}
+            </Button>
+          )}
           <Button
             variant="default"
             size="sm"
@@ -94,6 +116,27 @@ export function ObjectDetailPage() {
           </Button>
         </div>
       </div>
+
+      {showPreview && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('object.preview')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {previewLoading ? (
+              <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+            ) : (
+              <pre className="max-h-96 overflow-auto text-xs whitespace-pre-wrap break-all bg-muted/30 rounded p-3">
+                {previewText ?? ''}
+              </pre>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {!previewable && obj.size != null && obj.size > 256_000 && (
+        <p className="text-xs text-muted-foreground">{t('object.previewTooLarge')}</p>
+      )}
 
       <Card>
         <CardHeader className="pb-2">

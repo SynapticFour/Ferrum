@@ -73,16 +73,16 @@ export function WorkspaceMembersPanel({ workspaceId }: { workspaceId: string }) 
         <div className="grid gap-3 sm:grid-cols-3 pt-2 border-t border-border">
           <div className="space-y-1 sm:col-span-2">
             <Label htmlFor="member-sub">{t('workspace.memberSub')}</Label>
-            <Input id="member-sub" value={sub} onChange={(e) => setSub(e.target.value)} placeholder="pasteur-demo-1" />
+            <Input id="member-sub" value={sub} onChange={(e) => setSub(e.target.value)} placeholder={t('workspace.memberSubPlaceholder')} />
           </div>
           <div className="space-y-1">
             <Label>{t('workspace.memberRole')}</Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="owner">owner</SelectItem>
-                <SelectItem value="editor">editor</SelectItem>
-                <SelectItem value="viewer">viewer</SelectItem>
+                <SelectItem value="owner">{t('workspace.roleOwner')}</SelectItem>
+                <SelectItem value="editor">{t('workspace.roleEditor')}</SelectItem>
+                <SelectItem value="viewer">{t('workspace.roleViewer')}</SelectItem>
               </SelectContent>
             </Select>
           </div>

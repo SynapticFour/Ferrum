@@ -19,8 +19,8 @@ use std::sync::Arc;
 
 use crate::handlers::{
     accept_invite, add_member, archive_workspace, create_invite, create_workspace, get_activity,
-    get_workspace, get_workspace_contents, list_invites, list_members, list_my_workspaces,
-    remove_member, revoke_invite, update_member_role, update_workspace,
+    get_workspace, get_workspace_contents, link_drs_objects, list_invites, list_members,
+    list_my_workspaces, remove_member, revoke_invite, update_member_role, update_workspace,
 };
 use crate::state::AppState;
 
@@ -63,5 +63,6 @@ pub fn router(
         .route("/invites/:token/accept", post(accept_invite))
         .route("/workspaces/:id/activity", get(get_activity))
         .route("/workspaces/:id/contents", get(get_workspace_contents))
+        .route("/workspaces/:id/objects/link", post(link_drs_objects))
         .with_state(state)
 }

@@ -1,7 +1,11 @@
+import { lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/api/client';
 import type { ProvenanceGraphResponse } from '@/api/types';
-import { ProvenanceGraph } from './ProvenanceGraph';
+
+const ProvenanceGraph = lazy(() =>
+  import('./ProvenanceGraph').then((m) => ({ default: m.ProvenanceGraph })),
+);
 
 function nodeId(type: string, id: string): string {
   return `${type}_${id.replace(/-/g, '_')}`;
@@ -31,12 +35,14 @@ export function RunLineageTab({ runId }: { runId: string }) {
   }));
 
   return (
-    <ProvenanceGraph
-      nodes={nodes}
-      edges={edges}
-      mermaid={g.mermaid}
-      cytoscapeJson={g.cytoscape as { nodes: unknown[]; edges: unknown[] } | undefined}
-      showExport
-    />
+    <Suspense fallback={<p className="text-muted-foreground">Loading graph…</p>}>
+      <ProvenanceGraph
+        nodes={nodes}
+        edges={edges}
+        mermaid={g.mermaid}
+        cytoscapeJson={g.cytoscape as { nodes: unknown[]; edges: unknown[] } | undefined}
+        showExport
+      />
+    </Suspense>
   );
 }

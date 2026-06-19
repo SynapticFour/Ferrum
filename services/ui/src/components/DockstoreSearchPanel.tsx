@@ -44,6 +44,7 @@ interface DescriptorResolveResponse {
 }
 
 interface DockstoreSearchPanelProps {
+  id?: string;
   onImport: (preset: RegisterToolPreset) => void;
 }
 
@@ -63,7 +64,7 @@ function pickDescriptorType(version?: DockstoreToolVersion): string | undefined 
   return version?.descriptor_type?.[0];
 }
 
-export function DockstoreSearchPanel({ onImport }: DockstoreSearchPanelProps) {
+export function DockstoreSearchPanel({ id, onImport }: DockstoreSearchPanelProps) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
@@ -131,7 +132,7 @@ export function DockstoreSearchPanel({ onImport }: DockstoreSearchPanelProps) {
   }
 
   return (
-    <Card>
+    <Card id={id}>
       <CardHeader>
         <CardTitle>{t('tools.dockstoreTitle')}</CardTitle>
         <p className="text-sm text-muted-foreground">{t('tools.dockstoreHint')}</p>

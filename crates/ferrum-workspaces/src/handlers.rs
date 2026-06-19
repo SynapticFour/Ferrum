@@ -404,3 +404,37 @@ pub async fn get_workspace_contents(
         active_runs,
     }))
 }
+
+pub async fn link_drs_objects(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    RequireAuth(auth): RequireAuth,
+    Json(req): Json<LinkDrsObjectsRequest>,
+) -> Result<Json<LinkDrsObjectsResponse>> {
+    let sub = auth
+        .sub()
+        .ok_or_else(|| WorkspaceError::Forbidden("authentication required".to_string()))?;
+    let (_ws, role) = guard::ensure_workspace_member(&state.pool, &id, sub).await?;
+    role.require_write()?;
+    if req.object_ids.is_empty() {
+        return Err(WorkspaceError::Validation(
+            "object_ids must not be empty".to_string(),
+        ));
+    }
+    let repo = WorkspaceRepo::new(state.pool.clone());
+    let linked = repo.link_drs_objects(&id, &req.object_ids).await?;
+    for oid in &req.object_ids {
+        state
+            .activity
+            .log(
+                &id,
+                sub,
+                "linked_data",
+                Some("drs_object"),
+                Some(oid),
+                serde_json::json!({ "object_id": oid }),
+            )
+            .await?;
+    }
+    Ok(Json(LinkDrsObjectsResponse { linked }))
+}

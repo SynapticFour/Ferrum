@@ -11,17 +11,23 @@ type TranslationNode = string | { [key: string]: any };
 
 const bundles: Record<Locale, Messages> = { en, de, fr, ar };
 
-function lookup(locale: Locale, key: string): string {
+function lookupInBundle(bundle: Messages, key: string): string | undefined {
   const keys = key.split('.');
-  let node: TranslationNode | undefined = bundles[locale] ?? bundles[DEFAULT_LOCALE];
+  let node: TranslationNode | undefined = bundle;
   for (const k of keys) {
-    if (!node || typeof node === 'string') {
-      node = undefined;
-      break;
-    }
+    if (!node || typeof node === 'string') return undefined;
     node = (node as Record<string, TranslationNode>)[k];
   }
-  if (typeof node === 'string') return node;
+  return typeof node === 'string' ? node : undefined;
+}
+
+function lookup(locale: Locale, key: string): string {
+  const localized = lookupInBundle(bundles[locale] ?? bundles[DEFAULT_LOCALE], key);
+  if (localized !== undefined) return localized;
+  if (locale !== DEFAULT_LOCALE) {
+    const fallback = lookupInBundle(bundles[DEFAULT_LOCALE], key);
+    if (fallback !== undefined) return fallback;
+  }
   return key;
 }
 

@@ -6,16 +6,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { apiGet } from '@/api/client';
 import { loadFederationPrefs } from '@/stores/federation';
-import { Wrench, AlertCircle, Play, BookOpen, ExternalLink, Download } from 'lucide-react';
+import { Wrench, AlertCircle, Play, BookOpen, ExternalLink } from 'lucide-react';
 import { RegisterToolDialog } from '@/components/RegisterToolDialog';
 import { DockstoreSearchPanel } from '@/components/DockstoreSearchPanel';
 import { useI18n } from '@/i18n/I18nProvider';
 import { WORKFLOW_ENGINES } from '@/lib/workflowEngines';
-import {
-  TRS_EXTERNAL_CATALOGS,
-  TRS_IMPORT_PRESETS,
-  type RegisterToolPreset,
-} from '@/lib/trsCatalogs';
+import { TRS_EXTERNAL_CATALOGS, type RegisterToolPreset } from '@/lib/trsCatalogs';
 
 interface Tool {
   id: string;
@@ -169,35 +165,10 @@ export function ToolRegistry() {
               </div>
             ))}
           </div>
-          <div className="border-t border-border/60 pt-3">
-            <p className="text-xs font-medium text-muted-foreground mb-2">{t('tools.importPreset')}</p>
-            <div className="flex flex-wrap gap-2">
-              {TRS_IMPORT_PRESETS.map((preset) => (
-                <Button
-                  key={preset.id}
-                  size="sm"
-                  variant="secondary"
-                  className="gap-1"
-                  onClick={() =>
-                    setRegisterPreset({
-                      name: t(preset.nameKey),
-                      workflowUrl: preset.workflowUrl,
-                      engineId: preset.engineId,
-                      toolclass: preset.toolclass,
-                      description: t(preset.sourceKey),
-                    })
-                  }
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  {t(preset.nameKey)}
-                </Button>
-              ))}
-            </div>
-          </div>
         </CardContent>
       </Card>
 
-      <DockstoreSearchPanel onImport={setRegisterPreset} />
+      <DockstoreSearchPanel id="dockstore-panel" onImport={setRegisterPreset} />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>

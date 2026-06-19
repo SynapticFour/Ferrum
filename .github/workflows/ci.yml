@@ -162,3 +162,29 @@ jobs:
         run: |
           cargo bench -p ferrum-crypt4gh --bench crypt_benchmark -- --quick 2>&1 | tee /tmp/crypt4gh-bench.log || true
           echo "See FIELD-OPS.md: Pi 5 field target is >500 MB/s; CI ARM runner is compile/smoke only."
+
+  ui:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: services/ui/package-lock.json
+      - name: Install UI dependencies
+        working-directory: services/ui
+        run: npm ci
+      - name: Typecheck and build UI
+        working-directory: services/ui
+        run: npm run build
+      - name: i18n key coverage
+        working-directory: services/ui
+        run: npm run check:i18n
+      - name: Install Playwright Chromium
+        working-directory: services/ui
+        run: npx playwright install chromium --with-deps
+      - name: UI E2E smoke
+        working-directory: services/ui
+        run: npm run test:e2e

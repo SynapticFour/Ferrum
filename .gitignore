@@ -10,6 +10,8 @@ npm-debug.log*
 dist/
 *.local
 services/ui/*.tsbuildinfo
+services/ui/test-results/
+services/ui/playwright-report/
 
 # Local clones / tooling checkouts
 helixtest-repo/

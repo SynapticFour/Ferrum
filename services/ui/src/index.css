@@ -62,4 +62,8 @@
     outline-offset: var(--sf-focus-ring-offset);
     border-radius: 4px;
   }
+  [dir='rtl'] input[type='search'],
+  [dir='rtl'] input:not([type]) {
+    text-align: right;
+  }
 }

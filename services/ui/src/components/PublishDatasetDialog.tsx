@@ -122,7 +122,7 @@ export function PublishDatasetDialog({
               id={`pub-duo-${objectId}`}
               value={duoCodes}
               onChange={(e) => setDuoCodes(e.target.value)}
-              placeholder="GRU, NPU"
+              placeholder={t('data.publishDuoPlaceholder')}
             />
           </div>
           <div className="space-y-1">

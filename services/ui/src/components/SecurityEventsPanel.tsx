@@ -70,7 +70,7 @@ export function SecurityEventsPanel() {
                 id="sev-filter"
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value)}
-                placeholder="info, warning, critical"
+                placeholder={t('security.severityPlaceholder')}
                 className="w-40"
               />
             </div>
@@ -90,7 +90,7 @@ export function SecurityEventsPanel() {
                     <th className="p-2 text-left">{t('security.when')}</th>
                     <th className="p-2 text-left">{t('security.type')}</th>
                     <th className="p-2 text-left">{t('security.severity')}</th>
-                    <th className="p-2 text-left">sub</th>
+                    <th className="p-2 text-left">{t('security.subColumn')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -122,7 +122,7 @@ export function SecurityEventsPanel() {
         <CardContent className="flex flex-wrap gap-2 items-end">
           <div className="space-y-1 flex-1 min-w-[200px]">
             <Label htmlFor="jti">{t('security.jtiLabel')}</Label>
-            <Input id="jti" value={revokeJti} onChange={(e) => setRevokeJti(e.target.value)} placeholder="token-jti-uuid" />
+            <Input id="jti" value={revokeJti} onChange={(e) => setRevokeJti(e.target.value)} placeholder={t('security.jtiPlaceholder')} />
           </div>
           <Button
             type="button"

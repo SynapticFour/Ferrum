@@ -9,6 +9,9 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { formatBytes } from '@/lib/utils';
 import { WorkspaceMembersPanel } from '@/components/WorkspaceMembersPanel';
 import { WorkspaceSettingsForm } from '@/components/WorkspaceSettingsForm';
+import { ImportToDrsDialog } from '@/components/ImportToDrsDialog';
+import { LinkWorkspaceDataDialog } from '@/components/LinkWorkspaceDataDialog';
+import { StartAnalysisDialog } from '@/components/StartAnalysisDialog';
 
 import type { DrsObject } from '@/api/types';
 
@@ -101,9 +104,9 @@ export function WorkspaceDetailPage() {
     enabled: !!id,
   });
 
-  if (!id) return <p className="text-muted-foreground">No workspace.</p>;
+  if (!id) return <p className="text-muted-foreground">{t('workspace.noId')}</p>;
   if (isLoading) return <p className="text-muted-foreground">{t('common.loading')}</p>;
-  if (error || !workspace) return <p className="text-destructive">Workspace not found.</p>;
+  if (error || !workspace) return <p className="text-destructive">{t('workspace.notFound')}</p>;
 
   const objects = Array.isArray(workspaceObjects) ? workspaceObjects : [];
 
@@ -116,6 +119,9 @@ export function WorkspaceDetailPage() {
         <div>
           <h1 className="text-2xl font-bold">{workspace.name}</h1>
           {workspace.description && <p className="text-muted-foreground">{workspace.description}</p>}
+        </div>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <StartAnalysisDialog workspaceId={id} />
         </div>
       </div>
 
@@ -179,6 +185,7 @@ export function WorkspaceDetailPage() {
           <Card className="mt-4">
             <CardHeader><CardTitle>{t('workspace.gettingStarted')}</CardTitle></CardHeader>
             <CardContent className="flex flex-wrap gap-2">
+              <StartAnalysisDialog workspaceId={id} />
               <Button asChild variant="outline" className="gap-1">
                 <Link to={'/data' as any}><FolderOpen className="h-4 w-4" />{t('workspace.openData')}</Link>
               </Button>
@@ -213,13 +220,25 @@ export function WorkspaceDetailPage() {
               <p className="text-sm text-muted-foreground">{t('workspace.dataHint')}</p>
             </CardHeader>
             <CardContent>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <ImportToDrsDialog linkToWorkspaceId={id} triggerVariant="default" />
+                <LinkWorkspaceDataDialog workspaceId={id} />
+              </div>
               {objects.length > 0 ? (
                 <ul className="space-y-2 text-sm mb-4">
                   {objects.map((o) => (
                     <li key={o.id} className="flex justify-between gap-2 border-b border-border/50 pb-2">
-                      <Link to={`/data/objects/${o.id}` as any} className="font-medium hover:underline">
-                        {o.name ?? o.id}
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <Link to={`/data/objects/${o.id}` as any} className="font-medium hover:underline truncate">
+                          {o.name ?? o.id}
+                        </Link>
+                        <Link
+                          to={`/data/objects/${o.id}?analyze=1` as any}
+                          className="text-xs text-primary hover:underline shrink-0"
+                        >
+                          {t('object.useInAnalysis')}
+                        </Link>
+                      </div>
                       <span className="text-muted-foreground shrink-0">
                         {o.size != null && o.size > 0 ? formatBytes(o.size) : '—'}
                       </span>
@@ -227,11 +246,8 @@ export function WorkspaceDetailPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground text-sm mb-4">{t('workspace.demoNote')}</p>
+                <p className="text-muted-foreground text-sm mb-4">{t('workspace.noData')}</p>
               )}
-              <Button asChild>
-                <Link to={'/data' as any}>{t('workspace.openData')}</Link>
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -242,6 +258,9 @@ export function WorkspaceDetailPage() {
               <p className="text-muted-foreground text-sm">{t('workspace.workflowsHint')}</p>
             </CardHeader>
             <CardContent>
+              <div className="mb-4">
+                <StartAnalysisDialog workspaceId={id} />
+              </div>
               {(workspaceRuns?.runs ?? []).length > 0 ? (
                 <ul className="space-y-2 text-sm mb-4">
                   {workspaceRuns!.runs.map((r) => (
