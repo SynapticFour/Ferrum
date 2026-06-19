@@ -174,7 +174,11 @@ tes_backend="$(curl -fsS "$BASE_URL/admin/config" | python3 -c "import json,sys;
 ok "WES run $run_id tes_backend=$tes_backend"
 
 state=""
-for _ in $(seq 1 45); do
+poll_max=45
+if [[ "${SMOKE_REQUIRE_COMPLETE:-}" == "1" || -n "${GITHUB_ACTIONS:-}" ]]; then
+  poll_max=90
+fi
+for _ in $(seq 1 "$poll_max"); do
   state="$(curl -fsS "$BASE_URL/ga4gh/wes/v1/runs/${run_id}/status" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("state",""))' 2>/dev/null || true)"
   case "$state" in
     COMPLETE|CANCELED|EXECUTOR_ERROR|SYSTEM_ERROR) break ;;
@@ -191,6 +195,9 @@ case "$state" in
     if [[ -n "$task_id" ]]; then
       stderr="$(curl -fsS "$BASE_URL/ga4gh/tes/v1/tasks/${task_id}" | python3 -c "import sys,json; logs=json.load(sys.stdin).get('logs',[]); print(logs[0].get('stderr','') if logs else '')" 2>/dev/null || true)"
     fi
+    if [[ "${SMOKE_REQUIRE_COMPLETE:-}" == "1" || -n "${GITHUB_ACTIONS:-}" ]]; then
+      die "WES run EXECUTOR_ERROR (CI requires COMPLETE) — $stderr"
+    fi
     if printf '%s' "$stderr" | grep -q 'docker.sock'; then
       ok "WES submit OK; TES worker lacks docker.sock (set FERRUM_TES_DOCKER_MOUNT_SOCKET=1)"
     elif printf '%s' "$stderr" | grep -q 'client version'; then
@@ -202,6 +209,9 @@ case "$state" in
     fi
     ;;
   *)
+    if [[ "${SMOKE_REQUIRE_COMPLETE:-}" == "1" || -n "${GITHUB_ACTIONS:-}" ]]; then
+      die "WES run unexpected state=$state (CI requires COMPLETE) — fixture URL: $SMOKE_CWL_URL"
+    fi
     die "WES run unexpected state=$state — fixture URL: $SMOKE_CWL_URL"
     ;;
 esac

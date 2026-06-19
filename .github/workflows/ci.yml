@@ -188,3 +188,18 @@ jobs:
       - name: UI E2E smoke
         working-directory: services/ui
         run: npm run test:e2e
+
+  test-tes:
+    if: github.actor != 'dependabot[bot]'
+    name: Docker TES + pilot smoke (WES COMPLETE)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/clone-ga4gh-infra
+        with:
+          ref: ${{ env.GA4GH_INFRA_REF }}
+      - name: Docker TES stack + pilot smoke
+        run: |
+          chmod +x deploy/scripts/ci-tes-pilot-e2e.sh
+          bash deploy/scripts/ci-tes-pilot-e2e.sh
