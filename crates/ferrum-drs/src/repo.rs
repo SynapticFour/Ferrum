@@ -642,6 +642,7 @@ impl DrsRepo {
             )
             .bind(&upload_pat)
             .bind(&register_pat)
+            .bind(limit)
             .fetch_all(p)
             .await
         })?;
