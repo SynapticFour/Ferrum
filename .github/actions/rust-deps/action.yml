@@ -1,0 +1,24 @@
+name: Rust dependencies
+description: Cache Cargo registry/target and prefetch locked deps (retry on crates.io flakes)
+runs:
+  using: composite
+  steps:
+    - uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: ferrum-workspace
+    - shell: bash
+      run: |
+        set -euo pipefail
+        max="${CARGO_FETCH_RETRY_MAX:-3}"
+        delay="${CARGO_FETCH_RETRY_DELAY_SECS:-20}"
+        for attempt in $(seq 1 "$max"); do
+          if cargo fetch --locked; then
+            exit 0
+          fi
+          if [[ "$attempt" -eq "$max" ]]; then
+            echo "::error::cargo fetch failed after $max attempts"
+            exit 1
+          fi
+          echo "::warning::cargo fetch attempt $attempt/$max failed (crates.io flake?); retrying in ${delay}s..." >&2
+          sleep "$delay"
+        done

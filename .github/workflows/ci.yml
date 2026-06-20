@@ -8,6 +8,8 @@ env:
   RUN_MII_CONNECT: "false"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   GA4GH_INFRA_REF: main
+  # crates.io occasionally flakes in GHA (SSL_ERROR_SYSCALL); default cargo retry is 3.
+  CARGO_NET_RETRY: "10"
 
 jobs:
   build:
@@ -19,6 +21,7 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
       - run: cargo build --workspace
 
   lint:
@@ -30,10 +33,16 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
       - name: Format check
         run: cargo fmt --all -- --check
       - name: Clippy (deny warnings)
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: cargo clippy --workspace --all-targets -- -D warnings
 
   test:
     if: github.actor != 'dependabot[bot]'
@@ -44,6 +53,7 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
       - name: Run workspace tests
         run: cargo test --workspace --all-targets
       - name: Federated access smoke (ADS proxy + DRS/WES gates)
@@ -72,6 +82,7 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
       - name: Run ferrum-embed Edge mode tests (isolated network)
         run: |
           if command -v unshare >/dev/null 2>&1; then
@@ -111,6 +122,7 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
       - name: Install libdeflate (for ferrum-core --features libdeflate)
         run: sudo apt-get update && sudo apt-get install -y libdeflate-dev
       - run: cargo bench -p ferrum-bench --no-run
@@ -129,6 +141,7 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
       - name: Build ferrum-gateway (release-edge, ARM64)
         run: cargo build -p ferrum-gateway --features edge --profile release-edge
       - name: ARM64 gateway binary size check (50 MB budget)
@@ -154,6 +167,7 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
       - name: Compile Crypt4GH benchmarks (aarch64)
         run: cargo bench -p ferrum-crypt4gh --bench crypt_benchmark --no-run
       - name: Compile ferrum-bench (aarch64)
