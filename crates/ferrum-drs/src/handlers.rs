@@ -1002,10 +1002,9 @@ pub async fn list_objects(
     );
     let workspace_id = if let Some(ref ws_id) = q.workspace_id {
         if require_auth {
-            let sub = auth
-                .as_ref()
-                .and_then(|c| c.sub())
-                .ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+            let sub = auth.as_ref().and_then(|c| c.sub()).ok_or_else(|| {
+                DrsError::Forbidden("workspace_id requires authentication".into())
+            })?;
             let is_member = ferrum_core::get_workspace_member_role(state.repo.pool(), ws_id, sub)
                 .await
                 .map_err(|e| DrsError::Other(e.into()))?

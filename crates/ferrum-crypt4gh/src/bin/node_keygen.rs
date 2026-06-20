@@ -10,7 +10,10 @@ fn main() {
     let sec = dir.join(format!("{key_id}.sec"));
     let pub_key = dir.join(format!("{key_id}.pub"));
     if sec.is_file() && pub_key.is_file() {
-        eprintln!("ferrum-node-keygen: keys already present at {}", dir.display());
+        eprintln!(
+            "ferrum-node-keygen: keys already present at {}",
+            dir.display()
+        );
         return;
     }
     ferrum_crypt4gh::generate_keypair(&sec, &pub_key, None).unwrap_or_else(|e| {
