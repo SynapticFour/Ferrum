@@ -80,18 +80,33 @@ print(len(g.get('nodes',[])))
 [[ "$run_nodes" -ge 1 ]] || die "run lineage empty for demo-run-seed-01: $run_prov"
 ok "run lineage nodes=$run_nodes"
 
-echo "smoke-pilot-local: pilot VCF stream preview"
-vcf_id="$(curl -fsS "$BASE_URL/ga4gh/drs/v1/objects" | python3 -c "
+lookup_pilot_vcf_id() {
+  local name="Pilot demo VCF (MinIO)"
+  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q postgres; then
+    local c
+    c="$(docker ps --format '{{.Names}}' | grep postgres | head -1)"
+    docker exec -i "$c" psql -q -U ferrum -d ferrum -t -A \
+      -c "SELECT id FROM drs_objects WHERE name = '${name}' LIMIT 1;" 2>/dev/null | tr -d '[:space:]' || true
+    return 0
+  fi
+  curl -fsS "$BASE_URL/ga4gh/drs/v1/objects?limit=500" | python3 -c "
 import sys, json
-objs = json.load(sys.stdin)
-for o in objs:
-    if o.get('name') == 'Pilot demo VCF (MinIO)':
+for o in json.load(sys.stdin):
+    if o.get('name') == '${name}':
         print(o['id'])
         break
-" 2>/dev/null || true)"
-[[ -n "$vcf_id" ]] || die "Pilot demo VCF not found — seed-pilot may have failed"
-preview="$(curl -fsS "$BASE_URL/ga4gh/drs/v1/objects/${vcf_id}/stream" | head -c 200 || true)"
-printf '%s' "$preview" | grep -q 'fileformat=VCF' || die "VCF stream preview missing ##fileformat"
+" 2>/dev/null || true
+}
+
+echo "smoke-pilot-local: pilot VCF stream preview"
+vcf_id="$(lookup_pilot_vcf_id)"
+[[ -n "$vcf_id" ]] || die "Pilot demo VCF not found — run make seed-pilot or check postgres"
+stream_code="$(curl -sS -o /tmp/ferrum-smoke-vcf-preview.$$ -w '%{http_code}' \
+  "$BASE_URL/ga4gh/drs/v1/objects/${vcf_id}/stream" || echo 000)"
+preview="$(head -c 200 /tmp/ferrum-smoke-vcf-preview.$$ 2>/dev/null || true)"
+rm -f /tmp/ferrum-smoke-vcf-preview.$$
+[[ "$stream_code" =~ ^2 ]] || die "VCF stream HTTP $stream_code for $vcf_id"
+printf '%s' "$preview" | grep -q 'fileformat=VCF' || die "VCF stream preview missing ##fileformat ($vcf_id)"
 ok "VCF stream preview ($vcf_id)"
 
 echo "smoke-pilot-local: cohort sample pilot-demo-01"

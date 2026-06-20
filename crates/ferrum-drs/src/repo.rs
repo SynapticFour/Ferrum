@@ -541,8 +541,12 @@ impl DrsRepo {
         })?;
         let mut out = Vec::new();
         for row in rows {
-            if let Some(obj) = self.get_object(&row.id, false).await? {
-                out.push(obj);
+            match self.get_object(&row.id, false).await {
+                Ok(Some(obj)) => out.push(obj),
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(object_id = %row.id, error = %e, "list_objects: skipping object");
+                }
             }
         }
         Ok(out)
