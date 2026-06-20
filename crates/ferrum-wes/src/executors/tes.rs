@@ -149,6 +149,48 @@ case "$URL" in
 esac
 "#;
 
+/// Host `docker` CLI bind (see cwltool launcher) — Cromwell Local backend invokes `docker run`.
+const TES_DOCKER_CLI_PATH_SETUP: &str = r#"[ -n "${FERRUM_TES_DOCKER_CLI:-}" ] && [ -x "${FERRUM_TES_DOCKER_CLI}" ] && mkdir -p /tmp/ferrum-bin && ln -sf "${FERRUM_TES_DOCKER_CLI}" /tmp/ferrum-bin/docker && export PATH="/tmp/ferrum-bin:${PATH}"
+"#;
+
+const WDL_BASH_LAUNCH_SCRIPT: &str = r#"set -euo pipefail
+TES_DOCKER_CLI_PATH_SETUP_PLACEHOLDER
+URL="$FERRUM_WES_WORKFLOW_URL"
+[[ "$URL" != http* ]] && URL="$FERRUM_WES_GATEWAY_BASE$URL"
+curl -fsSL "$URL" -o workflow.wdl
+RUN_ROOT="${FERRUM_WES_HOST_RUN_DIR:-.}"
+cat > cromwell-tes.conf <<EOF
+include required(classpath("application"))
+backend {
+  default = "Local"
+  providers {
+    Local {
+      config {
+        root = "${RUN_ROOT}"
+        docker-root = "${RUN_ROOT}"
+      }
+    }
+  }
+}
+docker {
+  enabled = true
+  hash-lookup {
+    method = "local"
+  }
+}
+EOF
+INPUTS_ARGS=
+[ -f inputs.json ] && INPUTS_ARGS="--inputs inputs.json"
+exec java -Dconfig.file=cromwell-tes.conf -jar /app/cromwell.jar run workflow.wdl $INPUTS_ARGS
+"#;
+
+fn wdl_bash_launch_script() -> String {
+    WDL_BASH_LAUNCH_SCRIPT.replace(
+        "TES_DOCKER_CLI_PATH_SETUP_PLACEHOLDER",
+        TES_DOCKER_CLI_PATH_SETUP,
+    )
+}
+
 fn shell_launcher(
     image: String,
     script: &str,
@@ -210,9 +252,31 @@ if [ -f \"$RUN_DIR/inputs.json\" ]; then exec cwltool --tmpdir \"$RUN_DIR/tmp\" 
                 "broadinstitute/cromwell:93-0232cbd",
             ),
             &format!(
-                "{RESOLVE_URL_BASH}INPUTS_ARGS=
+                "{RESOLVE_URL_BASH}{TES_DOCKER_CLI_PATH_SETUP}curl -fsSL \"$URL\" -o workflow.wdl
+INPUTS_ARGS=
 [ -f inputs.json ] && INPUTS_ARGS=\"--inputs inputs.json\"
-exec java -jar /app/cromwell.jar run \"$URL\" $INPUTS_ARGS
+RUN_ROOT=\"${{FERRUM_WES_HOST_RUN_DIR:-.}}\"
+cat > cromwell-tes.conf <<EOF
+include required(classpath(\"application\"))
+backend {{
+  default = \"Local\"
+  providers {{
+    Local {{
+      config {{
+        root = \"${{RUN_ROOT}}\"
+        docker-root = \"${{RUN_ROOT}}\"
+      }}
+    }}
+  }}
+}}
+docker {{
+  enabled = true
+  hash-lookup {{
+    method = \"local\"
+  }}
+}}
+EOF
+exec java -Dconfig.file=cromwell-tes.conf -jar /app/cromwell.jar run workflow.wdl $INPUTS_ARGS
 "
             ),
             env,
@@ -345,9 +409,7 @@ fn build_tes_task_request(run: &WesRun, work_dir: &Path) -> Result<TesTaskReques
                 "broadinstitute/cromwell:93-0232cbd",
             ),
             entrypoint: Some(vec!["/bin/bash".to_string(), "-lc".to_string()]),
-            command: vec![
-                "set -euo pipefail; URL=\"$FERRUM_WES_WORKFLOW_URL\"; [[ \"$URL\" != http* ]] && URL=\"$FERRUM_WES_GATEWAY_BASE$URL\"; curl -fsSL \"$URL\" -o workflow.wdl; INPUTS_ARGS=; if [ -f inputs.json ]; then INPUTS_ARGS=\"--inputs inputs.json\"; fi; exec java -jar /app/cromwell.jar run workflow.wdl $INPUTS_ARGS".to_string(),
-            ],
+            command: vec![wdl_bash_launch_script()],
             workdir: executor_workdir.clone(),
             env: Some({
                 let mut e = legacy_task_env(wf_url);

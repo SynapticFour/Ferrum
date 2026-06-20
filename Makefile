@@ -43,6 +43,7 @@ TES_IMAGES := \
 	quay.io/commonwl/cwltool:3.2.20260413085819 \
 	nextflow/nextflow:24.10.3 \
 	broadinstitute/cromwell:93-0232cbd \
+	broadinstitute/gatk:4.4.0.0 \
 	snakemake/snakemake:v7.32.4
 
 up-tes:

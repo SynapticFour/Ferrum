@@ -284,13 +284,30 @@ print(json.dumps(body))
       ok "germline WES run reached COMPLETE"
       ;;
     EXECUTOR_ERROR|SYSTEM_ERROR)
-      task_id="$(curl -fsS "$BASE_URL/ga4gh/tes/v1/tasks?limit=3" | python3 -c "import sys,json; t=json.load(sys.stdin).get('tasks',[]); print(t[0]['id'] if t else '')" 2>/dev/null || true)"
+      task_id="$(curl -fsS "$BASE_URL/ga4gh/tes/v1/tasks?limit=5" | python3 -c "import sys,json; t=json.load(sys.stdin).get('tasks',[]); print(t[0]['id'] if t else '')" 2>/dev/null || true)"
       stderr=""
+      stdout=""
       if [[ -n "$task_id" ]]; then
-        stderr="$(curl -fsS "$BASE_URL/ga4gh/tes/v1/tasks/${task_id}" | python3 -c "import sys,json; logs=json.load(sys.stdin).get('logs',[]); print(logs[0].get('stderr','') if logs else '')" 2>/dev/null || true)"
+        read -r stdout stderr < <(curl -fsS "$BASE_URL/ga4gh/tes/v1/tasks/${task_id}" | python3 -c "
+import sys, json
+t = json.load(sys.stdin)
+logs = t.get('logs') or []
+entry = logs[0] if logs else {}
+print((entry.get('stdout') or '').strip())
+print((entry.get('stderr') or '').strip())
+" 2>/dev/null || echo $'\n')
+      fi
+      work_log=""
+      if [[ -n "${REPO_ROOT:-}" ]]; then
+        for f in stderr.txt stdout.txt; do
+          p="${REPO_ROOT}/deploy/.wes-runs/${germline_id}/${f}"
+          if [[ -f "$p" ]]; then
+            work_log+=$'\n--- '"$f"' ---\n'"$(tail -80 "$p")"
+          fi
+        done
       fi
       if [[ "${SMOKE_REQUIRE_COMPLETE:-}" == "1" || -n "${GITHUB_ACTIONS:-}" ]]; then
-        die "germline WES run $g_state (CI requires COMPLETE) — $stderr"
+        die "germline WES run $g_state (CI requires COMPLETE) — stderr: ${stderr:-<empty>} stdout: ${stdout:-<empty>}${work_log}"
       fi
       if printf '%s' "$stderr" | grep -qE 'host_mnt|invalid mount config'; then
         ok "germline submit OK; nested docker bind limits on this host ($g_state)"
