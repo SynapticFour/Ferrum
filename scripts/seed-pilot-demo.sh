@@ -37,12 +37,16 @@ POSTGRES_DB="${POSTGRES_DB:-ferrum}"
 
 die() { echo "seed-pilot-demo: $*" >&2; exit 1; }
 
-CURL_AUTH=()
-if [[ -n "${FERRUM_PASSPORT_JWT:-}" ]]; then
-  CURL_AUTH=(-H "Authorization: Bearer ${FERRUM_PASSPORT_JWT}")
-fi
+# Bash 3.2 (macOS) + `set -u`: empty CURL_AUTH[@] is unbound — use a helper instead.
+curl_pilot() {
+  if [[ -n "${FERRUM_PASSPORT_JWT:-}" ]]; then
+    curl -fsS -H "Authorization: Bearer ${FERRUM_PASSPORT_JWT}" "$@"
+  else
+    curl -fsS "$@"
+  fi
+}
 
-curl -sf "${CURL_AUTH[@]}" "$BASE_URL/health" >/dev/null || die "Gateway not reachable at $BASE_URL (start stack first)"
+curl_pilot "$BASE_URL/health" >/dev/null || die "Gateway not reachable at $BASE_URL (start stack first)"
 [[ -f "$FIXTURE_VCF" ]] || die "Missing fixture: $FIXTURE_VCF"
 [[ -f "$FIXTURE_BAM" && -f "$FIXTURE_BAI" ]] || die "Missing BAM fixtures — run: bash profiles/pipeline/fixtures/build-tiny-bam.sh"
 [[ -f "$REF_FASTA" && -f "$REF_FAI" && -f "$TRUTH_VCF" && -f "$TRUTH_TBI" ]] || die "Missing reference bundle — run: bash profiles/pipeline/fixtures/build-pilot-ref-bundle.sh"
@@ -51,7 +55,7 @@ poll_ingest_job() {
   local job_id="$1"
   local status
   for _ in $(seq 1 60); do
-    status="$(curl -fsS "${CURL_AUTH[@]}" "$BASE_URL/api/v1/ingest/jobs/${job_id}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || true)"
+    status="$(curl_pilot "$BASE_URL/api/v1/ingest/jobs/${job_id}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || true)"
     case "$status" in
       succeeded) return 0 ;;
       failed) die "ingest job $job_id failed" ;;
@@ -66,13 +70,13 @@ ingest_file() {
   local name="$2"
   local client_id="$3"
   local resp job_id object_id
-  resp="$(curl -fsS -X POST "${CURL_AUTH[@]}" "$BASE_URL/api/v1/ingest/upload" \
+  resp="$(curl_pilot -X POST "$BASE_URL/api/v1/ingest/upload" \
     -F "file=@${path}" \
     -F "name=${name}" \
     -F "client_request_id=${client_id}")"
   job_id="$(printf '%s' "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin)['job_id'])")"
   poll_ingest_job "$job_id"
-  object_id="$(curl -fsS "${CURL_AUTH[@]}" "$BASE_URL/api/v1/ingest/jobs/${job_id}" | python3 -c "import sys,json; j=json.load(sys.stdin); print((j.get('result') or {}).get('object_ids',[''])[0])")"
+  object_id="$(curl_pilot "$BASE_URL/api/v1/ingest/jobs/${job_id}" | python3 -c "import sys,json; j=json.load(sys.stdin); print((j.get('result') or {}).get('object_ids',[''])[0])")"
   [[ -n "$object_id" ]] || die "no object_id from ingest job $job_id"
   printf '%s' "$object_id"
 }

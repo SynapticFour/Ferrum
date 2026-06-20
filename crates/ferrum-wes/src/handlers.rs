@@ -750,7 +750,7 @@ pub async fn get_run_log(
         workflow_type_version,
         _params,
         _ep,
-        _tags,
+        tags,
         state_str,
         start_time,
         end_time,
@@ -821,7 +821,23 @@ pub async fn get_run_log(
         outputs: Some(outputs),
         extensions,
         resumed_from_run_id,
+        tags: tags_map_from_value(&tags),
     }))
+}
+
+fn tags_map_from_value(
+    tags: &serde_json::Value,
+) -> Option<std::collections::HashMap<String, String>> {
+    let map: std::collections::HashMap<String, String> = tags
+        .as_object()?
+        .iter()
+        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+        .collect();
+    if map.is_empty() {
+        None
+    } else {
+        Some(map)
+    }
 }
 
 /// POST /runs/{run_id}/cancel

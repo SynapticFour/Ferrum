@@ -185,6 +185,9 @@ pub struct RunLog {
     /// When this run was created by resuming from another run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resumed_from_run_id: Option<String>,
+    /// Submit-time tags (e.g. cohort_id, sample_id from Run on cohort).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<std::collections::HashMap<String, String>>,
 }
 
 /// Minimal request reference in RunLog.

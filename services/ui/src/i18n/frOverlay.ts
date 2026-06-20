@@ -139,6 +139,11 @@ export const frOverlay = {
     objects: 'Vos données',
     objectsHint: 'Fichiers enregistrés et téléversés disponibles pour les analyses.',
     noObjects: 'Aucune donnée pour l\'instant. Téléversez des fichiers ou enregistrez des emplacements existants.',
+    workspaceFilter: 'Espace de travail',
+    workspaceAll: 'Tous les espaces',
+    workspaceFilterActive: 'Objets dans l\'espace « {name} ».',
+    workspaceEmptySeedHint:
+      'Démo pilote vide ? make seed-pilot (local) ou ./scripts/seed-pilot-remote.sh avec FERRUM_PASSPORT_JWT (Fly). Ajoute BAM, VCF et référence chr22 à cet espace.',
     listUnavailable: 'Impossible de lister les données. Le téléversement et l\'ajout peuvent quand même fonctionner.',
     colId: 'ID',
     colName: 'Nom',
@@ -413,6 +418,8 @@ export const frOverlay = {
     rerunDesc: 'Crée une nouvelle exécution en réutilisant les sorties en cache lorsque c\'est possible.',
     creating: 'Création…',
     resumedFrom: 'Repris depuis',
+    fromCohort: 'Cohorte',
+    cohortSample: 'Échantillon',
     resultsTitle: 'Fichiers de sortie',
     resultsHint:
       'Résultats scientifiques et sorties liées à DRS. Les artefacts moteur et journaux sont dans le second onglet.',

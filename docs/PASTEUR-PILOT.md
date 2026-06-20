@@ -26,7 +26,7 @@ There is **no web UI on the ga4gh-infra root URL** (API/broker only). End users 
 | **AAI with Fly Keycloak** | `make up-pilot-cloud` → `make test-pilot-cloud` (Fly must be running) |
 | Real workflow compute | `make up-tes` |
 | Optional pilot files (local) | `make seed-pilot` after stack is up — BAM, VCF, chr22 ref+truth on MinIO |
-| Optional pilot files (Fly) | `FERRUM_PASSPORT_JWT=… ./scripts/seed-pilot-remote.sh` (WES noop on Fly) |
+| Optional pilot files (Fly) | `FERRUM_PASSPORT_JWT=… ./scripts/seed-pilot-remote.sh` — verifies 7 pilot objects + cohort sample (WES noop on Fly) |
 
 `init-demo.sh` (container init) keeps conformance IDs and honest URL catalog placeholders. **`make seed-pilot`** is optional post-start enrichment: uploads `tiny.bam`, `.bai`, `tiny.vcf`, and a **TinyGermlineHC reference bundle** (`pilot-ref.fa`, truth `.vcf.gz`/`.tbi`) to MinIO, wires `pilot-demo-01` in `demo-cohort-01`, and adds provenance edges. Build fixtures first if missing: `bash profiles/pipeline/fixtures/build-pilot-ref-bundle.sh` and `build-tiny-bam.sh`. Idempotent — safe to re-run. Verify with **`make smoke-pilot`**.
 

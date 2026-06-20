@@ -11,7 +11,7 @@ import { OntIngestDialog } from '@/components/OntIngestDialog';
 import { useI18n } from '@/i18n/I18nProvider';
 import { formatBytes } from '@/lib/utils';
 import { PublishDatasetDialog } from '@/components/PublishDatasetDialog';
-import { Database, AlertCircle, Globe } from 'lucide-react';
+import { Database, AlertCircle, Globe, Filter } from 'lucide-react';
 
 interface DrsObject {
   id: string;
@@ -22,22 +22,42 @@ interface DrsObject {
   created_time?: string;
 }
 
+type WorkspaceRow = { id: string; name: string };
+
+const ALL_WORKSPACES = '__all__';
+
 export function DataBrowser() {
   const { t } = useI18n();
   const [tab, setTab] = useState('mine');
+  const [workspaceFilter, setWorkspaceFilter] = useState(ALL_WORKSPACES);
   const [uploadBanner, setUploadBanner] = useState<{
     kind: 'success' | 'error';
     text: string;
     objectId?: string;
   } | null>(null);
 
+  const { data: workspaces } = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: () => apiGet<WorkspaceRow[]>('/workspaces/v1/workspaces'),
+    retry: false,
+  });
+
+  const objectsUrl =
+    workspaceFilter === ALL_WORKSPACES
+      ? '/ga4gh/drs/v1/objects'
+      : `/ga4gh/drs/v1/objects?workspace_id=${encodeURIComponent(workspaceFilter)}&limit=500`;
+
   const { data: objects, isLoading, error } = useQuery({
-    queryKey: ['drs', 'objects'],
-    queryFn: () => apiGet<DrsObject[]>('/ga4gh/drs/v1/objects'),
+    queryKey: ['drs', 'objects', workspaceFilter],
+    queryFn: () => apiGet<DrsObject[]>(objectsUrl),
     retry: false,
   });
 
   const list = Array.isArray(objects) ? objects : [];
+  const workspaceLabel =
+    workspaceFilter === ALL_WORKSPACES
+      ? t('data.workspaceAll')
+      : workspaces?.find((w) => w.id === workspaceFilter)?.name ?? workspaceFilter;
 
   return (
     <div className="space-y-6">
@@ -133,16 +153,51 @@ export function DataBrowser() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-4 w-4" />
-                {t('data.objects')}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">{t('data.objectsHint')}</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="h-4 w-4" />
+                    {t('data.objects')}
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">{t('data.objectsHint')}</p>
+                </div>
+                {(workspaces?.length ?? 0) > 0 && (
+                  <label className="flex items-center gap-2 text-sm shrink-0">
+                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">{t('data.workspaceFilter')}</span>
+                    <select
+                      className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                      value={workspaceFilter}
+                      onChange={(e) => setWorkspaceFilter(e.target.value)}
+                      aria-label={t('data.workspaceFilter')}
+                    >
+                      <option value={ALL_WORKSPACES}>{t('data.workspaceAll')}</option>
+                      {workspaces!.map((ws) => (
+                        <option key={ws.id} value={ws.id}>
+                          {ws.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </div>
+              {workspaceFilter !== ALL_WORKSPACES && (
+                <p className="text-xs text-muted-foreground">
+                  {t('data.workspaceFilterActive', { name: workspaceLabel })}
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               {isLoading && <p className="text-muted-foreground text-sm">{t('common.loading')}</p>}
               {!isLoading && list.length === 0 && !error && (
-                <p className="text-muted-foreground text-sm">{t('data.noObjects')}</p>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>{t('data.noObjects')}</p>
+                  {workspaceFilter !== ALL_WORKSPACES && (
+                    <p className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed">
+                      {t('data.workspaceEmptySeedHint')}
+                    </p>
+                  )}
+                </div>
               )}
               {!isLoading && list.length > 0 && (
                 <div className="overflow-x-auto">

@@ -8,7 +8,7 @@ import { RunLineageTab } from '@/components/RunLineageTab';
 import { RunResultsTab } from '@/components/RunResultsTab';
 import { LiveLogViewer } from '@/components/LiveLogViewer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RotateCw } from 'lucide-react';
+import { ArrowLeft, RotateCw, Users } from 'lucide-react';
 import { WorkflowStateBadge } from '@/components/WorkflowStateBadge';
 import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
 import { useLiveRunLogs } from '@/hooks/useIngestJobs';
@@ -31,6 +31,7 @@ interface RunLog {
   run_id: string;
   state: string;
   resumed_from_run_id?: string | null;
+  tags?: Record<string, string>;
   request?: { workflow_type?: string; workflow_url?: string };
   run_log?: { stdout?: string; stderr?: string };
 }
@@ -89,6 +90,8 @@ export function RunDetailPage() {
 
   const terminalStates = ['COMPLETE', 'EXECUTOR_ERROR', 'SYSTEM_ERROR', 'CANCELED'];
   const canResume = terminalStates.includes(run.state);
+  const cohortId = run.tags?.cohort_id;
+  const cohortSampleId = run.tags?.sample_id;
 
   const staticLines = [
     ...(storedStdout?.split('\n').filter((l) => l.length > 0) ?? []),
@@ -114,6 +117,20 @@ export function RunDetailPage() {
             <Link to={'/workflows/runs/' + run.resumed_from_run_id} className="text-primary underline">
               {run.resumed_from_run_id}
             </Link>
+          </span>
+        )}
+        {cohortId && (
+          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Users className="h-3.5 w-3.5" />
+            {t('run.fromCohort')}{' '}
+            <Link to={`/cohorts/${cohortId}` as any} className="text-primary underline font-medium">
+              {cohortId}
+            </Link>
+            {cohortSampleId && (
+              <span>
+                · {t('run.cohortSample')}: <span className="font-mono text-xs">{cohortSampleId}</span>
+              </span>
+            )}
           </span>
         )}
         {canResume && (

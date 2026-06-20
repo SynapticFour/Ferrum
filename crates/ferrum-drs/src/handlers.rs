@@ -996,17 +996,23 @@ pub async fn list_objects(
     Query(q): Query<ListObjectsQuery>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<Vec<DrsObject>>> {
+    let require_auth = matches!(
+        std::env::var("FERRUM_AUTH__REQUIRE_AUTH").as_deref(),
+        Ok("true")
+    );
     let workspace_id = if let Some(ref ws_id) = q.workspace_id {
-        let sub = auth
-            .as_ref()
-            .and_then(|c| c.sub())
-            .ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
-        let is_member = ferrum_core::get_workspace_member_role(state.repo.pool(), ws_id, sub)
-            .await
-            .map_err(|e| DrsError::Other(e.into()))?
-            .is_some();
-        if !is_member {
-            return Err(DrsError::Forbidden("not a member of this workspace".into()));
+        if require_auth {
+            let sub = auth
+                .as_ref()
+                .and_then(|c| c.sub())
+                .ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+            let is_member = ferrum_core::get_workspace_member_role(state.repo.pool(), ws_id, sub)
+                .await
+                .map_err(|e| DrsError::Other(e.into()))?
+                .is_some();
+            if !is_member {
+                return Err(DrsError::Forbidden("not a member of this workspace".into()));
+            }
         }
         q.workspace_id.as_deref()
     } else {
