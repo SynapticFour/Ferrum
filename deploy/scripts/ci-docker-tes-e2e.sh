@@ -27,7 +27,7 @@ ingest_json="$(curl -sf -F "file=@${PAYLOAD};type=application/octet-stream" \
 object_id="$(printf '%s' "$ingest_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 [[ -n "$object_id" ]] || die "missing object id: $ingest_json"
 
-curl -sf "$BASE_URL/ga4gh/drs/v1/objects/${object_id}/stream" -o "${PAYLOAD}.dl"
+curl -sf "$BASE/ga4gh/drs/v1/objects/${object_id}/stream" -o "${PAYLOAD}.dl"
 cmp -s "$PAYLOAD" "${PAYLOAD}.dl" || die "stream byte mismatch"
 
 echo "ci-docker-tes-e2e: admin Crypt4GH ingest readiness"
