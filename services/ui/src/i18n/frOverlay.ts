@@ -103,12 +103,37 @@ export const frOverlay = {
     upload: 'Téléverser des fichiers',
     add: 'Ajouter des données',
     importToDrs: 'Importer dans DRS',
+    importCopy: 'Importer un fichier',
+    importCopyTitle: 'Importer dans le stockage géré',
+    importCopyDescription:
+      'Copie un fichier de votre ordinateur vers le stockage Ferrum (MinIO/local). Le fichier d\'origine reste inchangé. Chiffrement Crypt4GH optionnel.',
+    importCopyShort: 'Crée une copie gérée',
+    importCopyHint: 'Pour BAM, VCF, FASTQ. Les gros fichiers sont envoyés automatiquement par morceaux de 2 Mo.',
+    registerLink: 'Enregistrer un emplacement',
+    registerLinkTitle: 'Enregistrer sans copier',
+    registerLinkDescription:
+      'Indique où les données se trouvent déjà — URL publique ou chemin de stockage. Aucun octet n\'est copié ; Ferrum enregistre un pointeur DRS.',
+    registerLinkShort: 'Les données restent sur place',
+    registerByUrl: 'URL',
+    registerByLocation: 'Chemin de stockage',
+    registerUrlHint: 'Archives publiques (1000 Genomes, ENA, GitHub) ou fichiers HTTPS déjà hébergés.',
+    registerLocationHint: 'Fichier déjà sur MinIO/S3 ou stockage local Ferrum — indiquez la taille exacte en octets.',
+    registerSubmit: 'Enregistrer dans DRS',
+    chooseFile: 'Choisir un fichier…',
+    selectedFile: '{name} ({size})',
+    changeFile: 'Choisir un autre fichier',
+    startUpload: 'Démarrer le téléversement',
+    uploadProgress: 'Téléversement {done} sur {total}…',
+    uploadStreamError:
+      'Le téléversement a été interrompu avant la fin du fichier. Réessayez — les gros fichiers sont envoyés par morceaux.',
+    uploadTooLarge:
+      'Ce fichier dépasse la limite du serveur. Contactez l\'administrateur ou enregistrez-le par chemin de stockage.',
     importTitle: 'Importer dans DRS',
     importDescription:
-      'Ajoutez des fichiers au catalogue du Data Repository Service (DRS) — téléversement, URL ou emplacement de stockage existant.',
-    importVsLinkTitle: 'DRS vs espace de travail',
+      'Choisissez importer (copie gérée) ou enregistrer (pointeur seul). Les deux ajoutent une entrée au catalogue DRS.',
+    importVsLinkTitle: 'Importer vs enregistrer',
     importVsLinkBody:
-      'L\'import place les données dans DRS (catalogue de l\'institut). La liaison associe des objets DRS existants à un espace de travail sans copier les fichiers.',
+      'Importer copie les fichiers dans le stockage Ferrum (Crypt4GH optionnel). Enregistrer note seulement une URL ou un chemin — sans copie. La liaison (espace de travail) attache des objets DRS existants à un projet.',
     linkToWorkspace: 'Lier à l\'espace de travail',
     linkTitle: 'Lier des données existantes',
     linkDescription: 'Sélectionnez des objets DRS existants et associez-les à cet espace de travail.',
@@ -183,6 +208,12 @@ export const frOverlay = {
     ingestJobFailed: 'Échec de l\'import',
     ingestJobNoObject: 'Import terminé mais aucun identifiant d\'objet retourné',
     guideTitle: 'Ajouter des données — guide rapide',
+    guideStep1:
+      'Importer un fichier : choisir le fichier, décider du chiffrement, puis démarrer le téléversement. Ferrum stocke une copie gérée et déduit taille et type.',
+    guideStep2:
+      'Enregistrer par URL : lier des fichiers publics ou hébergés par l\'institut sans les copier (taille détectée si possible).',
+    guideStep3:
+      'Enregistrer par chemin : pointer vers un fichier déjà sur S3/MinIO ou stockage local — indiquez la taille exacte en octets.',
     addByUpload: 'Téléverser un fichier',
     workspaceLabel: 'Espace de travail (facultatif)',
     workspacePlaceholder: 'demo-workspace-01',
@@ -221,6 +252,9 @@ export const frOverlay = {
     storageKind: 'Stockage',
     storageUrl: 'URL enregistrée (non copiée)',
     storageManaged: 'Géré par Ferrum',
+    storageEncrypted: 'Chiffré (Crypt4GH)',
+    previewEncryptedNote:
+      'L\'aperçu déchiffre via Ferrum et est journalisé dans la piste d\'audit d\'accès, comme le téléchargement.',
     sizeUnknown: 'Inconnu (URL non vérifiée)',
     checksum: 'Somme de contrôle',
     sourceUrl: 'URL source',
@@ -871,5 +905,12 @@ export const frOverlay = {
     SYSTEM_ERROR: 'Erreur',
     CANCELED: 'Annulé',
     UNKNOWN: 'Inconnu',
+  },
+  report: {
+    hint: 'Envoyer le diagnostic à Synaptic Four (sans mots de passe ni contenu de fichier). Vous pouvez modifier le message avant envoi.',
+    email: 'E-mail au support',
+    github: 'Ouvrir un ticket GitHub',
+    copy: 'Copier le diagnostic',
+    copied: 'Copié',
   },
 };

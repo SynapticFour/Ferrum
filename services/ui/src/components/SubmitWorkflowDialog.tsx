@@ -24,6 +24,7 @@ import { WORKFLOW_ENGINES, engineByWesType, guessEngineFromFilename } from '@/li
 import { useWdlDescriptor } from '@/hooks/useWdlDescriptor';
 import { initParamValues, WorkflowParamForm } from '@/components/WorkflowParamForm';
 import { parseWdlWorkflowInputs } from '@/lib/wdlInputs';
+import { ErrorWithReport } from '@/components/ErrorWithReport';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useAdminConfig } from '@/hooks/useAdminConfig';
 import { buildFlatWorkflowParams, submitWorkflowRun } from '@/lib/wesSubmit';
@@ -398,7 +399,13 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
           />
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <ErrorWithReport
+            errorMessage={error}
+            context="wes-submit"
+            lastApi={{ method: 'POST', path: '/ga4gh/wes/v1/runs' }}
+          />
+        )}
         <Button
           type="button"
           onClick={() => submit.mutate()}

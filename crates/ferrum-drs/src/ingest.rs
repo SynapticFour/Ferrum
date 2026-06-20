@@ -4,9 +4,24 @@ use crate::error::{DrsError, Result};
 use crate::state::AppState;
 use crate::types::{CreateObjectRequest, IngestBatchItem, IngestBatchRequest, IngestUrlRequest};
 use axum::{
-    extract::{Extension, Multipart, State},
+    extract::{
+        multipart::MultipartError,
+        Extension, Multipart, State,
+    },
     Json,
 };
+
+fn multipart_err(e: MultipartError) -> DrsError {
+    let detail = e.body_text();
+    let message = if detail.contains("failed to read stream") {
+        "upload stream interrupted before the full file was received — retry the upload; \
+         if this persists, check network/proxy limits or use a smaller chunk size"
+            .to_string()
+    } else {
+        detail
+    };
+    DrsError::Validation(message)
+}
 use ferrum_crypt4gh::KeyStore;
 use ferrum_storage::TransferDirection;
 use sha2::{Digest, Sha256, Sha512};
@@ -39,7 +54,7 @@ pub async fn parse_multipart_upload(multipart: &mut Multipart) -> Result<ParsedM
     while let Some(field) = multipart
         .next_field()
         .await
-        .map_err(|e| DrsError::Other(e.into()))?
+        .map_err(multipart_err)?
     {
         let name_h = field.name().unwrap_or("").to_string();
         match name_h.as_str() {
@@ -64,7 +79,7 @@ pub async fn parse_multipart_upload(multipart: &mut Multipart) -> Result<ParsedM
                 if let Some(mime) = field.content_type().map(|c| c.to_string()) {
                     out.mime_type = Some(mime);
                 }
-                let buf = field.bytes().await.map_err(|e| DrsError::Other(e.into()))?;
+                let buf = field.bytes().await.map_err(multipart_err)?;
                 out.data = buf.to_vec();
             }
             "name" => {
@@ -269,6 +284,190 @@ pub async fn process_upload_from_parts(
     Ok(IngestFileResponse {
         id: object_id,
         size,
+        checksums: vec![],
+    })
+}
+
+/// Streamed upload: file already spooled to disk (avoids buffering large multipart bodies in RAM).
+pub async fn process_upload_from_spooled(
+    state: Arc<AppState>,
+    auth: Option<&ferrum_core::AuthClaims>,
+    mut parsed: ParsedMultipartUpload,
+    spool_path: std::path::PathBuf,
+    spool_size: u64,
+) -> Result<IngestFileResponse> {
+    let storage = state
+        .storage
+        .clone()
+        .ok_or_else(|| DrsError::Validation("ingest not configured: no storage".into()))?;
+    if spool_size == 0 {
+        return Err(DrsError::Validation("no file in multipart".into()));
+    }
+    let max_bytes = state.ingest.effective_max_upload_bytes();
+    if spool_size > max_bytes {
+        return Err(DrsError::Validation(format!(
+            "upload exceeds ingest.max_upload_bytes ({max_bytes})"
+        )));
+    }
+    if let (Some(ref tq), Some(ref bw)) = (&state.transfer_queue, &state.bandwidth) {
+        if tq.should_queue(spool_size, bw.as_ref()) {
+            tq.enqueue(
+                parsed
+                    .explicit_name
+                    .clone()
+                    .or(parsed.file_name.clone())
+                    .unwrap_or_else(|| "pending-upload".into()),
+                spool_size,
+                TransferDirection::Upload,
+            );
+            return Err(DrsError::TransferQueued(format!(
+                "large upload deferred on very low bandwidth (size={spool_size} bytes)"
+            )));
+        }
+    }
+    let object_name = parsed.explicit_name.or(parsed.file_name);
+    let encrypt = parsed
+        .encrypt
+        .unwrap_or(state.ingest.default_encrypt_upload);
+
+    if let Some(ref ws_id) = parsed.workspace_id {
+        let sub = auth
+            .and_then(|c| c.sub())
+            .ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
+        let ok = ferrum_core::is_workspace_editor_or_owner(state.repo.pool(), ws_id, sub)
+            .await
+            .map_err(|e| DrsError::Other(e.into()))?;
+        if !ok {
+            return Err(DrsError::Forbidden(
+                "not a workspace editor or owner".into(),
+            ));
+        }
+    }
+
+    let object_id = ulid::Ulid::new().to_string();
+    let storage_key = format!("drs/{}", object_id);
+    let backend = state.object_storage_backend.clone();
+
+    let stored_size: i64 = if encrypt {
+        let plaintext = tokio::fs::read(&spool_path)
+            .await
+            .map_err(|e| DrsError::Validation(format!("read spooled upload: {e}")))?;
+        if let Some(ref expected) = parsed.expected_sha256 {
+            let sha256 = hex::encode(Sha256::digest(&plaintext));
+            if expected.to_lowercase() != sha256 {
+                return Err(DrsError::Validation(format!(
+                    "checksum mismatch: expected sha-256 {expected}"
+                )));
+            }
+        }
+        let key_dir = state.crypt4gh_key_dir.as_ref().ok_or_else(|| {
+            DrsError::Validation(
+                "encrypt=true requires FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR (or [encryption].crypt4gh_key_dir)"
+                    .into(),
+            )
+        })?;
+        let ks = ferrum_crypt4gh::LocalKeyStore::new(key_dir.as_path());
+        let key_id = state.crypt4gh_master_key_id.clone();
+        let pk = ks
+            .get_public_key_bytes(&key_id)
+            .await
+            .map_err(|e| DrsError::Validation(format!("crypt4gh key store: {e}")))?;
+        let pubkey = pk.ok_or_else(|| {
+            DrsError::Validation(format!(
+                "no public key for crypt4gh_master_key_id={key_id} under CRYPT4GH_KEY_DIR"
+            ))
+        })?;
+        let data = tokio::task::spawn_blocking(move || {
+            ferrum_crypt4gh::encrypt_bytes_for_pubkey(&pubkey, &plaintext)
+        })
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?
+        .map_err(|e| DrsError::Validation(format!("crypt4gh encrypt: {e}")))?;
+        let size = data.len() as i64;
+        storage
+            .put_bytes(&storage_key, &data)
+            .await
+            .map_err(|e| DrsError::Other(e.into()))?;
+        size
+    } else {
+        if let Some(ref expected) = parsed.expected_sha256 {
+            let plaintext = tokio::fs::read(&spool_path)
+                .await
+                .map_err(|e| DrsError::Validation(format!("read spooled upload: {e}")))?;
+            let sha256 = hex::encode(Sha256::digest(&plaintext));
+            if expected.to_lowercase() != sha256 {
+                return Err(DrsError::Validation(format!(
+                    "checksum mismatch: expected sha-256 {expected}"
+                )));
+            }
+        }
+        storage
+            .put_file(&storage_key, &spool_path)
+            .await
+            .map_err(|e| DrsError::Other(e.into()))?;
+        spool_size as i64
+    };
+
+    parsed.data.clear();
+    let req = CreateObjectRequest {
+        name: object_name.or_else(|| Some(storage_key.clone())),
+        description: None,
+        mime_type: parsed.mime_type,
+        size: stored_size,
+        checksums: vec![],
+        aliases: None,
+        storage_backend: backend,
+        storage_key: storage_key.clone(),
+        is_encrypted: Some(encrypt),
+        workspace_id: parsed.workspace_id,
+        ont_metrics: None,
+        gisaid_metadata: None,
+        metadata_ref: None,
+    };
+    state
+        .repo
+        .create_object_with_id(&req, Some(object_id.clone()))
+        .await?;
+
+    if let Some(ref audit) = state.residency_audit {
+        let requester = auth.and_then(|c| c.sub());
+        let _ = audit
+            .append(
+                "data_uploaded",
+                Some(&object_id),
+                requester,
+                None,
+                false,
+                Some(stored_size),
+            )
+            .await;
+    }
+
+    state
+        .repo
+        .set_checksum_status(&object_id, "pending")
+        .await?;
+
+    spawn_checksum_job(
+        Arc::clone(&state),
+        Arc::clone(&state.repo),
+        storage,
+        object_id.clone(),
+        storage_key,
+    );
+
+    let hook_name = req.name.clone();
+    let hook_mime = req.mime_type.clone();
+    crate::pipeline_hooks::schedule_post_ingest_hooks(
+        Arc::clone(&state),
+        object_id.clone(),
+        hook_name,
+        hook_mime,
+    );
+
+    Ok(IngestFileResponse {
+        id: object_id,
+        size: stored_size,
         checksums: vec![],
     })
 }

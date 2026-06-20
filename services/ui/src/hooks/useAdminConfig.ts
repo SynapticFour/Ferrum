@@ -24,6 +24,7 @@ export interface SanitizedConfig {
     crypt4gh_ingest_ready?: boolean;
   };
   compute?: { tes_backend?: string; wes_trs_auto_register?: boolean };
+  ingest?: { max_upload_bytes?: number; max_chunk_bytes?: number };
   discovery?: {
     enabled?: boolean;
     auto_register?: boolean;

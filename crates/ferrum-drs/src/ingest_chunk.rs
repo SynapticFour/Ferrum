@@ -26,6 +26,17 @@ fn upload_temp_key(token: &str) -> String {
     format!("drs/uploads/{token}")
 }
 
+/// Lab/browser ingest chunks may be larger than field-sync slices; floor avoids DRS stream
+/// telemetry (small localhost downloads) forcing 512 KiB caps on `/api/v1/ingest/upload/chunk`.
+pub const INGEST_CHUNK_CEILING_BYTES: u64 = 4 * 1024 * 1024;
+
+pub fn effective_ingest_chunk_max_bytes(bandwidth: Option<&ferrum_storage::BandwidthMonitor>) -> u64 {
+    let adaptive = bandwidth
+        .map(|b| b.classify().chunk_size_bytes())
+        .unwrap_or(BandwidthClass::Medium.chunk_size_bytes());
+    adaptive.max(INGEST_CHUNK_CEILING_BYTES)
+}
+
 pub async fn process_chunked_upload_from_parts(
     state: Arc<AppState>,
     auth: Option<&ferrum_core::AuthClaims>,
@@ -50,13 +61,16 @@ pub async fn process_chunked_upload_from_parts(
     }
 
     let bw = state.bandwidth.as_ref();
-    let class = bw.map(|b| b.classify()).unwrap_or(BandwidthClass::Medium);
-    let max_chunk = class.chunk_size_bytes() as i64;
+    let max_chunk = effective_ingest_chunk_max_bytes(bw.map(|m| m.as_ref())) as i64;
     if parsed.data.len() as i64 > max_chunk {
         return Err(DrsError::Validation(format!(
-            "chunk exceeds bandwidth-adapted max size ({max_chunk} bytes)"
+            "chunk exceeds max ingest chunk size ({max_chunk} bytes)"
         )));
     }
+
+    let class = bw
+        .map(|b| b.classify())
+        .unwrap_or(BandwidthClass::Medium);
 
     if let (Some(ref tq), Some(ref bw)) = (&state.transfer_queue, &state.bandwidth) {
         if tq.should_queue(total_bytes as u64, bw.as_ref()) {

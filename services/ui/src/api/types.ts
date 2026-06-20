@@ -13,6 +13,9 @@ export interface DrsObject {
   description?: string;
   ont_metrics?: Record<string, unknown>;
   gisaid_metadata?: Record<string, unknown>;
+  /** Ferrum extension from `storage_references`. */
+  storage_backend?: string;
+  is_encrypted?: boolean;
 }
 
 /** WES run state */

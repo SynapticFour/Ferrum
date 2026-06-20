@@ -9,13 +9,13 @@ function accessUrl(obj: DrsObject): string {
 
 /** Whether Ferrum stores bytes (MinIO/local) vs external URL reference only. */
 export function drsStorageKind(obj: DrsObject): DrsStorageKind {
-  const backend = (obj as DrsObject & { storage_backend?: string }).storage_backend;
+  const backend = obj.storage_backend?.toLowerCase();
   if (backend === 'url') return 'url';
-  if (backend === 's3' || backend === 'local') return 'managed';
+  if (backend === 's3' || backend === 'local' || backend === 'minio') return 'managed';
 
   const url = accessUrl(obj);
-  // Managed objects stream via Ferrum gateway relay URLs.
-  if (url.includes('/ga4gh/drs/v1/objects/') && url.includes('/access/')) return 'managed';
+  // Managed objects are served via Ferrum DRS stream/access endpoints.
+  if (url.includes('/ga4gh/drs/v1/objects/')) return 'managed';
 
   const desc = (obj.description ?? '').toLowerCase();
   const name = (obj.name ?? '').toLowerCase();
@@ -32,6 +32,8 @@ export function drsStorageKind(obj: DrsObject): DrsStorageKind {
     return 'url';
   }
   if (url.startsWith('http')) return 'managed';
+  // Ingested objects without URL metadata are Ferrum-managed.
+  if (obj.storage_backend) return 'managed';
   return 'unknown';
 }
 

@@ -44,6 +44,7 @@ export function ObjectDetailPage() {
 
   const kind = obj ? drsStorageKind(obj) : 'unknown';
   const displayName = obj?.name ?? id;
+  const isEncrypted = obj?.is_encrypted === true;
   const previewByType = obj ? wouldPreviewByType(displayName, obj.mime_type, obj.size) : false;
   const streamPreviewable = obj
     ? canStreamPreview(kind, displayName, obj.mime_type, obj.size)
@@ -121,6 +122,9 @@ export function ObjectDetailPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{t('object.preview')}</CardTitle>
+            {isEncrypted && (
+              <p className="text-xs text-muted-foreground font-normal">{t('object.previewEncryptedNote')}</p>
+            )}
           </CardHeader>
           <CardContent>
             {previewLoading ? (
@@ -155,6 +159,7 @@ export function ObjectDetailPage() {
             <p className="text-muted-foreground">{t('object.storageKind')}</p>
             <p className="font-medium">
               {kind === 'url' ? t('object.storageUrl') : t('object.storageManaged')}
+              {isEncrypted ? ` · ${t('object.storageEncrypted')}` : ''}
             </p>
           </div>
           <div>

@@ -685,7 +685,9 @@ pub async fn get_object_stream(
         let compressed =
             zstd::encode_all(body.as_slice(), 3).map_err(|e| DrsError::Other(e.into()))?;
         if let Some(ref bw) = state.bandwidth {
-            bw.record_transfer(compressed.len() as u64, 100);
+            if compressed.len() as u64 >= ferrum_storage::MIN_BANDWIDTH_SAMPLE_BYTES {
+                bw.record_transfer(compressed.len() as u64, 100);
+            }
         }
         if let Some(ref token) = stream_query.resume_token {
             let _ = update_checkpoint_progress(state.repo.pool(), token, obj.size).await;
@@ -762,7 +764,9 @@ pub async fn get_object_stream(
             }
             let transferred = skip_bytes + bytes_counter.load(Ordering::Relaxed);
             if let Some(ref bw) = bw_for_task {
-                bw.record_transfer(transferred, 100);
+                if transferred >= ferrum_storage::MIN_BANDWIDTH_SAMPLE_BYTES {
+                    bw.record_transfer(transferred, 100);
+                }
             }
             if let Some(token) = resume_for_task {
                 let _ =

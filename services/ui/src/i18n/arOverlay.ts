@@ -102,12 +102,37 @@ export const arOverlay = {
     upload: 'رفع الملفات',
     add: 'إضافة بيانات',
     importToDrs: 'استيراد إلى DRS',
+    importCopy: 'استيراد ملف',
+    importCopyTitle: 'استيراد إلى التخزين المُدار',
+    importCopyDescription:
+      'ينسخ ملفًا من جهازك إلى تخزين Ferrum (MinIO/محلي). الملف الأصلي يبقى كما هو. تشفير Crypt4GH اختياري.',
+    importCopyShort: 'ينشئ نسخة مُدارة',
+    importCopyHint: 'لملفات BAM وVCF وFASTQ. الملفات الكبيرة تُرفع تلقائيًا على دفعات 4 ميجابايت.',
+    registerLink: 'تسجيل الموقع',
+    registerLinkTitle: 'تسجيل دون نسخ',
+    registerLinkDescription:
+      'يسجّل مكان البيانات الحالي — عنوان URL عام أو مسار تخزين. لا يتم نسخ أي بايت؛ Ferrum يحفظ مؤشر DRS فقط.',
+    registerLinkShort: 'البيانات تبقى في مكانها',
+    registerByUrl: 'عنوان URL',
+    registerByLocation: 'مسار التخزين',
+    registerUrlHint: 'للأرشيفات العامة (1000 Genomes، ENA، GitHub) أو ملفات HTTPS المستضافة لديك.',
+    registerLocationHint: 'إذا كان الملف على MinIO/S3 أو التخزين المحلي — أدخل الحجم بالبايت بدقة.',
+    registerSubmit: 'تسجيل في DRS',
+    chooseFile: 'اختيار ملف…',
+    selectedFile: '{name} ({size})',
+    changeFile: 'اختيار ملف آخر',
+    startUpload: 'بدء الرفع',
+    uploadProgress: 'جارٍ الرفع {done} من {total}…',
+    uploadStreamError:
+      'توقف الرفع قبل اكتمال الملف. أعد المحاولة — الملفات الكبيرة تُرسل على دفعات أصغر تلقائيًا.',
+    uploadTooLarge:
+      'هذا الملف يتجاوز حد الرفع على الخادم. تواصل مع المسؤول أو سجّله عبر مسار التخزين.',
     importTitle: 'استيراد إلى DRS',
     importDescription:
-      'أضف ملفات إلى كتالوج خدمة مستودع البيانات (DRS) — ارفع نسخة أو سجّل عنوان URL أو أشر إلى تخزين تديره بالفعل.',
-    importVsLinkTitle: 'DRS مقابل مساحة العمل',
+      'اختر الاستيراد (نسخة مُدارة) أو التسجيل (مؤشر فقط). كلاهما يضيف إدخالًا إلى كتالوج DRS.',
+    importVsLinkTitle: 'استيراد مقابل تسجيل',
     importVsLinkBody:
-      'الاستيراد يضع البيانات في DRS (كتالوج المعهد). الربط يضيف كائنات DRS موجودة إلى مجلد مشروع مساحة العمل دون نسخ الملفات.',
+      'الاستيراد ينسخ الملفات إلى تخزين Ferrum (Crypt4GH اختياري). التسجيل يسجّل URL أو مسارًا فقط — دون نسخ. الربط (مساحة العمل) يربط كائنات DRS موجودة بمشروع.',
     linkToWorkspace: 'ربط بمساحة العمل',
     linkTitle: 'ربط بيانات موجودة',
     linkDescription: 'اختر كائنات DRS موجودة واربطها بمساحة العمل هذه.',
@@ -182,6 +207,12 @@ export const arOverlay = {
     ingestJobFailed: 'فشل الاستيراد',
     ingestJobNoObject: 'اكتمل الاستيراد لكن لم يُرجع معرّف كائن',
     guideTitle: 'إضافة البيانات — دليل سريع',
+    guideStep1:
+      'استيراد ملف: اختر الملف، قرّر التشفير، ثم ابدأ الرفع. Ferrum يحفظ نسخة مُدارة ويستنتج الحجم والنوع.',
+    guideStep2:
+      'تسجيل عبر URL: ربط ملفات عامة أو مستضافة لدى المعهد دون نسخها (يُقاس الحجم إن أمكن).',
+    guideStep3:
+      'تسجيل عبر مسار التخزين: الإشارة إلى ملف على S3/MinIO أو التخزين المحلي — أدخل الحجم بالبايت بدقة.',
     addByUpload: 'رفع ملف',
     workspaceLabel: 'مساحة العمل (اختياري)',
     workspacePlaceholder: 'demo-workspace-01',
@@ -220,6 +251,9 @@ export const arOverlay = {
     storageKind: 'التخزين',
     storageUrl: 'URL مسجّل (غير منسوخ)',
     storageManaged: 'مُدار بواسطة Ferrum',
+    storageEncrypted: 'مشفّر (Crypt4GH)',
+    previewEncryptedNote:
+      'المعاينة تفك التشفير عبر Ferrum وتُسجَّل في سجل تدقيق الوصول، مثل التنزيل.',
     sizeUnknown: 'غير معروف (لم يُفحص URL)',
     checksum: 'مجموع التحقق',
     sourceUrl: 'URL المصدر',
@@ -846,5 +880,12 @@ export const arOverlay = {
     SYSTEM_ERROR: 'خطأ',
     CANCELED: 'ملغى',
     UNKNOWN: 'غير معروف',
+  },
+  report: {
+    hint: 'أرسل التشخيص إلى Synaptic Four (بدون كلمات مرور أو محتوى ملفات). يمكنك تعديل الرسالة قبل الإرسال.',
+    email: 'بريد إلى الدعم',
+    github: 'فتح مشكلة على GitHub',
+    copy: 'نسخ التشخيص',
+    copied: 'تم النسخ',
   },
 };

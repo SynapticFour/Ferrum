@@ -99,12 +99,36 @@ export const en = {
     upload: 'Upload files',
     add: 'Add data',
     importToDrs: 'Import to DRS',
+    importCopy: 'Import file',
+    importCopyTitle: 'Import into managed storage',
+    importCopyDescription:
+      'Copy a file from your computer into Ferrum-managed storage (MinIO/local). The file on your disk stays unchanged. Optional Crypt4GH encryption protects data at rest.',
+    importCopyShort: 'Creates a new managed copy',
+    importCopyHint: 'Best for BAM, VCF, FASTQ from your laptop or sequencer export. Large files upload in 2 MB pieces automatically.',
+    registerLink: 'Register location',
+    registerLinkTitle: 'Register without copying',
+    registerLinkDescription:
+      'Record where data already lives — public URL or institute storage path. No bytes are copied; Ferrum stores a DRS pointer only.',
+    registerLinkShort: 'Data stays where it is',
+    registerByUrl: 'URL',
+    registerByLocation: 'Storage path',
+    registerUrlHint: 'Use for public archives (1000 Genomes, ENA, GitHub) or HTTPS files your institute already hosts.',
+    registerLocationHint: 'Use when the file is already on MinIO/S3 or Ferrum local storage — supply the exact byte size.',
+    registerSubmit: 'Register in DRS',
+    chooseFile: 'Choose file…',
+    selectedFile: '{name} ({size})',
+    changeFile: 'Choose a different file',
+    startUpload: 'Start upload',
+    uploadProgress: 'Uploading {done} of {total}…',
+    uploadStreamError:
+      'The upload was interrupted before the full file arrived. Please try again — large files are sent in smaller pieces automatically.',
+    uploadTooLarge: 'This file exceeds the server upload limit. Contact your administrator or register the file by storage path instead.',
     importTitle: 'Import into DRS',
     importDescription:
-      'Add files to the Data Repository Service (DRS) catalog — upload a copy, register a URL, or point at storage you already manage.',
-    importVsLinkTitle: 'DRS vs workspace',
+      'Choose import (managed copy) or register (pointer only). Both add an entry to the Data Repository Service (DRS) catalog.',
+    importVsLinkTitle: 'Import vs register',
     importVsLinkBody:
-      'Importing puts data in DRS (your institute catalog). Linking adds existing DRS objects to a workspace project folder without copying files.',
+      'Import copies files into Ferrum-managed storage (optional Crypt4GH). Register only records a URL or storage path — no copy. Linking (in a workspace) attaches existing DRS objects to a project folder.',
     linkToWorkspace: 'Link to workspace',
     linkTitle: 'Link existing data to workspace',
     linkDescription:
@@ -196,7 +220,7 @@ export const en = {
     jobSucceeded: 'Done',
     jobFailed: 'Failed',
     guideTitle: 'Adding data — quick guide',
-    guideStep1: 'Upload files: pick one or more files. Ferrum stores a copy and fills in size and file type automatically.',
+    guideStep1: 'Import file: choose a file, decide whether to encrypt, then start upload. Ferrum stores a managed copy and infers size and type.',
     guideStep2: 'Register by URL: link public or institute-hosted files without copying them (size is probed when possible).',
     guideStep3: 'Register by location: point at a file already on S3/MinIO or local storage — you must supply the byte size.',
     guideOptional: 'Only display name and MIME type are optional for uploads. Everything else is inferred or defaulted.',
@@ -239,6 +263,9 @@ export const en = {
     storageKind: 'Storage',
     storageUrl: 'Registered URL (not copied)',
     storageManaged: 'Managed by Ferrum',
+    storageEncrypted: 'Encrypted (Crypt4GH)',
+    previewEncryptedNote:
+      'Preview decrypts via Ferrum and is logged in the access audit trail, same as download.',
     sizeUnknown: 'Unknown (URL not probed)',
     checksum: 'Checksum',
     sourceUrl: 'Source URL',
@@ -865,6 +892,13 @@ export const en = {
     SYSTEM_ERROR: 'Error',
     CANCELED: 'Canceled',
     UNKNOWN: 'Unknown',
+  },
+  report: {
+    hint: 'Send diagnostics to Synaptic Four (no passwords or file contents). You can edit the message before sending.',
+    email: 'Email support',
+    github: 'Open GitHub issue',
+    copy: 'Copy diagnostics',
+    copied: 'Copied',
   },
 } ;
 

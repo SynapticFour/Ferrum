@@ -17,9 +17,13 @@ import { useIngestJobPoller } from '@/hooks/useIngestJobs';
 import { useIngestJobsStore, type IngestJobKind } from '@/stores/ingestJobs';
 import { useI18n } from '@/i18n/I18nProvider';
 import { decodeJwtPayload } from '@/lib/auth';
+import { CHUNKED_UPLOAD_THRESHOLD_BYTES, uploadFileInChunks } from '@/lib/chunkedUpload';
+import { friendlyIngestError } from '@/lib/ingestErrors';
 import { ingestClientRequestId } from '@/lib/ingestClientRequestId';
 import { useAuthStore } from '@/stores/auth';
-import { Database, Loader2, Upload } from 'lucide-react';
+import { formatBytes } from '@/lib/utils';
+import { CloudUpload, Database, HardDriveUpload, Link2, Loader2 } from 'lucide-react';
+import { ErrorWithReport } from '@/components/ErrorWithReport';
 import { cn } from '@/lib/utils';
 
 interface IngestJobResponse {
@@ -29,12 +33,16 @@ interface IngestJobResponse {
   result?: { object_ids?: string[] };
 }
 
+export type DataDialogMode = 'import' | 'register';
+
 export interface ImportToDrsDialogProps {
   onSuccess?: (objectId: string) => void;
   /** When set, imported objects are also linked to this workspace after ingest. */
   linkToWorkspaceId?: string;
   triggerVariant?: 'default' | 'outline';
   triggerLabelKey?: string;
+  /** Opens the dialog focused on copy-import vs register-link. */
+  initialMode?: DataDialogMode;
 }
 
 async function linkObjectsToWorkspace(workspaceId: string, objectIds: string[]) {
@@ -49,7 +57,8 @@ export function ImportToDrsDialog({
   onSuccess,
   linkToWorkspaceId,
   triggerVariant = 'default',
-  triggerLabelKey = 'data.importToDrs',
+  triggerLabelKey = 'data.importCopy',
+  initialMode = 'import',
 }: ImportToDrsDialogProps) {
   const { t } = useI18n();
   const qc = useQueryClient();
@@ -59,7 +68,8 @@ export function ImportToDrsDialog({
   const { data: config } = useAdminConfig();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'upload' | 'url' | 'location'>('upload');
+  const [topMode, setTopMode] = useState<DataDialogMode>(initialMode);
+  const [registerMode, setRegisterMode] = useState<'url' | 'location'>('url');
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
   const [mime, setMime] = useState('');
@@ -68,9 +78,11 @@ export function ImportToDrsDialog({
   const [storageKey, setStorageKey] = useState('');
   const [size, setSize] = useState('');
   const [encryptUpload, setEncryptUpload] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const activeJobIdRef = useRef<string | null>(null);
   activeJobIdRef.current = activeJobId;
 
@@ -79,10 +91,16 @@ export function ImportToDrsDialog({
   const workspaceToLink = alsoLinkWorkspace ? linkToWorkspaceId : undefined;
 
   useEffect(() => {
+    if (open) setTopMode(initialMode);
+  }, [open, initialMode]);
+
+  useEffect(() => {
     if (config && !crypt4ghIngestReady) {
       setEncryptUpload(false);
     }
   }, [config, crypt4ghIngestReady]);
+
+  const setFriendlyError = (msg: string) => setError(friendlyIngestError(msg, t));
 
   const finishImport = async (objectId: string) => {
     if (workspaceToLink) {
@@ -93,6 +111,8 @@ export function ImportToDrsDialog({
     void qc.invalidateQueries({ queryKey: ['drs', 'objects'] });
     setOpen(false);
     setError(null);
+    setUploadProgress(null);
+    setSelectedFile(null);
     onSuccess?.(objectId);
   };
 
@@ -101,6 +121,7 @@ export function ImportToDrsDialog({
       const jobId = activeJobIdRef.current;
       setActiveJobId(null);
       setJobStatus(status);
+      setUploadProgress(null);
       if (jobId) {
         const objectId = result?.object_ids?.[0];
         updateJob(jobId, { status, objectId, finishedAt: Date.now() });
@@ -153,7 +174,7 @@ export function ImportToDrsDialog({
   const register = useMutation({
     mutationFn: async () => {
       const item =
-        mode === 'url'
+        registerMode === 'url'
           ? {
               kind: 'url' as const,
               url: url.trim(),
@@ -178,14 +199,31 @@ export function ImportToDrsDialog({
     onSuccess: async (data) => {
       await handleIngestResponse(data, 'data.registerFailed', 'data.registerJob', 'register');
     },
-    onError: (e: Error) => setError(e.message || t('data.registerFailed')),
+    onError: (e: Error) => setFriendlyError(e.message || t('data.registerFailed')),
   });
 
   const upload = useMutation({
     mutationFn: async (file: File) => {
+      const clientId = ingestClientRequestId('upload', ingestSub);
+      if (file.size > CHUNKED_UPLOAD_THRESHOLD_BYTES) {
+        setUploadProgress({ done: 0, total: file.size });
+        const result = await uploadFileInChunks(file, {
+          encrypt: encryptUpload,
+          workspaceId: workspaceToLink,
+          clientRequestId: clientId,
+          onProgress: (done, total) => setUploadProgress({ done, total }),
+        });
+        return {
+          job_id: '',
+          status: 'succeeded',
+          job_type: 'upload',
+          result: { object_ids: [result.object_id] },
+        } satisfies IngestJobResponse;
+      }
+
       const fd = new FormData();
-      fd.append('file', file);
-      fd.append('client_request_id', ingestClientRequestId('upload', ingestSub));
+      fd.append('file', file, file.name || 'upload.bin');
+      fd.append('client_request_id', clientId);
       if (encryptUpload) fd.append('encrypt', 'true');
       if (workspaceToLink) fd.append('workspace_id', workspaceToLink);
       return apiPostFormData<IngestJobResponse>('/api/v1/ingest/upload', fd);
@@ -193,11 +231,16 @@ export function ImportToDrsDialog({
     onSuccess: async (data) => {
       await handleIngestResponse(data, 'data.uploadFailed', 'data.uploadJob', 'upload');
     },
-    onError: (e: Error) => setError(e.message || t('data.uploadFailed')),
+    onError: (e: Error) => {
+      setUploadProgress(null);
+      setFriendlyError(e.message || t('data.uploadFailed'));
+    },
   });
 
   const registerCanSubmit =
-    mode === 'url' ? url.trim().length > 0 : storageKey.trim().length > 0 && Number.parseInt(size, 10) > 0;
+    registerMode === 'url'
+      ? url.trim().length > 0
+      : storageKey.trim().length > 0 && Number.parseInt(size, 10) > 0;
   const pending = register.isPending || upload.isPending || !!activeJobId;
   const passportJwt = useAuthStore((s) => s.passportJwt);
   const ingestSub = useMemo(() => {
@@ -206,32 +249,76 @@ export function ImportToDrsDialog({
     return typeof claims?.sub === 'string' ? claims.sub : null;
   }, [passportJwt]);
 
+  const dialogTitle = topMode === 'import' ? t('data.importCopyTitle') : t('data.registerLinkTitle');
+  const dialogDescription =
+    topMode === 'import' ? t('data.importCopyDescription') : t('data.registerLinkDescription');
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) {
+          setSelectedFile(null);
+          setError(null);
+          setUploadProgress(null);
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant={triggerVariant} className="gap-2" data-testid="import-to-drs-trigger">
-          {mode === 'upload' && triggerVariant === 'outline' ? (
-            <Upload className="h-4 w-4" />
+          {topMode === 'import' || initialMode === 'import' ? (
+            <HardDriveUpload className="h-4 w-4" />
           ) : (
-            <Database className="h-4 w-4" />
+            <Link2 className="h-4 w-4" />
           )}
           {t(triggerLabelKey)}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t('data.importTitle')}</DialogTitle>
-          <p className="text-sm text-muted-foreground">{t('data.importDescription')}</p>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+          <p className="text-sm text-muted-foreground">{dialogDescription}</p>
         </DialogHeader>
 
-        <Tabs value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upload">{t('data.addByUpload')}</TabsTrigger>
-            <TabsTrigger value="url">{t('data.addByUrl')}</TabsTrigger>
-            <TabsTrigger value="location">{t('data.addByLocation')}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="upload" className="space-y-3 pt-2">
-            <p className="text-xs text-muted-foreground">{t('data.uploadTabHint')}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setTopMode('import')}
+            className={cn(
+              'rounded-lg border p-3 text-left transition-colors',
+              topMode === 'import'
+                ? 'border-primary bg-primary/10'
+                : 'border-border hover:bg-muted/50',
+            )}
+          >
+            <div className="flex items-center gap-2 font-medium text-sm">
+              <HardDriveUpload className="h-4 w-4 shrink-0" />
+              {t('data.importCopy')}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{t('data.importCopyShort')}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTopMode('register')}
+            className={cn(
+              'rounded-lg border p-3 text-left transition-colors',
+              topMode === 'register'
+                ? 'border-primary bg-primary/10'
+                : 'border-border hover:bg-muted/50',
+            )}
+          >
+            <div className="flex items-center gap-2 font-medium text-sm">
+              <Link2 className="h-4 w-4 shrink-0" />
+              {t('data.registerLink')}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{t('data.registerLinkShort')}</p>
+          </button>
+        </div>
+
+        {topMode === 'import' ? (
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-muted-foreground">{t('data.importCopyHint')}</p>
             <input
               ref={fileRef}
               type="file"
@@ -239,19 +326,46 @@ export function ImportToDrsDialog({
               onChange={(ev) => {
                 const file = ev.target.files?.[0];
                 ev.target.value = '';
-                if (file) upload.mutate(file);
+                setSelectedFile(file ?? null);
+                setError(null);
               }}
             />
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2 w-full"
-              disabled={pending}
-              onClick={() => fileRef.current?.click()}
-            >
-              {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-              {t('data.upload')}
-            </Button>
+            {selectedFile ? (
+              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+                <p className="font-medium break-all">
+                  {t('data.selectedFile', { name: selectedFile.name, size: formatBytes(selectedFile.size) })}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 h-7 px-2 text-xs"
+                  disabled={pending}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {t('data.changeFile')}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2 w-full"
+                disabled={pending}
+                onClick={() => fileRef.current?.click()}
+              >
+                <CloudUpload className="h-4 w-4" />
+                {t('data.chooseFile')}
+              </Button>
+            )}
+            {uploadProgress && (
+              <p className="text-xs text-muted-foreground">
+                {t('data.uploadProgress', {
+                  done: formatBytes(uploadProgress.done),
+                  total: formatBytes(uploadProgress.total),
+                })}
+              </p>
+            )}
             <label
               className={cn(
                 'flex items-center gap-2 text-sm',
@@ -272,54 +386,70 @@ export function ImportToDrsDialog({
             ) : (
               <p className="text-xs text-muted-foreground">{t(crypt4ghUnavailableMessageKey(config))}</p>
             )}
-          </TabsContent>
-          <TabsContent value="url" className="space-y-3 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="import-url">{t('data.urlLabel')}</Label>
-              <Input
-                id="import-url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder={t('data.urlPlaceholder')}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">{t('data.guideStep2')}</p>
-          </TabsContent>
-          <TabsContent value="location" className="space-y-3 pt-2">
-            <div className="space-y-2">
-              <Label htmlFor="import-backend">{t('data.backendLabel')}</Label>
-              <Input
-                id="import-backend"
-                value={backend}
-                onChange={(e) => setBackend(e.target.value)}
-                placeholder={defaultBackend}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="import-key">{t('data.keyLabel')}</Label>
-              <Input
-                id="import-key"
-                value={storageKey}
-                onChange={(e) => setStorageKey(e.target.value)}
-                placeholder={t('data.keyPlaceholder')}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="import-size">{t('data.sizeLabel')}</Label>
-              <Input
-                id="import-size"
-                type="number"
-                min={1}
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">{t('data.sizeHint')}</p>
-            </div>
-            <p className="text-xs text-muted-foreground">{t('data.guideStep3')}</p>
-          </TabsContent>
-        </Tabs>
+            <Button
+              type="button"
+              className="gap-2 w-full"
+              disabled={!selectedFile || pending}
+              onClick={() => selectedFile && upload.mutate(selectedFile)}
+            >
+              {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <HardDriveUpload className="h-4 w-4" />}
+              {t('data.startUpload')}
+            </Button>
+          </div>
+        ) : (
+          <Tabs value={registerMode} onValueChange={(v) => setRegisterMode(v as typeof registerMode)}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="url">{t('data.registerByUrl')}</TabsTrigger>
+              <TabsTrigger value="location">{t('data.registerByLocation')}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="url" className="space-y-3 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="import-url">{t('data.urlLabel')}</Label>
+                <Input
+                  id="import-url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder={t('data.urlPlaceholder')}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">{t('data.registerUrlHint')}</p>
+            </TabsContent>
+            <TabsContent value="location" className="space-y-3 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="import-backend">{t('data.backendLabel')}</Label>
+                <Input
+                  id="import-backend"
+                  value={backend}
+                  onChange={(e) => setBackend(e.target.value)}
+                  placeholder={defaultBackend}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="import-key">{t('data.keyLabel')}</Label>
+                <Input
+                  id="import-key"
+                  value={storageKey}
+                  onChange={(e) => setStorageKey(e.target.value)}
+                  placeholder={t('data.keyPlaceholder')}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="import-size">{t('data.sizeLabel')}</Label>
+                <Input
+                  id="import-size"
+                  type="number"
+                  min={1}
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">{t('data.sizeHint')}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">{t('data.registerLocationHint')}</p>
+            </TabsContent>
+          </Tabs>
+        )}
 
-        {mode !== 'upload' && (
+        {topMode === 'register' && (
           <>
             <div className="space-y-2">
               <Label htmlFor="import-name">
@@ -363,17 +493,30 @@ export function ImportToDrsDialog({
           </p>
         )}
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <ErrorWithReport
+            errorMessage={error}
+            context="data-import"
+            lastApi={{
+              method: 'POST',
+              path: topMode === 'import' ? '/api/v1/ingest/upload' : '/api/v1/ingest/register',
+            }}
+            extra={{
+              mode: topMode,
+              encrypt: topMode === 'import' ? encryptUpload : undefined,
+            }}
+          />
+        )}
 
-        {mode !== 'upload' && (
+        {topMode === 'register' && (
           <Button
             type="button"
             onClick={() => register.mutate()}
             disabled={!registerCanSubmit || pending}
             className="gap-2"
           >
-            {register.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {t('data.register')}
+            {register.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+            {t('data.registerSubmit')}
           </Button>
         )}
       </DialogContent>

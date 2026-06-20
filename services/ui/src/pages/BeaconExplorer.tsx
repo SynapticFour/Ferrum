@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiPost } from '@/api/client';
-import { Search, Loader2, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Search, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { ErrorWithReport } from '@/components/ErrorWithReport';
 import { useI18n } from '@/i18n/I18nProvider';
 
 interface VariantQueryResponse {
@@ -179,10 +180,21 @@ export function BeaconExplorer() {
             {t('beacon.query')}
           </Button>
           {error && (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
+            <ErrorWithReport
+              errorMessage={error}
+              context="beacon-query"
+              lastApi={{ method: 'POST', path: '/ga4gh/beacon/v2/g_variants' }}
+              extra={
+                lastQuery
+                  ? {
+                      assemblyId: lastQuery.assemblyId,
+                      referenceName: lastQuery.referenceName,
+                      start: lastQuery.start,
+                      federate: lastQuery.federate,
+                    }
+                  : undefined
+              }
+            />
           )}
           {result && (
             <div

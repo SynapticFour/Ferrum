@@ -34,7 +34,7 @@ help:
 	@echo "  make edge      Native single-binary Edge mode (no Docker)"
 	@echo "  make laptop    Deprecated alias for make edge"
 	@echo "  make logs      Tail compose logs"
-	@echo "  make build     Build images only"
+	@echo "  make rebuild-gateway-tes  Rebuild gateway image when using make up-tes"
 	@echo ""
 	@echo "  Crypt4GH: make up / make up-tes generates node keys (crypt4gh-keys volume)."
 	@echo "  Keep volumes with make down; make destroy wipes keys and MinIO data."
@@ -199,6 +199,13 @@ rebuild:
 rebuild-gateway:
 	$(COMPOSE) build --no-cache ferrum-gateway ferrum-ui
 	@echo "Done. Restart with: $(COMPOSE) up -d"
+
+# Rebuild gateway for TES stack (tes-docker feature + wes-runs volume defaults).
+rebuild-gateway-tes:
+	@mkdir -p deploy/.wes-runs
+	$(COMPOSE_TES) build ferrum-gateway ferrum-ui
+	$(COMPOSE_TES) up -d ferrum-gateway ferrum-ui nginx
+	@echo "Done. Gateway + UI rebuilt with TES overlay."
 
 # Pull only
 pull:

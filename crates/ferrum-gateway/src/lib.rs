@@ -13,6 +13,7 @@ pub mod power;
 #[cfg(feature = "full")]
 mod publish;
 pub mod shutdown;
+use axum::extract::DefaultBodyLimit;
 use axum::http::header;
 use axum::response::IntoResponse;
 use axum::{routing::get, Router};
@@ -409,6 +410,10 @@ pub fn app(
             .route("/ui", get(ui_placeholder))
             .route("/ui/*path", get(ui_placeholder));
     }
+
+    // Multipart ingest/WES uploads: axum default is 2MB. Layer must come after all `.nest()` routes
+    // (an early `.layer()` only wraps routes registered before it — see axum Router docs).
+    app = app.layer(DefaultBodyLimit::max(1024 * 1024 * 1024));
 
     // Lesson 9: graceful shutdown for long-running transfers.
     // We reject new DRS stream requests with 503 and track in-flight streams until body drain ends.

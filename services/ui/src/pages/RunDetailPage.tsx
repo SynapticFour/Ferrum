@@ -12,6 +12,7 @@ import { ArrowLeft, RotateCw, Users } from 'lucide-react';
 import { WorkflowStateBadge } from '@/components/WorkflowStateBadge';
 import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
 import { useLiveRunLogs } from '@/hooks/useIngestJobs';
+import { ProblemReportPanel } from '@/components/ProblemReportPanel';
 import { useI18n } from '@/i18n/I18nProvider';
 import {
   Dialog,
@@ -100,6 +101,9 @@ export function RunDetailPage() {
   const displayLines = liveLines.length > 0 ? liveLines : staticLines;
   const defaultTab = run.state === 'COMPLETE' ? 'results' : 'log';
 
+  const failedRun = run.state === 'EXECUTOR_ERROR' || run.state === 'SYSTEM_ERROR';
+  const stderrTail = storedStderr?.trim().slice(-1200);
+
   return (
     <div className="space-y-6">
       <NoopExecutorBanner />
@@ -157,6 +161,19 @@ export function RunDetailPage() {
           </Dialog>
         )}
       </div>
+      {failedRun && (
+        <ProblemReportPanel
+          errorMessage={`WES run ${run.state}`}
+          context="wes-run"
+          lastApi={{ method: 'GET', path: `/ga4gh/wes/v1/runs/${id}/status` }}
+          extra={{
+            run_id: run.run_id,
+            workflow_type: run.request?.workflow_type,
+            workflow_url: run.request?.workflow_url,
+            stderr_tail: stderrTail || undefined,
+          }}
+        />
+      )}
       <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value="log">{isActive ? t('run.liveLog') : t('run.log')}</TabsTrigger>

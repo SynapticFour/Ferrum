@@ -46,12 +46,21 @@ pub struct SanitizedCompute {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct SanitizedIngest {
+    /// Max single upload size in bytes (ingest API + gateway body limit).
+    pub max_upload_bytes: u64,
+    /// Max bytes per `POST /api/v1/ingest/upload/chunk` request body.
+    pub max_chunk_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SanitizedConfig {
     pub bind: String,
     pub database: SanitizedDatabase,
     pub storage: SanitizedStorage,
     pub services: SanitizedServices,
     pub compute: SanitizedCompute,
+    pub ingest: SanitizedIngest,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discovery: Option<SanitizedDiscovery>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -385,6 +394,10 @@ pub fn admin_router(
             compute: SanitizedCompute {
                 tes_backend,
                 wes_trs_auto_register,
+            },
+            ingest: SanitizedIngest {
+                max_upload_bytes: c.ingest.effective_max_upload_bytes(),
+                max_chunk_bytes: ferrum_drs::ingest_chunk::INGEST_CHUNK_CEILING_BYTES,
             },
             discovery: Some(SanitizedDiscovery {
                 enabled: c.discovery.enabled,

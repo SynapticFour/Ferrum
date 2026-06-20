@@ -102,12 +102,37 @@ const deOverlay = {
     upload: 'Dateien hochladen',
     add: 'Daten hinzufügen',
     importToDrs: 'In DRS importieren',
+    importCopy: 'Datei importieren',
+    importCopyTitle: 'In verwalteten Speicher importieren',
+    importCopyDescription:
+      'Kopiert eine Datei von Ihrem Rechner in den von Ferrum verwalteten Speicher (MinIO/lokal). Die Originaldatei bleibt unverändert. Optional: Crypt4GH-Verschlüsselung.',
+    importCopyShort: 'Erstellt eine verwaltete Kopie',
+    importCopyHint: 'Für BAM, VCF, FASTQ vom Laptop oder Sequencer. Große Dateien werden automatisch in 2-MB-Teilen hochgeladen.',
+    registerLink: 'Speicherort registrieren',
+    registerLinkTitle: 'Ohne Kopie registrieren',
+    registerLinkDescription:
+      'Erfasst, wo Daten bereits liegen — öffentliche URL oder Instituts-Speicherpfad. Es werden keine Bytes kopiert; Ferrum speichert nur einen DRS-Verweis.',
+    registerLinkShort: 'Daten bleiben am Ursprungsort',
+    registerByUrl: 'URL',
+    registerByLocation: 'Speicherpfad',
+    registerUrlHint: 'Für öffentliche Archive (1000 Genomes, ENA, GitHub) oder HTTPS-Dateien Ihres Instituts.',
+    registerLocationHint: 'Wenn die Datei bereits auf MinIO/S3 oder lokalem Ferrum-Speicher liegt — exakte Bytegröße angeben.',
+    registerSubmit: 'In DRS registrieren',
+    chooseFile: 'Datei wählen…',
+    selectedFile: '{name} ({size})',
+    changeFile: 'Andere Datei wählen',
+    startUpload: 'Upload starten',
+    uploadProgress: 'Hochladen {done} von {total}…',
+    uploadStreamError:
+      'Der Upload wurde unterbrochen, bevor die gesamte Datei ankam. Bitte erneut versuchen — große Dateien werden automatisch in kleineren Teilen gesendet.',
+    uploadTooLarge:
+      'Diese Datei überschreitet das Server-Upload-Limit. Administrator kontaktieren oder Datei per Speicherpfad registrieren.',
     importTitle: 'In DRS importieren',
     importDescription:
-      'Dateien im Data Repository Service (DRS) katalogisieren — hochladen, per URL registrieren oder bestehenden Speicher verknüpfen.',
-    importVsLinkTitle: 'DRS vs. Arbeitsbereich',
+      'Import (verwaltete Kopie) oder Registrieren (nur Verweis) wählen. Beides legt einen Eintrag im Data Repository Service (DRS) an.',
+    importVsLinkTitle: 'Import vs. Registrieren',
     importVsLinkBody:
-      'Importieren legt Daten in DRS ab (Institutskatalog). Verknüpfen ordnet bestehende DRS-Objekte einem Arbeitsbereich zu — ohne Kopie.',
+      'Import kopiert Dateien in den von Ferrum verwalteten Speicher (optional Crypt4GH). Registrieren erfasst nur URL oder Speicherpfad — ohne Kopie. Verknüpfen (im Arbeitsbereich) ordnet bestehende DRS-Objekte einem Projekt zu.',
     linkToWorkspace: 'Mit Arbeitsbereich verknüpfen',
     linkTitle: 'Bestehende Daten verknüpfen',
     linkDescription: 'DRS-Objekte auswählen und diesem Arbeitsbereich zuordnen.',
@@ -181,6 +206,12 @@ const deOverlay = {
     ingestJobFailed: 'Import-Auftrag fehlgeschlagen',
     ingestJobNoObject: 'Import abgeschlossen, aber keine Objekt-ID zurückgegeben',
     guideTitle: 'Daten hinzufügen — Kurzanleitung',
+    guideStep1:
+      'Datei importieren: Datei wählen, Verschlüsselung festlegen, dann Upload starten. Ferrum speichert eine verwaltete Kopie und leitet Größe und Typ ab.',
+    guideStep2:
+      'Per URL registrieren: öffentliche oder institutsgehostete Dateien verknüpfen, ohne sie zu kopieren (Größe wird wenn möglich ermittelt).',
+    guideStep3:
+      'Per Speicherpfad registrieren: auf eine Datei auf S3/MinIO oder lokalem Speicher verweisen — exakte Bytegröße angeben.',
     addByUpload: 'Datei hochladen',
     workspaceLabel: 'Arbeitsbereich (optional)',
     workspacePlaceholder: 'demo-workspace-01',
@@ -219,6 +250,9 @@ const deOverlay = {
     storageKind: 'Speicher',
     storageUrl: 'Registrierte URL (nicht kopiert)',
     storageManaged: 'Von Ferrum verwaltet',
+    storageEncrypted: 'Verschlüsselt (Crypt4GH)',
+    previewEncryptedNote:
+      'Die Vorschau entschlüsselt über Ferrum und wird wie ein Download im Zugriffs-Audit protokolliert.',
     sizeUnknown: 'Unbekannt (URL nicht geprüft)',
     checksum: 'Prüfsumme',
     sourceUrl: 'Quell-URL',
@@ -851,6 +885,13 @@ const deOverlay = {
     SYSTEM_ERROR: 'Fehler',
     CANCELED: 'Abgebrochen',
     UNKNOWN: 'Unbekannt',
+  },
+  report: {
+    hint: 'Diagnose an Synaptic Four senden (keine Passwörter oder Dateiinhalte). Nachricht vor dem Senden bearbeiten.',
+    email: 'E-Mail an Support',
+    github: 'GitHub-Issue öffnen',
+    copy: 'Diagnose kopieren',
+    copied: 'Kopiert',
   },
 };
 

@@ -134,6 +134,10 @@ services:
     build:
       context: ../services/ui
       dockerfile: Dockerfile
+      args:
+        VITE_ENABLE_PROBLEM_REPORT: "${VITE_ENABLE_PROBLEM_REPORT:-true}"
+        VITE_PROBLEM_REPORT_EMAIL: "${VITE_PROBLEM_REPORT_EMAIL:-contact@synapticfour.com}"
+        VITE_PROBLEM_REPORT_GITHUB_REPO: "${VITE_PROBLEM_REPORT_GITHUB_REPO:-SynapticFour/Ferrum}"
     image: ferrum-ui:latest
     pull_policy: build
     depends_on:

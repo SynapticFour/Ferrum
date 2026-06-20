@@ -180,6 +180,11 @@ impl DrsRepo {
             .as_ref()
             .and_then(|a| serde_json::from_value(a.clone()).ok());
 
+        let (storage_backend, is_encrypted) = match self.get_storage_ref(id).await? {
+            Some((backend, _, encrypted)) => (Some(backend), Some(encrypted)),
+            None => (None, None),
+        };
+
         Ok(Some(DrsObject {
             id: row.id.clone(),
             self_uri: self.self_uri(&row.id),
@@ -201,6 +206,8 @@ impl DrsRepo {
             ont_metrics,
             gisaid_metadata,
             metadata_ref,
+            storage_backend,
+            is_encrypted,
         }))
     }
 

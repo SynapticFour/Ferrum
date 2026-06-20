@@ -23,6 +23,7 @@ import { engineByWesType } from '@/lib/workflowEngines';
 import { useWdlDescriptor } from '@/hooks/useWdlDescriptor';
 import { initParamValues, WorkflowParamForm } from '@/components/WorkflowParamForm';
 import { DRSObjectPicker } from '@/components/DRSObjectPicker';
+import { ErrorWithReport } from '@/components/ErrorWithReport';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { DrsObject } from '@/api/types';
 import {
@@ -480,7 +481,13 @@ export function StartAnalysisDialog({
                 />
               )}
               {progress && <p className="text-sm text-muted-foreground">{progress}</p>}
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <ErrorWithReport
+                  errorMessage={error}
+                  context="wes-analysis"
+                  lastApi={{ method: 'POST', path: '/ga4gh/wes/v1/runs' }}
+                />
+              )}
               <Button
                 type="button"
                 className="w-full gap-2"

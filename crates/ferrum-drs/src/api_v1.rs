@@ -2,13 +2,13 @@
 //! Structured JSON errors: `code`, `message`, optional `details`.
 
 use crate::error::DrsError;
-use crate::ingest::{parse_multipart_upload, process_upload_from_parts};
+use crate::ingest::{process_upload_from_spooled, ParsedMultipartUpload};
 use crate::ingest_chunk::process_chunked_upload_from_parts;
 use crate::metadata::{link_object_metadata_ref, provenance_destination, store_ferrum_meta_bundle};
 use crate::state::AppState;
 use crate::types::{ChecksumInput, CreateObjectRequest};
 use crate::uri;
-use axum::extract::{Extension, Multipart, Path as AxPath, State};
+use axum::extract::{DefaultBodyLimit, Extension, Multipart, Path as AxPath, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -542,9 +542,88 @@ async fn do_upload_chunk(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     multipart: &mut Multipart,
 ) -> Result<crate::ingest_chunk::ChunkUploadResponse, IngestApiError> {
-    let parsed = parse_multipart_upload(multipart)
+    let max_bytes = state.ingest.effective_max_upload_bytes();
+    let mut parsed = ParsedMultipartUpload::default();
+    let mut chunk_spooled: Option<SpooledUpload> = None;
+
+    while let Some(field) = multipart
+        .next_field()
         .await
-        .map_err(IngestApiError::from_drs)?;
+        .map_err(|e| IngestApiError::validation(e.body_text()))?
+    {
+        match field.name().unwrap_or("") {
+            "workspace_id" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        parsed.workspace_id = Some(t);
+                    }
+                }
+            }
+            "client_request_id" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        parsed.client_request_id = Some(t);
+                    }
+                }
+            }
+            "file" => {
+                parsed.file_name = field.file_name().map(str::to_string);
+                if let Some(mime) = field.content_type().map(|c| c.to_string()) {
+                    parsed.mime_type = Some(mime);
+                }
+                chunk_spooled = Some(spool_multipart_field(field, max_bytes, 0).await?);
+            }
+            "name" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        parsed.explicit_name = Some(t);
+                    }
+                }
+            }
+            "encrypt" => {
+                if let Ok(v) = field.text().await {
+                    parsed.encrypt = Some(v.eq_ignore_ascii_case("true") || v == "1");
+                }
+            }
+            "expected_sha256" => {
+                if let Ok(v) = field.text().await {
+                    parsed.expected_sha256 = Some(v.trim().to_string());
+                }
+            }
+            "upload_token" | "resume_token" => {
+                if let Ok(v) = field.text().await {
+                    let t = v.trim().to_string();
+                    if !t.is_empty() {
+                        parsed.upload_token = Some(t);
+                    }
+                }
+            }
+            "chunk_offset" => {
+                if let Ok(v) = field.text().await {
+                    if let Ok(n) = v.trim().parse::<i64>() {
+                        parsed.chunk_offset = Some(n);
+                    }
+                }
+            }
+            "total_bytes" => {
+                if let Ok(v) = field.text().await {
+                    if let Ok(n) = v.trim().parse::<i64>() {
+                        parsed.total_bytes = Some(n);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let spooled = chunk_spooled.ok_or_else(|| IngestApiError::validation("no chunk data in multipart"))?;
+    parsed.data = tokio::fs::read(&spooled.path)
+        .await
+        .map_err(|e| IngestApiError::internal(format!("read chunk: {e}")))?;
+
     let claims = auth.as_ref().map(|e| &e.0);
     process_chunked_upload_from_parts(state, claims, parsed)
         .await
@@ -567,9 +646,67 @@ async fn do_upload(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     multipart: &mut Multipart,
 ) -> Result<IngestJobResponse, IngestApiError> {
-    let parsed = parse_multipart_upload(multipart)
+    let max_bytes = state.ingest.effective_max_upload_bytes();
+    let mut parsed = ParsedMultipartUpload::default();
+    let mut spooled: Option<SpooledUpload> = None;
+
+    while let Some(field) = multipart
+        .next_field()
         .await
-        .map_err(IngestApiError::from_drs)?;
+        .map_err(|e| IngestApiError::validation(e.body_text()))?
+    {
+        let name_h = field.name().unwrap_or("").to_string();
+        match name_h.as_str() {
+            "workspace_id" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        parsed.workspace_id = Some(t);
+                    }
+                }
+            }
+            "client_request_id" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        parsed.client_request_id = Some(t);
+                    }
+                }
+            }
+            "file" => {
+                parsed.file_name = field.file_name().map(str::to_string);
+                if let Some(mime) = field.content_type().map(|c| c.to_string()) {
+                    parsed.mime_type = Some(mime);
+                }
+                let chunk = spool_multipart_field(field, max_bytes, 0).await?;
+                spooled = Some(chunk);
+            }
+            "name" => {
+                if let Ok(t) = field.text().await {
+                    let t = t.trim().to_string();
+                    if !t.is_empty() {
+                        parsed.explicit_name = Some(t);
+                    }
+                }
+            }
+            "encrypt" => {
+                if let Ok(v) = field.text().await {
+                    parsed.encrypt = Some(v.eq_ignore_ascii_case("true") || v == "1");
+                }
+            }
+            "expected_sha256" => {
+                if let Ok(v) = field.text().await {
+                    parsed.expected_sha256 = Some(v.trim().to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let spooled = spooled.ok_or_else(|| IngestApiError::validation("no file in multipart"))?;
+    if spooled.size == 0 {
+        return Err(IngestApiError::validation("no file in multipart"));
+    }
 
     if let Some(ref cid) = parsed.client_request_id {
         if let Ok(Some(existing)) = state.repo.ingest_job_by_client_request_id(cid).await {
@@ -595,7 +732,17 @@ async fn do_upload(
     }
 
     let claims = auth.as_ref().map(|e| &e.0);
-    match process_upload_from_parts(Arc::clone(&state), claims, parsed).await {
+    let spool_path = spooled.path.to_path_buf();
+    let spool_size = spooled.size;
+    match process_upload_from_spooled(
+        Arc::clone(&state),
+        claims,
+        parsed,
+        spool_path,
+        spool_size,
+    )
+    .await
+    {
         Ok(upload) => {
             let result = json!({
                 "object_ids": vec![upload.id.clone()],
@@ -741,7 +888,15 @@ async fn spool_multipart_field(
     let mut temp = NamedTempFile::new().map_err(|e| IngestApiError::internal(e.to_string()))?;
     let mut written: u64 = 0;
     while let Some(chunk) = field.next().await {
-        let chunk = chunk.map_err(|e| IngestApiError::validation(e.to_string()))?;
+        let chunk = chunk.map_err(|e| {
+            let detail = e.body_text();
+            let msg = if detail.contains("failed to read stream") {
+                "upload stream interrupted before the full file was received — retry the upload"
+            } else {
+                detail.as_str()
+            };
+            IngestApiError::validation(msg)
+        })?;
         written += chunk.len() as u64;
         if bytes_already.saturating_add(written) > max_bytes {
             return Err(IngestApiError::validation(format!(
@@ -1070,6 +1225,7 @@ pub fn ingest_api_v1_router(state: Arc<AppState>) -> Router {
         .route("/ont-metrics", post(post_ont_metrics))
         .route("/jobs", get(list_jobs))
         .route("/jobs/:job_id", get(get_job))
+        .layer(DefaultBodyLimit::max(1024 * 1024 * 1024))
         .with_state(state)
 }
 

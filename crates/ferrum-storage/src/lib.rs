@@ -8,7 +8,7 @@ mod parts;
 mod s3;
 mod transfer_queue;
 
-pub use bandwidth::{BandwidthClass, BandwidthMonitor};
+pub use bandwidth::{BandwidthClass, BandwidthMonitor, MIN_BANDWIDTH_SAMPLE_BYTES};
 pub use local::LocalStorage;
 #[cfg(feature = "opendal")]
 pub use opendal_store::OpenDalStorage;

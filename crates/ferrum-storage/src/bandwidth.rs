@@ -6,6 +6,9 @@ use std::sync::Mutex;
 
 const MAX_SAMPLES: usize = 10;
 
+/// Ignore tiny DRS stream samples so localhost previews do not classify the link as VeryLow.
+pub const MIN_BANDWIDTH_SAMPLE_BYTES: u64 = 256 * 1024;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BandwidthClass {
     High,

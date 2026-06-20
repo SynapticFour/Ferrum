@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { listIngestJobs, type IngestJob } from '@/api/ingest';
 import { useIngestJobsStore } from '@/stores/ingestJobs';
+import { ProblemReportPanel } from '@/components/ProblemReportPanel';
 import { useI18n } from '@/i18n/I18nProvider';
 
 const TERMINAL = new Set(['succeeded', 'failed']);
@@ -124,7 +125,8 @@ export function IngestJobsBanner({
           const running = !TERMINAL.has(job.status);
           const failed = job.status === 'failed';
           return (
-            <li key={job.jobId} className="flex flex-wrap items-center gap-2">
+            <li key={job.jobId} className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
               {running && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
               <span className={failed ? 'text-destructive' : 'text-muted-foreground'}>
                 {running
@@ -148,6 +150,14 @@ export function IngestJobsBanner({
               >
                 {t('common.dismiss')}
               </button>
+              </div>
+              {failed && (
+                <ProblemReportPanel
+                  errorMessage={t('data.ingestJobFailed')}
+                  context="data-ingest-job"
+                  extra={{ job_id: job.jobId, status: job.status }}
+                />
+              )}
             </li>
           );
         })}

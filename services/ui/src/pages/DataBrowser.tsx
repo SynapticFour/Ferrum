@@ -81,6 +81,20 @@ export function DataBrowser() {
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
           <div className="flex flex-wrap items-center gap-2">
             <ImportToDrsDialog
+              initialMode="import"
+              triggerLabelKey="data.importCopy"
+              onSuccess={(id) => {
+                setUploadBanner({
+                  kind: 'success',
+                  text: t('data.registerSuccess', { id }),
+                  objectId: id,
+                });
+              }}
+            />
+            <ImportToDrsDialog
+              initialMode="register"
+              triggerVariant="outline"
+              triggerLabelKey="data.registerLink"
               onSuccess={(id) => {
                 setUploadBanner({
                   kind: 'success',

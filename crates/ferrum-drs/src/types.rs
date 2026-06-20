@@ -29,6 +29,12 @@ pub struct DrsObject {
     /// ferrum-meta submission alias (stored on `drs_objects.metadata_ref`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata_ref: Option<String>,
+    /// Ferrum extension: `storage_references.storage_backend` (`s3`, `local`, `url`, …).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub storage_backend: Option<String>,
+    /// Ferrum extension: Crypt4GH at-rest encryption (`storage_references.is_encrypted`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_encrypted: Option<bool>,
 }
 
 impl DrsObject {

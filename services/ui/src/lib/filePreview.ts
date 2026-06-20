@@ -50,8 +50,9 @@ export function canStreamPreview(
   mime?: string | null,
   size?: number | null,
 ): boolean {
-  if (storageKind !== 'managed') return false;
-  return canPreviewFile(name, mime, size);
+  if (storageKind === 'url') return false;
+  if (!canPreviewFile(name, mime, size)) return false;
+  return storageKind === 'managed' || storageKind === 'unknown';
 }
 
 export function wouldPreviewByType(name: string, mime?: string | null, size?: number | null): boolean {
