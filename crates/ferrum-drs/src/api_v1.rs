@@ -619,7 +619,8 @@ async fn do_upload_chunk(
         }
     }
 
-    let spooled = chunk_spooled.ok_or_else(|| IngestApiError::validation("no chunk data in multipart"))?;
+    let spooled =
+        chunk_spooled.ok_or_else(|| IngestApiError::validation("no chunk data in multipart"))?;
     parsed.data = tokio::fs::read(&spooled.path)
         .await
         .map_err(|e| IngestApiError::internal(format!("read chunk: {e}")))?;
@@ -734,14 +735,8 @@ async fn do_upload(
     let claims = auth.as_ref().map(|e| &e.0);
     let spool_path = spooled.path.to_path_buf();
     let spool_size = spooled.size;
-    match process_upload_from_spooled(
-        Arc::clone(&state),
-        claims,
-        parsed,
-        spool_path,
-        spool_size,
-    )
-    .await
+    match process_upload_from_spooled(Arc::clone(&state), claims, parsed, spool_path, spool_size)
+        .await
     {
         Ok(upload) => {
             let result = json!({

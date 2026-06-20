@@ -266,7 +266,7 @@ export function ImportToDrsDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant={triggerVariant} className="gap-2" data-testid="import-to-drs-trigger">
+        <Button variant={triggerVariant} className="gap-2" data-testid={initialMode === 'register' ? 'register-to-drs-trigger' : 'import-to-drs-trigger'}>
           {topMode === 'import' || initialMode === 'import' ? (
             <HardDriveUpload className="h-4 w-4" />
           ) : (

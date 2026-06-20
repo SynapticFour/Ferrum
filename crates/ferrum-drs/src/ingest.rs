@@ -4,10 +4,7 @@ use crate::error::{DrsError, Result};
 use crate::state::AppState;
 use crate::types::{CreateObjectRequest, IngestBatchItem, IngestBatchRequest, IngestUrlRequest};
 use axum::{
-    extract::{
-        multipart::MultipartError,
-        Extension, Multipart, State,
-    },
+    extract::{multipart::MultipartError, Extension, Multipart, State},
     Json,
 };
 
@@ -51,11 +48,7 @@ pub struct ParsedMultipartUpload {
 
 pub async fn parse_multipart_upload(multipart: &mut Multipart) -> Result<ParsedMultipartUpload> {
     let mut out = ParsedMultipartUpload::default();
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(multipart_err)?
-    {
+    while let Some(field) = multipart.next_field().await.map_err(multipart_err)? {
         let name_h = field.name().unwrap_or("").to_string();
         match name_h.as_str() {
             "workspace_id" => {

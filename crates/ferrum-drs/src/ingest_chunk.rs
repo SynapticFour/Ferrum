@@ -30,7 +30,9 @@ fn upload_temp_key(token: &str) -> String {
 /// telemetry (small localhost downloads) forcing 512 KiB caps on `/api/v1/ingest/upload/chunk`.
 pub const INGEST_CHUNK_CEILING_BYTES: u64 = 4 * 1024 * 1024;
 
-pub fn effective_ingest_chunk_max_bytes(bandwidth: Option<&ferrum_storage::BandwidthMonitor>) -> u64 {
+pub fn effective_ingest_chunk_max_bytes(
+    bandwidth: Option<&ferrum_storage::BandwidthMonitor>,
+) -> u64 {
     let adaptive = bandwidth
         .map(|b| b.classify().chunk_size_bytes())
         .unwrap_or(BandwidthClass::Medium.chunk_size_bytes());
@@ -68,9 +70,7 @@ pub async fn process_chunked_upload_from_parts(
         )));
     }
 
-    let class = bw
-        .map(|b| b.classify())
-        .unwrap_or(BandwidthClass::Medium);
+    let class = bw.map(|b| b.classify()).unwrap_or(BandwidthClass::Medium);
 
     if let (Some(ref tq), Some(ref bw)) = (&state.transfer_queue, &state.bandwidth) {
         if tq.should_queue(total_bytes as u64, bw.as_ref()) {

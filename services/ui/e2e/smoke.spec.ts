@@ -20,13 +20,17 @@ test.describe('Ferrum UI smoke', () => {
     await expect(page.getByText(/catalog|katalog|catalogue|كتالوج/i).first()).toBeVisible();
     await page.getByTestId('import-to-drs-trigger').click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByText(/upload|hochladen|téléverser|رفع/i).first()).toBeVisible();
+    await expect(
+      page.getByText(/start upload|upload starten|démarrer le téléversement|بدء الرفع|import file|datei importieren|importer un fichier|استيراد ملف/i).first(),
+    ).toBeVisible();
   });
 
   test('register tool wizard opens from tools page', async ({ page }) => {
     await page.goto('/tools');
     await page.getByTestId('register-tool-trigger').click();
     await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByText(/preset|vorlage|modèle|قالب/i).first()).toBeVisible();
+    await expect(
+      page.getByText(/import to ferrum|nach ferrum importieren|importer dans ferrum|استيراد إلى ferrum|tiny germline|nf-core/i).first(),
+    ).toBeVisible();
   });
 });
