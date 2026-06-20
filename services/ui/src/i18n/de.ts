@@ -33,6 +33,8 @@ const deOverlay = {
     language: 'Sprache',
     brokerMisconfigured:
       'Anmeldung ist erforderlich, aber der Identity-Broker ist nicht konfiguriert. Administrator kontaktieren oder Einstellungen öffnen.',
+    signInRequired: 'Anmeldung erforderlich',
+    signInRequiredHint: 'Für Upload und Analysen ist eine Anmeldung erforderlich.',
   },
   auth: {
     completingSignIn: 'Anmeldung wird abgeschlossen…',
@@ -117,6 +119,8 @@ const deOverlay = {
       'Kopiert eine Datei von Ihrem Rechner in den von Ferrum verwalteten Speicher (MinIO/lokal). Die Originaldatei bleibt unverändert. Optional: Crypt4GH-Verschlüsselung.',
     importCopyShort: 'Erstellt eine verwaltete Kopie',
     importCopyHint: 'Für BAM, VCF, FASTQ vom Laptop oder Sequencer. Große Dateien werden automatisch in 2-MB-Teilen hochgeladen.',
+    maxUploadLimit: 'Maximale Upload-Größe: {size}.',
+    importPendingClose: 'Upload oder Import läuft — bitte warten. Fortschritt auch im Import-Banner auf der Datenseite.',
     registerLink: 'Speicherort registrieren',
     registerLinkTitle: 'Ohne Kopie registrieren',
     registerLinkDescription:
@@ -126,6 +130,7 @@ const deOverlay = {
     registerByLocation: 'Speicherpfad',
     registerUrlHint: 'Für öffentliche Archive (1000 Genomes, ENA, GitHub) oder HTTPS-Dateien Ihres Instituts.',
     registerLocationHint: 'Wenn die Datei bereits auf MinIO/S3 oder lokalem Ferrum-Speicher liegt — exakte Bytegröße angeben.',
+    registerAdvanced: 'Erweitert: per Speicherpfad registrieren',
     registerSubmit: 'In DRS registrieren',
     chooseFile: 'Datei wählen…',
     selectedFile: '{name} ({size})',
@@ -178,12 +183,17 @@ const deOverlay = {
     objects: 'Ihre Daten',
     objectsHint: 'Registrierte und hochgeladene Dateien für Analysen.',
     noObjects: 'Noch keine Daten. Laden Sie Dateien hoch oder registrieren Sie bestehende Speicherorte.',
+    emptyImportCta: 'Noch keine Daten — importieren Sie eine Datei von Ihrem Computer.',
+    operatorGuideToggle: 'Weitere Möglichkeiten (URL oder Speicherpfad)',
+    operatorSeedHintTitle: 'Operator: Demo-Daten seeden',
     workspaceFilter: 'Arbeitsbereich',
     workspaceAll: 'Alle Arbeitsbereiche',
     workspaceFilterActive: 'Objekte im Arbeitsbereich „{name}“.',
     workspaceEmptySeedHint:
       'Pilot-Demo leer? make seed-pilot (lokal) oder ./scripts/seed-pilot-remote.sh mit FERRUM_PASSPORT_JWT (Fly). Lädt BAM, VCF und chr22-Referenz in diesen Arbeitsbereich.',
     listUnavailable: 'Datenliste nicht verfügbar. Upload und Registrierung können trotzdem funktionieren.',
+    listAuthRequired: 'Bitte anmelden, um Ihre Daten aufzulisten.',
+    listServerError: 'Datendienst nicht erreichbar. Der Server startet möglicherweise noch — kurz warten und aktualisieren.',
     colId: 'ID',
     colName: 'Name',
     colSize: 'Größe',
@@ -255,6 +265,7 @@ const deOverlay = {
     previewUrlBacked:
       'Externe URL-Referenz — Vorschau funktioniert nur für in Ferrum (MinIO) gespeicherte Dateien. Quell-URL öffnen oder herunterladen.',
     previewStreamFailed: 'Vorschau konnte nicht aus dem Speicher geladen werden.',
+    downloadFailed: 'Download fehlgeschlagen. Datei nicht verfügbar oder Sitzung abgelaufen.',
     lineageLoading: 'Herkunft wird geladen…',
     lineageFailed: 'Herkunft konnte nicht geladen werden.',
     lineageEmpty: 'Noch keine Provenienz-Verknüpfungen für dieses Objekt.',
@@ -412,6 +423,10 @@ const deOverlay = {
     emptySeedHint:
       'Pilot-Demo: nach make up-tes make seed-pilot für BAM, VCF und chr22-Referenz auf MinIO, dann Germline-Variantenaufruf (Demo) testen.',
     unavailable: 'Workflow-Ausführung ist nicht konfiguriert oder nicht verfügbar.',
+    trsLoadFailed: 'Workflows konnten nicht aus dem Tool-Register geladen werden.',
+    trsEmpty: 'Noch keine TRS-Workflows. Empfohlene Liste oder Datei-Upload verwenden.',
+    trsPickRequired: 'Bitte zuerst einen Workflow aus der Liste wählen.',
+    wdlLoadFailed: 'Workflow-Parameter konnten nicht von {url} geladen werden.',
     dialogTitle: 'Analyse starten',
     sourceCurated: 'Empfohlen',
     sourceTrs: 'Werkzeugregister',

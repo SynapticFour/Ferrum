@@ -2,7 +2,7 @@
 
 Living checklist for pilot readiness: what is done, what is next, and what remains before **minimum unsupervised tester** maturity.
 
-**Last updated:** 2026-06-20 (Must-do sprint #1)
+**Last updated:** 2026-06-14 (Sprint 2 — L2 polish)
 
 ---
 
@@ -32,27 +32,27 @@ Living checklist for pilot readiness: what is done, what is next, and what remai
 
 ---
 
-## Sprint 2 — Should-do (target: L2 polish)
+## Sprint 2 — Should-do — DONE
 
 **Goal:** Fewer “silent” failures and operator jargon in empty states.
 
-| # | Area | Task | Priority |
-|---|------|------|----------|
-| 2.1 | Import | Show `max_upload_bytes` in import dialog before upload | P1 |
-| 2.2 | Import | Block dialog close while upload/job pending (or explicit “continues in background”) | P1 |
-| 2.3 | DRS | Download/preview errors → `ErrorWithReport` on object detail | P1 |
-| 2.4 | Data | DataBrowser list errors: auth vs outage + problem report | P1 |
-| 2.5 | Data | Empty state: tester “Import file” CTA first; operator CLI collapsed | P1 |
-| 2.6 | Register | Hide “Register by storage path” behind Advanced accordion | P1 |
-| 2.7 | Workflows | WDL/TRS load failures visible in analysis dialogs | P2 |
-| 2.8 | Workflows | TRS empty picker guidance + disable Run with hint | P2 |
-| 2.9 | Workflows | WorkflowCenter list error + problem report | P2 |
-| 2.10 | Auth | Prominent sign-in banner when `require_auth && !jwt` (not icon-only) | P2 |
-| 2.11 | Reports | Pass HTTP status into `ErrorWithReport.lastApi` | P2 |
-| 2.12 | Fly UX | UI “warming up” message for cold start / 502 (detect retry) | P2 |
-| 2.13 | Fly ops | Entrypoint exit non-zero if gateway never healthy | P2 |
-| 2.14 | Fly ops | Beacon seed failure fails smoke (not warn-only) | P2 |
-| 2.15 | i18n | de/fr/ar overlays for sprint 2 strings | P2 |
+| # | Area | Task | Status |
+|---|------|------|--------|
+| 2.1 | Import | Show `max_upload_bytes` in import dialog before upload | Done |
+| 2.2 | Import | Block dialog close while upload/job pending | Done |
+| 2.3 | DRS | Download/preview errors → `ErrorWithReport` on object detail | Done |
+| 2.4 | Data | DataBrowser list errors: auth vs outage + problem report | Done |
+| 2.5 | Data | Empty state: tester “Import file” CTA first; operator CLI collapsed | Done |
+| 2.6 | Register | Hide “Register by storage path” behind Advanced accordion | Done |
+| 2.7 | Workflows | WDL/TRS load failures visible in analysis dialogs | Done |
+| 2.8 | Workflows | TRS empty picker guidance + disable Run with hint | Done |
+| 2.9 | Workflows | WorkflowCenter list error + problem report | Done |
+| 2.10 | Auth | Prominent sign-in banner when `require_auth && !jwt` | Done |
+| 2.11 | Reports | Pass HTTP status into `ErrorWithReport.lastApi` | Done |
+| 2.12 | Fly UX | UI “warming up” message for cold start / 502 (detect retry) | Done |
+| 2.13 | Fly ops | Entrypoint exit non-zero if gateway never healthy | Done |
+| 2.14 | Fly ops | Beacon seed failure fails smoke (not warn-only) | Done |
+| 2.15 | i18n | de/fr/ar overlays for sprint 2 strings | Done |
 
 ---
 

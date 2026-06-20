@@ -3,15 +3,16 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { apiGet } from '@/api/client';
+import { apiGet, ApiAuthError } from '@/api/client';
 import { ImportToDrsDialog } from '@/components/ImportToDrsDialog';
 import { DatasetCatalogPanel } from '@/components/DatasetCatalogPanel';
 import { IngestJobsBanner } from '@/components/IngestJobsBanner';
 import { OntIngestDialog } from '@/components/OntIngestDialog';
 import { useI18n } from '@/i18n/I18nProvider';
 import { formatBytes } from '@/lib/utils';
+import { ErrorWithReport } from '@/components/ErrorWithReport';
 import { PublishDatasetDialog } from '@/components/PublishDatasetDialog';
-import { Database, AlertCircle, Globe, Filter } from 'lucide-react';
+import { Database, Globe, Filter } from 'lucide-react';
 
 interface DrsObject {
   id: string;
@@ -59,6 +60,15 @@ export function DataBrowser() {
       ? t('data.workspaceAll')
       : workspaces?.find((w) => w.id === workspaceFilter)?.name ?? workspaceFilter;
 
+  const listErrorMessage = error
+    ? error instanceof ApiAuthError &&
+        (error.sessionExpired || error.status === 401 || error.status === 403)
+      ? t('data.listAuthRequired')
+      : error instanceof ApiAuthError
+        ? error.message
+        : t('data.listServerError')
+    : null;
+
   return (
     <div className="space-y-6">
       <Card className="border-primary/20 bg-primary/5">
@@ -68,8 +78,13 @@ export function DataBrowser() {
         <CardContent className="text-sm text-muted-foreground space-y-2">
           <p>{t('data.importVsLinkBody')}</p>
           <p className="text-xs pt-1">1. {t('data.guideStep1')}</p>
-          <p className="text-xs">2. {t('data.guideStep2')}</p>
-          <p className="text-xs">3. {t('data.guideStep3')}</p>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground">{t('data.operatorGuideToggle')}</summary>
+            <div className="mt-2 space-y-1 ps-2 border-s border-border">
+              <p>2. {t('data.guideStep2')}</p>
+              <p>3. {t('data.guideStep3')}</p>
+            </div>
+          </details>
         </CardContent>
       </Card>
 
@@ -158,11 +173,16 @@ export function DataBrowser() {
         </TabsList>
 
         <TabsContent value="mine" className="mt-4 space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {t('data.listUnavailable')}
-            </div>
+          {listErrorMessage && (
+            <ErrorWithReport
+              errorMessage={listErrorMessage}
+              context="drs-list"
+              lastApi={{
+                method: 'GET',
+                path: objectsUrl,
+                status: error instanceof ApiAuthError ? error.status : undefined,
+              }}
+            />
           )}
 
           <Card>
@@ -204,12 +224,24 @@ export function DataBrowser() {
             <CardContent>
               {isLoading && <p className="text-muted-foreground text-sm">{t('common.loading')}</p>}
               {!isLoading && list.length === 0 && !error && (
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p>{t('data.noObjects')}</p>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p>{t('data.emptyImportCta')}</p>
+                  <ImportToDrsDialog
+                    initialMode="import"
+                    triggerLabelKey="data.importCopy"
+                    onSuccess={(objectId) => {
+                      setUploadBanner({
+                        kind: 'success',
+                        text: t('data.registerSuccess', { id: objectId }),
+                        objectId,
+                      });
+                    }}
+                  />
                   {workspaceFilter !== ALL_WORKSPACES && (
-                    <p className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed">
-                      {t('data.workspaceEmptySeedHint')}
-                    </p>
+                    <details className="rounded-md border bg-muted/30 p-3 text-xs leading-relaxed">
+                      <summary className="cursor-pointer font-medium">{t('data.operatorSeedHintTitle')}</summary>
+                      <p className="mt-2">{t('data.workspaceEmptySeedHint')}</p>
+                    </details>
                   )}
                 </div>
               )}

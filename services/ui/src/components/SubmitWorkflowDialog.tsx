@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { apiGet } from '@/api/client';
+import { apiGet, ApiAuthError } from '@/api/client';
 import { CURATED_WORKFLOWS, trsDescriptorUrl } from '@/lib/workflows';
 import { WORKFLOW_ENGINES, engineByWesType, guessEngineFromFilename } from '@/lib/workflowEngines';
 import { useWdlDescriptor } from '@/hooks/useWdlDescriptor';
@@ -71,7 +71,7 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
 
   const engine = WORKFLOW_ENGINES.find((e) => e.id === engineId) ?? WORKFLOW_ENGINES[0];
 
-  const { data: trsTools } = useQuery({
+  const { data: trsTools, isError: trsError, isLoading: trsLoading } = useQuery({
     queryKey: ['trs', 'tools', 'submit'],
     queryFn: () => apiGet<TrsTool[]>('/ga4gh/trs/v2/tools'),
     enabled: open && sourceTab === 'trs',
@@ -81,7 +81,7 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
   const tools = Array.isArray(trsTools) ? trsTools : [];
   const descriptorUrlForParams =
     sourceTab === 'upload' ? '' : workflowUrl;
-  const { data: wdlParsedRemote, isLoading: wdlLoading } = useWdlDescriptor(
+  const { data: wdlParsedRemote, isLoading: wdlLoading, isError: wdlError, error: wdlFetchError } = useWdlDescriptor(
     descriptorUrlForParams,
     workflowType,
     open && sourceTab !== 'upload',
@@ -215,7 +215,10 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
   const canRun =
     sourceTab === 'upload'
       ? workflowContent.trim().length > 0
-      : workflowUrl.trim().length > 0;
+      : sourceTab === 'trs'
+        ? workflowUrl.trim().length > 0 && !!trsToolId && !trsError && tools.length > 0
+        : workflowUrl.trim().length > 0;
+  const trsNeedsPick = sourceTab === 'trs' && !trsToolId && !trsLoading && !trsError && tools.length > 0;
 
   return (
     <Dialog
@@ -293,18 +296,36 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
           <TabsContent value="trs" className="space-y-3 pt-2">
             <div className="space-y-2">
               <Label>{t('workflows.pickWorkflow')}</Label>
-              <Select value={trsToolId} onValueChange={applyTrsTool}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('workflows.pickWorkflow')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {tools.map((tool) => (
-                    <SelectItem key={tool.id} value={tool.id}>
-                      {tool.name ?? tool.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {trsLoading && (
+                <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+              )}
+              {trsError && (
+                <ErrorWithReport
+                  errorMessage={t('workflows.trsLoadFailed')}
+                  context="trs-list"
+                  lastApi={{ method: 'GET', path: '/ga4gh/trs/v2/tools' }}
+                />
+              )}
+              {!trsLoading && !trsError && tools.length === 0 && (
+                <p className="text-sm text-amber-600 dark:text-amber-400">{t('workflows.trsEmpty')}</p>
+              )}
+              {!trsError && tools.length > 0 && (
+                <Select value={trsToolId} onValueChange={applyTrsTool}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('workflows.pickWorkflow')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tools.map((tool) => (
+                      <SelectItem key={tool.id} value={tool.id}>
+                        {tool.name ?? tool.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {trsNeedsPick && (
+                <p className="text-xs text-muted-foreground">{t('workflows.trsPickRequired')}</p>
+              )}
             </div>
           </TabsContent>
           <TabsContent value="upload" className="space-y-3 pt-2">
@@ -409,6 +430,19 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
         )}
 
         {wdlLoadingEffective && <p className="text-sm text-muted-foreground">{t('workflows.loadingParams')}</p>}
+        {wdlError && sourceTab !== 'upload' && (
+          <ErrorWithReport
+            errorMessage={
+              wdlFetchError instanceof ApiAuthError
+                ? wdlFetchError.message
+                : wdlFetchError instanceof Error
+                  ? wdlFetchError.message
+                  : t('workflows.wdlLoadFailed', { url: workflowUrl })
+            }
+            context="wdl-descriptor"
+            lastApi={{ method: 'GET', path: workflowUrl }}
+          />
+        )}
         {showWdlForm && (
           <WorkflowParamForm
             workflowName={wdlParsed.workflowName}
@@ -428,7 +462,7 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
         <Button
           type="button"
           onClick={() => submit.mutate()}
-          disabled={submit.isPending || !canRun}
+          disabled={submit.isPending || !canRun || wdlError}
           className="gap-2 w-full"
         >
           {submit.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}

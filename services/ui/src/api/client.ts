@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/stores/auth';
 import { isPassportExpired } from '@/lib/auth';
+import { fetchWithGatewayRetry } from '@/lib/apiFetchRetry';
 
 const BASE = '';
 
@@ -40,6 +41,10 @@ function parseErrorMessage(text: string, status: number): { msg: string; session
         'Your session has expired or is invalid. Please sign in again.';
     }
   }
+  if (status === 502 || status === 503 || status === 504) {
+    msg =
+      'The server is still starting up or temporarily unavailable — wait a moment and try again.';
+  }
   return { msg, sessionExpired };
 }
 
@@ -63,7 +68,7 @@ export async function apiFetch<T>(
     );
   }
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchWithGatewayRetry(`${BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -97,7 +102,7 @@ export async function apiGetText(path: string): Promise<string> {
     );
   }
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchWithGatewayRetry(`${BASE}${path}`, {
     method: 'GET',
     headers: {
       ...getAuthHeader(),
@@ -136,7 +141,7 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
     );
   }
 
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetchWithGatewayRetry(`${BASE}${path}`, {
     method: 'POST',
     headers: {
       ...getAuthHeader(),

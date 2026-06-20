@@ -11,6 +11,8 @@ import { ArrowLeft, Download, Loader2, ExternalLink, Eye } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useEffect, useState } from 'react';
 import { formatBytes } from '@/lib/utils';
+import { errorMessageFromUnknown } from '@/lib/apiErrorReport';
+import { ErrorWithReport } from '@/components/ErrorWithReport';
 import {
   canStreamPreview,
   downloadWithAuth,
@@ -45,6 +47,7 @@ export function ObjectDetailPage() {
   const search = useSearch({ strict: false }) as { analyze?: boolean };
   const id = params.objectId ?? '';
   const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [linkWorkspaceId, setLinkWorkspaceId] = useState('');
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
@@ -100,12 +103,19 @@ export function ObjectDetailPage() {
 
   const handleDownload = async () => {
     setDownloading(true);
+    setDownloadError(null);
     try {
       await downloadWithAuth(drsStreamUrl(id), obj?.name ?? id);
+    } catch (e) {
+      setDownloadError(errorMessageFromUnknown(e, t('object.downloadFailed')));
     } finally {
       setDownloading(false);
     }
   };
+
+  const previewErrorMessage = previewError
+    ? errorMessageFromUnknown(previewError, t('object.previewStreamFailed'))
+    : null;
 
   if (!id) return <p className="text-muted-foreground">{t('object.noId')}</p>;
   if (isLoading) return <p className="text-muted-foreground">{t('object.loading')}</p>;
@@ -159,6 +169,14 @@ export function ObjectDetailPage() {
         </div>
       </div>
 
+      {downloadError && (
+        <ErrorWithReport
+          errorMessage={downloadError}
+          context="drs-download"
+          lastApi={{ method: 'GET', path: `/ga4gh/drs/v1/objects/${id}/stream` }}
+        />
+      )}
+
       {!workspaceId && (
         <Card className="border-amber-500/30 bg-amber-500/5">
           <CardHeader className="pb-2">
@@ -210,8 +228,12 @@ export function ObjectDetailPage() {
           <CardContent>
             {previewLoading ? (
               <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-            ) : previewError ? (
-              <p className="text-sm text-destructive">{t('object.previewStreamFailed')}</p>
+            ) : previewErrorMessage ? (
+              <ErrorWithReport
+                errorMessage={previewErrorMessage}
+                context="drs-preview"
+                lastApi={{ method: 'GET', path: `/ga4gh/drs/v1/objects/${id}/stream` }}
+              />
             ) : (
               <pre className="max-h-96 overflow-auto text-xs whitespace-pre-wrap break-all bg-muted/30 rounded p-3">
                 {previewText ?? ''}

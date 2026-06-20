@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { apiGet } from '@/api/client';
+import { apiGet, ApiAuthError } from '@/api/client';
 import { CURATED_WORKFLOWS, trsDescriptorUrl } from '@/lib/workflows';
 import { engineByWesType } from '@/lib/workflowEngines';
 import { useWdlDescriptor } from '@/hooks/useWdlDescriptor';
@@ -95,7 +95,7 @@ export function StartAnalysisDialog({
   const [progress, setProgress] = useState<string | null>(null);
   const [runSuccess, setRunSuccess] = useState<{ runIds: string[] } | null>(null);
 
-  const { data: trsTools } = useQuery({
+  const { data: trsTools, isError: trsError, isLoading: trsLoading } = useQuery({
     queryKey: ['trs', 'tools', 'start-analysis'],
     queryFn: () => apiGet<Array<{ id: string; name?: string; versions?: Array<{ id: string }> }>>('/ga4gh/trs/v2/tools'),
     enabled: open && sourceTab === 'trs',
@@ -149,7 +149,12 @@ export function StartAnalysisDialog({
     return m;
   }, [drsObjects]);
 
-  const { data: wdlParsed, isLoading: wdlLoading } = useWdlDescriptor(workflowUrl, workflowType, open);
+  const {
+    data: wdlParsed,
+    isLoading: wdlLoading,
+    isError: wdlError,
+    error: wdlFetchError,
+  } = useWdlDescriptor(workflowUrl, workflowType, open);
 
   useEffect(() => {
     if (autoOpen) setOpen(true);
@@ -332,7 +337,13 @@ export function StartAnalysisDialog({
       ? t(CURATED_WORKFLOWS.find((c) => c.id === curatedId)?.nameKey ?? 'workflows.workflowLabel')
       : (Array.isArray(trsTools) ? trsTools : []).find((x) => x.id === trsToolId)?.name ?? trsToolId;
 
-  const canAdvanceStep1 = workflowUrl.trim().length > 0;
+  const trsToolList = Array.isArray(trsTools) ? trsTools : [];
+  const trsEmpty = sourceTab === 'trs' && !trsLoading && !trsError && trsToolList.length === 0;
+  const trsNeedsPick = sourceTab === 'trs' && !trsToolId.trim();
+
+  const canAdvanceStep1 =
+    workflowUrl.trim().length > 0 &&
+    !(sourceTab === 'trs' && (trsError || trsEmpty || trsNeedsPick));
   const canAdvanceStep2 =
     inputMode === 'single' ? !!selectedObject || !wdlParsed?.inputs.some((i) => i.wdlType === 'File') : !!cohortId && samples.length > 0;
 
@@ -408,20 +419,38 @@ export function StartAnalysisDialog({
                     </SelectContent>
                   </Select>
                 </TabsContent>
-                <TabsContent value="trs" className="pt-2">
+                <TabsContent value="trs" className="pt-2 space-y-2">
                   <Label>{t('workflows.pickWorkflow')}</Label>
-                  <Select value={trsToolId} onValueChange={applyTrsTool}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('workflows.pickWorkflow')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Array.isArray(trsTools) ? trsTools : []).map((tool) => (
-                        <SelectItem key={tool.id} value={tool.id}>
-                          {tool.name ?? tool.id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {trsLoading && (
+                    <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
+                  )}
+                  {trsError && (
+                    <ErrorWithReport
+                      errorMessage={t('workflows.trsLoadFailed')}
+                      context="trs-list"
+                      lastApi={{ method: 'GET', path: '/ga4gh/trs/v2/tools' }}
+                    />
+                  )}
+                  {!trsLoading && !trsError && trsToolList.length === 0 && (
+                    <p className="text-sm text-amber-600 dark:text-amber-400">{t('workflows.trsEmpty')}</p>
+                  )}
+                  {!trsError && trsToolList.length > 0 && (
+                    <Select value={trsToolId} onValueChange={applyTrsTool}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('workflows.pickWorkflow')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {trsToolList.map((tool) => (
+                          <SelectItem key={tool.id} value={tool.id}>
+                            {tool.name ?? tool.id}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {trsNeedsPick && !trsLoading && !trsError && trsToolList.length > 0 && (
+                    <p className="text-xs text-muted-foreground">{t('workflows.trsPickRequired')}</p>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>
@@ -497,6 +526,19 @@ export function StartAnalysisDialog({
                 </p>
               </div>
               {wdlLoading && <p className="text-sm text-muted-foreground">{t('workflows.loadingParams')}</p>}
+              {wdlError && (
+                <ErrorWithReport
+                  errorMessage={
+                    wdlFetchError instanceof ApiAuthError
+                      ? wdlFetchError.message
+                      : wdlFetchError instanceof Error
+                        ? wdlFetchError.message
+                        : t('workflows.wdlLoadFailed', { url: workflowUrl })
+                  }
+                  context="wdl-descriptor"
+                  lastApi={{ method: 'GET', path: workflowUrl }}
+                />
+              )}
               {wdlParsed && wdlParsed.inputs.length > 0 && (
                 <WorkflowParamForm
                   workflowName={wdlParsed.workflowName}
@@ -518,7 +560,7 @@ export function StartAnalysisDialog({
               <Button
                 type="button"
                 className="w-full gap-2"
-                disabled={runAnalysis.isPending || !workflowUrl}
+                disabled={runAnalysis.isPending || !workflowUrl || wdlError}
                 onClick={() => runAnalysis.mutate()}
               >
                 {runAnalysis.isPending ? (

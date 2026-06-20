@@ -30,6 +30,8 @@ export const en = {
     language: 'Language',
     brokerMisconfigured:
       'Sign-in is required but the identity broker is not configured. Contact your operator or open Settings.',
+    signInRequired: 'Sign in to continue',
+    signInRequiredHint: 'This deployment requires sign-in to upload data and run analyses.',
   },
   auth: {
     completingSignIn: 'Completing sign-in…',
@@ -114,6 +116,8 @@ export const en = {
       'Copy a file from your computer into Ferrum-managed storage (MinIO/local). The file on your disk stays unchanged. Optional Crypt4GH encryption protects data at rest.',
     importCopyShort: 'Creates a new managed copy',
     importCopyHint: 'Best for BAM, VCF, FASTQ from your laptop or sequencer export. Large files upload in 2 MB pieces automatically.',
+    maxUploadLimit: 'Maximum upload size: {size}.',
+    importPendingClose: 'Upload or ingest job in progress — wait for completion. Progress also appears in the ingest jobs banner on the Data page.',
     registerLink: 'Register location',
     registerLinkTitle: 'Register without copying',
     registerLinkDescription:
@@ -123,6 +127,7 @@ export const en = {
     registerByLocation: 'Storage path',
     registerUrlHint: 'Use for public archives (1000 Genomes, ENA, GitHub) or HTTPS files your institute already hosts.',
     registerLocationHint: 'Use when the file is already on MinIO/S3 or Ferrum local storage — supply the exact byte size.',
+    registerAdvanced: 'Advanced: register by storage path',
     registerSubmit: 'Register in DRS',
     chooseFile: 'Choose file…',
     selectedFile: '{name} ({size})',
@@ -175,12 +180,17 @@ export const en = {
     objects: 'Your data',
     objectsHint: 'Registered and uploaded files available for analyses.',
     noObjects: 'No data yet. Upload files or add existing locations to get started.',
+    emptyImportCta: 'No data yet — import a file from your computer to get started.',
+    operatorGuideToggle: 'More ways to add data (register by URL or storage path)',
+    operatorSeedHintTitle: 'Operator: seed demo data',
     workspaceFilter: 'Workspace',
     workspaceAll: 'All workspaces',
     workspaceFilterActive: 'Showing objects in workspace “{name}”.',
     workspaceEmptySeedHint:
       'No data in this workspace yet. Use Import file above, or ask your operator to seed demo data.',
     listUnavailable: 'Could not list data. Upload and add may still work if ingest is enabled.',
+    listAuthRequired: 'Sign in to list your data.',
+    listServerError: 'Could not reach the data service. The server may still be starting — wait a moment and refresh.',
     colId: 'ID',
     colName: 'Name',
     colSize: 'Size',
@@ -268,6 +278,7 @@ export const en = {
     previewUrlBacked:
       'This object is an external URL reference. Inline preview only works for files stored in Ferrum (MinIO). Open the source URL or download instead.',
     previewStreamFailed: 'Could not load preview from storage.',
+    downloadFailed: 'Download failed. The file may be unavailable or your session may have expired.',
     lineageLoading: 'Loading lineage…',
     lineageFailed: 'Could not load lineage.',
     lineageEmpty: 'No provenance links recorded for this object yet.',
@@ -414,6 +425,10 @@ export const en = {
     emptySeedHint:
       'Pilot demo: after make up-tes run make seed-pilot for BAM, VCF, and chr22 reference on MinIO, then try Germline variant calling (demo).',
     unavailable: 'Workflow execution is not configured or unavailable.',
+    trsLoadFailed: 'Could not load workflows from the tool registry.',
+    trsEmpty: 'No workflows are registered in TRS yet. Use the recommended list or upload a workflow file.',
+    trsPickRequired: 'Choose a workflow from the list before continuing.',
+    wdlLoadFailed: 'Could not load workflow parameters from {url}.',
     dialogTitle: 'Run analysis',
     sourceCurated: 'Recommended',
     sourceTrs: 'Tool registry',

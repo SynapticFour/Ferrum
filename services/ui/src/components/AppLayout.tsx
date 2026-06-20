@@ -149,6 +149,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {t('common.brokerMisconfigured')}
           </div>
         )}
+        {showSignIn && (
+          <div className="border-b border-primary/30 bg-primary/10 px-6 py-3 text-sm flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-medium">{t('common.signInRequired')}</p>
+              <p className="text-muted-foreground text-xs mt-0.5">{t('common.signInRequiredHint')}</p>
+            </div>
+            {brokerLoginUrl && (
+              <Button size="sm" className="gap-2 shrink-0" onClick={handleSignIn}>
+                <LogIn className="h-4 w-4" />
+                {t('common.signIn')}
+              </Button>
+            )}
+          </div>
+        )}
         {showExpirySoon && expiresInMinutes != null && expiresInMinutes <= 30 && (
           <div className="border-b border-amber-500/40 bg-amber-500/10 px-6 py-2 text-sm flex items-center justify-between gap-4">
             <span>

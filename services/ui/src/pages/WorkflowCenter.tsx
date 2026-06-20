@@ -3,10 +3,12 @@ import { Link } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { apiGet, apiPost } from '@/api/client';
-import { AlertCircle, Trash2 } from 'lucide-react';
+import { apiGet, apiPost, ApiAuthError } from '@/api/client';
+import { Trash2 } from 'lucide-react';
 import { SubmitWorkflowDialog } from '@/components/SubmitWorkflowDialog';
 import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
+import { ErrorWithReport } from '@/components/ErrorWithReport';
+import { errorMessageFromUnknown } from '@/lib/apiErrorReport';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useRunStateLabel } from '@/i18n/I18nProvider';
 import type { WesState } from '@/api/types';
@@ -98,10 +100,15 @@ export function WorkflowCenter() {
         <SubmitWorkflowDialog disabled={!!error} />
       </div>
       {error && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          {t('workflows.unavailable')}
-        </div>
+        <ErrorWithReport
+          errorMessage={errorMessageFromUnknown(error, t('workflows.unavailable'))}
+          context="wes-list"
+          lastApi={{
+            method: 'GET',
+            path: '/ga4gh/wes/v1/runs',
+            status: error instanceof ApiAuthError ? error.status : undefined,
+          }}
+        />
       )}
       <Card>
         <CardHeader>
