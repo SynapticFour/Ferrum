@@ -1,7 +1,11 @@
 # Init container: migrations, MinIO bucket, Keycloak realm, Crypt4GH keys, seed DRS.
 # Run once after postgres/minio/keycloak are healthy.
-ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm
+#
+# keygen-builder MUST target musl: the runtime image is Alpine; a bookworm/glibc
+# binary fails at runtime with exit 127 (command not found).
+ARG RUST_BUILDER_IMAGE=rust:1.91.1-alpine
 FROM ${RUST_BUILDER_IMAGE} AS keygen-builder
+RUN apk add --no-cache musl-dev pkgconfig libsodium-dev git perl make
 WORKDIR /app
 COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
@@ -11,7 +15,7 @@ RUN git clone --depth 1 --branch main https://github.com/SynapticFour/ga4gh-infr
 RUN cargo build --release -p ferrum-crypt4gh --bin ferrum-node-keygen
 
 FROM alpine:3.19
-RUN apk add --no-cache postgresql16-client curl netcat-openbsd bash wget
+RUN apk add --no-cache postgresql16-client curl netcat-openbsd bash wget libsodium
 
 # MinIO client for bucket creation (multi-arch)
 ARG TARGETARCH
@@ -23,6 +27,12 @@ RUN case "$TARGETARCH" in \
     && chmod +x /usr/local/bin/mc
 
 COPY --from=keygen-builder /app/target/release/ferrum-node-keygen /usr/local/bin/ferrum-node-keygen
+RUN chmod +x /usr/local/bin/ferrum-node-keygen \
+    && mkdir -p /tmp/ferrum-keygen-smoke \
+    && ferrum-node-keygen /tmp/ferrum-keygen-smoke \
+    && test -f /tmp/ferrum-keygen-smoke/node.sec \
+    && test -f /tmp/ferrum-keygen-smoke/node.pub \
+    && rm -rf /tmp/ferrum-keygen-smoke
 
 WORKDIR /app
 COPY deploy/scripts/init-demo.sh /app/init-demo.sh
