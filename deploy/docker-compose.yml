@@ -70,7 +70,11 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      CRYPT4GH_KEY_DIR: /data/ferrum/keys
+      CRYPT4GH_MASTER_KEY_ID: node
       # Optional dev-only: FERRUM_INIT_RESET_MIGRATIONS=1 clears _ferrum_init_migrations (see init-demo.sh)
+    volumes:
+      - crypt4gh-keys:/data/ferrum/keys
     depends_on:
       postgres: { condition: service_healthy }
       minio: { condition: service_started }
@@ -108,6 +112,10 @@ services:
       # Service discovery: resolve TES/TRS via registry when co-deployed; fall back to local gateway paths.
       FERRUM_DISCOVERY__ENABLED: "${FERRUM_DISCOVERY__ENABLED:-true}"
       FERRUM_DISCOVERY__REGISTRATION_BASE_URL: "http://localhost:${GATEWAY_PORT:-8080}"
+      FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR: /data/ferrum/keys
+      FERRUM_ENCRYPTION__CRYPT4GH_MASTER_KEY_ID: node
+    volumes:
+      - crypt4gh-keys:/data/ferrum/keys:ro
     depends_on:
       postgres: { condition: service_healthy }
       minio: { condition: service_started }
@@ -147,3 +155,4 @@ volumes:
   pgdata:
   minio-data:
   keycloak-data:
+  crypt4gh-keys:

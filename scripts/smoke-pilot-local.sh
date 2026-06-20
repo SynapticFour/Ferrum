@@ -16,6 +16,42 @@ SMOKE_WARNINGS=()
 echo "smoke-pilot-local: health @ $BASE_URL"
 curl -sf "$BASE_URL/health" >/dev/null || die "gateway not reachable (run: make up-tes)"
 
+echo "smoke-pilot-local: Crypt4GH ingest readiness"
+admin_cfg="$(curl -fsS "$BASE_URL/admin/config" || true)"
+c4gh_ready="$(printf '%s' "$admin_cfg" | python3 -c "
+import sys, json
+print(json.load(sys.stdin).get('services', {}).get('crypt4gh_ingest_ready', False))
+" 2>/dev/null || echo False)"
+[[ "$c4gh_ready" == "True" ]] || die "crypt4gh_ingest_ready=false (check ferrum-init keys + gateway FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR)"
+ok "crypt4gh_ingest_ready=true"
+
+echo "smoke-pilot-local: Crypt4GH encrypt upload round-trip"
+C4GH_PAYLOAD="${TMPDIR:-/tmp}/ferrum-smoke-c4gh-$$.bin"
+C4GH_DL="${C4GH_PAYLOAD}.dl"
+trap 'rm -f "$C4GH_PAYLOAD" "$C4GH_DL"' EXIT
+printf 'smoke-pilot-crypt4gh %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$C4GH_PAYLOAD"
+c4gh_up="$(curl -fsS -X POST "$BASE_URL/api/v1/ingest/upload" \
+  -F "client_request_id=smoke-pilot-c4gh-$$" \
+  -F "encrypt=true" \
+  -F "file=@${C4GH_PAYLOAD};type=application/octet-stream")"
+c4gh_job="$(printf '%s' "$c4gh_up" | python3 -c "import sys,json; print(json.load(sys.stdin).get('job_id',''))")"
+[[ -n "$c4gh_job" ]] || die "Crypt4GH upload missing job_id: $c4gh_up"
+c4gh_status=""
+for _ in $(seq 1 60); do
+  c4gh_status="$(curl -fsS "$BASE_URL/api/v1/ingest/jobs/${c4gh_job}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || true)"
+  case "$c4gh_status" in
+    succeeded) break ;;
+    failed) die "Crypt4GH ingest job failed: $c4gh_job" ;;
+  esac
+  sleep 1
+done
+[[ "$c4gh_status" == "succeeded" ]] || die "Crypt4GH ingest job timed out: $c4gh_job"
+c4gh_obj="$(curl -fsS "$BASE_URL/api/v1/ingest/jobs/${c4gh_job}" | python3 -c "import sys,json; j=json.load(sys.stdin); print((j.get('result') or {}).get('object_ids',[''])[0])")"
+[[ -n "$c4gh_obj" ]] || die "Crypt4GH ingest missing object_id"
+curl -fsS "$BASE_URL/ga4gh/drs/v1/objects/${c4gh_obj}/stream" -o "$C4GH_DL"
+cmp -s "$C4GH_PAYLOAD" "$C4GH_DL" || die "Crypt4GH stream byte mismatch for $c4gh_obj"
+ok "Crypt4GH encrypt round-trip ($c4gh_obj)"
+
 if [[ "$RUN_SEED" == "1" ]]; then
   echo "smoke-pilot-local: seed-pilot"
   SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

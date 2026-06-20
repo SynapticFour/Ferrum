@@ -1,5 +1,15 @@
 # Init container: migrations, MinIO bucket, Keycloak realm, Crypt4GH keys, seed DRS.
 # Run once after postgres/minio/keycloak are healthy.
+ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm
+FROM ${RUST_BUILDER_IMAGE} AS keygen-builder
+WORKDIR /app
+COPY Cargo.toml Cargo.lock* ./
+COPY crates ./crates
+COPY tools ./tools
+COPY third_party ./third_party
+RUN git clone --depth 1 --branch main https://github.com/SynapticFour/ga4gh-infra.git /ga4gh-infra
+RUN cargo build --release -p ferrum-crypt4gh --bin ferrum-node-keygen
+
 FROM alpine:3.19
 RUN apk add --no-cache postgresql16-client curl netcat-openbsd bash wget
 
@@ -11,6 +21,8 @@ RUN case "$TARGETARCH" in \
     *) MC_ARCH=amd64 ;; esac \
     && wget -q -O /usr/local/bin/mc "https://dl.min.io/client/mc/release/linux-${MC_ARCH}/mc" \
     && chmod +x /usr/local/bin/mc
+
+COPY --from=keygen-builder /app/target/release/ferrum-node-keygen /usr/local/bin/ferrum-node-keygen
 
 WORKDIR /app
 COPY deploy/scripts/init-demo.sh /app/init-demo.sh

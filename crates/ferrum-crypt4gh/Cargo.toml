@@ -40,6 +40,10 @@ name = "ferrum-crypt4gh"
 path = "src/main.rs"
 required-features = ["standalone"]
 
+[[bin]]
+name = "ferrum-node-keygen"
+path = "src/bin/node_keygen.rs"
+
 [features]
 default = []
 standalone = ["tracing-subscriber"]

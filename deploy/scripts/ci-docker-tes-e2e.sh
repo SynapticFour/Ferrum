@@ -27,8 +27,41 @@ ingest_json="$(curl -sf -F "file=@${PAYLOAD};type=application/octet-stream" \
 object_id="$(printf '%s' "$ingest_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')"
 [[ -n "$object_id" ]] || die "missing object id: $ingest_json"
 
-curl -sf "$BASE/ga4gh/drs/v1/objects/${object_id}/stream" -o "${PAYLOAD}.dl"
+curl -sf "$BASE_URL/ga4gh/drs/v1/objects/${object_id}/stream" -o "${PAYLOAD}.dl"
 cmp -s "$PAYLOAD" "${PAYLOAD}.dl" || die "stream byte mismatch"
+
+echo "ci-docker-tes-e2e: admin Crypt4GH ingest readiness"
+c4gh_ready="$(curl -sf "$BASE/admin/config" | python3 -c "
+import sys, json
+print(json.load(sys.stdin).get('services', {}).get('crypt4gh_ingest_ready', False))
+")"
+[[ "$c4gh_ready" == "True" ]] || die "crypt4gh_ingest_ready=false"
+
+echo "ci-docker-tes-e2e: Crypt4GH encrypt upload round-trip"
+C4GH_PAYLOAD="${TMPDIR:-/tmp}/ferrum-tes-c4gh-$$.bin"
+C4GH_DL="${C4GH_PAYLOAD}.dl"
+printf 'ci-docker-tes-crypt4gh %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$C4GH_PAYLOAD"
+c4gh_up="$(curl -sf -X POST "$BASE/api/v1/ingest/upload" \
+  -F "client_request_id=tes-e2e-c4gh-$$" \
+  -F "encrypt=true" \
+  -F "file=@${C4GH_PAYLOAD};type=application/octet-stream")"
+c4gh_job="$(printf '%s' "$c4gh_up" | python3 -c "import sys,json; print(json.load(sys.stdin).get('job_id',''))")"
+[[ -n "$c4gh_job" ]] || die "Crypt4GH upload missing job_id"
+c4gh_status=""
+for _ in $(seq 1 60); do
+  c4gh_status="$(curl -sf "$BASE/api/v1/ingest/jobs/${c4gh_job}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || true)"
+  case "$c4gh_status" in
+    succeeded) break ;;
+    failed) die "Crypt4GH ingest job failed" ;;
+  esac
+  sleep 1
+done
+[[ "$c4gh_status" == "succeeded" ]] || die "Crypt4GH ingest job timed out"
+c4gh_obj="$(curl -sf "$BASE/api/v1/ingest/jobs/${c4gh_job}" | python3 -c "import sys,json; j=json.load(sys.stdin); print((j.get('result') or {}).get('object_ids',[''])[0])")"
+[[ -n "$c4gh_obj" ]] || die "Crypt4GH ingest missing object_id"
+curl -sf "$BASE/ga4gh/drs/v1/objects/${c4gh_obj}/stream" -o "$C4GH_DL"
+cmp -s "$C4GH_PAYLOAD" "$C4GH_DL" || die "Crypt4GH stream byte mismatch"
+rm -f "$C4GH_PAYLOAD" "$C4GH_DL"
 
 echo "ci-docker-tes-e2e: WES submit"
 run_json="$(curl -sf -H 'Content-Type: application/json' -d "$WORKFLOW" \
@@ -62,4 +95,4 @@ for i, log in enumerate(t.get('logs') or []):
   die "run did not COMPLETE (state=$state)"
 fi
 
-echo "ci-docker-tes-e2e: OK (ingest, stream, WES COMPLETE)"
+echo "ci-docker-tes-e2e: OK (ingest, stream, Crypt4GH round-trip, WES COMPLETE)"

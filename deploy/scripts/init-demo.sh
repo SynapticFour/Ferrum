@@ -193,12 +193,14 @@ fi
 echo "Generating Crypt4GH keypair..."
 KEY_DIR="${CRYPT4GH_KEY_DIR:-/data/ferrum/keys}"
 mkdir -p "$KEY_DIR"
-if command -v ferrum-crypt4gh >/dev/null 2>&1; then
+if command -v ferrum-node-keygen >/dev/null 2>&1; then
+  CRYPT4GH_MASTER_KEY_ID="${CRYPT4GH_MASTER_KEY_ID:-node}" ferrum-node-keygen "$KEY_DIR"
+elif command -v ferrum-crypt4gh >/dev/null 2>&1; then
   ferrum-crypt4gh generate --output-dir "$KEY_DIR" 2>/dev/null || true
 elif command -v crypt4gh >/dev/null 2>&1; then
-  crypt4gh keys generate --name node.key --force 2>/dev/null && mv node.key node.key.pub "$KEY_DIR/" 2>/dev/null || true
+  crypt4gh keys generate --sk "$KEY_DIR/node.sec" --pk "$KEY_DIR/node.pub" --force 2>/dev/null || true
 else
-  echo "  (crypt4gh not in PATH; keys can be generated later)"
+  echo "  (ferrum-node-keygen not in PATH; keys can be generated later)"
 fi
 
 # --- 5. Seed example DRS objects (public genomic test data URLs), workspace ---

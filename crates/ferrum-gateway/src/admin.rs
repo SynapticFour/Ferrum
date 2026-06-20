@@ -96,16 +96,26 @@ pub struct SanitizedServices {
 }
 
 fn crypt4gh_ingest_ready(c: &ferrum_core::FerrumConfig) -> bool {
-    if std::env::var("FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR")
+    let dir = std::env::var("FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR")
         .ok()
-        .is_some_and(|s| !s.trim().is_empty())
-    {
-        return true;
-    }
-    c.encryption
-        .crypt4gh_key_dir
-        .as_ref()
-        .is_some_and(|s| !s.trim().is_empty())
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            c.encryption
+                .crypt4gh_key_dir
+                .as_ref()
+                .filter(|s| !s.trim().is_empty())
+                .cloned()
+        });
+    let Some(dir) = dir else {
+        return false;
+    };
+    let key_id = std::env::var("FERRUM_ENCRYPTION__CRYPT4GH_MASTER_KEY_ID")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| c.encryption.crypt4gh_master_key_id.clone());
+    let sec = std::path::Path::new(&dir).join(format!("{key_id}.sec"));
+    let pub_key = std::path::Path::new(&dir).join(format!("{key_id}.pub"));
+    sec.is_file() && pub_key.is_file()
 }
 
 /// POST /admin/tokens/revoke — revoke a token by jti (A07).

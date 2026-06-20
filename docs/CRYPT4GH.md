@@ -100,6 +100,17 @@ For **reproducible** comparisons over the **GA4GH DRS API** (micro-benchmarks, d
 |-------|----------|--------|
 | **LocalKeyStore** | Single-node, file-based | Keys in `/etc/ferrum/keys/` or config path |
 
+### Demo stack (`make up` / `make up-tes`)
+
+`ferrum-init` generates a node keypair (`node.sec` / `node.pub`) into the Docker volume **`crypt4gh-keys`**, mounted at `/data/ferrum/keys` on init and gateway. Gateway env:
+
+- `FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR=/data/ferrum/keys`
+- `FERRUM_ENCRYPTION__CRYPT4GH_MASTER_KEY_ID=node` (default)
+
+`GET /admin/config` exposes `services.crypt4gh_ingest_ready` when both key files exist. Encrypted uploads (`encrypt=true` on ingest) and plaintext `/stream` decryption work while **MinIO** (`minio-data`) and **`crypt4gh-keys`** volumes persist.
+
+**Recovery:** `docker compose down` keeps volumes; encrypted objects remain readable via `/stream`. **`docker compose down -v`** (or `make destroy`) deletes `crypt4gh-keys` and `minio-data` — re-run `make up` to regenerate keys; previously encrypted blobs in MinIO become unreadable without the old private key.
+
 ---
 
 ## Client usage
