@@ -219,7 +219,7 @@ esac
 SMOKE_GERMLINE="${SMOKE_GERMLINE:-1}"
 if [[ "$SMOKE_GERMLINE" == "1" ]]; then
   echo "smoke-pilot-local: germline WES (TinyGermlineHC)"
-  germline_json="$(curl -fsS "$BASE_URL/ga4gh/drs/v1/objects" | python3 -c "
+  germline_json="$(curl -fsS "$BASE_URL/ga4gh/drs/v1/objects" | TES_BASE="$TES_BASE" python3 -c "
 import json, os, sys, urllib.request
 
 base = os.environ['TES_BASE']
@@ -260,7 +260,7 @@ body = {
     'workflow_params': params,
 }
 print(json.dumps(body))
-" TES_BASE="$TES_BASE")" || die "germline param wiring failed"
+")" || die "germline param wiring failed"
 
   germline_run="$(curl -fsS -H 'Content-Type: application/json' -d "$germline_json" "$BASE_URL/ga4gh/wes/v1/runs")"
   germline_id="$(printf '%s' "$germline_run" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("run_id",""))')"
