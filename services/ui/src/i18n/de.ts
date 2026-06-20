@@ -60,6 +60,8 @@ const deOverlay = {
     recentRuns: 'Letzte Analysen',
     recentRunsHint: 'Zuletzt gestartete Analysen — öffnen Sie einen Lauf für Protokolle und Ergebnisse.',
     noRuns: 'Noch keine Analysen. Starten Sie eine Analyse auf der Analysen-Seite.',
+    noRunsSeedHint:
+      'Lokale Demo: make up-tes, dann make seed-pilot lädt Pilot-BAM/VCF; Analyse unter Workflows starten.',
     viewAllRuns: 'Alle Analysen',
     runStates: 'Laufstatus (aktuell)',
     costByWorkflow: 'Kosten nach Workflow-Typ (letzte 30 Tage)',
@@ -132,8 +134,10 @@ const deOverlay = {
     mimePlaceholder: 'application/octet-stream',
     encryptDefault: 'Beim Upload verschlüsseln (Crypt4GH)',
     encryptHint: 'Empfohlen für sensible Genomdaten. Nutzt den Server-Schlüssel.',
-    encryptPilotUnavailable:
-      'Crypt4GH-Verschlüsselung beim Upload ist produktionsreif, in dieser Pilot-Umgebung aber nicht angebunden. Uploads werden unverschlüsselt gespeichert.',
+    encryptUnavailableLocal:
+      'Crypt4GH-Schlüssel sind auf diesem Gateway nicht geladen. make up oder make up-tes ausführen (ferrum-init erzeugt Schlüssel). make down nutzen — nicht destroy — um Schlüssel und MinIO-Daten zu behalten.',
+    encryptUnavailableRemote:
+      'Verschlüsselung beim Upload ist auf diesem gehosteten Pilot nicht konfiguriert. Uploads werden unverschlüsselt gespeichert, bis der Betreiber Crypt4GH-Schlüssel anbindet.',
     objects: 'Ihre Daten',
     objectsHint: 'Registrierte und hochgeladene Dateien für Analysen.',
     noObjects: 'Noch keine Daten. Laden Sie Dateien hoch oder registrieren Sie bestehende Speicherorte.',
@@ -353,6 +357,10 @@ const deOverlay = {
     cleanupStaleHint:
       'Diese Läufe haben den Executor nie erreicht (fehlgeschlagener Start) und bleiben sonst in der Warteschlange.',
     noRuns: 'Noch keine Läufe. Starten Sie eine Analyse.',
+    emptyTesHint:
+      'Echte Container-Ausführung braucht make up-tes (Docker-TES). Nur make up nutzt einen Noop-Executor — Läufe enden nur auf API-Ebene.',
+    emptySeedHint:
+      'Pilot-Demo: nach make up-tes make seed-pilot für BAM, VCF und chr22-Referenz auf MinIO, dann Germline-Variantenaufruf (Demo) testen.',
     unavailable: 'Workflow-Ausführung ist nicht konfiguriert oder nicht verfügbar.',
     dialogTitle: 'Analyse starten',
     sourceCurated: 'Empfohlen',

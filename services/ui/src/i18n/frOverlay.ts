@@ -58,6 +58,8 @@ export const frOverlay = {
     recentRuns: 'Analyses récentes',
     recentRunsHint: 'Dernières analyses lancées — ouvrez une exécution pour voir les journaux et les résultats.',
     noRuns: 'Aucune analyse pour l\'instant. Lancez une analyse depuis la page Analyses.',
+    noRunsSeedHint:
+      'Démo locale : make up-tes puis make seed-pilot charge BAM/VCF pilote ; lancez une analyse depuis Analyses.',
     viewAllRuns: 'Toutes les analyses',
     runStates: 'États des exécutions (récent)',
     costByWorkflow: 'Coût par type de workflow (30 derniers jours)',
@@ -134,8 +136,10 @@ export const frOverlay = {
     mimePlaceholder: 'application/octet-stream',
     encryptDefault: 'Chiffrer au téléversement (Crypt4GH)',
     encryptHint: 'Recommandé pour les données génomiques sensibles. Utilise la clé serveur.',
-    encryptPilotUnavailable:
-      'Le chiffrement Crypt4GH au téléversement est prêt pour la production mais n’est pas configuré sur cette pile pilote. Les téléversements sont stockés en clair.',
+    encryptUnavailableLocal:
+      'Les clés Crypt4GH ne sont pas chargées sur cette passerelle. Lancez make up ou make up-tes (ferrum-init génère les clés). Utilisez make down — pas destroy — pour conserver clés et données MinIO.',
+    encryptUnavailableRemote:
+      'Le chiffrement au téléversement n\'est pas configuré sur ce pilote hébergé. Les fichiers sont stockés en clair jusqu\'à configuration Crypt4GH par l\'opérateur.',
     objects: 'Vos données',
     objectsHint: 'Fichiers enregistrés et téléversés disponibles pour les analyses.',
     noObjects: 'Aucune donnée pour l\'instant. Téléversez des fichiers ou enregistrez des emplacements existants.',
@@ -356,6 +360,10 @@ export const frOverlay = {
     cleanupStaleHint:
       'Ces exécutions n\'ont jamais atteint l\'exécuteur (échec de soumission) et resteraient sinon en file d\'attente.',
     noRuns: 'Aucune exécution pour l\'instant. Lancez une analyse.',
+    emptyTesHint:
+      'L\'exécution réelle en conteneur nécessite make up-tes (TES Docker). make up seul utilise un exécuteur noop — les runs ne passent que par l\'API.',
+    emptySeedHint:
+      'Démo pilote : après make up-tes, make seed-pilot ajoute BAM, VCF et référence chr22 sur MinIO, puis essayez l\'appel germline (démo).',
     unavailable: 'L\'exécution de workflow n\'est pas configurée ou indisponible.',
     dialogTitle: 'Lancer une analyse',
     sourceCurated: 'Recommandé',

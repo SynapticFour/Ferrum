@@ -53,3 +53,11 @@ export function isNoopExecutor(config?: SanitizedConfig | null): boolean {
 export function isCrypt4ghIngestReady(config?: SanitizedConfig | null): boolean {
   return config?.services?.crypt4gh_ingest_ready === true;
 }
+
+/** i18n key for why encrypt-on-upload is disabled on this deployment. */
+export function crypt4ghUnavailableMessageKey(
+  config?: SanitizedConfig | null,
+): 'data.encryptUnavailableRemote' | 'data.encryptUnavailableLocal' {
+  if (config?.auth?.require_auth) return 'data.encryptUnavailableRemote';
+  return 'data.encryptUnavailableLocal';
+}

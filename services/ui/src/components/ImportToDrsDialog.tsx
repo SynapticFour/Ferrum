@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiPost, apiPostFormData } from '@/api/client';
-import { useAdminConfig, isCrypt4ghIngestReady } from '@/hooks/useAdminConfig';
+import { useAdminConfig, isCrypt4ghIngestReady, crypt4ghUnavailableMessageKey } from '@/hooks/useAdminConfig';
 import { useIngestJobPoller } from '@/hooks/useIngestJobs';
 import { useIngestJobsStore, type IngestJobKind } from '@/stores/ingestJobs';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -267,8 +267,10 @@ export function ImportToDrsDialog({
               />
               {t('data.encryptDefault')}
             </label>
-            {!crypt4ghIngestReady && (
-              <p className="text-xs text-muted-foreground">{t('data.encryptPilotUnavailable')}</p>
+            {crypt4ghIngestReady ? (
+              <p className="text-xs text-muted-foreground">{t('data.encryptHint')}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">{t(crypt4ghUnavailableMessageKey(config))}</p>
             )}
           </TabsContent>
           <TabsContent value="url" className="space-y-3 pt-2">

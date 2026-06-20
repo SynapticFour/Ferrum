@@ -57,6 +57,8 @@ export const en = {
     recentRuns: 'Recent runs',
     recentRunsHint: 'Last workflow runs — open a run to view logs and results.',
     noRuns: 'No runs yet. Submit an analysis from the Workflows page to get started.',
+    noRunsSeedHint:
+      'Local demo: make up-tes then make seed-pilot loads pilot BAM/VCF; submit an analysis from Workflows.',
     viewAllRuns: 'View all runs',
     runStates: 'Run states (recent)',
     costByWorkflow: 'Cost by workflow type (last 30 days)',
@@ -130,8 +132,10 @@ export const en = {
     mimePlaceholder: 'application/octet-stream',
     encryptDefault: 'Encrypt on upload (Crypt4GH)',
     encryptHint: 'Recommended for sensitive genomics data. Uses the server encryption key.',
-    encryptPilotUnavailable:
-      'Crypt4GH encrypt-on-upload is production-ready but not configured on this pilot stack. Uploads are stored in plaintext.',
+    encryptUnavailableLocal:
+      'Crypt4GH keys are not loaded on this gateway. Run make up or make up-tes so ferrum-init generates keys. Use make down (not destroy) to keep keys with MinIO data.',
+    encryptUnavailableRemote:
+      'Encrypt-on-upload is not configured on this hosted pilot. Uploads are stored in plaintext until the operator wires Crypt4GH keys.',
     objects: 'Your data',
     objectsHint: 'Registered and uploaded files available for analyses.',
     noObjects: 'No data yet. Upload files or add existing locations to get started.',
@@ -362,6 +366,10 @@ export const en = {
     cleanupStaleHint:
       'These runs never reached an executor (failed submit) and would otherwise stay queued.',
     noRuns: 'No runs yet. Submit an analysis to get started.',
+    emptyTesHint:
+      'Real container execution needs make up-tes (Docker-backed TES). Plain make up uses a noop executor — runs complete at the API only.',
+    emptySeedHint:
+      'Pilot demo: after make up-tes run make seed-pilot for BAM, VCF, and chr22 reference on MinIO, then try Germline variant calling (demo).',
     unavailable: 'Workflow execution is not configured or unavailable.',
     dialogTitle: 'Run analysis',
     sourceCurated: 'Recommended',

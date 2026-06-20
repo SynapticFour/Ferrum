@@ -225,8 +225,9 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               {recentRuns.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 py-10 text-center text-sm text-muted-foreground">
-                  {t('dashboard.noRuns')}
+                <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 py-10 text-center text-sm text-muted-foreground space-y-2">
+                  <p>{t('dashboard.noRuns')}</p>
+                  <p className="text-xs px-4">{t('dashboard.noRunsSeedHint')}</p>
                 </div>
               ) : (
                 <ul className="space-y-2">

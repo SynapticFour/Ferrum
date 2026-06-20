@@ -58,6 +58,8 @@ export const arOverlay = {
     recentRuns: 'التحليلات الأخيرة',
     recentRunsHint: 'آخر التحليلات التي تم تشغيلها — افتح تشغيلًا لعرض السجلات والنتائج.',
     noRuns: 'لا توجد تحليلات بعد. ابدأ تحليلًا من صفحة التحليلات.',
+    noRunsSeedHint:
+      'عرض محلي: make up-tes ثم make seed-pilot يحمّل BAM/VCF للطيار؛ ابدأ تحليلًا من صفحة التحليلات.',
     viewAllRuns: 'كل التحليلات',
     runStates: 'حالات التشغيل (الأخيرة)',
     costByWorkflow: 'التكلفة حسب نوع سير العمل (آخر 30 يومًا)',
@@ -133,8 +135,10 @@ export const arOverlay = {
     mimePlaceholder: 'application/octet-stream',
     encryptDefault: 'تشفير عند الرفع (Crypt4GH)',
     encryptHint: 'موصى به للبيانات الجينومية الحساسة. يستخدم مفتاح تشفير الخادم.',
-    encryptPilotUnavailable:
-      'تشفير Crypt4GH عند الرفع جاهز للإنتاج لكنه غير مُعدّ في بيئة الطيار هذه. تُخزَّن الملفات دون تشفير.',
+    encryptUnavailableLocal:
+      'مفاتيح Crypt4GH غير محمّلة على هذه البوابة. نفّذ make up أو make up-tes (ferrum-init يولّد المفاتيح). استخدم make down وليس destroy للاحتفاظ بالمفاتيح وبيانات MinIO.',
+    encryptUnavailableRemote:
+      'التشفير عند الرفع غير مُعدّ على بيئة الطيار المستضافة. تُخزَّن الملفات دون تشفير حتى يفعّل المشغّل مفاتيح Crypt4GH.',
     objects: 'بياناتك',
     objectsHint: 'الملفات المسجلة والمرفوعة المتاحة للتحليلات.',
     noObjects: 'لا توجد بيانات بعد. ارفع ملفات أو سجّل مواقع موجودة.',
@@ -346,6 +350,10 @@ export const arOverlay = {
     cleanupStale: 'تنظيف {count} تشغيل عالق',
     cleanupStaleHint: 'هذه التشغيلات لم تصل إلى المُنفّذ (فشل الإرسال) وستبقى في قائمة الانتظار.',
     noRuns: 'لا توجد تشغيلات بعد. ابدأ تحليلًا.',
+    emptyTesHint:
+      'تنفيذ الحاويات الحقيقي يتطلب make up-tes (TES عبر Docker). make up وحده يستخدم منفّذ noop — التشغيلات تكتمل على مستوى API فقط.',
+    emptySeedHint:
+      'عرض الطيار: بعد make up-tes نفّذ make seed-pilot لإضافة BAM وVCF ومرجع chr22 على MinIO، ثم جرّب استدعاء الجرثومية (demo).',
     unavailable: 'تنفيذ سير العمل غير مُعد أو غير متاح.',
     dialogTitle: 'تشغيل تحليل',
     sourceCurated: 'موصى به',

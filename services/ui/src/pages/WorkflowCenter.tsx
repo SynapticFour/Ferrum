@@ -129,7 +129,11 @@ export function WorkflowCenter() {
         <CardContent>
           {isLoading && <p className="text-muted-foreground text-sm">{t('common.loading')}</p>}
           {!isLoading && runs.length === 0 && !error && (
-            <p className="text-muted-foreground text-sm">{t('workflows.noRuns')}</p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>{t('workflows.noRuns')}</p>
+              <p className="text-xs">{t('workflows.emptyTesHint')}</p>
+              <p className="text-xs">{t('workflows.emptySeedHint')}</p>
+            </div>
           )}
           {!isLoading && runs.length > 0 && (
             <ul className="space-y-3">
