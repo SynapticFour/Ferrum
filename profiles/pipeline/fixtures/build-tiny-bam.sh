@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build tiny.bam + tiny.bam.bai for pilot seed (requires samtools).
-# Aligns to chr22:2000 so TinyGermlineHC interval 22:1700-2300 matches reference + truth.
+# Aligns to chr22:2000 so TinyGermlineHC interval chr22:1700-2300 matches reference + truth.
 set -euo pipefail
 cd "$(dirname "$0")"
 command -v samtools >/dev/null || { echo "samtools required" >&2; exit 1; }

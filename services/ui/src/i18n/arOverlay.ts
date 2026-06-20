@@ -358,7 +358,7 @@ export const arOverlay = {
     workflowLabel: 'التحليل',
     workflowUrlLabel: 'URL سير العمل (WDL)',
     intervalLabel: 'فترة جينومية',
-    intervalPlaceholder: '22:1700-2300',
+    intervalPlaceholder: 'chr22:1700-2300',
     inputBamLabel: 'ملف BAM المدخل',
     inputBamPlaceholder: 'اختر BAM من بياناتك',
     pickData: 'اختيار البيانات',

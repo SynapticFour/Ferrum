@@ -369,7 +369,7 @@ export const frOverlay = {
     workflowLabel: 'Analyse',
     workflowUrlLabel: 'URL du workflow (WDL)',
     intervalLabel: 'Intervalle génomique',
-    intervalPlaceholder: '22:1700-2300',
+    intervalPlaceholder: 'chr22:1700-2300',
     inputBamLabel: 'BAM d\'entrée',
     inputBamPlaceholder: 'Sélectionnez un BAM parmi vos données',
     pickData: 'Choisir les données',

@@ -373,7 +373,7 @@ export const en = {
     workflowLabel: 'Analysis',
     workflowUrlLabel: 'Workflow URL (WDL)',
     intervalLabel: 'Genomic interval',
-    intervalPlaceholder: '22:1700-2300',
+    intervalPlaceholder: 'chr22:1700-2300',
     inputBamLabel: 'Input BAM',
     inputBamPlaceholder: 'Select a BAM from your data',
     pickData: 'Choose data',

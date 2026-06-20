@@ -629,7 +629,7 @@ VALUES (
   'https://raw.githubusercontent.com/SynapticFour/Ferrum-GA4GH-Demo/main/workflows/tiny_hc.wdl',
   'WDL',
   '1.0',
-  '{"TinyGermlineHC.interval":"22:1700-2300"}'::jsonb,
+  '{"TinyGermlineHC.interval":"chr22:1700-2300"}'::jsonb,
   'COMPLETE',
   'demo-workspace-01',
   NOW() - INTERVAL '2 days',

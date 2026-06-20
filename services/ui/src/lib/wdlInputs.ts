@@ -74,6 +74,6 @@ export function isPerSampleFileInput(name: string): boolean {
 
 export function defaultValueForInput(input: WdlInput): string {
   if (input.wdlType === 'Int' || input.wdlType === 'Float') return '0';
-  if (input.name.toLowerCase().includes('interval')) return '22:1700-2300';
+  if (input.name.toLowerCase().includes('interval')) return 'chr22:1700-2300';
   return '';
 }

@@ -251,7 +251,7 @@ params = {
     'TinyGermlineHC.ref_fasta_index': stream('Pilot reference FASTA index (MinIO)'),
     'TinyGermlineHC.truth_vcf': stream('Pilot truth VCF (MinIO)'),
     'TinyGermlineHC.truth_vcf_index': stream('Pilot truth VCF index (MinIO)'),
-    'TinyGermlineHC.interval': '22:1700-2300',
+    'TinyGermlineHC.interval': 'chr22:1700-2300',
 }
 body = {
     'workflow_type': 'WDL',

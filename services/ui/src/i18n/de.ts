@@ -364,7 +364,7 @@ const deOverlay = {
     workflowLabel: 'Analyse',
     workflowUrlLabel: 'Workflow-URL (WDL)',
     intervalLabel: 'Genomisches Intervall',
-    intervalPlaceholder: '22:1700-2300',
+    intervalPlaceholder: 'chr22:1700-2300',
     inputBamLabel: 'Eingabe-BAM',
     inputBamPlaceholder: 'BAM aus Ihren Daten wählen',
     pickData: 'Daten wählen',

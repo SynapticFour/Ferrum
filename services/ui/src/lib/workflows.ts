@@ -19,7 +19,7 @@ export const CURATED_WORKFLOWS: CuratedWorkflow[] = [
     workflowType: 'WDL',
     workflowTypeVersion: '1.0',
     paramPrefix: 'TinyGermlineHC',
-    defaultInterval: '22:1700-2300',
+    defaultInterval: 'chr22:1700-2300',
   },
   {
     id: 'demo-wdl-hello',

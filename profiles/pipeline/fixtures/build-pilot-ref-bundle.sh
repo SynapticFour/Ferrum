@@ -11,8 +11,8 @@ done
 python3 - <<'PY'
 from pathlib import Path
 
-# 3.7 kb chr22 slice — covers TinyGermlineHC interval 22:1700-2300 and truth at 2000.
-seq = ("ACGT" * 400) + ("N" * 500) + ("TGCA" * 400)
+# 3.7 kb chr22 slice — covers TinyGermlineHC interval chr22:1700-2300 and truth at 2000.
+seq = ("ACGT" * 500) + ("TGCA" * 425)
 Path("pilot-ref.fa").write_text(f">chr22 pilot reference slice\n{seq}\n")
 
 snp_pos = 2000
