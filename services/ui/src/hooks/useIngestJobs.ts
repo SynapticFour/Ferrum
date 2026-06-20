@@ -1,5 +1,48 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '@/stores/auth';
+import { extractIngestJobError } from '@/lib/ingestErrors';
+import type { IngestJob } from '@/api/ingest';
+
+/** Poll ingest job until terminal state. */
+export function useIngestJobPoller(
+  jobId: string | null,
+  onDone: (status: string, result?: { object_ids?: string[] }, errorMessage?: string) => void,
+) {
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    if (!jobId) return;
+    doneRef.current = false;
+    let cancelled = false;
+
+    const poll = async () => {
+      while (!cancelled && !doneRef.current) {
+        try {
+          const jwt = useAuthStore.getState().passportJwt;
+          const res = await fetch(`/api/v1/ingest/jobs/${encodeURIComponent(jobId)}`, {
+            headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
+          });
+          if (!res.ok) break;
+          const data = (await res.json()) as IngestJob;
+          if (data.status === 'succeeded' || data.status === 'failed') {
+            doneRef.current = true;
+            const errorMessage = extractIngestJobError(data.error);
+            onDone(data.status, data.result, errorMessage);
+            break;
+          }
+        } catch {
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, onDone]);
+}
 
 /** Subscribe to WES SSE log stream; falls back gracefully when unavailable. */
 export function useLiveRunLogs(runId: string, enabled: boolean) {
@@ -57,47 +100,4 @@ export function useLiveRunLogs(runId: string, enabled: boolean) {
   }, [runId, enabled]);
 
   return { lines, streaming, unavailable };
-}
-
-/** Poll ingest job until terminal state. */
-export function useIngestJobPoller(
-  jobId: string | null,
-  onDone: (status: string, result?: { object_ids?: string[] }) => void,
-) {
-  const doneRef = useRef(false);
-
-  useEffect(() => {
-    if (!jobId) return;
-    doneRef.current = false;
-    let cancelled = false;
-
-    const poll = async () => {
-      while (!cancelled && !doneRef.current) {
-        try {
-          const jwt = useAuthStore.getState().passportJwt;
-          const res = await fetch(`/api/v1/ingest/jobs/${encodeURIComponent(jobId)}`, {
-            headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
-          });
-          if (!res.ok) break;
-          const data = (await res.json()) as {
-            status: string;
-            result?: { object_ids?: string[] };
-          };
-          if (data.status === 'succeeded' || data.status === 'failed') {
-            doneRef.current = true;
-            onDone(data.status, data.result);
-            break;
-          }
-        } catch {
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 800));
-      }
-    };
-
-    void poll();
-    return () => {
-      cancelled = true;
-    };
-  }, [jobId, onDone]);
 }

@@ -28,6 +28,14 @@ export const en = {
     sessionExpiresSoon: 'Your session expires in about {minutes} minutes.',
     sessionExpiresVerySoon: 'Your session expires in {minutes} minutes — sign in again soon.',
     language: 'Language',
+    brokerMisconfigured:
+      'Sign-in is required but the identity broker is not configured. Contact your operator or open Settings.',
+  },
+  auth: {
+    completingSignIn: 'Completing sign-in…',
+    signInFailed: 'Sign-in did not complete',
+    signInFailedHint: 'No access token was returned. Try signing in again from Settings or the sidebar.',
+    tryAgain: 'Try sign-in again',
   },
     nav: {
     dashboard: 'Dashboard',
@@ -92,6 +100,7 @@ export const en = {
     title: 'Demo compute mode',
     body: 'This deployment uses a no-operation task executor (TES noop). Workflow runs complete at the API level but containers do not execute — you will not get real variant-calling outputs here.',
     hint: 'For live GATK runs, use a local Ferrum instance with Docker or SLURM/LSF, or view reference outputs from the pilot seed data.',
+    compact: 'Demo mode: runs complete at the API only — no real container output on this deployment.',
   },
   data: {
     title: 'Data',
@@ -123,6 +132,9 @@ export const en = {
     uploadStreamError:
       'The upload was interrupted before the full file arrived. Please try again — large files are sent in smaller pieces automatically.',
     uploadTooLarge: 'This file exceeds the server upload limit. Contact your administrator or register the file by storage path instead.',
+    uploadTransferQueued: 'Upload deferred due to low bandwidth — wait a moment and try again.',
+    uploadEncryptUnavailable: 'Encrypt-on-upload is not available on this server. Uncheck encryption or contact your operator.',
+    uploadWorkspaceForbidden: 'You cannot add data to this workspace — check sign-in or pick another workspace.',
     importTitle: 'Import into DRS',
     importDescription:
       'Choose import (managed copy) or register (pointer only). Both add an entry to the Data Repository Service (DRS) catalog.',
@@ -167,7 +179,7 @@ export const en = {
     workspaceAll: 'All workspaces',
     workspaceFilterActive: 'Showing objects in workspace “{name}”.',
     workspaceEmptySeedHint:
-      'Pilot demo empty? Run make seed-pilot (local) or ./scripts/seed-pilot-remote.sh with FERRUM_PASSPORT_JWT (Fly). Adds BAM, VCF, and chr22 reference objects to this workspace.',
+      'No data in this workspace yet. Use Import file above, or ask your operator to seed demo data.',
     listUnavailable: 'Could not list data. Upload and add may still work if ingest is enabled.',
     colId: 'ID',
     colName: 'Name',
@@ -260,6 +272,10 @@ export const en = {
     lineageFailed: 'Could not load lineage.',
     lineageEmpty: 'No provenance links recorded for this object yet.',
     useInAnalysis: 'Use in analysis',
+    linkWorkspaceFirst: 'Link this file to a workspace before starting an analysis.',
+    linkWorkspaceHint: 'Analyses run in the context of a study workspace. Choose a workspace and link this object.',
+    linkWorkspaceAction: 'Link to workspace',
+    linkWorkspaceSuccess: 'Linked to workspace “{name}”. You can now start an analysis.',
     storageKind: 'Storage',
     storageUrl: 'Registered URL (not copied)',
     storageManaged: 'Managed by Ferrum',
@@ -407,6 +423,10 @@ export const en = {
     uploadNameLabel: 'Workflow name (optional)',
     uploadNamePlaceholder: 'e.g. My variant calling pipeline',
     uploadEmpty: 'Paste or upload a workflow file first.',
+    runSubmitSuccess: 'Analysis run started ({id}).',
+    runSubmitSuccessCohort: 'Started {count} analysis runs.',
+    viewRun: 'Run {id}…',
+    viewAllRuns: 'View all runs',
     registerInTrs: 'Register workflow in TRS catalog',
     registerInTrsHint: 'Adds this workflow URL to your local tool registry before starting the run.',
     registerInTrsServerOff: 'Server auto-register is disabled (FERRUM_WES_TRS_AUTO_REGISTER=false). Enable this to catalog the workflow.',

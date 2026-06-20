@@ -6,6 +6,7 @@ import { listIngestJobs, type IngestJob } from '@/api/ingest';
 import { useIngestJobsStore } from '@/stores/ingestJobs';
 import { ProblemReportPanel } from '@/components/ProblemReportPanel';
 import { useI18n } from '@/i18n/I18nProvider';
+import { extractIngestJobError, friendlyIngestError } from '@/lib/ingestErrors';
 
 const TERMINAL = new Set(['succeeded', 'failed']);
 const DISMISS_MS = 8000;
@@ -18,8 +19,11 @@ function syncJobToStore(
   job: IngestJob,
   trackJob: ReturnType<typeof useIngestJobsStore.getState>['trackJob'],
   updateJob: ReturnType<typeof useIngestJobsStore.getState>['updateJob'],
+  t: (key: string, vars?: Record<string, string | number>) => string,
 ) {
   const kind = job.job_type === 'upload' ? 'upload' : 'register';
+  const rawError = extractIngestJobError(job.error);
+  const errorMessage = rawError ? friendlyIngestError(rawError, t) : undefined;
   const existing = useIngestJobsStore.getState().jobs.find((j) => j.jobId === job.job_id);
   if (!existing) {
     trackJob({
@@ -27,11 +31,13 @@ function syncJobToStore(
       status: job.status,
       kind,
       objectId: objectIdFromJob(job),
+      errorMessage,
     });
   } else {
     updateJob(job.job_id, {
       status: job.status,
       objectId: objectIdFromJob(job),
+      errorMessage,
     });
   }
 }
@@ -63,10 +69,10 @@ export function IngestJobsBanner({
     if (!remoteJobs?.length) return;
     for (const job of remoteJobs) {
       if (!TERMINAL.has(job.status)) {
-        syncJobToStore(job, trackJob, updateJob);
+        syncJobToStore(job, trackJob, updateJob, t);
       }
     }
-  }, [remoteJobs, trackJob, updateJob]);
+  }, [remoteJobs, trackJob, updateJob, t]);
 
   const activeIds = jobs
     .filter((j) => !TERMINAL.has(j.status))
@@ -91,7 +97,9 @@ export function IngestJobsBanner({
             if (!res.ok) continue;
             const data = (await res.json()) as IngestJob;
             const objectId = objectIdFromJob(data);
-            updateJob(job.jobId, { status: data.status, objectId });
+            const rawError = extractIngestJobError(data.error);
+            const errorMessage = rawError ? friendlyIngestError(rawError, t) : undefined;
+            updateJob(job.jobId, { status: data.status, objectId, errorMessage });
             if (TERMINAL.has(data.status)) {
               updateJob(job.jobId, { finishedAt: Date.now() });
               if (data.status === 'succeeded') {
@@ -113,7 +121,7 @@ export function IngestJobsBanner({
     return () => {
       cancelled = true;
     };
-  }, [activeIds, onSucceeded, qc, removeJob, updateJob]);
+  }, [activeIds, onSucceeded, qc, removeJob, t, updateJob]);
 
   if (!jobs.length) return null;
 
@@ -124,37 +132,39 @@ export function IngestJobsBanner({
         {jobs.map((job) => {
           const running = !TERMINAL.has(job.status);
           const failed = job.status === 'failed';
+          const failMessage = job.errorMessage ?? t('data.ingestJobFailed');
           return (
             <li key={job.jobId} className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-              {running && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-              <span className={failed ? 'text-destructive' : 'text-muted-foreground'}>
-                {running
-                  ? t('data.ingestJobRunning', { jobId: job.jobId, status: job.status })
-                  : failed
-                    ? t('data.ingestJobFailed')
-                    : t('data.registerSuccess', { id: job.objectId ?? job.jobId })}
-              </span>
-              {job.objectId && (
-                <Link
-                  to={`/data/objects/${job.objectId}` as any}
-                  className="text-primary hover:underline text-xs"
+                {running && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                <span className={failed ? 'text-destructive' : 'text-muted-foreground'}>
+                  {running
+                    ? t('data.ingestJobRunning', { jobId: job.jobId, status: job.status })
+                    : failed
+                      ? failMessage
+                      : t('data.registerSuccess', { id: job.objectId ?? job.jobId })}
+                </span>
+                {job.objectId && (
+                  <Link
+                    to={`/data/objects/${job.objectId}` as any}
+                    className="text-primary hover:underline text-xs"
+                  >
+                    {t('data.openObject')}
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  className="ms-auto text-xs underline opacity-70"
+                  onClick={() => removeJob(job.jobId)}
                 >
-                  {t('data.openObject')}
-                </Link>
-              )}
-              <button
-                type="button"
-                className="ms-auto text-xs underline opacity-70"
-                onClick={() => removeJob(job.jobId)}
-              >
-                {t('common.dismiss')}
-              </button>
+                  {t('common.dismiss')}
+                </button>
               </div>
               {failed && (
                 <ProblemReportPanel
-                  errorMessage={t('data.ingestJobFailed')}
+                  errorMessage={failMessage}
                   context="data-ingest-job"
+                  lastApi={{ method: 'GET', path: `/api/v1/ingest/jobs/${job.jobId}` }}
                   extra={{ job_id: job.jobId, status: job.status }}
                 />
               )}

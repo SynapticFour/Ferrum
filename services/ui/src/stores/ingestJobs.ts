@@ -9,6 +9,7 @@ export interface TrackedIngestJob {
   startedAt: number;
   objectId?: string;
   finishedAt?: number;
+  errorMessage?: string;
 }
 
 type IngestJobsState = {

@@ -24,6 +24,8 @@ import { useWdlDescriptor } from '@/hooks/useWdlDescriptor';
 import { initParamValues, WorkflowParamForm } from '@/components/WorkflowParamForm';
 import { DRSObjectPicker } from '@/components/DRSObjectPicker';
 import { ErrorWithReport } from '@/components/ErrorWithReport';
+import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
+import { RunSubmitSuccessPanel } from '@/components/RunSubmitSuccessPanel';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { DrsObject } from '@/api/types';
 import {
@@ -91,6 +93,7 @@ export function StartAnalysisDialog({
   const [fileLabels, setFileLabels] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const [runSuccess, setRunSuccess] = useState<{ runIds: string[] } | null>(null);
 
   const { data: trsTools } = useQuery({
     queryKey: ['trs', 'tools', 'start-analysis'],
@@ -296,7 +299,7 @@ export function StartAnalysisDialog({
           });
           if (res.run_id) runIds.push(res.run_id);
         }
-        return { mode: 'cohort' as const, count: runIds.length };
+        return { mode: 'cohort' as const, count: runIds.length, runIds };
       }
 
       const workflow_params =
@@ -310,8 +313,10 @@ export function StartAnalysisDialog({
       });
       return { mode: 'single' as const, runId: res.run_id };
     },
-    onSuccess: () => {
-      setOpen(false);
+    onSuccess: (data) => {
+      const runIds =
+        data.mode === 'cohort' ? data.runIds : data.runId ? [data.runId] : [];
+      if (runIds.length) setRunSuccess({ runIds });
       setError(null);
       setProgress(null);
       void qc.invalidateQueries({ queryKey: ['wes', 'runs'] });
@@ -333,7 +338,16 @@ export function StartAnalysisDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) {
+            setRunSuccess(null);
+            setStep(1);
+          }
+        }}
+      >
         <DialogTrigger asChild>
           <Button disabled={disabled} className="gap-2">
             <Play className="h-4 w-4" />
@@ -345,6 +359,19 @@ export function StartAnalysisDialog({
             <DialogTitle>{t('analysisWizard.title')}</DialogTitle>
             <p className="text-sm text-muted-foreground">{t('analysisWizard.subtitle')}</p>
           </DialogHeader>
+
+          {runSuccess && (
+            <RunSubmitSuccessPanel
+              runIds={runSuccess.runIds}
+              cohortCount={runSuccess.runIds.length > 1 ? runSuccess.runIds.length : undefined}
+              onDismiss={() => {
+                setRunSuccess(null);
+                setOpen(false);
+              }}
+            />
+          )}
+
+          <NoopExecutorBanner compact />
 
           <ol className="flex gap-2 text-xs">
             {[1, 2, 3].map((n) => (

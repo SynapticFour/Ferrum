@@ -5,7 +5,7 @@ export interface IngestJob {
   status: string;
   job_type: string;
   result?: { object_ids?: string[] };
-  error?: { message?: string };
+  error?: unknown;
 }
 
 export function listIngestJobs() {

@@ -117,14 +117,19 @@ export function ImportToDrsDialog({
   };
 
   const handleIngestJobDone = useCallback(
-    async (status: string, result?: { object_ids?: string[] }) => {
+    async (status: string, result?: { object_ids?: string[] }, errorMessage?: string) => {
       const jobId = activeJobIdRef.current;
       setActiveJobId(null);
       setJobStatus(status);
       setUploadProgress(null);
       if (jobId) {
         const objectId = result?.object_ids?.[0];
-        updateJob(jobId, { status, objectId, finishedAt: Date.now() });
+        updateJob(jobId, {
+          status,
+          objectId,
+          finishedAt: Date.now(),
+          errorMessage: errorMessage ? friendlyIngestError(errorMessage, t) : undefined,
+        });
         if (status === 'succeeded' || status === 'failed') {
           window.setTimeout(() => removeJob(jobId), 8000);
         }
@@ -137,7 +142,7 @@ export function ImportToDrsDialog({
           setError(t('data.ingestJobNoObject'));
         }
       } else {
-        setError(t('data.ingestJobFailed'));
+        setError(friendlyIngestError(errorMessage ?? t('data.ingestJobFailed'), t));
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

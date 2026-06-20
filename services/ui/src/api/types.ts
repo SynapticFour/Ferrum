@@ -16,6 +16,8 @@ export interface DrsObject {
   /** Ferrum extension from `storage_references`. */
   storage_backend?: string;
   is_encrypted?: boolean;
+  /** Ferrum extension: linked study workspace. */
+  workspace_id?: string;
 }
 
 /** WES run state */

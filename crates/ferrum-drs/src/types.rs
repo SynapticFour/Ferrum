@@ -35,6 +35,9 @@ pub struct DrsObject {
     /// Ferrum extension: Crypt4GH at-rest encryption (`storage_references.is_encrypted`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_encrypted: Option<bool>,
+    /// Ferrum extension: workspace scope when object is linked to a study workspace.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
 }
 
 impl DrsObject {

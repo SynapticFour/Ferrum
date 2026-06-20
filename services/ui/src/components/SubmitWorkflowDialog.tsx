@@ -25,6 +25,8 @@ import { useWdlDescriptor } from '@/hooks/useWdlDescriptor';
 import { initParamValues, WorkflowParamForm } from '@/components/WorkflowParamForm';
 import { parseWdlWorkflowInputs } from '@/lib/wdlInputs';
 import { ErrorWithReport } from '@/components/ErrorWithReport';
+import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
+import { RunSubmitSuccessPanel } from '@/components/RunSubmitSuccessPanel';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useAdminConfig } from '@/hooks/useAdminConfig';
 import { buildFlatWorkflowParams, submitWorkflowRun } from '@/lib/wesSubmit';
@@ -65,6 +67,7 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
   const [registerInTrs, setRegisterInTrs] = useState(true);
   const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [runSuccess, setRunSuccess] = useState<{ runIds: string[] } | null>(null);
 
   const engine = WORKFLOW_ENGINES.find((e) => e.id === engineId) ?? WORKFLOW_ENGINES[0];
 
@@ -198,8 +201,8 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
         workspaceId,
       });
     },
-    onSuccess: () => {
-      setOpen(false);
+    onSuccess: (data) => {
+      if (data?.run_id) setRunSuccess({ runIds: [data.run_id] });
       setError(null);
       setWorkflowContent('');
       setUploadFileName('');
@@ -215,7 +218,13 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
       : workflowUrl.trim().length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setRunSuccess(null);
+      }}
+    >
       <DialogTrigger asChild>
         <Button disabled={disabled} className="gap-2">
           <Play className="h-4 w-4" />
@@ -226,6 +235,16 @@ export function SubmitWorkflowDialog({ disabled, workspaceId }: SubmitWorkflowDi
         <DialogHeader>
           <DialogTitle>{t('workflows.dialogTitle')}</DialogTitle>
         </DialogHeader>
+        {runSuccess && (
+          <RunSubmitSuccessPanel
+            runIds={runSuccess.runIds}
+            onDismiss={() => {
+              setRunSuccess(null);
+              setOpen(false);
+            }}
+          />
+        )}
+        <NoopExecutorBanner compact />
         <Tabs value={sourceTab} onValueChange={(v) => setSourceTab(v as SourceTab)}>
           <TabsList className="grid w-full grid-cols-2 gap-1 h-auto p-1">
             <TabsTrigger

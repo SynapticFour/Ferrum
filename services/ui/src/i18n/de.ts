@@ -31,6 +31,14 @@ const deOverlay = {
     sessionExpiresSoon: 'Ihre Sitzung läuft in etwa {minutes} Minuten ab.',
     sessionExpiresVerySoon: 'Ihre Sitzung läuft in {minutes} Minuten ab — bitte bald erneut anmelden.',
     language: 'Sprache',
+    brokerMisconfigured:
+      'Anmeldung ist erforderlich, aber der Identity-Broker ist nicht konfiguriert. Administrator kontaktieren oder Einstellungen öffnen.',
+  },
+  auth: {
+    completingSignIn: 'Anmeldung wird abgeschlossen…',
+    signInFailed: 'Anmeldung fehlgeschlagen',
+    signInFailedHint: 'Es wurde kein Zugriffstoken zurückgegeben. Erneut über Einstellungen oder die Seitenleiste anmelden.',
+    tryAgain: 'Erneut anmelden',
   },
   nav: {
     dashboard: 'Übersicht',
@@ -95,6 +103,7 @@ const deOverlay = {
     title: 'Demo-Compute-Modus',
     body: 'Dieses System nutzt einen No-Operation-Ausführer (TES noop). Analysen werden nur auf API-Ebene abgeschlossen — Container laufen nicht; echte Variantenaufruf-Ergebnisse entstehen hier nicht.',
     hint: 'Für echte GATK-Läufe nutzen Sie eine lokale Ferrum-Instanz mit Docker oder SLURM/LSF, oder sehen Sie sich Referenz-Ausgaben aus den Demo-Daten an.',
+    compact: 'Demo-Modus: Läufe werden nur auf API-Ebene abgeschlossen — keine echten Container-Ausgaben.',
   },
   data: {
     title: 'Daten',
@@ -127,6 +136,9 @@ const deOverlay = {
       'Der Upload wurde unterbrochen, bevor die gesamte Datei ankam. Bitte erneut versuchen — große Dateien werden automatisch in kleineren Teilen gesendet.',
     uploadTooLarge:
       'Diese Datei überschreitet das Server-Upload-Limit. Administrator kontaktieren oder Datei per Speicherpfad registrieren.',
+    uploadTransferQueued: 'Upload wegen geringer Bandbreite verzögert — kurz warten und erneut versuchen.',
+    uploadEncryptUnavailable: 'Verschlüsselung beim Upload ist auf diesem Server nicht verfügbar.',
+    uploadWorkspaceForbidden: 'Sie können keine Daten zu diesem Arbeitsbereich hinzufügen — Anmeldung oder anderen Arbeitsbereich wählen.',
     importTitle: 'In DRS importieren',
     importDescription:
       'Import (verwaltete Kopie) oder Registrieren (nur Verweis) wählen. Beides legt einen Eintrag im Data Repository Service (DRS) an.',
@@ -247,6 +259,10 @@ const deOverlay = {
     lineageFailed: 'Herkunft konnte nicht geladen werden.',
     lineageEmpty: 'Noch keine Provenienz-Verknüpfungen für dieses Objekt.',
     useInAnalysis: 'In Analyse verwenden',
+    linkWorkspaceFirst: 'Datei zuerst mit einem Arbeitsbereich verknüpfen',
+    linkWorkspaceHint: 'Analysen laufen im Kontext eines Studien-Arbeitsbereichs. Arbeitsbereich wählen und Objekt verknüpfen.',
+    linkWorkspaceAction: 'Mit Arbeitsbereich verknüpfen',
+    linkWorkspaceSuccess: 'Mit Arbeitsbereich „{name}“ verknüpft — Analyse kann gestartet werden.',
     storageKind: 'Speicher',
     storageUrl: 'Registrierte URL (nicht kopiert)',
     storageManaged: 'Von Ferrum verwaltet',
@@ -405,6 +421,10 @@ const deOverlay = {
     uploadNameLabel: 'Workflow-Name (optional)',
     uploadNamePlaceholder: 'z. B. Meine Varianten-Pipeline',
     uploadEmpty: 'Zuerst Workflow-Datei einfügen oder hochladen.',
+    runSubmitSuccess: 'Analyse gestartet ({id}).',
+    runSubmitSuccessCohort: '{count} Analysen gestartet.',
+    viewRun: 'Lauf {id}…',
+    viewAllRuns: 'Alle Läufe anzeigen',
     registerInTrs: 'Workflow im TRS-Katalog registrieren',
     registerInTrsHint: 'Trägt diese Workflow-URL vor dem Lauf in Ihr lokales Werkzeugregister ein.',
     registerInTrsServerOff: 'Auto-Registrierung auf dem Server ist deaktiviert (FERRUM_WES_TRS_AUTO_REGISTER=false). Aktivieren, um den Workflow zu katalogisieren.',

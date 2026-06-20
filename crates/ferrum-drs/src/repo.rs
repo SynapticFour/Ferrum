@@ -152,7 +152,7 @@ impl DrsRepo {
     pub async fn get_object(&self, id: &str, expand: bool) -> Result<Option<DrsObject>> {
         let row: Option<DrsObjectRow> = pool_query!(self, |p| {
             sqlx::query_as(
-                r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id
+                r#"SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id, workspace_id
                    FROM drs_objects WHERE id = $1"#,
             )
             .bind(id)
@@ -208,6 +208,7 @@ impl DrsRepo {
             metadata_ref,
             storage_backend,
             is_encrypted,
+            workspace_id: row.workspace_id,
         }))
     }
 
@@ -739,6 +740,7 @@ struct DrsObjectRow {
     aliases: Option<serde_json::Value>,
     #[allow(dead_code)]
     dataset_id: Option<String>,
+    workspace_id: Option<String>,
 }
 
 #[derive(sqlx::FromRow)]

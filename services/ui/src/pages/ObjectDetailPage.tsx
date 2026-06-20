@@ -1,15 +1,15 @@
 import { Link, useParams, useSearch } from '@tanstack/react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '@/api/client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiGet, apiPost } from '@/api/client';
 import type { DrsObject } from '@/api/types';
 import { ObjectLineageTab } from '@/components/ObjectLineageTab';
 import { DataTypeIcon } from '@/components/DataTypeIcon';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Loader2, ExternalLink, Eye } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatBytes } from '@/lib/utils';
 import {
   canStreamPreview,
@@ -21,6 +21,16 @@ import {
 } from '@/lib/filePreview';
 import { drsStorageKind } from '@/lib/drsStorage';
 import { StartAnalysisDialog } from '@/components/StartAnalysisDialog';
+import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+type WorkspaceRow = { id: string; name: string };
 
 function externalUrl(obj: DrsObject): string | null {
   const am = obj.access_methods?.find((m) => m.type === 'https');
@@ -36,6 +46,9 @@ export function ObjectDetailPage() {
   const id = params.objectId ?? '';
   const [downloading, setDownloading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [linkWorkspaceId, setLinkWorkspaceId] = useState('');
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
+  const qc = useQueryClient();
 
   const { data: obj, isLoading, error } = useQuery({
     queryKey: ['drs', 'object', id],
@@ -50,6 +63,30 @@ export function ObjectDetailPage() {
   const streamPreviewable = obj
     ? canStreamPreview(kind, displayName, obj.mime_type, obj.size)
     : false;
+
+  const { data: workspaces } = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: () => apiGet<WorkspaceRow[]>('/workspaces/v1/workspaces'),
+    retry: false,
+  });
+
+  const linkToWorkspace = useMutation({
+    mutationFn: (workspaceId: string) =>
+      apiPost<{ linked: number }>(
+        `/workspaces/v1/workspaces/${encodeURIComponent(workspaceId)}/objects/link`,
+        { object_ids: [id] },
+      ),
+    onSuccess: (_data, workspaceId) => {
+      void qc.invalidateQueries({ queryKey: ['drs', 'object', id] });
+      const name = workspaces?.find((w) => w.id === workspaceId)?.name ?? workspaceId;
+      setLinkNotice(t('object.linkWorkspaceSuccess', { name }));
+    },
+  });
+
+  useEffect(() => {
+    if (linkWorkspaceId || !workspaces?.length) return;
+    setLinkWorkspaceId(workspaces[0].id);
+  }, [workspaces, linkWorkspaceId]);
 
   const {
     data: previewText,
@@ -75,10 +112,11 @@ export function ObjectDetailPage() {
   if (error || !obj) return <p className="text-destructive">{t('object.notFound')}</p>;
 
   const remote = externalUrl(obj);
-  const workspaceId = (obj as DrsObject & { workspace_id?: string }).workspace_id ?? 'demo-workspace-01';
+  const workspaceId = obj.workspace_id ?? null;
 
   return (
     <div className="space-y-6">
+      <NoopExecutorBanner compact />
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="icon" asChild>
           <Link to={'/data' as any}>
@@ -88,13 +126,15 @@ export function ObjectDetailPage() {
         <DataTypeIcon mimeType={obj.mime_type} className="text-primary" />
         <h1 className="text-2xl font-bold">{obj.name ?? obj.id}</h1>
         <div className="ml-auto flex flex-wrap gap-2">
-          <StartAnalysisDialog
-            workspaceId={workspaceId}
-            defaultDrsObjectId={id}
-            autoOpen={search.analyze}
-            initialStep={search.analyze ? 2 : undefined}
-            triggerLabelKey="object.useInAnalysis"
-          />
+          {workspaceId ? (
+            <StartAnalysisDialog
+              workspaceId={workspaceId}
+              defaultDrsObjectId={id}
+              autoOpen={search.analyze}
+              initialStep={search.analyze ? 2 : undefined}
+              triggerLabelKey="object.useInAnalysis"
+            />
+          ) : null}
           {streamPreviewable && (
             <Button
               variant="outline"
@@ -118,6 +158,43 @@ export function ObjectDetailPage() {
           </Button>
         </div>
       </div>
+
+      {!workspaceId && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('object.linkWorkspaceFirst')}</CardTitle>
+            <p className="text-sm text-muted-foreground font-normal">{t('object.linkWorkspaceHint')}</p>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-2">
+              <Select value={linkWorkspaceId} onValueChange={setLinkWorkspaceId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('data.workspaceLabel')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(workspaces ?? []).map((w) => (
+                    <SelectItem key={w.id} value={w.id}>
+                      {w.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              disabled={!linkWorkspaceId || linkToWorkspace.isPending}
+              onClick={() => linkToWorkspace.mutate(linkWorkspaceId)}
+            >
+              {linkToWorkspace.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t('object.linkWorkspaceAction')
+              )}
+            </Button>
+          </CardContent>
+          {linkNotice && <CardContent className="pt-0 text-sm text-emerald-700 dark:text-emerald-400">{linkNotice}</CardContent>}
+        </Card>
+      )}
 
       {showPreview && streamPreviewable && (
         <Card>

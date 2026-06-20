@@ -15,6 +15,7 @@ import { LinkWorkspaceDataDialog } from '@/components/LinkWorkspaceDataDialog';
 import { RegisterToolDialog } from '@/components/RegisterToolDialog';
 import { SampleSheetImportDialog } from '@/components/SampleSheetImportDialog';
 import { RunCohortDialog } from '@/components/RunCohortDialog';
+import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
 import { TRS_IMPORT_PRESETS } from '@/lib/trsCatalogs';
 import {
   ArrowLeft,
@@ -139,6 +140,9 @@ export function StudySetupPage() {
         <p className="mt-3 text-sm border rounded-md p-3 bg-muted/30 text-muted-foreground">
           {t('study.pilotDisclaimer')}
         </p>
+        <div className="mt-3">
+          <NoopExecutorBanner compact />
+        </div>
       </div>
 
       <ol className="flex flex-wrap gap-2 text-xs">
