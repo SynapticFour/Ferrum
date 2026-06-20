@@ -80,22 +80,67 @@ print(len(g.get('nodes',[])))
 [[ "$run_nodes" -ge 1 ]] || die "run lineage empty for demo-run-seed-01: $run_prov"
 ok "run lineage nodes=$run_nodes"
 
-lookup_pilot_vcf_id() {
-  local name="Pilot demo VCF (MinIO)"
+lookup_pilot_object_id() {
+  local name="$1"
+  local id=""
   if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q postgres; then
     local c
     c="$(docker ps --format '{{.Names}}' | grep postgres | head -1)"
-    docker exec -i "$c" psql -q -U ferrum -d ferrum -t -A \
-      -c "SELECT id FROM drs_objects WHERE name = '${name}' LIMIT 1;" 2>/dev/null | tr -d '[:space:]' || true
+    id="$(docker exec -i "$c" psql -q -U ferrum -d ferrum -t -A \
+      -c "SELECT id FROM drs_objects WHERE name = '${name}' LIMIT 1;" 2>/dev/null | tr -d '[:space:]' || true)"
+  elif command -v psql >/dev/null 2>&1; then
+    id="$(PGPASSWORD="${POSTGRES_PASSWORD:-ferrum}" psql -q -h "${POSTGRES_HOST:-localhost}" -p "${POSTGRES_PORT:-5432}" \
+      -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -t -A \
+      -c "SELECT id FROM drs_objects WHERE name = '${name}' LIMIT 1;" 2>/dev/null | tr -d '[:space:]' || true)"
+  fi
+  if [[ -n "$id" ]]; then
+    printf '%s' "$id"
     return 0
   fi
-  curl -fsS "$BASE_URL/ga4gh/drs/v1/objects?limit=500" | python3 -c "
+  curl -fsS "$BASE_URL/ga4gh/drs/v1/objects?limit=1000" | python3 -c "
 import sys, json
+target = '''${name}'''
 for o in json.load(sys.stdin):
-    if o.get('name') == '${name}':
+    if o.get('name') == target:
         print(o['id'])
         break
 " 2>/dev/null || true
+}
+
+lookup_pilot_vcf_id() {
+  lookup_pilot_object_id "Pilot demo VCF (MinIO)"
+}
+
+pilot_stream_url() {
+  local name="$1"
+  local id
+  id="$(lookup_pilot_object_id "$name")"
+  [[ -n "$id" ]] || die "missing pilot object: $name"
+  echo "${TES_BASE}/ga4gh/drs/v1/objects/${id}/stream"
+}
+
+psql_pilot_rows_for_ids() {
+  local in_clause="" id
+  for id in "$@"; do
+    [[ -n "$id" ]] || continue
+    in_clause+="'${id}',"
+  done
+  [[ -n "$in_clause" ]] || return 1
+  in_clause="${in_clause%,}"
+  if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q postgres; then
+    local c
+    c="$(docker ps --format '{{.Names}}' | grep postgres | head -1)"
+    docker exec -i "$c" psql -q -U ferrum -d ferrum -t -A -F $'\t' \
+      -c "SELECT id, COALESCE(name, ''), COALESCE(mime_type, ''), COALESCE(storage_backend, '') FROM drs_objects WHERE id IN (${in_clause});"
+    return 0
+  fi
+  if command -v psql >/dev/null 2>&1; then
+    PGPASSWORD="${POSTGRES_PASSWORD:-ferrum}" psql -q -h "${POSTGRES_HOST:-localhost}" -p "${POSTGRES_PORT:-5432}" \
+      -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -t -A -F $'\t' \
+      -c "SELECT id, COALESCE(name, ''), COALESCE(mime_type, ''), COALESCE(storage_backend, '') FROM drs_objects WHERE id IN (${in_clause});"
+    return 0
+  fi
+  return 1
 }
 
 echo "smoke-pilot-local: pilot VCF stream preview"
@@ -124,7 +169,38 @@ for s in json.load(sys.stdin).get('samples',[]):
 ok "cohort samples=$sample_count pilot-demo-01 drs=$drs_count"
 
 echo "smoke-pilot-local: germline cohort wiring (TinyGermlineHC inputs)"
-printf '%s' "$samples" | python3 -c "
+pilot_ids="$(printf '%s' "$samples" | python3 -c "
+import json, sys
+samples = json.load(sys.stdin).get('samples', [])
+pilot = next((s for s in samples if s.get('sample_id') == 'pilot-demo-01'), None)
+if not pilot:
+    raise SystemExit('pilot-demo-01 missing')
+ids = pilot.get('drs_object_ids') or []
+if len(ids) < 3:
+    raise SystemExit(f'expected 3+ DRS ids, got {len(ids)}')
+print(' '.join(ids))
+")"
+read -r -a pilot_id_arr <<<"$pilot_ids"
+germline_wiring=""
+if rows="$(psql_pilot_rows_for_ids "${pilot_id_arr[@]}")" && [[ -n "$rows" ]]; then
+  bam="" bai=""
+  while IFS=$'\t' read -r oid name mime backend; do
+    [[ -n "$oid" ]] || continue
+    [[ "$backend" == "url" ]] && die "URL-backed object not valid for germline: $oid ($name)"
+    lname="$(printf '%s' "$name" | tr '[:upper:]' '[:lower:]')"
+    lmime="$(printf '%s' "$mime" | tr '[:upper:]' '[:lower:]')"
+    if [[ "$lmime" == *bam* || "$lname" == *.bam || "$lname" == *"bam ("* ]]; then
+      bam="$oid"
+    fi
+    if [[ "$lname" == *bai* || "$lname" == *.bai || "$lname" == *index* ]]; then
+      bai="$oid"
+    fi
+  done <<<"$rows"
+  [[ -n "$bam" ]] || die "no BAM object in pilot sample"
+  [[ -n "$bai" ]] || die "no BAI object in pilot sample"
+  germline_wiring="bam=${bam} bai=${bai}"
+else
+  germline_wiring="$(printf '%s' "$samples" | python3 -c "
 import json, sys, urllib.request
 
 samples = json.load(sys.stdin).get('samples', [])
@@ -136,8 +212,10 @@ if len(ids) < 3:
     raise SystemExit(f'expected 3+ DRS ids, got {len(ids)}')
 
 base = '${BASE_URL}'
-objs = json.load(urllib.request.urlopen(f'{base}/ga4gh/drs/v1/objects'))
-by_id = {o['id']: o for o in objs}
+by_id = {}
+for oid in ids:
+    with urllib.request.urlopen(f'{base}/ga4gh/drs/v1/objects/{oid}') as resp:
+        by_id[oid] = json.load(resp)
 
 def kind(o):
     backend = o.get('storage_backend')
@@ -176,29 +254,27 @@ if not bam:
 if not bai:
     raise SystemExit('no BAI object in pilot sample')
 print(f'bam={bam} bai={bai}')
-" || die "germline cohort wiring failed"
-ok "germline BAM+BAI resolved for pilot-demo-01"
+")" || die "germline cohort wiring failed"
+fi
+ok "germline BAM+BAI resolved for pilot-demo-01 ($germline_wiring)"
 
 echo "smoke-pilot-local: reference bundle (TinyGermlineHC ref + truth)"
-ref_count="$(curl -fsS "$BASE_URL/ga4gh/drs/v1/objects" | python3 -c "
-import sys, json
-need = {
-    'Pilot reference FASTA (MinIO)',
-    'Pilot reference FASTA index (MinIO)',
-    'Pilot truth VCF (MinIO)',
-    'Pilot truth VCF index (MinIO)',
-}
-found = {o.get('name') for o in json.load(sys.stdin)}
-print(len(need & found))
-" 2>/dev/null || echo 0)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+TES_BASE="${TES_GATEWAY_URL:-http://host.docker.internal:8080}"
+ref_count=0
+for ref_name in \
+  "Pilot reference FASTA (MinIO)" \
+  "Pilot reference FASTA index (MinIO)" \
+  "Pilot truth VCF (MinIO)" \
+  "Pilot truth VCF index (MinIO)"; do
+  [[ -n "$(lookup_pilot_object_id "$ref_name")" ]] && ref_count=$((ref_count + 1))
+done
 [[ "$ref_count" -ge 4 ]] || die "expected 4 pilot reference objects (got $ref_count) — run make seed-pilot"
 ok "reference bundle objects=$ref_count"
 
 echo "smoke-pilot-local: WES submit (TES lifecycle)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FIXTURE_CWL="${REPO_ROOT}/profiles/pipeline/fixtures/smoke-hello.cwl"
-TES_BASE="${TES_GATEWAY_URL:-http://host.docker.internal:8080}"
 
 if [[ -z "${SMOKE_CWL_URL:-}" && -f "$FIXTURE_CWL" ]]; then
   cwl_resp="$(curl -fsS -X POST "$BASE_URL/api/v1/ingest/upload" \
@@ -273,38 +349,16 @@ esac
 SMOKE_GERMLINE="${SMOKE_GERMLINE:-1}"
 if [[ "$SMOKE_GERMLINE" == "1" ]]; then
   echo "smoke-pilot-local: germline WES (TinyGermlineHC)"
-  germline_json="$(curl -fsS "$BASE_URL/ga4gh/drs/v1/objects" | TES_BASE="$TES_BASE" python3 -c "
-import json, os, sys, urllib.request
-
-base = os.environ['TES_BASE']
-objs = json.load(sys.stdin)
-by_name = {o.get('name'): o['id'] for o in objs}
-
-def stream(name):
-    oid = by_name.get(name)
-    if not oid:
-        raise SystemExit(f'missing object: {name}')
-    return f\"{base}/ga4gh/drs/v1/objects/{oid}/stream\"
-
-need = [
-    'Pilot demo BAM (MinIO)',
-    'Pilot demo BAM index (MinIO)',
-    'Pilot reference FASTA (MinIO)',
-    'Pilot reference FASTA index (MinIO)',
-    'Pilot truth VCF (MinIO)',
-    'Pilot truth VCF index (MinIO)',
-]
-for n in need:
-    if n not in by_name:
-        raise SystemExit(f'missing pilot object: {n}')
+  germline_json="$(python3 -c "
+import json
 
 params = {
-    'TinyGermlineHC.input_bam': stream('Pilot demo BAM (MinIO)'),
-    'TinyGermlineHC.input_bam_index': stream('Pilot demo BAM index (MinIO)'),
-    'TinyGermlineHC.ref_fasta': stream('Pilot reference FASTA (MinIO)'),
-    'TinyGermlineHC.ref_fasta_index': stream('Pilot reference FASTA index (MinIO)'),
-    'TinyGermlineHC.truth_vcf': stream('Pilot truth VCF (MinIO)'),
-    'TinyGermlineHC.truth_vcf_index': stream('Pilot truth VCF index (MinIO)'),
+    'TinyGermlineHC.input_bam': '$(pilot_stream_url "Pilot demo BAM (MinIO)")',
+    'TinyGermlineHC.input_bam_index': '$(pilot_stream_url "Pilot demo BAM index (MinIO)")',
+    'TinyGermlineHC.ref_fasta': '$(pilot_stream_url "Pilot reference FASTA (MinIO)")',
+    'TinyGermlineHC.ref_fasta_index': '$(pilot_stream_url "Pilot reference FASTA index (MinIO)")',
+    'TinyGermlineHC.truth_vcf': '$(pilot_stream_url "Pilot truth VCF (MinIO)")',
+    'TinyGermlineHC.truth_vcf_index': '$(pilot_stream_url "Pilot truth VCF index (MinIO)")',
     'TinyGermlineHC.interval': 'chr22:1700-2300',
 }
 body = {
