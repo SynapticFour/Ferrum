@@ -241,7 +241,7 @@ export const frOverlay = {
     downloadHint: 'Diffusion via Ferrum (déchiffre Crypt4GH si nécessaire).',
     preview: 'Aperçu',
     previewTruncated: 'Aperçu tronqué',
-    previewTooLarge: 'Fichier trop volumineux pour l\'aperçu — utilisez le téléchargement.',
+    previewTooLarge: 'Seuls les 256 premiers Ko sont affichés — téléchargez pour le fichier complet.',
     previewUrlBacked:
       'Référence URL externe — l\'aperçu fonctionne uniquement pour les fichiers stockés dans Ferrum (MinIO).',
     previewStreamFailed: 'Impossible de charger l\'aperçu depuis le stockage.',

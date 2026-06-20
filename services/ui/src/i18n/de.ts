@@ -239,7 +239,7 @@ const deOverlay = {
     downloadHint: 'Über Ferrum streamen (entschlüsselt Crypt4GH bei Bedarf).',
     preview: 'Vorschau',
     previewTruncated: 'Vorschau gekürzt',
-    previewTooLarge: 'Datei zu groß für Vorschau — bitte herunterladen.',
+    previewTooLarge: 'Es werden nur die ersten 256 KB angezeigt — für die ganze Datei herunterladen.',
     previewUrlBacked:
       'Externe URL-Referenz — Vorschau funktioniert nur für in Ferrum (MinIO) gespeicherte Dateien. Quell-URL öffnen oder herunterladen.',
     previewStreamFailed: 'Vorschau konnte nicht aus dem Speicher geladen werden.',

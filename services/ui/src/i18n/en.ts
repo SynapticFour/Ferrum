@@ -252,7 +252,7 @@ export const en = {
     downloadHint: 'Stream through Ferrum (decrypts Crypt4GH if needed).',
     preview: 'Preview',
     previewTruncated: 'Preview truncated',
-    previewTooLarge: 'File is too large for inline preview — use download.',
+    previewTooLarge: 'Showing the first 256 KB only — download for the full file.',
     previewUrlBacked:
       'This object is an external URL reference. Inline preview only works for files stored in Ferrum (MinIO). Open the source URL or download instead.',
     previewStreamFailed: 'Could not load preview from storage.',

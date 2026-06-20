@@ -16,6 +16,7 @@ import {
   downloadWithAuth,
   drsStreamUrl,
   fetchPreviewText,
+  PREVIEW_MAX_BYTES,
   wouldPreviewByType,
 } from '@/lib/filePreview';
 import { drsStorageKind } from '@/lib/drsStorage';
@@ -125,6 +126,9 @@ export function ObjectDetailPage() {
             {isEncrypted && (
               <p className="text-xs text-muted-foreground font-normal">{t('object.previewEncryptedNote')}</p>
             )}
+            {obj.size != null && obj.size > PREVIEW_MAX_BYTES && (
+              <p className="text-xs text-muted-foreground font-normal">{t('object.previewTooLarge')}</p>
+            )}
           </CardHeader>
           <CardContent>
             {previewLoading ? (
@@ -144,10 +148,6 @@ export function ObjectDetailPage() {
         <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/20 px-3 py-2">
           {t('object.previewUrlBacked')}
         </p>
-      )}
-
-      {!streamPreviewable && previewByType && obj.size != null && obj.size > 256_000 && (
-        <p className="text-xs text-muted-foreground">{t('object.previewTooLarge')}</p>
       )}
 
       <Card>

@@ -240,7 +240,7 @@ export const arOverlay = {
     downloadHint: 'البث عبر Ferrum (يفك تشفير Crypt4GH عند الحاجة).',
     preview: 'معاينة',
     previewTruncated: 'معاينة مقطوعة',
-    previewTooLarge: 'الملف كبير جدًا للمعاينة المضمنة — استخدم التنزيل.',
+    previewTooLarge: 'يُعرض أول 256 كيلوبايت فقط — نزّل للحصول على الملف كاملًا.',
     previewUrlBacked:
       'مرجع URL خارجي — المعاينة المضمنة تعمل فقط للملفات المخزنة في Ferrum (MinIO).',
     previewStreamFailed: 'تعذر تحميل المعاينة من التخزين.',
