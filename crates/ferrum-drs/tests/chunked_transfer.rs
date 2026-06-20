@@ -312,3 +312,47 @@ async fn test_checksum_deferred_in_low_power() {
     let status = state.repo.get_checksum_status(&resp.id).await.unwrap();
     assert_eq!(status.as_deref(), Some("deferred_low_power"));
 }
+
+#[tokio::test]
+async fn test_chunked_upload_rejects_total_bytes_over_max() {
+    let (mut state, _tmp) = drs_test_state().await;
+    state.ingest.max_upload_bytes = Some(64);
+    let err = process_chunked_upload_from_parts(
+        Arc::new(state),
+        None,
+        ParsedMultipartUpload {
+            total_bytes: Some(128),
+            chunk_offset: Some(0),
+            data: vec![0u8; 16],
+            ..Default::default()
+        },
+    )
+    .await;
+    assert!(matches!(
+        err,
+        Err(ferrum_drs::error::DrsError::Validation(m)) if m.contains("max_upload_bytes")
+    ));
+}
+
+#[tokio::test]
+async fn test_stream_honors_range_header() {
+    let (state, _tmp) = drs_test_state().await;
+    let app = axum::Router::new()
+        .route(
+            "/objects/:object_id/stream",
+            axum::routing::get(get_object_stream),
+        )
+        .with_state(Arc::new(state));
+    let req = Request::builder()
+        .method(Method::GET)
+        .uri("/objects/obj1/stream")
+        .header("Range", "bytes=0-7")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::PARTIAL_CONTENT);
+    let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(body.as_ref(), &PAYLOAD[..8]);
+}

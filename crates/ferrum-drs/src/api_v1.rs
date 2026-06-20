@@ -122,7 +122,14 @@ impl IntoResponse for IngestApiError {
             message: self.message,
             details: self.details,
         };
-        (self.status, Json(body)).into_response()
+        let mut res = (self.status, Json(body)).into_response();
+        if self.code == "transfer_queued" {
+            res.headers_mut().insert(
+                axum::http::header::RETRY_AFTER,
+                axum::http::HeaderValue::from_static("60"),
+            );
+        }
+        res
     }
 }
 
@@ -230,6 +237,7 @@ async fn do_register(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     body: RegisterRequest,
 ) -> Result<IngestJobResponse, IngestApiError> {
+    ensure_ingest_allowed(&state, auth.as_ref())?;
     if body.items.is_empty() {
         return Err(IngestApiError::validation("items must be non-empty"));
     }
@@ -542,6 +550,7 @@ async fn do_upload_chunk(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     multipart: &mut Multipart,
 ) -> Result<crate::ingest_chunk::ChunkUploadResponse, IngestApiError> {
+    ensure_ingest_allowed(&state, auth.as_ref())?;
     let max_bytes = state.ingest.effective_max_upload_bytes();
     let mut parsed = ParsedMultipartUpload::default();
     let mut chunk_spooled: Option<SpooledUpload> = None;
@@ -647,6 +656,7 @@ async fn do_upload(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     multipart: &mut Multipart,
 ) -> Result<IngestJobResponse, IngestApiError> {
+    ensure_ingest_allowed(&state, auth.as_ref())?;
     let max_bytes = state.ingest.effective_max_upload_bytes();
     let mut parsed = ParsedMultipartUpload::default();
     let mut spooled: Option<SpooledUpload> = None;

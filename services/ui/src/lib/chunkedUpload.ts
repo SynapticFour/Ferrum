@@ -1,4 +1,4 @@
-import { apiPostFormData } from '@/api/client';
+import { apiPostFormData, ApiAuthError } from '@/api/client';
 
 /** Use chunked ingest for files above this size (reliable through nginx + browser). */
 export const CHUNKED_UPLOAD_THRESHOLD_BYTES = 2 * 1024 * 1024;
@@ -56,7 +56,15 @@ export async function uploadFileInChunks(
       fd.append('workspace_id', opts.workspaceId);
     }
 
-    const resp = await apiPostFormData<ChunkUploadResponse>('/api/v1/ingest/upload/chunk', fd);
+    let resp: ChunkUploadResponse;
+    try {
+      resp = await apiPostFormData<ChunkUploadResponse>('/api/v1/ingest/upload/chunk', fd);
+    } catch (e) {
+      if (e instanceof ApiAuthError && e.status === 429) {
+        throw new Error(`transfer_queued: ${e.message}`);
+      }
+      throw e;
+    }
     uploadToken = resp.upload_token;
     opts.onProgress?.(resp.completed_bytes, resp.total_bytes);
 

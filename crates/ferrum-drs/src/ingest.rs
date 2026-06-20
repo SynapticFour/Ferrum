@@ -19,9 +19,11 @@ fn multipart_err(e: MultipartError) -> DrsError {
     };
     DrsError::Validation(message)
 }
-use ferrum_crypt4gh::KeyStore;
+use ferrum_crypt4gh::{recipient_keys_from_pubkey, stream_encrypt, KeyStore, LocalKeyStore};
 use ferrum_storage::TransferDirection;
 use sha2::{Digest, Sha256, Sha512};
+use std::collections::HashSet;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use utoipa::ToSchema;
@@ -121,6 +123,100 @@ pub async fn parse_multipart_upload(multipart: &mut Multipart) -> Result<ParsedM
     Ok(out)
 }
 
+/// Returns Ok when Crypt4GH keys are present for ingest encryption.
+pub async fn ensure_crypt4gh_ingest_ready(state: &AppState) -> Result<()> {
+    let key_dir = state.crypt4gh_key_dir.as_ref().ok_or_else(|| {
+        DrsError::Validation(
+            "encrypt=true requires FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR (or [encryption].crypt4gh_key_dir)"
+                .into(),
+        )
+    })?;
+    let ks = LocalKeyStore::new(key_dir.as_path());
+    let key_id = state.crypt4gh_master_key_id.clone();
+    let pk = ks
+        .get_public_key_bytes(&key_id)
+        .await
+        .map_err(|e| DrsError::Validation(format!("crypt4gh key store: {e}")))?;
+    if pk.is_none() {
+        return Err(DrsError::Validation(format!(
+            "no public key for crypt4gh_master_key_id={key_id} under CRYPT4GH_KEY_DIR"
+        )));
+    }
+    Ok(())
+}
+
+async fn streaming_sha256_hex(path: &Path) -> Result<String> {
+    tokio::task::spawn_blocking({
+        let path = path.to_path_buf();
+        move || {
+            use std::io::Read;
+            let mut file = std::fs::File::open(path).map_err(|e| DrsError::Other(e.into()))?;
+            let mut hasher = Sha256::new();
+            let mut buf = [0u8; 64 * 1024];
+            loop {
+                let n = file.read(&mut buf).map_err(|e| DrsError::Other(e.into()))?;
+                if n == 0 {
+                    break;
+                }
+                hasher.update(&buf[..n]);
+            }
+            Ok(hex::encode(hasher.finalize()))
+        }
+    })
+    .await
+    .map_err(|e| DrsError::Other(e.into()))?
+}
+
+async fn verify_expected_sha256(path: &Path, expected: &str) -> Result<()> {
+    let digest = streaming_sha256_hex(path).await?;
+    if expected.to_lowercase() != digest {
+        return Err(DrsError::Validation(format!(
+            "checksum mismatch: expected sha-256 {expected}"
+        )));
+    }
+    Ok(())
+}
+
+async fn encrypt_spool_to_storage(
+    state: &AppState,
+    storage: &Arc<dyn ferrum_storage::ObjectStorage>,
+    storage_key: &str,
+    spool_path: &Path,
+) -> Result<i64> {
+    ensure_crypt4gh_ingest_ready(state).await?;
+    let key_dir = state.crypt4gh_key_dir.as_ref().expect("checked above");
+    let ks = LocalKeyStore::new(key_dir.as_path());
+    let key_id = state.crypt4gh_master_key_id.clone();
+    let pk = ks
+        .get_public_key_bytes(&key_id)
+        .await
+        .map_err(|e| DrsError::Validation(format!("crypt4gh key store: {e}")))?
+        .expect("checked above");
+    let mut recipients = HashSet::new();
+    recipients.insert(recipient_keys_from_pubkey(&pk));
+
+    let enc_temp = tempfile::NamedTempFile::new().map_err(|e| DrsError::Other(e.into()))?;
+    let enc_path = enc_temp.path().to_path_buf();
+    let in_file = tokio::fs::File::open(spool_path)
+        .await
+        .map_err(|e| DrsError::Validation(format!("read spooled upload: {e}")))?;
+    let out_file = tokio::fs::File::create(&enc_path)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    stream_encrypt(&recipients, in_file, out_file)
+        .await
+        .map_err(|e| DrsError::Validation(format!("crypt4gh encrypt: {e}")))?;
+    let size = tokio::fs::metadata(&enc_path)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?
+        .len() as i64;
+    storage
+        .put_file(storage_key, &enc_path)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    Ok(size)
+}
+
 /// Store bytes (optionally Crypt4GH-encrypted with Ferrum node public key), create DRS object, async checksums.
 pub async fn process_upload_from_parts(
     state: Arc<AppState>,
@@ -185,12 +281,8 @@ pub async fn process_upload_from_parts(
         }
     }
     if encrypt {
-        let key_dir = state.crypt4gh_key_dir.as_ref().ok_or_else(|| {
-            DrsError::Validation(
-                "encrypt=true requires FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR (or [encryption].crypt4gh_key_dir)"
-                    .into(),
-            )
-        })?;
+        ensure_crypt4gh_ingest_ready(state.as_ref()).await?;
+        let key_dir = state.crypt4gh_key_dir.as_ref().expect("checked above");
         let ks = ferrum_crypt4gh::LocalKeyStore::new(key_dir.as_path());
         let key_id = state.crypt4gh_master_key_id.clone();
         let pk = ks
@@ -342,57 +434,13 @@ pub async fn process_upload_from_spooled(
     let backend = state.object_storage_backend.clone();
 
     let stored_size: i64 = if encrypt {
-        let plaintext = tokio::fs::read(&spool_path)
-            .await
-            .map_err(|e| DrsError::Validation(format!("read spooled upload: {e}")))?;
         if let Some(ref expected) = parsed.expected_sha256 {
-            let sha256 = hex::encode(Sha256::digest(&plaintext));
-            if expected.to_lowercase() != sha256 {
-                return Err(DrsError::Validation(format!(
-                    "checksum mismatch: expected sha-256 {expected}"
-                )));
-            }
+            verify_expected_sha256(&spool_path, expected).await?;
         }
-        let key_dir = state.crypt4gh_key_dir.as_ref().ok_or_else(|| {
-            DrsError::Validation(
-                "encrypt=true requires FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR (or [encryption].crypt4gh_key_dir)"
-                    .into(),
-            )
-        })?;
-        let ks = ferrum_crypt4gh::LocalKeyStore::new(key_dir.as_path());
-        let key_id = state.crypt4gh_master_key_id.clone();
-        let pk = ks
-            .get_public_key_bytes(&key_id)
-            .await
-            .map_err(|e| DrsError::Validation(format!("crypt4gh key store: {e}")))?;
-        let pubkey = pk.ok_or_else(|| {
-            DrsError::Validation(format!(
-                "no public key for crypt4gh_master_key_id={key_id} under CRYPT4GH_KEY_DIR"
-            ))
-        })?;
-        let data = tokio::task::spawn_blocking(move || {
-            ferrum_crypt4gh::encrypt_bytes_for_pubkey(&pubkey, &plaintext)
-        })
-        .await
-        .map_err(|e| DrsError::Other(e.into()))?
-        .map_err(|e| DrsError::Validation(format!("crypt4gh encrypt: {e}")))?;
-        let size = data.len() as i64;
-        storage
-            .put_bytes(&storage_key, &data)
-            .await
-            .map_err(|e| DrsError::Other(e.into()))?;
-        size
+        encrypt_spool_to_storage(state.as_ref(), &storage, &storage_key, &spool_path).await?
     } else {
         if let Some(ref expected) = parsed.expected_sha256 {
-            let plaintext = tokio::fs::read(&spool_path)
-                .await
-                .map_err(|e| DrsError::Validation(format!("read spooled upload: {e}")))?;
-            let sha256 = hex::encode(Sha256::digest(&plaintext));
-            if expected.to_lowercase() != sha256 {
-                return Err(DrsError::Validation(format!(
-                    "checksum mismatch: expected sha-256 {expected}"
-                )));
-            }
+            verify_expected_sha256(&spool_path, expected).await?;
         }
         storage
             .put_file(&storage_key, &spool_path)

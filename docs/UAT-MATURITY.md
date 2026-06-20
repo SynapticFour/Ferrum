@@ -2,7 +2,7 @@
 
 Living checklist for pilot readiness: what is done, what is next, and what remains before **minimum unsupervised tester** maturity.
 
-**Last updated:** 2026-06-14 (Sprint 2 — L2 polish)
+**Last updated:** 2026-06-14 (Sprint 3 — backend hardening)
 
 ---
 
@@ -15,7 +15,7 @@ Living checklist for pilot readiness: what is done, what is next, and what remai
 | **L2 — Minimum unsupervised** | Clear errors, noop/auth expectations, import→analysis without wrong workspace |
 | **L3 — Production-adjacent** | Chunk hardening, Range preview, auth on all ingest, Fly cold-start UX |
 
-**Current target:** **L2** for local TES + Fly pilot.
+**Current target:** **L3** for local TES + Fly pilot (Sprint 3 complete).
 
 ---
 
@@ -56,23 +56,23 @@ Living checklist for pilot readiness: what is done, what is next, and what remai
 
 ---
 
-## Sprint 3 — Backend hardening (target: L2→L3)
+## Sprint 3 — Backend hardening — DONE
 
 **Goal:** Edge cases under load and security alignment.
 
-| # | Area | Task | Priority |
-|---|------|------|----------|
-| 3.1 | Ingest auth | Apply `ensure_ingest_allowed` to `/upload`, `/upload/chunk`, `/register` | P0 |
-| 3.2 | Chunk upload | Validate `total_bytes` against max at session start | P1 |
-| 3.3 | Chunk upload | TTL cleanup for orphan `drs/uploads/*` + checkpoints | P1 |
-| 3.4 | Chunk upload | Replace O(n²) `append_bytes` for large S3 uploads | P1 |
-| 3.5 | Crypt4GH | Fail init hard if keys missing when encrypt expected | P1 |
-| 3.6 | Crypt4GH | Streaming encrypt (avoid full-file RAM) for large uploads | P2 |
-| 3.7 | DRS stream | Honor `Range` for preview bandwidth | P2 |
-| 3.8 | Errors | Map `transfer_queued` (429) in UI with retry hint | P2 |
-| 3.9 | Checksum | Surface async checksum failures on object detail | P2 |
-| 3.10 | CI | Smoke test chunked upload + failed-job error body | P2 |
-| 3.11 | CI | Pilot CI: optional authenticated ingest upload | P2 |
+| # | Area | Task | Status |
+|---|------|------|--------|
+| 3.1 | Ingest auth | Apply `ensure_ingest_allowed` to `/upload`, `/upload/chunk`, `/register` | Done |
+| 3.2 | Chunk upload | Validate `total_bytes` against max at session start | Done |
+| 3.3 | Chunk upload | TTL cleanup for orphan `drs/uploads/*` + checkpoints | Done |
+| 3.4 | Chunk upload | Replace O(n²) `append_bytes` for large S3 uploads | Done |
+| 3.5 | Crypt4GH | Fail init hard if keys missing when encrypt expected | Done |
+| 3.6 | Crypt4GH | Streaming encrypt (avoid full-file RAM) for large uploads | Done |
+| 3.7 | DRS stream | Honor `Range` for preview bandwidth | Done |
+| 3.8 | Errors | Map `transfer_queued` (429) in UI with retry hint | Done |
+| 3.9 | Checksum | Surface async checksum failures on object detail | Done |
+| 3.10 | CI | Smoke test chunked upload + failed-job error body | Done |
+| 3.11 | CI | Pilot CI: optional authenticated ingest upload | Done |
 
 ---
 

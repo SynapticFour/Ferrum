@@ -279,6 +279,26 @@ export function ObjectDetailPage() {
               </p>
             </div>
           )}
+          {obj.checksum_status && obj.checksum_status !== 'computed' && (
+            <div className="sm:col-span-2">
+              <p className="text-muted-foreground">{t('object.checksumStatus')}</p>
+              <p
+                className={
+                  obj.checksum_status.startsWith('failed:')
+                    ? 'text-sm text-destructive'
+                    : 'text-sm text-amber-600 dark:text-amber-400'
+                }
+              >
+                {obj.checksum_status.startsWith('failed:')
+                  ? t('object.checksumFailed')
+                  : obj.checksum_status === 'pending'
+                    ? t('object.checksumPending')
+                    : obj.checksum_status === 'deferred_low_power'
+                      ? t('object.checksumDeferred')
+                      : obj.checksum_status}
+              </p>
+            </div>
+          )}
           {obj.description && (
             <div className="sm:col-span-2">
               <p className="text-muted-foreground">{t('object.description')}</p>

@@ -184,6 +184,7 @@ impl DrsRepo {
             Some((backend, _, encrypted)) => (Some(backend), Some(encrypted)),
             None => (None, None),
         };
+        let checksum_status = self.get_checksum_status(id).await?;
 
         Ok(Some(DrsObject {
             id: row.id.clone(),
@@ -209,6 +210,7 @@ impl DrsRepo {
             storage_backend,
             is_encrypted,
             workspace_id: row.workspace_id,
+            checksum_status,
         }))
     }
 

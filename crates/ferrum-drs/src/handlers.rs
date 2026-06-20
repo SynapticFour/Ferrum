@@ -102,8 +102,10 @@ pub async fn get_object(
 
     // Async checksum model: when metadata is `pending`, DRS must not leak partially computed checksums.
     // Learned from Broad Terra production behavior (DRS scaling issues).
+    let checksum_status = state.repo.get_checksum_status(&canonical).await?;
     let mut obj = obj;
-    if state.repo.get_checksum_status(&canonical).await?.as_deref() == Some("pending") {
+    obj.checksum_status = checksum_status.clone();
+    if checksum_status.as_deref() == Some("pending") {
         obj.checksums = vec![];
         let mut res = Json(obj).into_response();
         res.headers_mut().insert(
@@ -111,6 +113,15 @@ pub async fn get_object(
             HeaderValue::from_static("pending"),
         );
         return Ok(res);
+    }
+    if let Some(ref status) = checksum_status {
+        if status.starts_with("failed:") || status == "deferred_low_power" {
+            let mut res = Json(obj).into_response();
+            if let Ok(v) = HeaderValue::from_str(status) {
+                res.headers_mut().insert("X-Ferrum-Checksum-Status", v);
+            }
+            return Ok(res);
+        }
     }
 
     let client_ip = headers
@@ -252,7 +263,7 @@ pub async fn get_access(
         .await?
         .ok_or_else(|| DrsError::NotFound(format!("access_id not found: {}", access_id)))?;
 
-    let range = parse_range_header(headers.get("range"));
+    let range = parse_range_header(headers.get("range"), 0);
     let storage_ref = state.repo.get_storage_ref(&canonical).await?;
     if let (Some((backend, key, _)), Some(presigner)) = (storage_ref, state.s3_presigner.as_ref()) {
         if backend.eq_ignore_ascii_case("s3") || backend.eq_ignore_ascii_case("minio") {
@@ -620,6 +631,23 @@ pub async fn get_object_stream(
         0
     };
 
+    let object_size = if obj.size > 0 { obj.size as u64 } else { 0 };
+    let http_range = parse_range_header(headers.get("range"), object_size);
+    let (range_start, range_end) = http_range.unwrap_or((0, object_size.saturating_sub(1)));
+    let stream_start = skip_bytes.max(range_start);
+    let stream_end = range_end.min(object_size.saturating_sub(1));
+    if object_size > 0 && stream_start > stream_end {
+        return Err(DrsError::Validation(format!(
+            "range not satisfiable: bytes={range_start}-{range_end}"
+        )));
+    }
+    let max_send_bytes = if object_size == 0 {
+        0
+    } else {
+        stream_end.saturating_sub(stream_start).saturating_add(1)
+    };
+    let is_partial = http_range.is_some();
+
     if let Some(ref audit) = state.residency_audit {
         let requester = auth
             .as_ref()
@@ -682,6 +710,17 @@ pub async fn get_object_stream(
         } else {
             body.drain(0..skip_bytes as usize);
         }
+        if stream_start > skip_bytes {
+            let extra = (stream_start - skip_bytes) as usize;
+            if extra >= body.len() {
+                body.clear();
+            } else {
+                body.drain(0..extra);
+            }
+        }
+        if body.len() as u64 > max_send_bytes {
+            body.truncate(max_send_bytes as usize);
+        }
         let compressed =
             zstd::encode_all(body.as_slice(), 3).map_err(|e| DrsError::Other(e.into()))?;
         if let Some(ref bw) = state.bandwidth {
@@ -693,7 +732,11 @@ pub async fn get_object_stream(
             let _ = update_checkpoint_progress(state.repo.pool(), token, obj.size).await;
         }
         return Response::builder()
-            .status(StatusCode::OK)
+            .status(if is_partial {
+                StatusCode::PARTIAL_CONTENT
+            } else {
+                StatusCode::OK
+            })
             .header(
                 CONTENT_TYPE,
                 HeaderValue::from_str(mime)
@@ -725,10 +768,12 @@ pub async fn get_object_stream(
         let resume_for_task = stream_query.resume_token.clone();
         let pool_for_task = state.repo.pool().clone();
         let bw_for_task = state.bandwidth.clone();
+        let stream_start_task = stream_start;
+        let max_send_task = max_send_bytes;
         tokio::spawn(async move {
             let mut reader = reader;
-            if skip_bytes > 0 {
-                let mut remaining = skip_bytes;
+            if stream_start_task > 0 {
+                let mut remaining = stream_start_task;
                 let mut scratch = vec![0u8; READ_CHUNK];
                 while remaining > 0 {
                     let to_read = scratch.len().min(remaining as usize);
@@ -736,14 +781,18 @@ pub async fn get_object_stream(
                         Ok(0) => break,
                         Ok(n) => remaining -= n as u64,
                         Err(e) => {
-                            tracing::error!(error = %e, "resume skip read failed");
+                            tracing::error!(error = %e, "stream skip read failed");
                             break;
                         }
                     }
                 }
             }
             let mut buf = vec![0u8; READ_CHUNK];
+            let mut sent = 0u64;
             loop {
+                if sent >= max_send_task {
+                    break;
+                }
                 let read_fut = reader.read(&mut buf);
                 let n = match tokio::time::timeout(STORAGE_READ_TIMEOUT, read_fut).await {
                     Ok(Ok(0)) => break,
@@ -757,12 +806,17 @@ pub async fn get_object_stream(
                         break;
                     }
                 };
-                bytes_counter.fetch_add(n as u64, Ordering::Relaxed);
-                if tx.send(Bytes::copy_from_slice(&buf[..n])).await.is_err() {
+                let take = n.min((max_send_task.saturating_sub(sent)) as usize);
+                if take == 0 {
+                    break;
+                }
+                sent += take as u64;
+                bytes_counter.fetch_add(take as u64, Ordering::Relaxed);
+                if tx.send(Bytes::copy_from_slice(&buf[..take])).await.is_err() {
                     break;
                 }
             }
-            let transferred = skip_bytes + bytes_counter.load(Ordering::Relaxed);
+            let transferred = stream_start_task + bytes_counter.load(Ordering::Relaxed);
             if let Some(ref bw) = bw_for_task {
                 if transferred >= ferrum_storage::MIN_BANDWIDTH_SAMPLE_BYTES {
                     bw.record_transfer(transferred, 100);
@@ -783,8 +837,19 @@ pub async fn get_object_stream(
 
         let stream = ReceiverStream::new(rx).map(Ok::<_, std::io::Error>);
         let body = Body::from_stream(stream);
-        return Response::builder()
-            .status(StatusCode::OK)
+        let mut builder = Response::builder().status(if is_partial {
+            StatusCode::PARTIAL_CONTENT
+        } else {
+            StatusCode::OK
+        });
+        if is_partial && object_size > 0 {
+            builder = builder.header(
+                HeaderName::from_static("content-range"),
+                HeaderValue::from_str(&format!("bytes {stream_start}-{stream_end}/{object_size}"))
+                    .unwrap_or_else(|_| HeaderValue::from_static("bytes */*")),
+            );
+        }
+        return builder
             .header(
                 CONTENT_TYPE,
                 HeaderValue::from_str(mime)
@@ -875,12 +940,37 @@ pub async fn get_object_stream(
         .map_err(|e| DrsError::Other(e.into()))
 }
 
-/// Parse Range header (e.g. "bytes=0-1023") into (start, end) inclusive. Returns None if missing or invalid.
-fn parse_range_header(value: Option<&axum::http::HeaderValue>) -> Option<(u64, u64)> {
+/// Parse Range header (e.g. "bytes=0-1023", "bytes=1024-", "bytes=-500") into (start, end) inclusive.
+fn parse_range_header(
+    value: Option<&axum::http::HeaderValue>,
+    total_size: u64,
+) -> Option<(u64, u64)> {
     let s = value?.to_str().ok()?.strip_prefix("bytes=")?;
-    let (start, end) = s.split_once('-')?;
-    let start: u64 = start.parse().ok()?;
-    let end: u64 = end.parse().ok()?;
+    if let Some(suffix) = s.strip_prefix('-') {
+        if total_size == 0 {
+            return None;
+        }
+        let n: u64 = suffix.parse().ok()?;
+        if n == 0 {
+            return None;
+        }
+        let start = total_size.saturating_sub(n);
+        return Some((start, total_size - 1));
+    }
+    let (start_s, end_s) = s.split_once('-')?;
+    let start: u64 = start_s.parse().ok()?;
+    let mut end: u64 = if end_s.is_empty() {
+        if total_size == 0 {
+            u64::MAX
+        } else {
+            total_size - 1
+        }
+    } else {
+        end_s.parse().ok()?
+    };
+    if total_size > 0 && end >= total_size {
+        end = total_size - 1;
+    }
     if start <= end {
         Some((start, end))
     } else {

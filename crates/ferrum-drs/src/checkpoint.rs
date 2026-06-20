@@ -4,6 +4,9 @@ use ferrum_core::pool::FerrumPool;
 use ferrum_core::Result;
 use ferrum_storage::BandwidthClass;
 
+/// Abandon incomplete browser/API upload sessions after this many seconds.
+pub const UPLOAD_SESSION_TTL_SECS: i64 = 86_400;
+
 #[derive(Debug, Clone)]
 pub struct TransferCheckpoint {
     pub id: String,
@@ -113,6 +116,54 @@ pub async fn update_checkpoint_progress(
         }
     }
     Ok(())
+}
+
+pub async fn delete_checkpoint(pool: &FerrumPool, resume_token: &str) -> Result<()> {
+    let sql = "DELETE FROM transfer_checkpoints WHERE resume_token = $1";
+    match pool {
+        FerrumPool::Postgres(p) => {
+            sqlx::query(sql).bind(resume_token).execute(p).await?;
+        }
+        FerrumPool::Sqlite(p) => {
+            sqlx::query(sql).bind(resume_token).execute(p).await?;
+        }
+    }
+    Ok(())
+}
+
+/// Returns resume tokens for stale incomplete upload sessions (for assembly + storage cleanup).
+pub async fn purge_stale_upload_sessions(
+    pool: &FerrumPool,
+    max_age_secs: i64,
+) -> Result<Vec<String>> {
+    let pg_sql = "DELETE FROM transfer_checkpoints
+        WHERE direction = 'upload'
+          AND object_id = 'pending-upload'
+          AND completed_bytes < total_bytes
+          AND updated_at < NOW() - ($1::bigint * INTERVAL '1 second')
+        RETURNING resume_token";
+    let sqlite_sql = "DELETE FROM transfer_checkpoints
+        WHERE direction = 'upload'
+          AND object_id = 'pending-upload'
+          AND completed_bytes < total_bytes
+          AND datetime(updated_at) < datetime('now', '-' || $1 || ' seconds')
+        RETURNING resume_token";
+
+    let rows: Vec<(String,)> = match pool {
+        FerrumPool::Postgres(p) => {
+            sqlx::query_as(pg_sql)
+                .bind(max_age_secs)
+                .fetch_all(p)
+                .await?
+        }
+        FerrumPool::Sqlite(p) => {
+            sqlx::query_as(sqlite_sql)
+                .bind(max_age_secs)
+                .fetch_all(p)
+                .await?
+        }
+    };
+    Ok(rows.into_iter().map(|(t,)| t).collect())
 }
 
 #[derive(sqlx::FromRow)]

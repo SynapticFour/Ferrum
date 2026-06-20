@@ -132,4 +132,19 @@ if [ "$complete" != "True" ] && [ "$complete" != "true" ]; then
 fi
 echo "ci-edge-demo-e2e: chunked upload OK"
 
+# Failed ingest job returns structured error body (encrypt without Crypt4GH keys)
+touch "$TMP/empty-fail.bin"
+fail_resp="$(curl -s -F "file=@${TMP}/empty-fail.bin;type=application/octet-stream" -F "encrypt=true" \
+  "${BASE}/api/v1/ingest/upload" || true)"
+fail_status="$(printf '%s' "$fail_resp" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("status",""))' 2>/dev/null || echo "")"
+if [ "$fail_status" = "failed" ]; then
+  printf '%s' "$fail_resp" | python3 -c 'import json,sys; d=json.load(sys.stdin); err=d.get("error") or {}; assert err.get("message"), err'
+  echo "ci-edge-demo-e2e: failed ingest job error body OK"
+elif printf '%s' "$fail_resp" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("code")' 2>/dev/null; then
+  echo "ci-edge-demo-e2e: ingest validation error JSON OK"
+else
+  echo "ci-edge-demo-e2e: expected failed job or validation error for encrypt=true, got: ${fail_resp}" >&2
+  exit 1
+fi
+
 echo "ci-edge-demo-e2e: OK (demo start --edge, ingest, metadata, stream, disk health, chunked upload)"

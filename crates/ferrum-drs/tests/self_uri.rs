@@ -22,6 +22,7 @@ fn test_self_uri_always_drs_scheme() {
         storage_backend: None,
         is_encrypted: None,
         workspace_id: None,
+        checksum_status: None,
     };
 
     let canonical = obj.canonical_self_uri("drs.example.test");

@@ -33,6 +33,13 @@ export const frOverlay = {
     signInRequired: 'Connexion requise',
     signInRequiredHint: 'Cette instance exige une connexion pour téléverser des données et lancer des analyses.',
   },
+  auth: {
+    completingSignIn: 'Finalisation de la connexion…',
+    signInFailed: 'Échec de la connexion',
+    signInFailedHint:
+      'Aucun jeton d\'accès n\'a été renvoyé. Reconnectez-vous via Paramètres ou la barre latérale.',
+    tryAgain: 'Réessayer la connexion',
+  },
   nav: {
     dashboard: 'Tableau de bord',
     studySetup: 'Configuration guidée',
@@ -100,6 +107,8 @@ export const frOverlay = {
       'Ce déploiement utilise un exécuteur factice (TES noop). Les analyses se terminent au niveau de l\'API mais les conteneurs ne s\'exécutent pas — vous n\'obtiendrez pas de vrais résultats d\'appel de variants ici.',
     hint:
       'Pour des exécutions GATK réelles, utilisez une instance Ferrum locale avec Docker ou SLURM/LSF, ou consultez les sorties de référence des données de démonstration.',
+    compact:
+      'Mode démo : les exécutions se terminent au niveau API uniquement — pas de sortie de conteneur réelle sur ce déploiement.',
   },
   data: {
     title: 'Données',
@@ -135,6 +144,12 @@ export const frOverlay = {
       'Le téléversement a été interrompu avant la fin du fichier. Réessayez — les gros fichiers sont envoyés par morceaux.',
     uploadTooLarge:
       'Ce fichier dépasse la limite du serveur. Contactez l\'administrateur ou enregistrez-le par chemin de stockage.',
+    uploadTransferQueued:
+      'Téléversement reporté (bande passante faible) — patientez puis réessayez.',
+    uploadEncryptUnavailable:
+      'Le chiffrement à l\'import n\'est pas disponible sur ce serveur. Décochez le chiffrement ou contactez l\'opérateur.',
+    uploadWorkspaceForbidden:
+      'Vous ne pouvez pas ajouter de données à cet espace de travail — vérifiez la connexion ou choisissez un autre espace.',
     importTitle: 'Importer dans DRS',
     importDescription:
       'Choisissez importer (copie gérée) ou enregistrer (pointeur seul). Les deux ajoutent une entrée au catalogue DRS.',
@@ -258,6 +273,15 @@ export const frOverlay = {
       'Référence URL externe — l\'aperçu fonctionne uniquement pour les fichiers stockés dans Ferrum (MinIO).',
     previewStreamFailed: 'Impossible de charger l\'aperçu depuis le stockage.',
     downloadFailed: 'Échec du téléchargement. Fichier indisponible ou session expirée.',
+    linkWorkspaceFirst: 'Liez d\'abord le fichier à un espace de travail',
+    linkWorkspaceHint:
+      'Les analyses s\'exécutent dans le contexte d\'un espace d\'étude. Choisissez un espace et liez l\'objet.',
+    linkWorkspaceAction: 'Lier à l\'espace de travail',
+    linkWorkspaceSuccess: 'Lié à l\'espace de travail « {name} » — vous pouvez lancer une analyse.',
+    checksumStatus: 'Statut de somme de contrôle',
+    checksumPending: 'Somme de contrôle en cours de calcul.',
+    checksumFailed: 'Échec du calcul de somme de contrôle — signalez le problème si cela persiste.',
+    checksumDeferred: 'Calcul de somme de contrôle différé (mode basse consommation).',
     lineageLoading: 'Chargement de la provenance…',
     lineageFailed: 'Impossible de charger la provenance.',
     lineageEmpty: 'Aucun lien de provenance enregistré pour cet objet.',
@@ -426,6 +450,10 @@ export const frOverlay = {
     uploadNameLabel: 'Nom du workflow (facultatif)',
     uploadNamePlaceholder: 'p. ex. Mon pipeline d\'appel de variants',
     uploadEmpty: 'Collez ou téléversez d\'abord un fichier workflow.',
+    runSubmitSuccess: 'Analyse démarrée ({id}).',
+    runSubmitSuccessCohort: '{count} analyses démarrées.',
+    viewRun: 'Exécution {id}…',
+    viewAllRuns: 'Voir toutes les exécutions',
     registerInTrs: 'Enregistrer le workflow dans le catalogue TRS',
     registerInTrsHint: 'Ajoute cette URL de workflow à votre registre d\'outils local avant de démarrer l\'exécution.',
     registerInTrsServerOff:

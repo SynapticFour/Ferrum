@@ -38,6 +38,9 @@ pub struct DrsObject {
     /// Ferrum extension: workspace scope when object is linked to a study workspace.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<String>,
+    /// Ferrum extension: async checksum job status (`pending`, `computed`, `failed:…`, `deferred_low_power`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum_status: Option<String>,
 }
 
 impl DrsObject {

@@ -18,6 +18,8 @@ export interface DrsObject {
   is_encrypted?: boolean;
   /** Ferrum extension: linked study workspace. */
   workspace_id?: string;
+  /** Ferrum extension: async checksum job (`pending`, `computed`, `failed:…`). */
+  checksum_status?: string;
 }
 
 /** WES run state */

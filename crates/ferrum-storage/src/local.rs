@@ -169,4 +169,27 @@ impl ObjectStorage for LocalStorage {
         })?;
         Ok(len)
     }
+
+    async fn append_bytes(&self, key: &str, data: &[u8]) -> Result<()> {
+        let path = self.path_for(key)?;
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| FerrumError::StorageError(anyhow::anyhow!("append mkdir: {e}")))?;
+        }
+        use tokio::io::AsyncWriteExt;
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        file.write_all(data)
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        file.sync_all()
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        Ok(())
+    }
 }

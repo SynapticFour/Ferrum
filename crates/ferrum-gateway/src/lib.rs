@@ -615,6 +615,38 @@ pub async fn run(
     );
 
     if let Some(ref ds) = drs_state {
+        if ds.ingest.default_encrypt_upload {
+            if let Err(e) = ferrum_drs::ingest::ensure_crypt4gh_ingest_ready(ds).await {
+                eprintln!(
+                    "error: default_encrypt_upload is enabled but Crypt4GH keys are not ready: {e}"
+                );
+                std::process::exit(1);
+            }
+        }
+        let pool = ds.repo.pool().clone();
+        let storage = ds.storage.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(3600));
+            loop {
+                interval.tick().await;
+                if let Ok(tokens) = ferrum_drs::checkpoint::purge_stale_upload_sessions(
+                    &pool,
+                    ferrum_drs::checkpoint::UPLOAD_SESSION_TTL_SECS,
+                )
+                .await
+                {
+                    ferrum_drs::ingest_chunk::purge_upload_assemblies(&tokens).await;
+                    if let Some(ref st) = storage {
+                        for token in tokens {
+                            let _ = st.delete(&format!("drs/uploads/{token}")).await;
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    if let Some(ref ds) = drs_state {
         if let (Some(bw), Some(tq), Some(gate)) = (
             ds.bandwidth.clone(),
             ds.transfer_queue.clone(),

@@ -1,13 +1,18 @@
 //! Resumable chunked upload ingest (`POST /api/v1/ingest/upload/chunk`).
 
-use crate::checkpoint::{create_checkpoint, load_checkpoint, update_checkpoint_progress};
+use crate::checkpoint::{
+    create_checkpoint, delete_checkpoint, load_checkpoint, purge_stale_upload_sessions,
+    update_checkpoint_progress, UPLOAD_SESSION_TTL_SECS,
+};
 use crate::error::{DrsError, Result};
-use crate::ingest::ParsedMultipartUpload;
+use crate::ingest::{process_upload_from_spooled, ParsedMultipartUpload};
 use crate::state::AppState;
 use ferrum_storage::{BandwidthClass, TransferDirection};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ChunkUploadResponse {
@@ -20,10 +25,6 @@ pub struct ChunkUploadResponse {
     pub object_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<i64>,
-}
-
-fn upload_temp_key(token: &str) -> String {
-    format!("drs/uploads/{token}")
 }
 
 /// Lab/browser ingest chunks may be larger than field-sync slices; floor avoids DRS stream
@@ -39,11 +40,66 @@ pub fn effective_ingest_chunk_max_bytes(
     adaptive.max(INGEST_CHUNK_CEILING_BYTES)
 }
 
+fn upload_sessions_dir() -> PathBuf {
+    std::env::temp_dir().join("ferrum-upload-sessions")
+}
+
+fn assembly_path(token: &str) -> PathBuf {
+    upload_sessions_dir().join(format!("{token}.bin"))
+}
+
+async fn append_assembly(path: &Path, data: &[u8]) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| DrsError::Other(e.into()))?;
+    }
+    let mut file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    file.write_all(data)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    file.sync_all()
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    Ok(())
+}
+
+pub async fn purge_upload_assemblies(tokens: &[String]) {
+    for token in tokens {
+        let path = assembly_path(token);
+        let _ = tokio::fs::remove_file(path).await;
+    }
+}
+
+async fn maybe_purge_stale_sessions(state: &AppState) {
+    let Ok(tokens) = purge_stale_upload_sessions(state.repo.pool(), UPLOAD_SESSION_TTL_SECS).await
+    else {
+        return;
+    };
+    if tokens.is_empty() {
+        return;
+    }
+    purge_upload_assemblies(&tokens).await;
+    if let Some(storage) = &state.storage {
+        for token in tokens {
+            let legacy_key = format!("drs/uploads/{token}");
+            let _ = storage.delete(&legacy_key).await;
+        }
+    }
+}
+
 pub async fn process_chunked_upload_from_parts(
     state: Arc<AppState>,
     auth: Option<&ferrum_core::AuthClaims>,
     mut parsed: ParsedMultipartUpload,
 ) -> Result<ChunkUploadResponse> {
+    maybe_purge_stale_sessions(state.as_ref()).await;
+
     let storage = state
         .storage
         .clone()
@@ -56,6 +112,12 @@ pub async fn process_chunked_upload_from_parts(
     })?;
     if total_bytes <= 0 {
         return Err(DrsError::Validation("total_bytes must be positive".into()));
+    }
+    let max_bytes = state.ingest.effective_max_upload_bytes();
+    if total_bytes as u64 > max_bytes {
+        return Err(DrsError::Validation(format!(
+            "upload exceeds ingest.max_upload_bytes ({max_bytes})"
+        )));
     }
     let chunk_offset = parsed.chunk_offset.unwrap_or(0);
     if chunk_offset < 0 {
@@ -114,6 +176,11 @@ pub async fn process_chunked_upload_from_parts(
             class,
         )
         .await?;
+        let assembly = assembly_path(&cp.resume_token);
+        if assembly.exists() {
+            let _ = tokio::fs::remove_file(&assembly).await;
+        }
+        append_assembly(&assembly, &[]).await?;
         (cp.resume_token, 0)
     } else {
         return Err(DrsError::Validation(
@@ -127,11 +194,8 @@ pub async fn process_chunked_upload_from_parts(
         )));
     }
 
-    let temp_key = upload_temp_key(&upload_token);
-    storage
-        .append_bytes(&temp_key, &parsed.data)
-        .await
-        .map_err(|e| DrsError::Other(e.into()))?;
+    let assembly = assembly_path(&upload_token);
+    append_assembly(&assembly, &parsed.data).await?;
 
     let completed = completed_before + parsed.data.len() as i64;
     update_checkpoint_progress(state.repo.pool(), &upload_token, completed).await?;
@@ -149,40 +213,68 @@ pub async fn process_chunked_upload_from_parts(
     }
 
     if completed > total_bytes {
+        let _ = tokio::fs::remove_file(&assembly).await;
+        let _ = delete_checkpoint(state.repo.pool(), &upload_token).await;
         return Err(DrsError::Validation(format!(
             "upload exceeded declared total_bytes ({total_bytes})"
         )));
     }
 
-    let mut reader = storage
-        .get(&temp_key)
+    let assembled_len = tokio::fs::metadata(&assembly)
         .await
-        .map_err(|e| DrsError::Other(e.into()))?;
-    let mut body = Vec::new();
-    tokio::io::AsyncReadExt::read_to_end(&mut reader, &mut body)
-        .await
-        .map_err(|e| DrsError::Other(e.into()))?;
-    if body.len() as i64 != total_bytes {
+        .map_err(|e| DrsError::Other(e.into()))?
+        .len();
+    if assembled_len as i64 != total_bytes {
         return Err(DrsError::Validation(format!(
-            "assembled upload size {} != declared total_bytes {total_bytes}",
-            body.len()
+            "assembled upload size {assembled_len} != declared total_bytes {total_bytes}"
         )));
     }
+
     if let Some(ref expected) = parsed.expected_sha256 {
-        let digest = hex::encode(Sha256::digest(&body));
+        let digest = tokio::task::spawn_blocking({
+            let path = assembly.clone();
+            move || {
+                use std::io::Read;
+                let mut file = std::fs::File::open(path).map_err(|e| DrsError::Other(e.into()))?;
+                let mut hasher = Sha256::new();
+                let mut buf = [0u8; 64 * 1024];
+                loop {
+                    let n = file.read(&mut buf).map_err(|e| DrsError::Other(e.into()))?;
+                    if n == 0 {
+                        break;
+                    }
+                    hasher.update(&buf[..n]);
+                }
+                Ok::<_, DrsError>(hex::encode(hasher.finalize()))
+            }
+        })
+        .await
+        .map_err(|e| DrsError::Other(e.into()))??;
         if expected.to_lowercase() != digest {
+            let _ = tokio::fs::remove_file(&assembly).await;
+            let _ = delete_checkpoint(state.repo.pool(), &upload_token).await;
             return Err(DrsError::Validation(format!(
                 "checksum mismatch: expected sha-256 {expected}"
             )));
         }
     }
 
-    parsed.data = body;
+    parsed.data.clear();
     parsed.upload_token = None;
     parsed.chunk_offset = None;
     parsed.total_bytes = None;
-    let upload = crate::ingest::process_upload_from_parts(state.clone(), auth, parsed).await?;
-    let _ = storage.delete(&temp_key).await;
+    let upload = process_upload_from_spooled(
+        Arc::clone(&state),
+        auth,
+        parsed,
+        assembly.clone(),
+        assembled_len,
+    )
+    .await?;
+
+    let _ = tokio::fs::remove_file(&assembly).await;
+    let _ = delete_checkpoint(state.repo.pool(), &upload_token).await;
+    let _ = storage.delete(&format!("drs/uploads/{upload_token}")).await;
 
     Ok(ChunkUploadResponse {
         upload_token,
