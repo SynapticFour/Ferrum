@@ -9,6 +9,9 @@ RUN_SEED="${SMOKE_RUN_SEED:-1}"  # set 0 to skip make seed-pilot
 
 die() { echo "smoke-pilot-local: FAIL — $*" >&2; exit 1; }
 ok() { echo "smoke-pilot-local: OK — $*"; }
+warn() { echo "smoke-pilot-local: WARN — $*" >&2; }
+
+SMOKE_WARNINGS=()
 
 echo "smoke-pilot-local: health @ $BASE_URL"
 curl -sf "$BASE_URL/health" >/dev/null || die "gateway not reachable (run: make up-tes)"
@@ -310,9 +313,13 @@ print((entry.get('stderr') or '').strip())
         die "germline WES run $g_state (CI requires COMPLETE) — stderr: ${stderr:-<empty>} stdout: ${stdout:-<empty>}${work_log}"
       fi
       if printf '%s' "$stderr" | grep -qE 'host_mnt|invalid mount config'; then
-        ok "germline submit OK; nested docker bind limits on this host ($g_state)"
+        msg="germline nested-docker bind limits on this host ($g_state) — OK on Linux CI"
+        SMOKE_WARNINGS+=("$msg")
+        warn "$msg"
       else
-        ok "germline submit OK; state=$g_state (see TES logs for GATK pull/runtime)"
+        msg="germline WES $g_state on this host (Linux CI / SMOKE_REQUIRE_COMPLETE=1 expects COMPLETE) — $stderr"
+        SMOKE_WARNINGS+=("$msg")
+        warn "$msg"
       fi
       ;;
     *)
@@ -324,4 +331,12 @@ print((entry.get('stderr') or '').strip())
   esac
 fi
 
-echo "smoke-pilot-local: all checks passed"
+if [[ "${#SMOKE_WARNINGS[@]}" -gt 0 ]]; then
+  echo "smoke-pilot-local: finished with ${#SMOKE_WARNINGS[@]} warning(s) — CWL/pilot checks OK; germline not COMPLETE here" >&2
+  for w in "${SMOKE_WARNINGS[@]}"; do
+    echo "  - $w" >&2
+  done
+  echo "smoke-pilot-local: tip: use Linux or SMOKE_REQUIRE_COMPLETE=1 to hard-fail germline" >&2
+else
+  echo "smoke-pilot-local: all checks passed"
+fi
