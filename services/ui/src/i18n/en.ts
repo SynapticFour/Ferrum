@@ -104,6 +104,25 @@ export const en = {
     hint: 'For live GATK runs, use a local Ferrum instance with Docker or SLURM/LSF, or view reference outputs from the pilot seed data.',
     compact: 'Demo mode: runs complete at the API only — no real container output on this deployment.',
   },
+  testerGuide: {
+    title: 'Pilot tester quick start',
+    intro: 'This hosted demo uses real sign-in and data APIs. Workflow runs simulate completion only — no container compute on this server.',
+    bulletUi: 'Use this Ferrum UI (/ui/) — not the ga4gh-infra broker root URL.',
+    bulletSignIn: 'Sign in when prompted. Sessions last about 3 hours, then sign in again.',
+    bulletColdStart:
+      'After idle, the first page load may take up to 90 seconds while the server wakes. Retry if you see a gateway error.',
+    bulletImport: 'Add data via Data → Import file → choose file → Start upload. Link objects to a workspace before analysis if prompted.',
+    bulletNoop: 'Analyses on this server complete at the API only (demo mode) — no real GATK container output here.',
+    bulletReport: 'If something fails, use Report problem on the error panel to copy diagnostics for your operator.',
+    pauseNote:
+      'If the whole pilot was paused by your operator, every URL may stay down until they run resume — this is different from normal idle wake.',
+    browseData: 'Browse data',
+    dismiss: 'Got it — hide this guide',
+  },
+  pilot: {
+    remoteSeedHint:
+      'Hosted pilot: demo BAM/VCF appear after your operator runs ./pilot.sh seed all. Ask them if Data is empty — you can still Import file yourself.',
+  },
   data: {
     title: 'Data',
     subtitle: 'Add files where they already live, or upload copies into managed storage.',
@@ -264,6 +283,8 @@ export const en = {
   object: {
     noId: 'No object ID.',
     notFound: 'Object not found.',
+    analyzeDeepLinkFailed:
+      'This analysis link needs a valid object. Open Data, pick a file, then use “Use in analysis” — or check that you are signed in.',
     loading: 'Loading object…',
     details: 'Details',
     lineage: 'Lineage',

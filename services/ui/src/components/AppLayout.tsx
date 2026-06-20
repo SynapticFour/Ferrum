@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { TesterWelcomeDialog } from '@/components/TesterWelcomeDialog';
 import { useI18n } from '@/i18n/I18nProvider';
 
 const navItems = [
@@ -195,6 +196,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="container max-w-7xl py-6 flex-1">{children}</div>
         <Footer />
       </main>
+      <TesterWelcomeDialog />
     </div>
   );
 }

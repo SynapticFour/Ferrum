@@ -12,6 +12,8 @@
 # Local enrichment (Docker stack with MinIO fixtures):
 #   make seed-pilot
 #   # or: BASE_URL=http://localhost:8080 bash scripts/seed-pilot-demo.sh
+#
+# See docs/SEED-CATALOGS.md for local vs Fly DRS name differences.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,7 +47,7 @@ curl_pilot "$BASE_URL/health" >/dev/null || {
 }
 
 echo "seed-pilot-remote: verifying $BASE_URL (workspace=${PILOT_WORKSPACE_ID}, cohort=${PILOT_COHORT_ID})"
-echo "  Note: Fly uses pilot-deploy seed (GIAB slice names). Local make seed-pilot uses 'Pilot demo …' names."
+echo "  See docs/SEED-CATALOGS.md — Fly uses GIAB-style names; local make seed-pilot uses 'Pilot demo …' names."
 
 echo "seed-pilot-remote: verify DRS has objects"
 obj_count="$(curl_pilot "$BASE_URL/ga4gh/drs/v1/objects?limit=5" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")"
@@ -70,6 +72,24 @@ if need.issubset(names):
 sys.exit(1)
 " 2>/dev/null; then
   echo "seed-pilot-remote: OK — local pilot fixture names present (make seed-pilot)"
+fi
+
+# Fly pilot fixture names (pilot-deploy seed manifest)
+if curl_pilot "$BASE_URL/ga4gh/drs/v1/objects?limit=500" | python3 -c "
+import json, sys
+need = {
+    'na12878_slice.bam',
+    'truth_slice.vcf.gz',
+    'ref_slice.fa',
+}
+objs = json.load(sys.stdin)
+names = {o.get('name') for o in objs}
+if need.issubset(names):
+    print('fly-pilot-fixtures')
+    sys.exit(0)
+sys.exit(1)
+" 2>/dev/null; then
+  echo "seed-pilot-remote: OK — Fly pilot fixture names present (./pilot.sh seed all)"
 fi
 
 echo "seed-pilot-remote: verify cohort sample ${PILOT_SAMPLE_ID} (optional)"

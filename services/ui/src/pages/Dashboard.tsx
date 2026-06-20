@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { ServiceHealthPanel } from '@/components/ServiceHealthPanel';
 import { MetricTile } from '@/components/MetricTile';
 import { useI18n, useRunStateLabel } from '@/i18n/I18nProvider';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
+import { pickSeedHintKey } from '@/lib/pilotContext';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/api/client';
 import {
@@ -84,6 +86,7 @@ const RUN_STATE_COLORS: Record<string, string> = {
 export function Dashboard() {
   const { t } = useI18n();
   const labelRunState = useRunStateLabel();
+  const { data: adminConfig } = useAdminConfig();
   const { data: runsData, isLoading: runsLoading } = useQuery({
     queryKey: ['wes', 'runs', 'recent'],
     queryFn: () => apiGet<RunListResponse>('/ga4gh/wes/v1/runs?page_size=20'),
@@ -227,7 +230,7 @@ export function Dashboard() {
               {recentRuns.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 py-10 text-center text-sm text-muted-foreground space-y-2">
                   <p>{t('dashboard.noRuns')}</p>
-                  <p className="text-xs px-4">{t('dashboard.noRunsSeedHint')}</p>
+                  <p className="text-xs px-4">{t(pickSeedHintKey(adminConfig, 'dashboard.noRunsSeedHint'))}</p>
                 </div>
               ) : (
                 <ul className="space-y-2">
@@ -388,7 +391,9 @@ export function Dashboard() {
               <CardContent className="pt-6">
                 <p className="text-sm font-medium text-foreground">{t('dashboard.getStarted')}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{t('dashboard.getStartedHint')}</p>
-                <p className="mt-2 text-xs text-muted-foreground/90">{t('dashboard.pilotEnrichHint')}</p>
+                <p className="mt-2 text-xs text-muted-foreground/90">
+                  {t(pickSeedHintKey(adminConfig, 'dashboard.pilotEnrichHint'))}
+                </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button asChild size="sm">
                     <Link to={'/study/setup' as any}>{t('dashboard.studySetup')}</Link>

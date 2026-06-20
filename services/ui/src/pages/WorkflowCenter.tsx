@@ -11,6 +11,8 @@ import { ErrorWithReport } from '@/components/ErrorWithReport';
 import { errorMessageFromUnknown } from '@/lib/apiErrorReport';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useRunStateLabel } from '@/i18n/I18nProvider';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
+import { pickSeedHintKey } from '@/lib/pilotContext';
 import type { WesState } from '@/api/types';
 
 interface RunSummary {
@@ -63,6 +65,7 @@ export function WorkflowCenter() {
   const { t } = useI18n();
   const runStateLabel = useRunStateLabel();
   const queryClient = useQueryClient();
+  const { data: adminConfig } = useAdminConfig();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['wes', 'runs'],
@@ -139,7 +142,7 @@ export function WorkflowCenter() {
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>{t('workflows.noRuns')}</p>
               <p className="text-xs">{t('workflows.emptyTesHint')}</p>
-              <p className="text-xs">{t('workflows.emptySeedHint')}</p>
+              <p className="text-xs">{t(pickSeedHintKey(adminConfig, 'workflows.emptySeedHint'))}</p>
             </div>
           )}
           {!isLoading && runs.length > 0 && (

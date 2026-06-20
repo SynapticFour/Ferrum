@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { apiGet } from '@/api/client';
 import { Plus, Users, Lock } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
+import { pickSeedHintKey } from '@/lib/pilotContext';
 
 const COHORTS_BASE = '/cohorts/v1';
 
@@ -30,6 +32,7 @@ type ListCohortsResponse = {
 
 export function CohortListPage() {
   const { t } = useI18n();
+  const { data: adminConfig } = useAdminConfig();
   const { data, isLoading, error } = useQuery({
     queryKey: ['cohorts'],
     queryFn: () => apiGet<ListCohortsResponse>(`${COHORTS_BASE}/cohorts?limit=50`),
@@ -64,7 +67,7 @@ export function CohortListPage() {
               <p className="font-medium">{t('cohortList.emptyTitle')}</p>
               <p className="text-muted-foreground">{t('cohortList.emptyBody')}</p>
               <p className="text-muted-foreground border rounded-md p-3 bg-muted/30">
-                {t('cohortList.emptySeedHint')}
+                {t(pickSeedHintKey(adminConfig, 'cohortList.emptySeedHint'))}
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 <Button asChild variant="outline" size="sm">

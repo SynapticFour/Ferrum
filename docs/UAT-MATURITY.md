@@ -2,7 +2,7 @@
 
 Living checklist for pilot readiness: what is done, what is next, and what remains before **minimum unsupervised tester** maturity.
 
-**Last updated:** 2026-06-14 (Sprint 3 — backend hardening)
+**Last updated:** 2026-06-14 (Sprint 4 — Fly / operator + unsupervised tester sweep)
 
 ---
 
@@ -14,8 +14,9 @@ Living checklist for pilot readiness: what is done, what is next, and what remai
 | **L1 — Guided UAT** | Happy path + problem reporting; testers need onboarding doc |
 | **L2 — Minimum unsupervised** | Clear errors, noop/auth expectations, import→analysis without wrong workspace |
 | **L3 — Production-adjacent** | Chunk hardening, Range preview, auth on all ingest, Fly cold-start UX |
+| **L4 — Unsupervised Fly pilot** | First-visit guide, seed catalog clarity, operator docs for pause/idle, health checks |
 
-**Current target:** **L3** for local TES + Fly pilot (Sprint 3 complete).
+**Current target:** **L4** for Fly pilot testers (Sprint 4 complete). Local TES remains **L3+** with real compute.
 
 ---
 
@@ -76,27 +77,39 @@ Living checklist for pilot readiness: what is done, what is next, and what remai
 
 ---
 
-## Sprint 4 — Fly / operator (target: unsupervised Fly)
+## Sprint 4 — Fly / operator — DONE
 
-| # | Task | Notes |
-|---|------|-------|
-| 4.1 | Tester one-pager in UI (welcome / first visit) | Cold start, sign-in, noop WES, import path, report problem |
-| 4.2 | Align Fly seed names with local smoke expectations OR document both catalogs | GIAB slice vs “Pilot demo …” |
-| 4.3 | Keycloak Fly HTTP health check | Match Ferrum/ga4gh-infra |
-| 4.4 | `obtain-passport.sh` hard-fail on invalid JWT | No silent `.env` write |
-| 4.5 | Pause vs auto-start documentation in HANDOFF | Testers hitting idle wake |
+**Goal:** Unsupervised Fly testers + operator runbook alignment.
+
+| # | Task | Status | Notes |
+|---|------|--------|-------|
+| 4.1 | Tester one-pager in UI (welcome / first visit) | Done | `TesterWelcomeDialog` on Fly pilot (auth + noop) |
+| 4.2 | Align Fly seed names OR document both catalogs | Done | `docs/SEED-CATALOGS.md`; remote verify checks both name sets |
+| 4.3 | Keycloak Fly HTTP health check | Done | `/health/ready` on 8080; Fly check + `pilot.sh health` |
+| 4.4 | `obtain-passport.sh` hard-fail on invalid JWT | Done | No `.env` write unless Bearer test passes |
+| 4.5 | Pause vs auto-start in HANDOFF | Done | Tester vs operator pause table in HANDOFF |
 
 ---
 
-## Known gaps (unchanged — track only)
+## Post–Sprint 4 sweep (fixed in same pass)
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Fly empty states mention `make seed-pilot` | Done | `pilot.remoteSeedHint` when auth + noop |
+| `?analyze=1` when object missing | Done | `object.analyzeDeepLinkFailed` |
+| Cohort run with 0 samples | Done | `cohort.runNoSamples` banner in dialog |
+
+---
+
+## Known gaps (track only)
 
 ### Fly pilot fragility
 
-- Cold start 30–90s (`min_machines_running = 0`)
-- WES **noop** on Fly — runs complete without container output
-- Passport ~3h expiry
-- Two seed systems (local `make seed-pilot` vs `pilot.sh seed all`)
-- Beacon ingest via `fly ssh` can fail silently (operator seed)
+- Cold start 30–90s on Ferrum (`min_machines_running = 0`) — mitigated by UI guide + retry
+- WES **noop** on Fly — mitigated by noop banner + tester guide
+- Passport ~3h expiry — mitigated by session banners
+- Two seed systems — **documented** in `SEED-CATALOGS.md`; not unified names (by design)
+- Beacon ingest via `fly ssh` can fail silently (operator seed) — operator smoke only
 
 ### Local environment
 
@@ -104,11 +117,10 @@ Living checklist for pilot readiness: what is done, what is next, and what remai
 - `make destroy` wipes Crypt4GH keys volume
 - `up-pilot-cloud` requires Fly broker up
 
-### UX (post sprint 1)
+### UX (remaining)
 
-- Session errors still English-only in `api/client.ts` throw paths (banner uses i18n)
-- Cohort run with 0 samples — weak blocking message
-- `?analyze=1` deep link when object load fails
+- Session errors still English-only in `api/client.ts` throw paths (display layers use i18n)
+- HelixTest / Africa profiles still skip bandwidth-resume at conformance layer (Rust covered)
 
 ---
 
@@ -139,6 +151,7 @@ Living checklist for pilot readiness: what is done, what is next, and what remai
 ## Related docs
 
 - [PASTEUR-PILOT.md](PASTEUR-PILOT.md) — Fly URLs and local profiles
+- [SEED-CATALOGS.md](SEED-CATALOGS.md) — local vs Fly DRS object names
 - [TEST-COVERAGE-GAPS.md](TEST-COVERAGE-GAPS.md) — CI coverage holes
 - [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md) — ingest API notes
 - `synapticfour-business/.../pilot-deploy/HANDOFF.md` — operator runbook (private)

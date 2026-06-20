@@ -110,6 +110,25 @@ export const frOverlay = {
     compact:
       'Mode démo : les exécutions se terminent au niveau API uniquement — pas de sortie de conteneur réelle sur ce déploiement.',
   },
+  testerGuide: {
+    title: 'Guide rapide testeur pilote',
+    intro: 'Cette démo hébergée utilise une vraie connexion et des API de données. Les analyses simulent la fin — pas de calcul conteneur sur ce serveur.',
+    bulletUi: 'Utilisez cette interface Ferrum (/ui/) — pas la racine du broker ga4gh-infra.',
+    bulletSignIn: 'Connectez-vous quand demandé. Les sessions durent environ 3 h — reconnectez-vous ensuite.',
+    bulletColdStart:
+      'Après inactivité, le premier chargement peut prendre jusqu\'à 90 s (réveil du serveur). Réessayez en cas d\'erreur passerelle.',
+    bulletImport: 'Ajoutez des données : Données → Importer un fichier → choisir → Démarrer le téléversement. Liez à un espace de travail si demandé.',
+    bulletNoop: 'Les analyses sur ce serveur se terminent au niveau API seulement (mode démo) — pas de sortie GATK réelle.',
+    bulletReport: 'En cas d\'échec, utilisez Signaler un problème sur le panneau d\'erreur pour copier les diagnostics.',
+    pauseNote:
+      'Si l\'opérateur a mis tout le pilote en pause, les URL restent indisponibles jusqu\'à reprise — différent du réveil idle normal.',
+    browseData: 'Parcourir les données',
+    dismiss: 'Compris — masquer ce guide',
+  },
+  pilot: {
+    remoteSeedHint:
+      'Pilote hébergé : BAM/VCF démo après ./pilot.sh seed all par l\'opérateur. Si Données est vide, demandez-leur — vous pouvez aussi importer vous-même.',
+  },
   data: {
     title: 'Données',
     subtitle: 'Ajoutez des fichiers sur place ou téléversez des copies dans le stockage géré.',
@@ -258,6 +277,8 @@ export const frOverlay = {
   object: {
     noId: 'Aucun identifiant d\'objet.',
     notFound: 'Objet introuvable.',
+    analyzeDeepLinkFailed:
+      'Ce lien d\'analyse nécessite un objet valide. Ouvrez Données, choisissez un fichier puis « Utiliser dans une analyse » — ou vérifiez la connexion.',
     loading: 'Chargement de l\'objet…',
     details: 'Détails',
     lineage: 'Provenance',

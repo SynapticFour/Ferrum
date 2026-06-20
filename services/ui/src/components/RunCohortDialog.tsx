@@ -341,6 +341,11 @@ export function RunCohortDialog({
 
         {progress && <p className="text-sm text-muted-foreground">{progress}</p>}
         {error && <p className="text-sm text-destructive">{error}</p>}
+        {samples.length === 0 && (
+          <p className="text-sm text-amber-700 dark:text-amber-300 border rounded-md p-3 bg-amber-500/10">
+            {t('cohort.runNoSamples')}
+          </p>
+        )}
         <Button
           type="button"
           className="w-full gap-2"

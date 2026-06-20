@@ -28,6 +28,7 @@ There is **no web UI on the ga4gh-infra root URL** (API/broker only). End users 
 | Optional pilot files (local) | `make seed-pilot` after stack is up — BAM, VCF, chr22 ref+truth on MinIO |
 | Verify remote Fly (after operator seed) | `FERRUM_PASSPORT_JWT=… BASE_URL=https://pasteur-pilot-ferrum.fly.dev ./scripts/seed-pilot-remote.sh` — verify only |
 | **Seed Fly (operator)** | `cd synapticfour-business/customers/pasteur-tunis/pilot-deploy && ./pilot.sh seed all` |
+| **Seed name catalogs** | [SEED-CATALOGS.md](SEED-CATALOGS.md) — local `Pilot demo …` vs Fly GIAB-style filenames |
 
 `init-demo.sh` (container init) keeps conformance IDs and honest URL catalog placeholders. **`make seed-pilot`** is optional post-start enrichment: uploads `tiny.bam`, `.bai`, `tiny.vcf`, and a **TinyGermlineHC reference bundle** (`pilot-ref.fa`, truth `.vcf.gz`/`.tbi`) to MinIO, wires `pilot-demo-01` in `demo-cohort-01`, and adds provenance edges. Build fixtures first if missing: `bash profiles/pipeline/fixtures/build-pilot-ref-bundle.sh` and `build-tiny-bam.sh`. Idempotent — safe to re-run. Verify with **`make smoke-pilot`**.
 
@@ -52,6 +53,7 @@ cd synapticfour-business/customers/pasteur-tunis/pilot-deploy
 - **Sign-in:** broker → Keycloak demo users (see HANDOFF; rotate before external share).
 - **Data:** DRS/Beacon after `./pilot.sh seed all`; workspaces created by seed when `FERRUM_PASSPORT_JWT` is set.
 - **WES on Fly:** TES `noop` — API lifecycle only; use `make up-tes` locally for real container runs.
+- **Idle wake:** Ferrum may take up to 90s on first load after idle; operator `pause all` stops everything until resume (see HANDOFF “Tester experience”).
 
 ## Legal
 

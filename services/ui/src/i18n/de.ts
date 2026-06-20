@@ -107,6 +107,25 @@ const deOverlay = {
     hint: 'Für echte GATK-Läufe nutzen Sie eine lokale Ferrum-Instanz mit Docker oder SLURM/LSF, oder sehen Sie sich Referenz-Ausgaben aus den Demo-Daten an.',
     compact: 'Demo-Modus: Läufe werden nur auf API-Ebene abgeschlossen — keine echten Container-Ausgaben.',
   },
+  testerGuide: {
+    title: 'Pilot-Tester — Kurzanleitung',
+    intro: 'Diese gehostete Demo nutzt echte Anmeldung und Daten-APIs. Analysen werden nur simuliert — kein Container-Compute auf diesem Server.',
+    bulletUi: 'Nutzen Sie diese Ferrum-Oberfläche (/ui/) — nicht die ga4gh-infra-Broker-Startseite.',
+    bulletSignIn: 'Bei Aufforderung anmelden. Sitzungen dauern etwa 3 Stunden — danach erneut anmelden.',
+    bulletColdStart:
+      'Nach Leerlauf kann der erste Seitenaufbau bis zu 90 Sekunden dauern (Server startet). Bei Gateway-Fehler erneut versuchen.',
+    bulletImport: 'Daten hinzufügen: Daten → Datei importieren → Datei wählen → Upload starten. Vor Analyse ggf. mit Arbeitsbereich verknüpfen.',
+    bulletNoop: 'Analysen auf diesem Server enden nur auf API-Ebene (Demo-Modus) — keine echten GATK-Container-Ausgaben.',
+    bulletReport: 'Bei Fehlern „Problem melden“ im Fehlerpanel nutzen — kopiert Diagnose für den Betreiber.',
+    pauseNote:
+      'Wurde der gesamte Pilot vom Betreiber pausiert, bleiben alle URLs aus — das unterscheidet sich vom normalen Leerlauf-Aufwachen.',
+    browseData: 'Daten durchsuchen',
+    dismiss: 'Verstanden — Anleitung ausblenden',
+  },
+  pilot: {
+    remoteSeedHint:
+      'Gehosteter Pilot: Demo-BAM/VCF erscheinen nach ./pilot.sh seed all durch den Betreiber. Bei leerer Datenliste nachfragen — Import ist weiterhin möglich.',
+  },
   data: {
     title: 'Daten',
     subtitle: 'Bestehende Dateien registrieren oder Kopien in verwalteten Speicher hochladen.',
@@ -251,6 +270,8 @@ const deOverlay = {
   object: {
     noId: 'Keine Objekt-ID.',
     notFound: 'Objekt nicht gefunden.',
+    analyzeDeepLinkFailed:
+      'Dieser Analyse-Link benötigt ein gültiges Objekt. Öffnen Sie Daten, wählen Sie eine Datei und „In Analyse verwenden“ — oder prüfen Sie die Anmeldung.',
     loading: 'Objekt wird geladen…',
     details: 'Details',
     lineage: 'Herkunft',

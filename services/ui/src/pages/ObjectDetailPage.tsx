@@ -119,7 +119,16 @@ export function ObjectDetailPage() {
 
   if (!id) return <p className="text-muted-foreground">{t('object.noId')}</p>;
   if (isLoading) return <p className="text-muted-foreground">{t('object.loading')}</p>;
-  if (error || !obj) return <p className="text-destructive">{t('object.notFound')}</p>;
+  if (error || !obj) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="text-destructive">{t('object.notFound')}</p>
+        {search.analyze && (
+          <p className="text-muted-foreground">{t('object.analyzeDeepLinkFailed')}</p>
+        )}
+      </div>
+    );
+  }
 
   const remote = externalUrl(obj);
   const workspaceId = obj.workspace_id ?? null;
