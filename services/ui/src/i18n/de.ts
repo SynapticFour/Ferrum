@@ -87,7 +87,7 @@ const deOverlay = {
     getStarted: 'Erste Schritte',
     getStartedHint: 'Folgen Sie der geführten Einrichtung oder legen Sie einen Arbeitsbereich an und starten Sie Ihre erste Analyse.',
     pilotEnrichHint:
-      'Für Demo-Dateien auf verwaltetem Speicher (BAM, VCF, Referenzpaket): nach make up-tes make seed-pilot ausführen — siehe docs/PASTEUR-PILOT.md.',
+      'Für Demo-Dateien auf verwaltetem Speicher (BAM, VCF, Referenzpaket): nach make up-tes make seed-pilot ausführen — siehe docs/INSTALLATION.md.',
     studySetup: 'Pilot-Übersicht',
     runWorkflow: 'Analyse starten',
   },
@@ -582,6 +582,13 @@ const deOverlay = {
     visas: 'Zugriffs-Visas',
     noVisas: 'Keine Visas in diesem Passport.',
     rawClaims: 'Token-Claims',
+    tokenExpires: 'Token läuft ab',
+    apiTokenTitle: 'API-Skripte (curl, ui-parity)',
+    apiTokenHint:
+      'Für make ui-parity-fly und obtain-passport.sh. Der Login-Callback entfernt das Token aus der URL — hier kopieren, solange Sie angemeldet sind.',
+    copyApiToken: 'API-Token kopieren',
+    apiTokenCopied: 'Kopiert',
+    apiTokenCopyFailed: 'Kopieren fehlgeschlagen — DevTools-Konsole nutzen',
     authDisabled: 'Authentifizierung ist in dieser Installation deaktiviert.',
     notSignedIn: 'Sie sind nicht angemeldet. Nutzen Sie „Anmelden“ in der Seitenleiste, wenn Ihr IdP konfiguriert ist.',
     demoMode: 'Offener Demo-Modus',

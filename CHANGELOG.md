@@ -34,7 +34,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Table security** — PostgreSQL RLS on governance tables; residency audit HTTP filtering for non-admin callers; [COMPLIANCE.md](docs/COMPLIANCE.md) sensitive-table section.
 - **`ferrum-reference` crate** — Pluggable reference genome registry (`reference_genomes` table); `/api/v1/references` HTTP API; WES `REFERENCE_MISMATCH` warnings; Beacon `meta.referenceGenome`.
 - **HelixTest Africa mode** — `--mode ferrum-africa --africa-profile {offline,ont,outbreak,federation,all}` (opt-in; standard `--mode ferrum` unchanged).
-- **Docs** — [REFERENCE-GENOMES.md](docs/REFERENCE-GENOMES.md); Africa Mode in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md); reference genomes section in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); [TEST-COVERAGE-GAPS.md](docs/TEST-COVERAGE-GAPS.md); ADR-016 in [DECISIONS.md](DECISIONS.md).
+- **Docs** — [REFERENCE-GENOMES.md](docs/REFERENCE-GENOMES.md); Africa Mode in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md); reference genomes section in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); [internal/TEST-COVERAGE-GAPS.md](docs/internal/TEST-COVERAGE-GAPS.md); ADR-016 in [DECISIONS.md](DECISIONS.md).
 - **CI** — `.github/workflows/africa-conformance.yml` (additive Africa HelixTest profiles).
 - **`ferrum-federation` crate** — P2P federated Beacon fan-out (`FerrumPeer`, `FederationConfig`, rate limits); `GET /ga4gh/beacon/v2/g_variants?federate=true`.
 - **Bandwidth-adaptive DRS** — `BandwidthMonitor`, `transfer_checkpoints`, `resume_token` on access, optional `Content-Encoding: zstd` on low-bandwidth streams.
@@ -61,7 +61,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
-- **Demo init / partial DB volumes** — `deploy/scripts/init-demo.sh` records applied migrations in `_ferrum_init_migrations`, bootstraps from `_sqlx_migrations` or existing schema, and skips destructive re-apply on re-init; only pending `.up.sql` files run. Documented in [TEST-COVERAGE-GAPS.md](docs/TEST-COVERAGE-GAPS.md) and [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
+- **Demo init / partial DB volumes** — `deploy/scripts/init-demo.sh` records applied migrations in `_ferrum_init_migrations`, bootstraps from `_sqlx_migrations` or existing schema, and skips destructive re-apply on re-init; only pending `.up.sql` files run. Documented in [internal/TEST-COVERAGE-GAPS.md](docs/internal/TEST-COVERAGE-GAPS.md) and [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
 - **CI** — `cargo fmt` drift; laptop-mode job falls back when `unshare --net` is unavailable on GitHub runners; E2E script invoked with `bash`; Clippy fixes across workspace.
 - **ONT ingest API** — response includes `drs_object_id` alias alongside `object_id` for HelixTest Africa ONT profile.
 - **DRS GET** — `ont_metrics` included on object metadata when present (laptop/SQLite and Postgres).

@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
-# Verify pilot/demo data on a remote Ferrum gateway (e.g. Fly pasteur-pilot).
+# Verify pilot/demo data on a remote Ferrum gateway (e.g. a Fly deployment).
 #
-# This script does NOT seed remote Fly — use the operator path first:
-#   cd synapticfour-business/customers/pasteur-tunis/pilot-deploy
-#   ./scripts/obtain-passport.sh --write-env
-#   ./pilot.sh seed all
-#
-# Then verify:
-#   FERRUM_PASSPORT_JWT=… BASE_URL=https://pasteur-pilot-ferrum.fly.dev ./scripts/seed-pilot-remote.sh
+# Set FERRUM_PASSPORT_JWT and BASE_URL, then run:
+#   FERRUM_PASSPORT_JWT=… BASE_URL=https://your-ferrum.example ./scripts/seed-pilot-remote.sh
 #
 # Local enrichment (Docker stack with MinIO fixtures):
 #   make seed-pilot
-#   # or: BASE_URL=http://localhost:8080 bash scripts/seed-pilot-demo.sh
 #
-# See docs/SEED-CATALOGS.md for local vs Fly DRS name differences.
+# See docs/internal/SEED-CATALOGS.md for local vs remote DRS name differences.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -47,7 +41,7 @@ curl_pilot "$BASE_URL/health" >/dev/null || {
 }
 
 echo "seed-pilot-remote: verifying $BASE_URL (workspace=${PILOT_WORKSPACE_ID}, cohort=${PILOT_COHORT_ID})"
-echo "  See docs/SEED-CATALOGS.md — Fly uses GIAB-style names; local make seed-pilot uses 'Pilot demo …' names."
+echo "  See docs/internal/SEED-CATALOGS.md — remote deploys may use different DRS object names than local make seed-pilot."
 
 echo "seed-pilot-remote: verify DRS has objects"
 obj_count="$(curl_pilot "$BASE_URL/ga4gh/drs/v1/objects?limit=5" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")"

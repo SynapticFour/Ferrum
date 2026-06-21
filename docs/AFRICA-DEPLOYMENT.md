@@ -361,7 +361,7 @@ helixtest --all --mode ferrum-africa --africa-profile all
 
 Profiles: `offline`, `ont`, `outbreak`, `federation`, `all`. See [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md).
 
-**What Africa HelixTest does not cover yet** (bandwidth/resume, power mode, WES reference mismatch, federation without a peer, outbreak when disabled in config): [TEST-COVERAGE-GAPS.md](TEST-COVERAGE-GAPS.md).
+**What Africa HelixTest does not cover yet** (bandwidth/resume, power mode, WES reference mismatch, federation without a peer, outbreak when disabled in config): see [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md) and [internal/TEST-COVERAGE-GAPS.md](internal/TEST-COVERAGE-GAPS.md).
 
 **Demo stack:** after upgrading Ferrum on an existing Postgres volume, `ferrum-init` applies only migrations not recorded in `_ferrum_init_migrations` (see init script). Use `docker compose down -v` only when you need a completely fresh database.
 

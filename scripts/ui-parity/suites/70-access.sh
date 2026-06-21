@@ -25,12 +25,12 @@ else
     ui_pass "access-status" "ADS available"
   else
     ui_skip "access-status" "ADS not configured on this profile"
-    exit 0
+    ui_suite_done 0
   fi
 fi
 
 if [[ "${REQUIRE_AUTH:-0}" == "1" ]] && ! require_jwt_or_skip_suite; then
-  exit 0
+  ui_suite_done 0
 fi
 
 expect_2xx_soft "access-catalog" GET "/access/v1/catalog/datasets?resource_type=dataset"

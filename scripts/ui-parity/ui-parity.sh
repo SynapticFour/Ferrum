@@ -79,19 +79,25 @@ PROFILE_FILE="$UI_PARITY_DIR/profiles/${PROFILE}.env"
   exit 2
 }
 
+# Export profile variables to suite subprocesses.
+set -a
 # shellcheck source=/dev/null
 source "$PROFILE_FILE"
+set +a
 
 # Fly: load pilot-deploy .env if present (FERRUM_URL, secrets paths).
 if [[ "$PROFILE" == "fly" ]]; then
-  pilot_dir="${PILOT_DIR:-$ROOT/../synapticfour-business/customers/pasteur-tunis/pilot-deploy}"
-  if [[ -f "$pilot_dir/.env" ]]; then
+  pilot_dir="${PILOT_DIR:-}"
+  if [[ -z "$pilot_dir" && -d "$ROOT/../synapticfour-business/customers/pasteur-tunis/pilot-deploy" ]]; then
+    pilot_dir="$ROOT/../synapticfour-business/customers/pasteur-tunis/pilot-deploy"
+  fi
+  if [[ -n "$pilot_dir" && -f "${pilot_dir}/.env" ]]; then
     # shellcheck source=/dev/null
     source "$pilot_dir/.env"
     export FERRUM_URL="${FERRUM_URL:-https://${PILOT_PREFIX:-pasteur-pilot}-ferrum.fly.dev}"
     BASE_URL="$FERRUM_URL"
   fi
-  if [[ -f "$pilot_dir/.pilot-secrets.env" ]] && [[ -z "${FERRUM_PASSPORT_JWT:-}" ]]; then
+  if [[ -n "$pilot_dir" && -f "${pilot_dir}/.pilot-secrets.env" ]] && [[ -z "${FERRUM_PASSPORT_JWT:-}" ]]; then
     # shellcheck source=/dev/null
     source "$pilot_dir/.pilot-secrets.env" 2>/dev/null || true
   fi
@@ -180,7 +186,8 @@ SUITES=(
 
 for suite in "${SUITES[@]}"; do
   ui_log "--- $(basename "$suite") ---"
-  bash "$suite" || ui_fail "suite-$(basename "$suite" .sh)" "suite exited with error"
+  # shellcheck source=/dev/null
+  source "$suite" || ui_fail "suite-$(basename "$suite" .sh)" "suite exited with error"
 done
 
 ui_parity_exit

@@ -53,11 +53,11 @@ adopt it wholesale. But new deployments, research consortia building GA4GH-nativ
 infrastructure, and institutions preparing for EHDS obligations now have a starting
 point that didn't exist before.
 
-**What we still need:** a first production partner with real clinical data volumes.
-Ferrum is tested — HelixTest runs in CI, the demo is reproducible — but large-scale
-clinical deployment has not happened yet. That is something we want to do with the
-right partner, not alone.
-If that is you: [contact@synapticfour.com](mailto:contact@synapticfour.com)
+Ferrum is tested continuously — HelixTest runs in CI, the demo stack is reproducible, and
+conformance profiles cover standard and Field Edge deployments. For production rollout at
+clinical scale, we recommend a staged pilot with your data volumes and operator runbooks.
+
+Questions, pilots, or commercial licensing: [contact@synapticfour.com](mailto:contact@synapticfour.com)
 
 ---
 

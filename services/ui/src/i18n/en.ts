@@ -84,7 +84,7 @@ export const en = {
     getStarted: 'Get started',
     getStartedHint: 'Follow the guided study setup or create a workspace and submit your first analysis.',
     pilotEnrichHint:
-      'For managed-storage demo files (BAM, VCF, reference bundle), operators run make seed-pilot after make up-tes — see docs/PASTEUR-PILOT.md.',
+      'For managed-storage demo files (BAM, VCF, reference bundle), operators run make seed-pilot after make up-tes — see docs/INSTALLATION.md.',
     studySetup: 'Pilot guide',
     runWorkflow: 'Run analysis',
   },
@@ -666,6 +666,13 @@ export const en = {
     visas: 'Access visas',
     noVisas: 'No visas in this passport.',
     rawClaims: 'Token claims',
+    tokenExpires: 'Token expires',
+    apiTokenTitle: 'API scripts (curl, ui-parity)',
+    apiTokenHint:
+      'For make ui-parity-fly and obtain-passport.sh. The login callback removes the token from the URL; copy it here while signed in.',
+    copyApiToken: 'Copy API token',
+    apiTokenCopied: 'Copied',
+    apiTokenCopyFailed: 'Copy failed — use DevTools console',
     authDisabled: 'Authentication is disabled on this deployment.',
     notSignedIn: 'You are not signed in. Use Sign in in the sidebar when your institute identity provider is configured.',
     demoMode: 'Open demo mode',

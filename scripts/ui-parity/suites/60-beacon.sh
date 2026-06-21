@@ -35,7 +35,7 @@ PY
 code="$(http_code POST "/ga4gh/beacon/v2/g_variants/query" -d "$payload")"
 if [[ ! "$code" =~ ^2 ]]; then
   ui_fail "beacon-query" "POST g_variants/query → HTTP $code"
-  exit 0
+  ui_suite_done 0
 fi
 
 resp="$(http_body POST "/ga4gh/beacon/v2/g_variants/query" -d "$payload")"

@@ -15,10 +15,8 @@ export FERRUM_PASSPORT_JWT='…'   # obtain-passport.sh
 make ui-parity-pilot-cloud
 
 # Fly Pasteur pilot
-cd ../synapticfour-business/customers/pasteur-tunis/pilot-deploy
-./scripts/obtain-passport.sh --write-env
-./pilot.sh seed all
-cd ../../../../Ferrum
+export FERRUM_PASSPORT_JWT='…'   # obtain-passport.sh or Settings → Profile → Copy API token
+export PILOT_DIR=/path/to/pilot-deploy   # optional — directory with .env for Fly URLs
 make ui-parity-fly
 ```
 

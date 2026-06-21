@@ -1,6 +1,6 @@
 # Ferrum documentation index
 
-Documentation is organized into: **Getting Started**, **Architecture**, **Standards**, and **Operations**.
+Documentation is organized into: **Getting Started**, **Architecture**, **Standards**, **Field Edge**, and **Operations**.
 
 ---
 
@@ -23,7 +23,8 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 |----------|-------------|
 | [README.md](../README.md) | Project overview, badges, quick start, features, deployment. |
 | [INSTALLATION.md](INSTALLATION.md) | Prerequisites, demo, build from source, production install, Ansible, Helm, config reference, upgrading, troubleshooting. |
-| [PASTEUR-PILOT.md](PASTEUR-PILOT.md) | Pasteur Tunis Fly pilot — URLs, local `make up-pilot*` profiles, pointer to operator HANDOFF. |
+| [ECOSYSTEM.md](ECOSYSTEM.md) | **Five-repo SynapticFour stack** — Ferrum, ga4gh-infra, Lab Kit, Demo, HelixTest |
+| [GA4GH-INFRA-INTEGRATION.md](GA4GH-INFRA-INTEGRATION.md) | External auth: broker, Passports, clearinghouse, service registry |
 | [deployment/README.md](deployment/README.md) | Deployment paths matrix, update/bugfix delivery strategy, preflight checks. |
 | [deployment/OFFLINE-AIRGAP.md](deployment/OFFLINE-AIRGAP.md) | Air-gapped deployment flow (export/import bundles). |
 
@@ -33,12 +34,14 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 | Document | Description |
 |----------|-------------|
-| [ECOSYSTEM.md](ECOSYSTEM.md) | **Five-repo SynapticFour stack** — Ferrum, ga4gh-infra, Lab Kit, Demo, HelixTest |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System diagram, monorepo design, ferrum-core, **ferrum-storage**, service isolation, data flows, DB schema, async streaming, config system, deployment topologies. |
 | [STORAGE-BACKENDS.md](STORAGE-BACKENDS.md) | Object storage: `LocalStorage`, `S3Storage`, `put_file`, optional OpenDAL. |
 | [PERFORMANCE.md](../PERFORMANCE.md) | TB-scale options: libdeflate, benchmarks, BAM lazy ingest feature, cross-links. |
 | [PERFORMANCE-CRYPT4GH.md](PERFORMANCE-CRYPT4GH.md) | DRS **Plain vs Crypt4GH** benchmarks: comparable objects, curl/Python timing, `X-Ferrum-DRS-Stream-Path`, logs, pitfalls, CI microbench script. |
 | [WES-WORKFLOW-ENGINES.md](WES-WORKFLOW-ENGINES.md) | WES **`workflow_type`** matrix (WDL, **Nextflow**, CWL, Snakemake), TES defaults, `workflow_engine_params`, roadmap notes. |
+| [FEDERATION.md](FEDERATION.md) | Multi-node federation: registry, peer discovery, federated Beacon |
+| [REFERENCE-GENOMES.md](REFERENCE-GENOMES.md) | Reference genome registry and workflow alignment |
+| [DATA-RESIDENCY-AUDIT.md](DATA-RESIDENCY-AUDIT.md) | Residency audit chains and export |
 
 ---
 
@@ -62,6 +65,24 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md) | **Machine ingest for Lab Kit:** `/api/v1/ingest` (register, upload, jobs), auth, Crypt4GH, idempotency, curl examples. |
 | [CRYPT4GH.md](CRYPT4GH.md) | Crypt4GH transparent encryption: header re-wrapping, security invariants, and operational key management. |
 | [HTSGET.md](HTSGET.md) | GA4GH htsget 1.3.0 tickets (reads/variants): ticket URLs, service-info, validation and DRS `/stream` mapping. |
+| [OUTBREAK-MODE.md](OUTBREAK-MODE.md) | Emergency outbreak policies, Beacon/DRS access overrides |
+
+---
+
+## Field Edge (Africa / offline)
+
+| Document | Description |
+|----------|-------------|
+| [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md) | Field Edge deployment guide: hardware, sync, ONT, Beacon |
+| [FIELD-OPS.md](FIELD-OPS.md) | Operator runbook: power, bandwidth, updates |
+| [FIELD-AUTH-OFFLINE.md](FIELD-AUTH-OFFLINE.md) | JWKS offline cache, field roles, edge accounts |
+| [FIELD-SYNC-QUEUE.md](FIELD-SYNC-QUEUE.md) | Edge → hub sync queue |
+| [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md) | Hub-side sync ingestion |
+| [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md) | ONT basecalling integration |
+| [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md) | VCF → Beacon indexing on Edge |
+| [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md) | Field Edge in the five-repo stack |
+| [FIELD-REGULATORY.md](FIELD-REGULATORY.md) | Regulatory context (orientation only) |
+| [FIELD-GA4GH-DEMO-PI.md](FIELD-GA4GH-DEMO-PI.md) | Demo/benchmark scenarios for Field Edge |
 
 ---
 
@@ -76,9 +97,14 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [SECURITY.md](../SECURITY.md) | Supported versions, reporting vulnerabilities, security model, operator considerations. |
 | [COMPLIANCE.md](COMPLIANCE.md) | Regulatory compliance: GDPR, BDSG, Gaia-X, NIS2, EHDS, GA4GH |
 | [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md) | **Conformance & QA:** what HelixTest exercises in CI (WES, TES, DRS, TRS, Beacon, htsget, E2E, auth, Crypt4GH), URL mapping, demo object IDs, local runs, CI jobs. |
-| [TEST-COVERAGE-GAPS.md](TEST-COVERAGE-GAPS.md) | **Coverage matrix:** Rust tests vs HelixTest standard/Africa profiles; Docker init re-run behaviour; recommended follow-ups. |
 | [deployment/UPDATE-SOP.md](deployment/UPDATE-SOP.md) | SOP template for controlled updates/bugfixes and rollback. |
 | [deployment/RELEASE-CHECKLIST.md](deployment/RELEASE-CHECKLIST.md) | 10 required checks before release/hotfix rollout. |
+
+---
+
+## Internal notes (contributors)
+
+Engineering trackers, pilot runbooks, and coverage matrices live in **[internal/](internal/)** — not part of the customer documentation set.
 
 ---
 

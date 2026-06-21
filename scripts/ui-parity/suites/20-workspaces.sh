@@ -8,7 +8,7 @@ source "$SCRIPT_DIR/../lib/common.sh"
 ui_log "suite 20-workspaces"
 
 if [[ "${REQUIRE_AUTH:-0}" == "1" ]] && ! require_jwt_or_skip_suite; then
-  exit 0
+  ui_suite_done 0
 fi
 
 expect_2xx "workspaces-list" GET "/workspaces/v1/workspaces"

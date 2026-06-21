@@ -2,7 +2,7 @@
 
 Phase 5 closed the **medium-priority** federated-access items (in-app compute-pool submit, local WES auto-forward, grant dedup). This document lists what remains for future work.
 
-See also: [TEST-COVERAGE-GAPS.md](TEST-COVERAGE-GAPS.md), [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md).
+See also: [TEST-COVERAGE-GAPS.md](TEST-COVERAGE-GAPS.md), [../HELIXTEST-INTEGRATION.md](../HELIXTEST-INTEGRATION.md).
 
 ---
 

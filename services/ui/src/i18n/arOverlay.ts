@@ -85,7 +85,7 @@ export const arOverlay = {
     getStarted: 'البدء',
     getStartedHint: 'اتبع معالج إعداد الدراسة أو أنشئ مساحة عمل وابدأ تحليلك الأول.',
     pilotEnrichHint:
-      'لملفات العرض على التخزين المُدار: نفّذ make seed-pilot بعد make up-tes — راجع docs/PASTEUR-PILOT.md.',
+      'لملفات العرض على التخزين المُدار: نفّذ make seed-pilot بعد make up-tes — راجع docs/INSTALLATION.md في مستودع Ferrum.',
     studySetup: 'إعداد موجّه',
     runWorkflow: 'تشغيل تحليل',
   },

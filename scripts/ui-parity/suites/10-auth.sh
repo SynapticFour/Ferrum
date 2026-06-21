@@ -8,7 +8,7 @@ source "$SCRIPT_DIR/../lib/common.sh"
 ui_log "suite 10-auth"
 
 cfg="$(http_body GET "/admin/config")"
-python3 - "$cfg" "${REQUIRE_AUTH:-0}" <<'PY' || ui_fail "auth-config" "admin/config auth fields invalid"
+if python3 - "$cfg" "${REQUIRE_AUTH:-0}" <<'PY'
 import json, sys
 c = json.loads(sys.argv[1])
 require = sys.argv[2] == "1"
@@ -20,10 +20,14 @@ if require:
     login = a.get("broker_login_url") or ""
     assert "login/" in login, login
 else:
-    assert mode in ("demo", "external", None), mode
-print("ok")
+    assert a.get("require_auth") in (False, None), a
+    assert mode in ("demo", "external", "builtin", None), mode
 PY
-ui_pass "auth-config" "admin/config auth fields OK"
+then
+  ui_pass "auth-config" "admin/config auth fields OK"
+else
+  ui_fail "auth-config" "admin/config auth fields invalid"
+fi
 
 if [[ -n "${GA4GH_URL:-}" ]]; then
   code="$(curl -sS -o /dev/null -w '%{http_code}' "${GA4GH_URL}/service-info" 2>/dev/null || echo 000)"

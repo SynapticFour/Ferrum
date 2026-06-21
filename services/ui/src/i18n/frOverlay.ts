@@ -87,7 +87,7 @@ export const frOverlay = {
     getStartedHint:
       'Suivez l\'assistant d\'étude ou créez un espace de travail et lancez votre première analyse.',
     pilotEnrichHint:
-      'Fichiers démo sur stockage géré : exécutez make seed-pilot après make up-tes — voir docs/PASTEUR-PILOT.md.',
+      'Pour les fichiers démo sur stockage géré : exécutez make seed-pilot après make up-tes — voir docs/INSTALLATION.md sur le dépôt Ferrum.',
     studySetup: 'Configuration guidée',
     runWorkflow: 'Lancer une analyse',
   },

@@ -1,8 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useAuthConfig } from '@/hooks/useAuthConfig';
-import { decodeJwtPayload, isPassportExpired, loadStoredPassport } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
+import {
+  decodeJwtPayload,
+  isPassportExpired,
+  loadStoredPassport,
+  passportExpiresAt,
+} from '@/lib/auth';
 
 interface VisaClaim {
   type?: string;
@@ -38,6 +44,7 @@ export function ProfilePanel() {
   const setPassport = useAuthStore((s) => s.setPassport);
   const { data: authConfig } = useAuthConfig();
   const { t } = useI18n();
+  const [copyState, setCopyState] = useState<'idle' | 'ok' | 'err'>('idle');
 
   useEffect(() => {
     const stored = loadStoredPassport();
@@ -61,7 +68,8 @@ export function ProfilePanel() {
     );
   }
 
-  const claims = decodeJwtPayload(passportJwt);
+  const token = passportJwt;
+  const claims = decodeJwtPayload(token);
   if (!claims) {
     return <p className="text-sm text-destructive">{t('common.error')}</p>;
   }
@@ -69,6 +77,18 @@ export function ProfilePanel() {
   const sub = typeof claims.sub === 'string' ? claims.sub : undefined;
   const iss = typeof claims.iss === 'string' ? claims.iss : undefined;
   const visas = decodeVisas(claims.ga4gh_visa_v1 ?? claims.visas);
+  const expiresAt = passportExpiresAt(token);
+
+  async function copyApiToken() {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopyState('ok');
+      window.setTimeout(() => setCopyState('idle'), 2500);
+    } catch {
+      setCopyState('err');
+      window.setTimeout(() => setCopyState('idle'), 2500);
+    }
+  }
 
   return (
     <div className="space-y-4 text-sm">
@@ -84,6 +104,23 @@ export function ProfilePanel() {
           <p className="font-mono break-all text-xs">{iss}</p>
         </div>
       )}
+      {expiresAt && (
+        <div>
+          <span className="font-medium text-muted-foreground">{t('settings.tokenExpires')}</span>
+          <p className="text-xs">{expiresAt.toLocaleString()}</p>
+        </div>
+      )}
+      <div className="rounded-md border border-border bg-muted/30 p-4 space-y-2">
+        <p className="font-medium">{t('settings.apiTokenTitle')}</p>
+        <p className="text-xs text-muted-foreground">{t('settings.apiTokenHint')}</p>
+        <Button type="button" variant="outline" size="sm" onClick={() => void copyApiToken()}>
+          {copyState === 'ok'
+            ? t('settings.apiTokenCopied')
+            : copyState === 'err'
+              ? t('settings.apiTokenCopyFailed')
+              : t('settings.copyApiToken')}
+        </Button>
+      </div>
       <div>
         <span className="font-medium text-muted-foreground">{t('settings.visas')}</span>
         {visas.length === 0 ? (

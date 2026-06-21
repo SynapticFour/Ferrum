@@ -2,10 +2,13 @@
 # Shared helpers for ui-parity suites.
 set -euo pipefail
 
-UI_PARITY_PASS=0
-UI_PARITY_FAIL=0
-UI_PARITY_SKIP=0
-UI_PARITY_REPORT_LINES=()
+if [[ -z "${UI_PARITY_LIB_LOADED:-}" ]]; then
+  UI_PARITY_LIB_LOADED=1
+  UI_PARITY_PASS=0
+  UI_PARITY_FAIL=0
+  UI_PARITY_SKIP=0
+  UI_PARITY_REPORT_LINES=()
+fi
 
 ui_parity_init() {
   BASE_URL="${BASE_URL%/}"
@@ -43,12 +46,21 @@ ui_tier_write() {
   [[ "${UI_PARITY_TIER:-read}" == "write" ]]
 }
 
-auth_curl() {
-  local args=()
-  if [[ -n "${FERRUM_PASSPORT_JWT:-}" ]]; then
-    args+=(-H "Authorization: Bearer ${FERRUM_PASSPORT_JWT}")
+# End a suite when sourced from ui-parity.sh, or exit when run standalone.
+ui_suite_done() {
+  local code="${1:-0}"
+  if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    return "$code"
   fi
-  curl -sS "${args[@]}" "$@"
+  exit "$code"
+}
+
+auth_curl() {
+  if [[ -n "${FERRUM_PASSPORT_JWT:-}" ]]; then
+    curl -sS -H "Authorization: Bearer ${FERRUM_PASSPORT_JWT}" "$@"
+  else
+    curl -sS "$@"
+  fi
 }
 
 http_code() {
