@@ -1,9 +1,14 @@
 import { Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { dismissTesterWelcomeGuide } from '@/components/TesterWelcomeDialog';
-import { parseTokenFromLocationHash, storePassport } from '@/lib/auth';
+import {
+  isPassportExpired,
+  loadStoredPassport,
+  parseTokenFromLocationHash,
+  storePassport,
+} from '@/lib/auth';
 import { useAuthStore } from '@/stores/auth';
 import { useI18n } from '@/i18n/I18nProvider';
 
@@ -12,18 +17,27 @@ export function AuthCallback() {
   const setPassport = useAuthStore((s) => s.setPassport);
   const { t } = useI18n();
   const [failed, setFailed] = useState(false);
+  const handledRef = useRef(false);
 
   useEffect(() => {
-    const token = parseTokenFromLocationHash(window.location.hash);
-    if (token) {
-      storePassport(token);
-      setPassport(token);
-      dismissTesterWelcomeGuide();
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      void navigate({ to: '/', replace: true });
-    } else {
+    if (handledRef.current) return;
+    handledRef.current = true;
+
+    const fromHash = parseTokenFromLocationHash(window.location.hash);
+    const stored = loadStoredPassport();
+    const token =
+      fromHash ?? (stored && !isPassportExpired(stored) ? stored : null);
+
+    if (!token) {
       setFailed(true);
+      return;
     }
+
+    storePassport(token);
+    setPassport(token);
+    dismissTesterWelcomeGuide();
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    void navigate({ to: '/', replace: true });
   }, [navigate, setPassport]);
 
   if (failed) {

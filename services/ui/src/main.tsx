@@ -12,14 +12,14 @@ const queryClient = new QueryClient({
   },
 });
 
-function uiBasepath(): string | undefined {
-  if (typeof window === 'undefined') return undefined;
-  return window.location.pathname.startsWith('/ui') ? '/ui' : undefined;
+function routerBasepath(): string | undefined {
+  const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+  return base.length > 0 ? base : undefined;
 }
 
 const router = createRouter({
   routeTree,
-  basepath: uiBasepath(),
+  basepath: routerBasepath(),
 });
 
 declare module '@tanstack/react-router' {

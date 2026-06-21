@@ -2,7 +2,7 @@ const STORAGE_KEY = 'ferrum.passport';
 
 export function loadStoredPassport(): string | null {
   try {
-    return sessionStorage.getItem(STORAGE_KEY);
+    return sessionStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(STORAGE_KEY);
   } catch {
     return null;
   }
@@ -10,8 +10,13 @@ export function loadStoredPassport(): string | null {
 
 export function storePassport(jwt: string | null) {
   try {
-    if (jwt) sessionStorage.setItem(STORAGE_KEY, jwt);
-    else sessionStorage.removeItem(STORAGE_KEY);
+    if (jwt) {
+      sessionStorage.setItem(STORAGE_KEY, jwt);
+      localStorage.setItem(STORAGE_KEY, jwt);
+    } else {
+      sessionStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+    }
   } catch {
     /* private browsing */
   }
@@ -48,15 +53,23 @@ export function passportExpiresAt(jwt: string | null | undefined): Date | null {
 
 export function parseTokenFromLocationHash(hash: string): string | null {
   const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (!raw) return null;
   const params = new URLSearchParams(raw);
-  return params.get('access_token');
+  const fromParams = params.get('access_token');
+  if (fromParams) return fromParams;
+  const match = raw.match(/(?:^|[&#])access_token=([^&#]+)/);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
 }
 
+/** OAuth return path — must match TanStack Router basepath (Vite `base`). */
 export function authCallbackPath(): string {
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/ui')) {
-    return '/ui/auth/callback';
-  }
-  return '/auth/callback';
+  const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
+  return base ? `${base}/auth/callback` : '/auth/callback';
 }
 
 export function buildBrokerLoginUrl(brokerLoginUrl: string): string {

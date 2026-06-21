@@ -546,6 +546,7 @@ fn load_jwks_from_file(
 
 async fn fetch_jwks_cached(
     cfg: &AuthMiddlewareConfig,
+    force_refresh: bool,
 ) -> Result<jsonwebtoken::jwk::JwkSet, jsonwebtoken::errors::Error> {
     let cache_key = cfg
         .jwks_file
@@ -553,7 +554,11 @@ async fn fetch_jwks_cached(
         .or_else(|| cfg.jwks_url.clone())
         .unwrap_or_default();
 
-    if let Ok(cache) = JWKS_CACHE.lock() {
+    if force_refresh {
+        if let Ok(mut cache) = JWKS_CACHE.lock() {
+            cache.remove(&cache_key);
+        }
+    } else if let Ok(cache) = JWKS_CACHE.lock() {
         if let Some(entry) = cache.get(&cache_key) {
             if entry.fetched_at.elapsed() < cfg.jwks_cache_ttl {
                 return Ok(entry.set.clone());
@@ -568,18 +573,39 @@ async fn fetch_jwks_cached(
             .jwks_url
             .as_deref()
             .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-        let jwks_value = reqwest::Client::new()
-            .get(jwks_url)
-            .timeout(Duration::from_secs(15))
-            .send()
-            .await
-            .map_err(|e| {
-                tracing::warn!(jwks_url = %jwks_url, error = %e, "JWKS fetch failed");
-                jsonwebtoken::errors::ErrorKind::InvalidToken
-            })?
-            .json::<serde_json::Value>()
-            .await
-            .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        let client = reqwest::Client::new();
+        let mut last_err = None;
+        let mut jwks_value = None;
+        for attempt in 0..3 {
+            match client
+                .get(jwks_url)
+                .timeout(Duration::from_secs(15))
+                .send()
+                .await
+            {
+                Ok(resp) => match resp.json::<serde_json::Value>().await {
+                    Ok(value) => {
+                        jwks_value = Some(value);
+                        break;
+                    }
+                    Err(e) => last_err = Some(format!("JWKS JSON decode: {e}")),
+                },
+                Err(e) => {
+                    last_err = Some(e.to_string());
+                    if attempt < 2 {
+                        tokio::time::sleep(Duration::from_millis(500 * (attempt as u64 + 1))).await;
+                    }
+                }
+            }
+        }
+        let jwks_value = jwks_value.ok_or_else(|| {
+            tracing::warn!(
+                jwks_url = %jwks_url,
+                error = last_err.as_deref().unwrap_or("unknown"),
+                "JWKS fetch failed after retries"
+            );
+            jsonwebtoken::errors::ErrorKind::InvalidToken
+        })?;
         serde_json::from_value(jwks_value)
             .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?
     };
@@ -641,13 +667,24 @@ async fn decode_passport_jwt(
         .or(cfg.jwks_file.as_deref())
         .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
-    let set = fetch_jwks_cached(cfg).await?;
+    let set = fetch_jwks_cached(cfg, false).await?;
     let kid = decoded_header.kid.unwrap_or_default();
 
     let jwk = if !kid.is_empty() {
         set.find(&kid)
     } else {
         set.keys.first()
+    };
+
+    let jwk = if jwk.is_none() && cfg.jwks_file.is_none() {
+        let refreshed = fetch_jwks_cached(cfg, true).await?;
+        if !kid.is_empty() {
+            refreshed.find(&kid)
+        } else {
+            refreshed.keys.first()
+        }
+    } else {
+        jwk
     }
     .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
@@ -658,7 +695,7 @@ async fn decode_passport_jwt(
     validation.validate_exp = true;
     validation.algorithms = vec![Algorithm::RS256, Algorithm::ES256];
     if let Some(ref iss) = cfg.issuer {
-        validation.set_issuer(&[iss.as_str()]);
+        validation.set_issuer(&[iss.trim_end_matches('/')]);
     }
 
     let data = jsonwebtoken::decode::<PassportClaims>(token, &key, &validation)

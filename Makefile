@@ -26,7 +26,7 @@ help:
 	@echo "  make smoke-pilot Local smoke after up-tes (health, Crypt4GH, lineage, cohort, CWL + optional germline WES)"
 	@echo "  make test-tes    CI-style TES e2e (ingest, Crypt4GH round-trip, WES COMPLETE) — stack must be up"
 	@echo "  make test-tes-full  test-tes + smoke-pilot with SMOKE_REQUIRE_COMPLETE=1"
-	@echo "  make up-pilot  Start demo + ga4gh-infra with external auth (requires ../ga4gh-infra)"
+	@echo "  make up-pilot  Start demo + ga4gh-infra with external auth (builds ../ga4gh-infra locally)"
 	@echo "  make up-pilot-cloud  Local Ferrum + Fly ga4gh-infra/Keycloak (Fly must be running)"
 	@echo "  make down      Stop stack; keep volumes"
 	@echo "  make destroy   Stop stack; remove volumes and project images"
@@ -85,8 +85,8 @@ verify-parity:
 # Pilot profile: Ferrum + ga4gh-infra AAI (mock-idp). Sibling ga4gh-infra checkout required.
 up-pilot:
 	@test -d "$(GA4GH_INFRA_SRC)" || (echo "GA4GH_INFRA_SRC not found: $(GA4GH_INFRA_SRC)" && exit 1)
-	$(COMPOSE_PILOT) pull
-	$(COMPOSE_PILOT) up -d --build
+	@echo "Building ga4gh-infra from $(GA4GH_INFRA_SRC) (GHCR :0.1.0 tags are optional; local build is the default)."
+	$(COMPOSE_PILOT) up -d --build --pull never
 	@echo "Waiting for AAI broker (max 90s)..."
 	@for i in $$(seq 1 45); do \
 		curl -sf http://localhost:8180/service-info >/dev/null && echo "Broker OK" && break; \

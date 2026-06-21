@@ -49,9 +49,11 @@ function parseErrorMessage(text: string, status: number): { msg: string; session
 }
 
 function handleAuthFailure(sessionExpired: boolean) {
-  if (sessionExpired) {
-    useAuthStore.getState().setPassport(null);
-  }
+  if (!sessionExpired) return;
+  const jwt = useAuthStore.getState().passportJwt;
+  // Keep a locally-valid passport when the gateway rejects transiently (JWKS cold start, stale cache).
+  if (jwt && !isPassportExpired(jwt)) return;
+  useAuthStore.getState().setPassport(null);
 }
 
 export async function apiFetch<T>(

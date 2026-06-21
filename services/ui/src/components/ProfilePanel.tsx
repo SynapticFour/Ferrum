@@ -1,7 +1,8 @@
+import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useAuthConfig } from '@/hooks/useAuthConfig';
-import { decodeJwtPayload } from '@/lib/auth';
+import { decodeJwtPayload, isPassportExpired, loadStoredPassport } from '@/lib/auth';
 
 interface VisaClaim {
   type?: string;
@@ -34,8 +35,16 @@ function decodeVisas(raw: unknown): VisaClaim[] {
 
 export function ProfilePanel() {
   const passportJwt = useAuthStore((s) => s.passportJwt);
+  const setPassport = useAuthStore((s) => s.setPassport);
   const { data: authConfig } = useAuthConfig();
   const { t } = useI18n();
+
+  useEffect(() => {
+    const stored = loadStoredPassport();
+    if (stored && !passportJwt && !isPassportExpired(stored)) {
+      setPassport(stored);
+    }
+  }, [passportJwt, setPassport]);
 
   if (!authConfig?.require_auth) {
     return (
