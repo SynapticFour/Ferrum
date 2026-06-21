@@ -22,10 +22,8 @@ fn broker_jwks_decodes_with_rsa_components_and_from_jwk() {
     let pem = std::fs::read_to_string(broker_pem_path()).expect("broker pem");
     let private_key = RsaPrivateKey::from_pkcs8_pem(&pem).expect("parse pem");
     let public_key = private_key.to_public_key();
-    let n = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(public_key.n().to_bytes_be());
-    let e = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(public_key.e().to_bytes_be());
+    let n = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public_key.n().to_bytes_be());
+    let e = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(public_key.e().to_bytes_be());
     let kid = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .encode(Sha256::digest(public_key.n().to_bytes_be()));
 

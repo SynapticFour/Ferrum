@@ -701,8 +701,9 @@ fn map_passport_decode_error(
 }
 
 #[cfg(feature = "clearinghouse")]
-static CLEARINGHOUSE_CACHE: LazyLock<Mutex<HashMap<String, Arc<ga4gh_clearinghouse::Clearinghouse>>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+static CLEARINGHOUSE_CACHE: LazyLock<
+    Mutex<HashMap<String, Arc<ga4gh_clearinghouse::Clearinghouse>>>,
+> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[cfg(feature = "clearinghouse")]
 async fn clearinghouse_for_cfg(
@@ -758,16 +759,19 @@ async fn decode_passport_via_clearinghouse(
     cfg: &AuthMiddlewareConfig,
 ) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
     let clearinghouse = clearinghouse_for_cfg(cfg).await?;
-    let passport = clearinghouse.validate_passport(token).await.map_err(|err| {
-        tracing::warn!(
-            error = %err,
-            token_iss = peek_jwt_claim_string(token, "iss").as_deref().unwrap_or(""),
-            configured_iss = cfg.issuer.as_deref().unwrap_or(""),
-            jwks_url = ?cfg.jwks_url,
-            "clearinghouse passport validation failed"
-        );
-        jsonwebtoken::errors::ErrorKind::InvalidToken
-    })?;
+    let passport = clearinghouse
+        .validate_passport(token)
+        .await
+        .map_err(|err| {
+            tracing::warn!(
+                error = %err,
+                token_iss = peek_jwt_claim_string(token, "iss").as_deref().unwrap_or(""),
+                configured_iss = cfg.issuer.as_deref().unwrap_or(""),
+                jwks_url = ?cfg.jwks_url,
+                "clearinghouse passport validation failed"
+            );
+            jsonwebtoken::errors::ErrorKind::InvalidToken
+        })?;
     let visas = clearinghouse
         .extract_visas(&passport)
         .await
