@@ -581,6 +581,13 @@ export const arOverlay = {
     visas: 'تأشيرات الوصول',
     noVisas: 'لا توجد تأشيرات في هذا الجواز.',
     rawClaims: 'مطالبات الرمز',
+    tokenExpires: 'انتهاء صلاحية الرمز',
+    apiTokenTitle: 'سكربتات API (curl، ui-parity)',
+    apiTokenHint:
+      'لـ make ui-parity-fly و obtain-passport.sh. يزيل تسجيل الدخول الرمز من الرابط — انسخه هنا أثناء تسجيل الدخول.',
+    copyApiToken: 'نسخ رمز API',
+    apiTokenCopied: 'تم النسخ',
+    apiTokenCopyFailed: 'فشل النسخ — استخدم وحدة تحكم DevTools',
     authDisabled: 'المصادقة معطّلة في هذا النشر.',
     notSignedIn: 'لم تسجّل الدخول. استخدم تسجيل الدخول في الشريط الجانبي عند تكوين موفر الهوية.',
     demoMode: 'وضع العرض المفتوح',

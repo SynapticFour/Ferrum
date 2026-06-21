@@ -596,6 +596,13 @@ export const frOverlay = {
     visas: 'Visas d\'accès',
     noVisas: 'Aucun visa dans ce passeport.',
     rawClaims: 'Revendications du jeton',
+    tokenExpires: 'Expiration du jeton',
+    apiTokenTitle: 'Scripts API (curl, ui-parity)',
+    apiTokenHint:
+      'Pour make ui-parity-fly et obtain-passport.sh. La connexion retire le jeton de l\'URL — copiez-le ici tant que vous êtes connecté.',
+    copyApiToken: 'Copier le jeton API',
+    apiTokenCopied: 'Copié',
+    apiTokenCopyFailed: 'Échec de la copie — utilisez la console DevTools',
     authDisabled: 'L\'authentification est désactivée sur ce déploiement.',
     notSignedIn:
       'Vous n\'êtes pas connecté. Utilisez Se connecter dans la barre latérale lorsque votre fournisseur d\'identité est configuré.',
