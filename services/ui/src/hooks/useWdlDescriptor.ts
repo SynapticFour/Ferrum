@@ -2,18 +2,31 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/auth';
 import { parseWdlWorkflowInputs, type ParsedWdlWorkflow } from '@/lib/wdlInputs';
 
-async function fetchDescriptorText(url: string): Promise<string> {
+function isSameOriginUrl(url: string): boolean {
+  if (url.startsWith('/')) return true;
+  if (typeof window === 'undefined') return false;
+  try {
+    return new URL(url, window.location.origin).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+function authHeadersForUrl(url: string): Record<string, string> {
   const jwt = useAuthStore.getState().passportJwt;
-  const res = await fetch(url, {
-    headers: jwt ? { Authorization: `Bearer ${jwt}` } : {},
-  });
+  if (!jwt || !isSameOriginUrl(url)) return {};
+  return { Authorization: `Bearer ${jwt}` };
+}
+
+async function fetchDescriptorText(url: string): Promise<string> {
+  const res = await fetch(url, { headers: authHeadersForUrl(url) });
   if (!res.ok) throw new Error(`Descriptor fetch failed: HTTP ${res.status}`);
   const text = await res.text();
   try {
     const json = JSON.parse(text) as { content?: string; url?: string };
     if (typeof json.content === 'string' && json.content.trim()) return json.content;
     if (typeof json.url === 'string' && json.url.startsWith('http')) {
-      const r2 = await fetch(json.url);
+      const r2 = await fetch(json.url, { headers: authHeadersForUrl(json.url) });
       if (!r2.ok) throw new Error(`Remote descriptor URL failed: HTTP ${r2.status}`);
       return r2.text();
     }
