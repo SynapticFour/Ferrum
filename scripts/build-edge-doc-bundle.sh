@@ -25,7 +25,7 @@ copy() {
 }
 
 copy docs/AFRICA-DEPLOYMENT.md docs/AFRICA-DEPLOYMENT.md
-copy docs/FIELD-MATURITY-PLAN.md docs/FIELD-MATURITY-PLAN.md
+copy docs/internal/FIELD-MATURITY-PLAN.md docs/FIELD-MATURITY-PLAN.md
 copy docs/FIELD-SYNC-QUEUE.md docs/FIELD-SYNC-QUEUE.md
 copy docs/INSTALLATION.md docs/INSTALLATION.md
 copy docs/INGEST-LAB-KIT.md docs/INGEST-LAB-KIT.md

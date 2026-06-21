@@ -24,7 +24,7 @@ Track important architectural and operational decisions here.
 
 ### 2026-06-18 - ADR-019: Field sync queue (design)
 
-- **Status:** Accepted (design); implementation phased per [docs/FIELD-MATURITY-PLAN.md](docs/FIELD-MATURITY-PLAN.md)
+- **Status:** Accepted (design); implementation phased per [docs/internal/FIELD-MATURITY-PLAN.md](docs/internal/FIELD-MATURITY-PLAN.md)
 - **Context:** Edge nodes accumulate DRS objects and metadata offline. When connectivity returns, operators need a reliable, resumable, auditable upload path to a hub (cloud S3, national node, or peer Ferrum instance) without re-ingesting from MinION.
 - **Decision:** Introduce a **sync queue** as an append-only SQLite table (`sync_queue`) on edge nodes, managed by `ferrum sync` CLI subcommands:
   - `ferrum sync status` — list pending/completed/failed items with byte counts
@@ -42,7 +42,7 @@ Track important architectural and operational decisions here.
 - **Status:** Accepted
 - **Context:** Ferrum Edge mode is deployed via Ferrum-Lab-Kit, compared in Ferrum-GA4GH-Demo docs, and validated by HelixTest Africa profiles. Naming drift (`laptop` vs `field-edge`) and Pi-vs-Demo confusion blocked operators.
 - **Decision:** Document canonical **`field-edge` / Edge mode** mapping in FIELD-ECOSYSTEM; Pi path uses `install-field-edge.sh` (not Demo Docker on ARM). Supplement HelixTest Africa with Ferrum Rust tests for WES reference mismatch, bandwidth, and power (503). Website copy deck + CLI field i18n (en/fr/de). **Defer** laptop alias removal to v0.3 major; inventory in DEPRECATED-LAPTOP-ALIASES.md.
-- **Consequences:** Post-roadmap follow-ups tracked in FIELD-GAP-REASSESSMENT; external Lab Kit repo may need separate PR.
+- **Consequences:** Post-roadmap follow-ups tracked in [FIELD-GAP-REASSESSMENT](docs/internal/FIELD-GAP-REASSESSMENT.md); external Lab Kit repo may need separate PR.
 
 ---
 

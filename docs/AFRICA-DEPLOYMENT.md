@@ -255,7 +255,7 @@ ferrum meta init --profile pathogen --output ~/collection.yaml
 ferrum ingest watch ~/minion_runs --meta-bundle ~/collection.yaml --collector "Dr. A"
 ```
 
-See [profiles/meta/README.md](../profiles/meta/README.md) and [FIELD-MATURITY-PLAN.md](FIELD-MATURITY-PLAN.md) Phase 2.
+See [profiles/meta/README.md](../profiles/meta/README.md) and [FIELD-MATURITY-PLAN.md](internal/FIELD-MATURITY-PLAN.md) Phase 2.
 
 Basecalling runs **externally** (Dorado/Guppy). Ferrum stores the canonical DRS object plus optional `ont_metrics` JSON on `drs_objects.ont_metrics`. Pathogen organism tags are written to `pathogen_annotations` for Beacon queries. ferrum-meta bundles are validated offline and linked via `metadata_ref`.
 

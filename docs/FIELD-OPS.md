@@ -2,7 +2,7 @@
 
 Operator guide for backup, integrity checks, solar power modes, and Pi deployment hygiene.
 
-Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-MATURITY-PLAN.md](FIELD-MATURITY-PLAN.md), [FIELD-REGULATORY.md](FIELD-REGULATORY.md).
+Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-MATURITY-PLAN.md](internal/FIELD-MATURITY-PLAN.md), [FIELD-REGULATORY.md](FIELD-REGULATORY.md).
 
 ## SQLite backup & restore
 
