@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "description": "UI-touched Ferrum gateway endpoints (services/ui). Used by ui-parity for coverage tracking.",
+  "groups": {
+    "health": [
+      { "method": "GET", "path": "/health", "ui": "ServiceHealthPanel" },
+      { "method": "GET", "path": "/admin/config", "ui": "useAdminConfig" },
+      { "method": "GET", "path": "/ga4gh/drs/v1/service-info", "ui": "ServiceHealthPanel" },
+      { "method": "GET", "path": "/ga4gh/wes/v1/service-info", "ui": "ServiceHealthPanel" },
+      { "method": "GET", "path": "/ga4gh/trs/v2/service-info", "ui": "ServiceHealthPanel" },
+      { "method": "GET", "path": "/ga4gh/beacon/v2/service-info", "ui": "ServiceHealthPanel" }
+    ],
+    "workspaces": [
+      { "method": "GET", "path": "/workspaces/v1/workspaces", "ui": "WorkspaceListPage" },
+      { "method": "POST", "path": "/workspaces/v1/workspaces", "ui": "NewWorkspacePage", "tier": "write" },
+      { "method": "GET", "path": "/workspaces/v1/workspaces/{id}", "ui": "WorkspaceDetailPage" },
+      { "method": "PUT", "path": "/workspaces/v1/workspaces/{id}", "ui": "WorkspaceSettingsForm", "tier": "write" },
+      { "method": "GET", "path": "/workspaces/v1/workspaces/{id}/contents", "ui": "WorkspaceDetailPage" },
+      { "method": "GET", "path": "/workspaces/v1/workspaces/{id}/activity", "ui": "WorkspaceDetailPage" },
+      { "method": "GET", "path": "/workspaces/v1/workspaces/{id}/members", "ui": "WorkspaceMembersPanel" },
+      { "method": "POST", "path": "/workspaces/v1/workspaces/{id}/members", "ui": "WorkspaceMembersPanel", "tier": "write" },
+      { "method": "POST", "path": "/workspaces/v1/workspaces/{id}/objects/link", "ui": "LinkWorkspaceDataDialog", "tier": "write" }
+    ],
+    "drs": [
+      { "method": "GET", "path": "/ga4gh/drs/v1/objects", "ui": "DataBrowser" },
+      { "method": "GET", "path": "/ga4gh/drs/v1/objects/{id}", "ui": "ObjectDetailPage" },
+      { "method": "GET", "path": "/ga4gh/drs/v1/objects/{id}/stream", "ui": "filePreview" },
+      { "method": "GET", "path": "/ga4gh/drs/v1/objects/{id}/provenance", "ui": "ProvenanceGraph" },
+      { "method": "POST", "path": "/api/v1/ingest/upload", "ui": "ImportToDrsDialog", "tier": "write" },
+      { "method": "GET", "path": "/api/v1/ingest/jobs", "ui": "useIngestJobs" },
+      { "method": "GET", "path": "/api/v1/ingest/jobs/{id}", "ui": "useIngestJobs" }
+    ],
+    "wes_trs": [
+      { "method": "GET", "path": "/ga4gh/trs/v2/tools", "ui": "ToolRegistry" },
+      { "method": "POST", "path": "/ga4gh/trs/v2/internal/register", "ui": "RegisterToolDialog", "tier": "write" },
+      { "method": "GET", "path": "/ga4gh/trs/v2/tools/{tool}/versions/{ver}/descriptor/{type}", "ui": "StartAnalysisDialog" },
+      { "method": "GET", "path": "/ga4gh/wes/v1/runs", "ui": "WorkflowCenter" },
+      { "method": "POST", "path": "/ga4gh/wes/v1/runs", "ui": "SubmitWorkflowDialog", "tier": "write" },
+      { "method": "GET", "path": "/ga4gh/wes/v1/runs/{id}", "ui": "RunDetailPage" },
+      { "method": "GET", "path": "/ga4gh/wes/v1/runs/{id}/logs/stdout", "ui": "RunDetailPage" },
+      { "method": "GET", "path": "/ga4gh/wes/v1/runs/{id}/metrics", "ui": "RunMetricsTab" },
+      { "method": "GET", "path": "/ga4gh/wes/v1/cost/summary", "ui": "Dashboard" },
+      { "method": "POST", "path": "/ga4gh/wes/v1/runs/stale/reconcile", "ui": "WorkflowCenter", "tier": "write" }
+    ],
+    "cohorts": [
+      { "method": "GET", "path": "/cohorts/v1/cohorts", "ui": "CohortListPage" },
+      { "method": "POST", "path": "/cohorts/v1/cohorts", "ui": "NewCohortPage", "tier": "write" },
+      { "method": "GET", "path": "/cohorts/v1/cohorts/{id}", "ui": "CohortDetailPage" },
+      { "method": "GET", "path": "/cohorts/v1/cohorts/{id}/samples", "ui": "CohortDetailPage" },
+      { "method": "GET", "path": "/cohorts/v1/cohorts/{id}/stats", "ui": "CohortDetailPage" },
+      { "method": "GET", "path": "/cohorts/v1/phenotype-schema", "ui": "AddCohortSampleDialog" }
+    ],
+    "beacon": [
+      { "method": "POST", "path": "/ga4gh/beacon/v2/g_variants/query", "ui": "BeaconExplorer" }
+    ],
+    "access": [
+      { "method": "GET", "path": "/access/v1/status", "ui": "AccessManagement" },
+      { "method": "GET", "path": "/access/v1/catalog/datasets", "ui": "DatasetCatalogPanel" },
+      { "method": "GET", "path": "/access/v1/me/grants", "ui": "AccessManagement" },
+      { "method": "GET", "path": "/access/v1/me/projects", "ui": "AccessManagement" }
+    ],
+    "admin": [
+      { "method": "GET", "path": "/admin/federation/status", "ui": "FederationPanel" },
+      { "method": "GET", "path": "/admin/security/events", "ui": "SecurityEventsPanel" }
+    ]
+  }
+}

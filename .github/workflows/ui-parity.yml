@@ -1,0 +1,79 @@
+name: UI parity
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Target profile
+        required: true
+        default: up-tes
+        type: choice
+        options:
+          - up-tes
+          - up-pilot-cloud
+          - fly
+      tier:
+        description: Test tier (read or write)
+        required: true
+        default: read
+        type: choice
+        options:
+          - read
+          - write
+
+jobs:
+  ui-parity-up-tes:
+    if: github.event.inputs.profile == 'up-tes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Clone ga4gh-infra
+        uses: ./.github/actions/clone-ga4gh-infra
+
+      - name: Start TES stack
+        run: make up-tes
+
+      - name: Seed pilot fixtures
+        if: inputs.tier == 'write'
+        run: make seed-pilot
+
+      - name: UI parity (up-tes)
+        run: make ui-parity-tes UI_PARITY_TIER=${{ inputs.tier }}
+
+  ui-parity-fly:
+    if: github.event.inputs.profile == 'fly'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: UI parity (Fly)
+        env:
+          FERRUM_PASSPORT_JWT: ${{ secrets.PASTEUR_PILOT_FERRUM_PASSPORT_JWT }}
+          FERRUM_URL: https://pasteur-pilot-ferrum.fly.dev
+          GA4GH_URL: https://pasteur-pilot-ga4gh-infra.fly.dev
+        run: make ui-parity-fly UI_PARITY_TIER=${{ inputs.tier }}
+
+  ui-parity-pilot-cloud:
+    if: github.event.inputs.profile == 'up-pilot-cloud'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Clone ga4gh-infra
+        uses: ./.github/actions/clone-ga4gh-infra
+
+      - name: Check Fly broker reachable
+        run: |
+          curl -sf https://pasteur-pilot-ga4gh-infra.fly.dev/service-info
+
+      - name: Start pilot-cloud stack
+        run: make up-pilot-cloud
+
+      - name: UI parity (up-pilot-cloud)
+        env:
+          FERRUM_PASSPORT_JWT: ${{ secrets.PASTEUR_PILOT_FERRUM_PASSPORT_JWT }}
+        run: make ui-parity-pilot-cloud UI_PARITY_TIER=${{ inputs.tier }}

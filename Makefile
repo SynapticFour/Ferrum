@@ -14,7 +14,7 @@ export FERRUM_WES_TES_WORK_HOST_PREFIX
 DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
 export DOCKER_BIN
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -24,6 +24,9 @@ help:
 	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
 	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF+ref bundle to MinIO (stack must be running)"
 	@echo "  make smoke-pilot Local smoke after up-tes (health, Crypt4GH, lineage, cohort, CWL + optional germline WES)"
+	@echo "  make ui-parity-tes       API acceptance vs UI (read tier; stack must be up)"
+	@echo "  make ui-parity-pilot-cloud  Same against up-pilot-cloud (needs FERRUM_PASSPORT_JWT)"
+	@echo "  make ui-parity-fly       Same against Fly pilot (needs seed + Passport JWT)"
 	@echo "  make test-tes    CI-style TES e2e (ingest, Crypt4GH round-trip, WES COMPLETE) — stack must be up"
 	@echo "  make test-tes-full  test-tes + smoke-pilot with SMOKE_REQUIRE_COMPLETE=1"
 	@echo "  make up-pilot  Local Ferrum + Fly ga4gh-infra/Keycloak AAI (default laptop pilot; Fly must be running)"
@@ -82,6 +85,21 @@ smoke-pilot:
 
 verify-parity:
 	@bash scripts/verify-source-parity.sh
+
+UI_PARITY_TIER ?= read
+UI_PARITY_REPORT ?=
+
+ui-parity:
+	@bash scripts/ui-parity/ui-parity.sh --profile $(PROFILE) --tier $(UI_PARITY_TIER) $(if $(UI_PARITY_REPORT),--report $(UI_PARITY_REPORT),)
+
+ui-parity-fly:
+	@bash scripts/ui-parity/ui-parity.sh --profile fly --tier $(UI_PARITY_TIER) $(if $(UI_PARITY_REPORT),--report $(UI_PARITY_REPORT),)
+
+ui-parity-tes:
+	@bash scripts/ui-parity/ui-parity.sh --profile up-tes --tier $(UI_PARITY_TIER) $(if $(UI_PARITY_REPORT),--report $(UI_PARITY_REPORT),)
+
+ui-parity-pilot-cloud:
+	@bash scripts/ui-parity/ui-parity.sh --profile up-pilot-cloud --tier $(UI_PARITY_TIER) $(if $(UI_PARITY_REPORT),--report $(UI_PARITY_REPORT),)
 
 # Default pilot: local Ferrum data plane + Fly AAI (Pasteur Keycloak flow on laptop).
 up-pilot: up-pilot-cloud
