@@ -18,10 +18,7 @@ fn pilot_auto_workspace_enabled() -> bool {
     )
 }
 
-async fn provision_pilot_workspace(
-    repo: &WorkspaceRepo,
-    sub: &str,
-) -> Result<Option<Workspace>> {
+async fn provision_pilot_workspace(repo: &WorkspaceRepo, sub: &str) -> Result<Option<Workspace>> {
     let id = ulid::Ulid::new().to_string();
     let slug = format!("pilot-{}", &id[..8].to_lowercase());
     let settings = serde_json::json!({});

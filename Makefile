@@ -5,6 +5,7 @@ COMPOSE_FILE := deploy/docker-compose.yml
 COMPOSE := docker compose -f $(COMPOSE_FILE)
 GA4GH_INFRA_SRC ?= $(abspath ../ga4gh-infra)
 export GA4GH_INFRA_SRC
+export FERRUM_GIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 COMPOSE_PILOT := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml
 COMPOSE_PILOT_CLOUD := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-cloud.yml
 COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tes.yml
@@ -13,7 +14,7 @@ export FERRUM_WES_TES_WORK_HOST_PREFIX
 DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
 export DOCKER_BIN
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot test-demo test-tes test-tes-full test-pilot test-pilot-cloud test-federated
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity test-demo test-tes test-tes-full test-pilot test-pilot-cloud test-federated
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -77,6 +78,9 @@ seed-pilot:
 
 smoke-pilot:
 	@bash scripts/smoke-pilot-local.sh
+
+verify-parity:
+	@bash scripts/verify-source-parity.sh
 
 # Pilot profile: Ferrum + ga4gh-infra AAI (mock-idp). Sibling ga4gh-infra checkout required.
 up-pilot:

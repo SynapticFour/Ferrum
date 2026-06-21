@@ -54,6 +54,15 @@ pub struct SanitizedIngest {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct SanitizedBuild {
+    /// Short git SHA baked in at image build time (Ferrum repo).
+    pub git_sha: String,
+    /// Build profile: demo, tes, pilot, fly-pilot, etc.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct SanitizedConfig {
     pub bind: String,
     pub database: SanitizedDatabase,
@@ -67,6 +76,8 @@ pub struct SanitizedConfig {
     pub auth: Option<SanitizedAuth>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deployment_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub build: Option<SanitizedBuild>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -125,6 +136,17 @@ fn crypt4gh_ingest_ready(c: &ferrum_core::FerrumConfig) -> bool {
     let sec = std::path::Path::new(&dir).join(format!("{key_id}.sec"));
     let pub_key = std::path::Path::new(&dir).join(format!("{key_id}.pub"));
     sec.is_file() && pub_key.is_file()
+}
+
+fn build_metadata() -> Option<SanitizedBuild> {
+    let git_sha = std::env::var("FERRUM_BUILD__GIT_SHA")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "unknown".to_string());
+    let profile = std::env::var("FERRUM_BUILD__PROFILE")
+        .ok()
+        .filter(|s| !s.trim().is_empty());
+    Some(SanitizedBuild { git_sha, profile })
 }
 
 /// POST /admin/tokens/revoke — revoke a token by jti (A07).
@@ -413,6 +435,7 @@ pub fn admin_router(
                 access_requests_enabled,
             }),
             deployment_mode,
+            build: build_metadata(),
         }
     });
     let state = Arc::new(AdminState {

@@ -6,6 +6,8 @@
 # (not only before the stage that uses it), or the runtime stage gets a blank image name.
 ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm
 ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim
+ARG FERRUM_GIT_SHA=unknown
+ARG FERRUM_BUILD_PROFILE=demo
 FROM ${RUST_BUILDER_IMAGE} AS builder
 # Optional: e.g. `tes-docker` for Docker-backed TES (re-declare after FROM so RUN sees it).
 ARG FERRUM_GATEWAY_FEATURES=
@@ -27,13 +29,17 @@ RUN if [ -n "$FERRUM_GATEWAY_FEATURES" ]; then \
 
 # Runtime image (keep in sync with builder OS family)
 FROM ${DEBIAN_RUNTIME_IMAGE}
+ARG FERRUM_GIT_SHA=unknown
+ARG FERRUM_BUILD_PROFILE=demo
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY --from=builder /app/target/release/ferrum-gateway /app/ferrum-gateway
 RUN mkdir -p /app/data
 
-ENV FERRUM_BIND=0.0.0.0:8080
+ENV FERRUM_BIND=0.0.0.0:8080 \
+    FERRUM_BUILD__GIT_SHA=${FERRUM_GIT_SHA} \
+    FERRUM_BUILD__PROFILE=${FERRUM_BUILD_PROFILE}
 EXPOSE 8080
 
 CMD ["/app/ferrum-gateway"]

@@ -88,6 +88,8 @@ services:
       args:
         RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.91.1-bookworm}
         DEBIAN_RUNTIME_IMAGE: ${DEBIAN_RUNTIME_IMAGE:-debian:bookworm-slim}
+        FERRUM_GIT_SHA: ${FERRUM_GIT_SHA:-unknown}
+        FERRUM_BUILD_PROFILE: ${FERRUM_BUILD_PROFILE:-demo}
     image: ferrum-gateway:latest
     pull_policy: build
     environment:

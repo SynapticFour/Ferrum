@@ -11,6 +11,7 @@ services:
     build:
       args:
         FERRUM_GATEWAY_FEATURES: full,tes-docker
+        FERRUM_BUILD_PROFILE: tes
     environment:
       FERRUM_TES_BACKEND: docker
       FERRUM_WES_WORK_DIR: /wes-runs
