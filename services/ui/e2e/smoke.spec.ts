@@ -7,10 +7,26 @@ test.describe('Ferrum UI smoke', () => {
     await expect(page.locator('aside').getByRole('link', { name: /^data$|^daten$|^données$|^البيانات$/i })).toBeVisible();
   });
 
-  test('study setup wizard renders step rail', async ({ page }) => {
+  test('study setup orientation renders topic cards', async ({ page }) => {
     await page.goto('/study/setup');
     await expect(page.getByTestId('study-setup-wizard')).toBeVisible();
-    await expect(page.getByRole('button', { name: /next|weiter|suivant|التالي/i })).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name: /pilot orientation|pilot-orientierung|configuration guidée|إعداد موجّ/i,
+        level: 1,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name: /workspaces|arbeitsbereiche|espaces de travail|مساحات العمل/i,
+      }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name: /data \(drs\)|daten \(drs\)|données \(drs\)|البيانات \(drs\)/i,
+      }).first(),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /next|weiter|suivant|التالي/i })).toHaveCount(0);
   });
 
   test('data browser catalog tab and import dialog', async ({ page }) => {

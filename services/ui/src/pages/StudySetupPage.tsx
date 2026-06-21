@@ -18,7 +18,7 @@ import { RegisterToolDialog } from '@/components/RegisterToolDialog';
 import { SampleSheetImportDialog } from '@/components/SampleSheetImportDialog';
 import { RunCohortDialog } from '@/components/RunCohortDialog';
 import { NoopExecutorBanner } from '@/components/NoopExecutorBanner';
-import { TRS_IMPORT_PRESETS } from '@/lib/trsCatalogs';
+import { type RegisterToolPreset } from '@/lib/trsCatalogs';
 import {
   CheckCircle2,
   LogIn,
@@ -101,16 +101,7 @@ export function StudySetupPage() {
   const [newCohortName, setNewCohortName] = useState('');
   const [creatingCohort, setCreatingCohort] = useState(false);
   const [runDialogOpen, setRunDialogOpen] = useState(false);
-  const [registerPreset, setRegisterPreset] = useState(
-    TRS_IMPORT_PRESETS[0]
-      ? {
-          name: t(TRS_IMPORT_PRESETS[0].nameKey),
-          workflowUrl: TRS_IMPORT_PRESETS[0].workflowUrl,
-          engineId: TRS_IMPORT_PRESETS[0].engineId,
-          toolclass: TRS_IMPORT_PRESETS[0].toolclass,
-        }
-      : null,
-  );
+  const [registerPreset, setRegisterPreset] = useState<RegisterToolPreset | null>(null);
 
   useEffect(() => {
     saveState(state);
