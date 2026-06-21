@@ -667,26 +667,24 @@ async fn decode_passport_jwt(
         .or(cfg.jwks_file.as_deref())
         .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
-    let set = fetch_jwks_cached(cfg, false).await?;
+    let mut set = fetch_jwks_cached(cfg, false).await?;
     let kid = decoded_header.kid.unwrap_or_default();
 
-    let jwk = if !kid.is_empty() {
+    let mut jwk = if !kid.is_empty() {
         set.find(&kid)
     } else {
         set.keys.first()
     };
 
-    let jwk = if jwk.is_none() && cfg.jwks_file.is_none() {
-        let refreshed = fetch_jwks_cached(cfg, true).await?;
-        if !kid.is_empty() {
-            refreshed.find(&kid)
+    if jwk.is_none() && cfg.jwks_file.is_none() {
+        set = fetch_jwks_cached(cfg, true).await?;
+        jwk = if !kid.is_empty() {
+            set.find(&kid)
         } else {
-            refreshed.keys.first()
-        }
-    } else {
-        jwk
+            set.keys.first()
+        };
     }
-    .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    let jwk = jwk.ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
     let key = jsonwebtoken::DecodingKey::from_jwk(jwk)
         .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
