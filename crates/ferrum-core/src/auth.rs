@@ -199,6 +199,7 @@ impl AuthClaims {
         }
     }
 
+    #[cfg(feature = "clearinghouse")]
     fn iat(&self) -> Option<i64> {
         match self {
             AuthClaims::Jwt { .. } => None,
@@ -811,14 +812,6 @@ async fn decode_passport_via_clearinghouse(
         visas: visa_objects,
         raw_token: Some(token.to_string()),
     })
-}
-
-#[cfg(not(feature = "clearinghouse"))]
-async fn decode_passport_via_clearinghouse(
-    _token: &str,
-    _cfg: &AuthMiddlewareConfig,
-) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
-    Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into())
 }
 
 fn scope_to_passport_claims(claims: &PassportClaims, token: &str) -> AuthClaims {
