@@ -33,8 +33,11 @@ const deOverlay = {
     language: 'Sprache',
     brokerMisconfigured:
       'Anmeldung ist erforderlich, aber der Identity-Broker ist nicht konfiguriert. Administrator kontaktieren oder Einstellungen öffnen.',
-    signInRequired: 'Anmeldung erforderlich',
-    signInRequiredHint: 'Für Upload und Analysen ist eine Anmeldung erforderlich.',
+    signInRequired: 'Anmeldung für Arbeitsbereiche und Analysen',
+    signInRequiredHint:
+      'Seed-Daten und Beacon können ohne Anmeldung durchsucht werden. Upload, Arbeitsbereiche, Kohorten und Workflow-Starts erfordern ein Passport.',
+    signInBrowsingHint:
+      'Daten und Beacon sind ohne Anmeldung lesbar. Sprache: Sidebar unten oder im Intro-Dialog (English, Deutsch, …).',
   },
   auth: {
     completingSignIn: 'Anmeldung wird abgeschlossen…',
@@ -44,7 +47,7 @@ const deOverlay = {
   },
   nav: {
     dashboard: 'Übersicht',
-    studySetup: 'Geführte Einrichtung',
+    studySetup: 'Pilot-Übersicht',
     workspaces: 'Arbeitsbereiche',
     data: 'Daten',
     cohorts: 'Kohorten',
@@ -85,7 +88,7 @@ const deOverlay = {
     getStartedHint: 'Folgen Sie der geführten Einrichtung oder legen Sie einen Arbeitsbereich an und starten Sie Ihre erste Analyse.',
     pilotEnrichHint:
       'Für Demo-Dateien auf verwaltetem Speicher (BAM, VCF, Referenzpaket): nach make up-tes make seed-pilot ausführen — siehe docs/PASTEUR-PILOT.md.',
-    studySetup: 'Geführte Einrichtung',
+    studySetup: 'Pilot-Übersicht',
     runWorkflow: 'Analyse starten',
   },
   health: {
@@ -121,6 +124,7 @@ const deOverlay = {
       'Wurde der gesamte Pilot vom Betreiber pausiert, bleiben alle URLs aus — das unterscheidet sich vom normalen Leerlauf-Aufwachen.',
     browseData: 'Daten durchsuchen',
     dismiss: 'Verstanden — Anleitung ausblenden',
+    languageNote: 'Sprache: Menü unten oder in der Sidebar (English, Deutsch, Français, العربية).',
   },
   pilot: {
     remoteSeedHint:
@@ -782,10 +786,40 @@ const deOverlay = {
     objectCount: '{count} Objekt(e)',
   },
   study: {
-    title: 'Geführte Einrichtung',
-    subtitle: 'Checkliste von der Anmeldung bis zu den Ergebnissen: Arbeitsbereich → Daten → Werkzeuge → Kohorte → Läufe.',
+    title: 'Pilot-Orientierung',
+    subtitle:
+      'Überblick über Ferrum auf diesem Pilot — springen Sie zu jedem Thema; nichts läuft hier automatisch.',
     pilotDisclaimer:
-      'Pilot-Onboarding-Checkliste — kein vollständiges Studienmanagement. In Produktion nutzen Sie Arbeitsbereiche, DUO/Einwilligung und Instituts-Workflows direkt.',
+      'Pilot-Orientierung — kein vollständiges Studienmanagement. In Produktion nutzen Sie Arbeitsbereiche, DUO/Einwilligung und Instituts-Workflows direkt.',
+    notWorkflow:
+      'Diese Seite führt keinen festen Ablauf aus. Sie erklärt Konzepte und verlinkt zu den echten Arbeitsseiten.',
+    topicIdentityTitle: 'Identität',
+    topicIdentityIs: 'Was es ist: Ihr GA4GH-Passport vom Instituts-Broker.',
+    topicIdentityIsLocal: 'Was es ist: ein lokaler Demo-Benutzer ohne Keycloak.',
+    topicIdentityNot: 'Was es nicht ist: ein separates Ferrum-Konto oder ein hier gespeichertes Passwort.',
+    topicWorkspaceTitle: 'Arbeitsbereiche',
+    topicWorkspaceIs: 'Was es ist: ein Projektordner für Daten, Kohorten und Läufe.',
+    topicWorkspaceNot: 'Was es nicht ist: ein Dateipfad oder ein Pflicht-Schritt in einem Assistenten.',
+    topicDataTitle: 'Daten (DRS)',
+    topicDataIs: 'Was es ist: verwaltete Dateien und registrierte Links über GA4GH-APIs.',
+    topicDataNot: 'Was es nicht ist: automatischer Upload Ihres gesamten Rechners.',
+    topicToolsTitle: 'Werkzeuge (TRS)',
+    topicToolsIs: 'Was es ist: registrierte Workflow-Deskriptoren (WDL, CWL, Nextflow, Snakemake).',
+    topicToolsNot: 'Was es nicht ist: Docker- oder Cluster-Installation durch diese Seite.',
+    topicCohortTitle: 'Kohorten',
+    topicCohortIs: 'Was es ist: Probensätze mit Metadaten und DRS-Verknüpfungen.',
+    topicCohortNot: 'Was es nicht ist: ein klinisches Studienmanagement-System.',
+    topicRunTitle: 'Workflow-Läufe',
+    topicRunIs: 'Was es ist: eine Analyse einreichen (auf diesem Pilot simuliert).',
+    topicRunNot: 'Was es nicht ist: echter Container-Compute auf Fly — Läufe enden nur auf API-Ebene.',
+    topicResultsTitle: 'Ergebnisse',
+    topicResultsIs: 'Was es ist: Laufstatus, Protokolle und Ausgabeobjekte in DRS.',
+    topicResultsNot: 'Was es nicht ist: ein verbindlicher Bericht in fester Reihenfolge.',
+    signInForWorkspace: 'Zuerst anmelden — Arbeitsbereiche gehören zu Ihrem Passport.',
+    noWorkspaceYet: 'Noch kein Arbeitsbereich. Legen Sie einen an, um Daten und Läufe zu gruppieren.',
+    noWorkspacePilot:
+      'Noch kein Arbeitsbereich für Ihr Konto. Unten anlegen (der Pilot teilt keinen gemeinsamen Demo-Arbeitsbereich zwischen Benutzern).',
+    runNeedsWorkspaceCohort: 'Oben Arbeitsbereich wählen und Kohorte anlegen, bevor Sie einen Kohorten-Lauf starten.',
     step1: '1. Identität',
     step2: '2. Arbeitsbereich',
     step3: '3. Daten',

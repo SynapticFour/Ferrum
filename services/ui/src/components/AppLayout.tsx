@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { useAuthConfig } from '@/hooks/useAuthConfig';
-import { buildBrokerLoginUrl, isPassportExpired, passportExpiresAt } from '@/lib/auth';
+import { buildBrokerLoginUrl, isPassportExpired, loadStoredPassport, passportExpiresAt } from '@/lib/auth';
 import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users, FolderOpen, LogIn, LogOut, BarChart3, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const setPassport = useAuthStore((s) => s.setPassport);
   const { data: authConfig } = useAuthConfig();
   const { t, dir } = useI18n();
+
+  useEffect(() => {
+    const stored = loadStoredPassport();
+    if (stored && !passportJwt) setPassport(stored);
+  }, [passportJwt, setPassport]);
 
   const brokerLoginUrl = authConfig?.broker_login_url;
   const tokenExpired = passportJwt ? isPassportExpired(passportJwt) : false;
@@ -155,6 +160,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div>
               <p className="font-medium">{t('common.signInRequired')}</p>
               <p className="text-muted-foreground text-xs mt-0.5">{t('common.signInRequiredHint')}</p>
+              <p className="text-muted-foreground text-xs mt-1">{t('common.signInBrowsingHint')}</p>
             </div>
             {brokerLoginUrl && (
               <Button size="sm" className="gap-2 shrink-0" onClick={handleSignIn}>

@@ -30,8 +30,11 @@ export const en = {
     language: 'Language',
     brokerMisconfigured:
       'Sign-in is required but the identity broker is not configured. Contact your operator or open Settings.',
-    signInRequired: 'Sign in to continue',
-    signInRequiredHint: 'This deployment requires sign-in to upload data and run analyses.',
+    signInRequired: 'Sign in for workspaces and analyses',
+    signInRequiredHint:
+      'You can browse seeded data without signing in. Upload, workspaces, cohorts, and workflow submission require a passport.',
+    signInBrowsingHint:
+      'Browsing data and Beacon works without sign-in. Use the sidebar language menu or the intro dialog to change language.',
   },
   auth: {
     completingSignIn: 'Completing sign-in…',
@@ -41,7 +44,7 @@ export const en = {
   },
     nav: {
     dashboard: 'Dashboard',
-    studySetup: 'Guided setup',
+    studySetup: 'Pilot guide',
     workspaces: 'Workspaces',
     data: 'Data',
     cohorts: 'Cohorts',
@@ -82,7 +85,7 @@ export const en = {
     getStartedHint: 'Follow the guided study setup or create a workspace and submit your first analysis.',
     pilotEnrichHint:
       'For managed-storage demo files (BAM, VCF, reference bundle), operators run make seed-pilot after make up-tes — see docs/PASTEUR-PILOT.md.',
-    studySetup: 'Guided setup',
+    studySetup: 'Pilot guide',
     runWorkflow: 'Run analysis',
   },
   health: {
@@ -118,6 +121,7 @@ export const en = {
       'If the whole pilot was paused by your operator, every URL may stay down until they run resume — this is different from normal idle wake.',
     browseData: 'Browse data',
     dismiss: 'Got it — hide this guide',
+    languageNote: 'Language: use the menu below or the sidebar footer (English, Deutsch, Français, العربية).',
   },
   pilot: {
     remoteSeedHint:
@@ -787,10 +791,40 @@ export const en = {
       'Workflows need managed files on MinIO. Run make seed-pilot locally, or import/upload real BAM/VCF before running on cohort.',
   },
   study: {
-    title: 'Guided setup',
-    subtitle: 'Checklist from login to results: workspace → data → tools → cohort → runs.',
+    title: 'Pilot orientation',
+    subtitle:
+      'A map of what Ferrum offers on this hosted pilot — jump to any topic; nothing here runs automatically.',
     pilotDisclaimer:
-      'Pilot onboarding checklist — not full study management. For production studies you will use workspaces, DUO/consent, and institute workflows directly.',
+      'Pilot orientation — not full study management. In production you use workspaces, DUO/consent, and institute workflows directly.',
+    notWorkflow:
+      'This page does not run a fixed pipeline for you. It explains concepts and links to the real pages where you work.',
+    topicIdentityTitle: 'Identity',
+    topicIdentityIs: 'What it is: your GA4GH passport from the institute broker.',
+    topicIdentityIsLocal: 'What it is: a local demo user for trying the UI without Keycloak.',
+    topicIdentityNot: 'What it is not: a separate Ferrum account or password stored in this app.',
+    topicWorkspaceTitle: 'Workspaces',
+    topicWorkspaceIs: 'What it is: a project folder grouping your data, cohorts, and runs.',
+    topicWorkspaceNot: 'What it is not: a filesystem path or a mandatory wizard step.',
+    topicDataTitle: 'Data (DRS)',
+    topicDataIs: 'What it is: managed files and registered links you can share via GA4GH APIs.',
+    topicDataNot: 'What it is not: automatic upload of everything on your laptop.',
+    topicToolsTitle: 'Tools (TRS)',
+    topicToolsIs: 'What it is: registered workflow descriptors (WDL, CWL, Nextflow, Snakemake).',
+    topicToolsNot: 'What it is not: installing Docker images or cluster jobs by itself.',
+    topicCohortTitle: 'Cohorts',
+    topicCohortIs: 'What it is: sample sets with metadata and links to DRS objects.',
+    topicCohortNot: 'What it is not: a full clinical trial management system.',
+    topicRunTitle: 'Workflow runs',
+    topicRunIs: 'What it is: submitting an analysis (simulated on this pilot server).',
+    topicRunNot: 'What it is not: real container compute on Fly — runs finish at the API only.',
+    topicResultsTitle: 'Results',
+    topicResultsIs: 'What it is: run status, logs, and output objects registered in DRS.',
+    topicResultsNot: 'What it is not: a locked-in report you must follow in order.',
+    signInForWorkspace: 'Sign in first — workspaces are private to your passport.',
+    noWorkspaceYet: 'No workspace yet. Create one to group data and runs.',
+    noWorkspacePilot:
+      'No workspace yet for your account. Create one below (the pilot does not share a single demo workspace between users).',
+    runNeedsWorkspaceCohort: 'Pick a workspace and create a cohort above before launching a cohort run.',
     step1: '1. Identity',
     step2: '2. Workspace',
     step3: '3. Data',

@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
+import { dismissTesterWelcomeGuide } from '@/components/TesterWelcomeDialog';
 import { parseTokenFromLocationHash, storePassport } from '@/lib/auth';
 import { useAuthStore } from '@/stores/auth';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -17,6 +18,8 @@ export function AuthCallback() {
     if (token) {
       storePassport(token);
       setPassport(token);
+      dismissTesterWelcomeGuide();
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
       void navigate({ to: '/', replace: true });
     } else {
       setFailed(true);

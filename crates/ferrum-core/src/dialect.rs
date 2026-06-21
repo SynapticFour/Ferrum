@@ -118,7 +118,7 @@ pub fn sql_list_objects(d: DbDialect) -> String {
         DbDialect::Sqlite => "$6 IS NULL",
     };
     format!(
-        "SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id
+        "SELECT id, name, description, created_time, updated_time, version, mime_type, size, is_bundle, aliases, dataset_id, workspace_id
          FROM drs_objects
          WHERE ({null_text} OR mime_type = $1)
            AND ({min} OR size >= $2)

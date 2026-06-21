@@ -3,9 +3,11 @@ import { Link } from '@tanstack/react-router';
 import { BookOpen, Database, LogIn, X } from 'lucide-react';
 import { useAuthConfig } from '@/hooks/useAuthConfig';
 import { useAdminConfig, isNoopExecutor } from '@/hooks/useAdminConfig';
-import { buildBrokerLoginUrl } from '@/lib/auth';
+import { buildBrokerLoginUrl, isPassportExpired } from '@/lib/auth';
 import { isFlyPilot } from '@/lib/pilotContext';
+import { useAuthStore } from '@/stores/auth';
 import { useI18n } from '@/i18n/I18nProvider';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,31 +20,47 @@ import {
 
 const STORAGE_KEY = 'ferrum.tester-guide-v1';
 
+function markTesterGuideDismissed() {
+  try {
+    localStorage.setItem(STORAGE_KEY, 'dismissed');
+  } catch {
+    /* private browsing */
+  }
+}
+
+/** Called after OAuth callback stores a passport so the intro does not re-open. */
+export function dismissTesterWelcomeGuide() {
+  markTesterGuideDismissed();
+}
+
 export function TesterWelcomeDialog() {
   const { t } = useI18n();
   const { data: authConfig } = useAuthConfig();
   const { data: adminConfig } = useAdminConfig();
+  const passportJwt = useAuthStore((s) => s.passportJwt);
   const [open, setOpen] = useState(false);
 
   const brokerLoginUrl = authConfig?.broker_login_url;
   const showForPilot = isFlyPilot(adminConfig);
+  const signedIn = Boolean(passportJwt && !isPassportExpired(passportJwt));
 
   useEffect(() => {
     if (!showForPilot) return;
+    if (signedIn) {
+      markTesterGuideDismissed();
+      setOpen(false);
+      return;
+    }
     try {
       if (localStorage.getItem(STORAGE_KEY) === 'dismissed') return;
     } catch {
       /* private browsing */
     }
     setOpen(true);
-  }, [showForPilot]);
+  }, [showForPilot, signedIn]);
 
   const dismiss = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, 'dismissed');
-    } catch {
-      /* ignore */
-    }
+    markTesterGuideDismissed();
     setOpen(false);
   };
 
@@ -73,6 +91,8 @@ export function TesterWelcomeDialog() {
           ))}
         </ul>
         <p className="text-xs text-muted-foreground">{t('testerGuide.pauseNote')}</p>
+        <p className="text-xs text-muted-foreground">{t('testerGuide.languageNote')}</p>
+        <LanguageSwitcher className="rounded-md border border-border px-1" />
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
           <div className="flex flex-wrap gap-2">
             {brokerLoginUrl && (
@@ -80,6 +100,7 @@ export function TesterWelcomeDialog() {
                 size="sm"
                 className="gap-2"
                 onClick={() => {
+                  dismiss();
                   window.location.href = buildBrokerLoginUrl(brokerLoginUrl);
                 }}
               >

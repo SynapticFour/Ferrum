@@ -11,6 +11,34 @@ use axum::{
 };
 use std::sync::Arc;
 
+fn pilot_auto_workspace_enabled() -> bool {
+    matches!(
+        std::env::var("FERRUM_PILOT__AUTO_WORKSPACE").as_deref(),
+        Ok("true") | Ok("1") | Ok("yes")
+    )
+}
+
+async fn provision_pilot_workspace(
+    repo: &WorkspaceRepo,
+    sub: &str,
+) -> Result<Option<Workspace>> {
+    let id = ulid::Ulid::new().to_string();
+    let slug = format!("pilot-{}", &id[..8].to_lowercase());
+    let settings = serde_json::json!({});
+    let workspace = repo
+        .create(
+            &id,
+            "Pasteur Pilot",
+            Some("Auto-created workspace for the hosted pilot"),
+            sub,
+            &slug,
+            &settings,
+        )
+        .await?;
+    repo.add_member(&id, sub, "owner", sub).await?;
+    Ok(Some(workspace))
+}
+
 fn slug_from_name(name: &str) -> String {
     name.to_lowercase()
         .chars()
@@ -39,7 +67,12 @@ pub async fn list_my_workspaces(
         .sub()
         .ok_or_else(|| WorkspaceError::Forbidden("authentication required".to_string()))?;
     let repo = WorkspaceRepo::new(state.pool.clone());
-    let list = repo.list_by_member(sub).await?;
+    let mut list = repo.list_by_member(sub).await?;
+    if list.is_empty() && pilot_auto_workspace_enabled() {
+        if let Some(ws) = provision_pilot_workspace(&repo, sub).await? {
+            list.push(ws);
+        }
+    }
     Ok(Json(list))
 }
 

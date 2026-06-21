@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,8 @@ import { apiPost } from '@/api/client';
 import { Search, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { ErrorWithReport } from '@/components/ErrorWithReport';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
+import { isFlyPilot } from '@/lib/pilotContext';
 
 interface VariantQueryResponse {
   meta: Record<string, unknown>;
@@ -47,6 +49,8 @@ const DEMO_PRESETS = [
 
 export function BeaconExplorer() {
   const { t } = useI18n();
+  const { data: config } = useAdminConfig();
+  const pilotDefaultsApplied = useRef(false);
   const [referenceName, setReferenceName] = useState('1');
   const [start, setStart] = useState('1000');
   const [end, setEnd] = useState('1000');
@@ -70,6 +74,13 @@ export function BeaconExplorer() {
     setLastQuery(null);
     setError(null);
   }
+
+  useEffect(() => {
+    if (pilotDefaultsApplied.current || !isFlyPilot(config)) return;
+    const pasteur = DEMO_PRESETS.find((p) => p.id === 'pasteur');
+    if (pasteur) applyPreset(pasteur);
+    pilotDefaultsApplied.current = true;
+  }, [config]);
 
   async function handleQuery() {
     const querySnapshot: BeaconQuerySnapshot = {
