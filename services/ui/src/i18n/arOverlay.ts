@@ -29,8 +29,11 @@ export const arOverlay = {
     sessionExpiresVerySoon: 'تنتهي جلستك خلال {minutes} دقيقة — سجّل الدخول مجددًا قريبًا.',
     language: 'اللغة',
     brokerMisconfigured: 'تسجيل الدخول مطلوب لكن وسيط الهوية غير مُعد. تواصل مع المشغّل أو افتح الإعدادات.',
-    signInRequired: 'تسجيل الدخول مطلوب',
-    signInRequiredHint: 'يتطلب هذا النشر تسجيل الدخول لرفع البيانات وتشغيل التحليلات.',
+    signInRequired: 'تسجيل الدخول لمساحات العمل والتحليلات',
+    signInRequiredHint:
+      'يمكن تصفح بيانات العرض وBeacon دون تسجيل الدخول. الرفع ومساحات العمل والأفواج وبدء سير العمل يتطلب جوازًا.',
+    signInBrowsingHint:
+      'البيانات وBeacon متاحان دون تسجيل. اللغة: من الشريط الجانبي أو حوار الترحيب (English, Deutsch, …).',
   },
   auth: {
     completingSignIn: 'جارٍ إكمال تسجيل الدخول…',
@@ -122,6 +125,7 @@ export const arOverlay = {
       'إذا أوقف المشغّل الطيار بالكامل، تبقى كل الروابط معطّلة حتى الاستئناف — مختلف عن الإيقاظ العادي بعد الخمول.',
     browseData: 'تصفح البيانات',
     dismiss: 'فهمت — إخفاء هذا الدليل',
+    languageNote: 'اللغة: من القائمة أدناه أو أسفل الشريط الجانبي (English, Deutsch, Français, العربية).',
   },
   pilot: {
     remoteSeedHint:
@@ -786,6 +790,35 @@ export const arOverlay = {
     subtitle: 'قائمة تحقق من تسجيل الدخول إلى النتائج: مساحة عمل → بيانات → أدوات → فوج → تشغيلات.',
     pilotDisclaimer:
       'قائمة تحقق للعرض التجريبي — وليست إدارة دراسة كاملة. في الإنتاج استخدم مساحات العمل وDUO/الموافقة وسير عمل المعهد مباشرة.',
+    notWorkflow:
+      'هذه الصفحة لا تنفّذ مسارًا ثابتًا. تشرح المفاهيم وتربط بصفحات العمل الفعلية.',
+    topicIdentityTitle: 'الهوية',
+    topicIdentityIs: 'ما هي: جواز GA4GH من وسيط المعهد.',
+    topicIdentityIsLocal: 'ما هي: مستخدم عرض محلي بدون Keycloak.',
+    topicIdentityNot: 'ما ليست: حساب Ferrum منفصل أو كلمة مرور مخزنة هنا.',
+    topicWorkspaceTitle: 'مساحات العمل',
+    topicWorkspaceIs: 'ما هي: مجلد مشروع للبيانات والأفواج والتشغيلات.',
+    topicWorkspaceNot: 'ما ليست: مسار ملفات أو خطوة إلزامية في معالج.',
+    topicDataTitle: 'البيانات (DRS)',
+    topicDataIs: 'ما هي: ملفات مُدارة وروابط مسجّلة عبر واجهات GA4GH.',
+    topicDataNot: 'ما ليست: رفع تلقائي لكل جهازك.',
+    topicToolsTitle: 'الأدوات (TRS)',
+    topicToolsIs: 'ما هي: واصفات سير عمل مسجّلة (WDL, CWL, Nextflow, Snakemake).',
+    topicToolsNot: 'ما ليست: تثبيت Docker أو مهام عنقود من هذه الصفحة.',
+    topicCohortTitle: 'الأفواج',
+    topicCohortIs: 'ما هي: مجموعات عينات مع بيانات وصفية وروابط DRS.',
+    topicCohortNot: 'ما ليست: نظام إدارة دراسات سريرية كامل.',
+    topicRunTitle: 'تشغيلات سير العمل',
+    topicRunIs: 'ما هي: إرسال تحليل (محاكى على هذا العرض المستضاف).',
+    topicRunNot: 'ما ليست: حوسبة حاويات حقيقية على Fly — تنتهي على مستوى API فقط.',
+    topicResultsTitle: 'النتائج',
+    topicResultsIs: 'ما هي: حالة التشغيل والسجلات ومخرجات DRS.',
+    topicResultsNot: 'ما ليست: تقريرًا إلزاميًا بترتيب ثابت.',
+    signInForWorkspace: 'سجّل الدخول أولًا — مساحات العمل خاصة بجوازك.',
+    noWorkspaceYet: 'لا توجد مساحة عمل بعد. أنشئ واحدة لتجميع البيانات والتشغيلات.',
+    noWorkspacePilot:
+      'لا توجد مساحة لحسابك بعد. أنشئ واحدة أدناه (العرض لا يشارك مساحة demo واحدة بين المستخدمين).',
+    runNeedsWorkspaceCohort: 'اختر مساحة وأنشئ فوجًا أعلاه قبل تشغيل على فوج.',
     step1: '1. الهوية',
     step2: '2. مساحة العمل',
     step3: '3. البيانات',

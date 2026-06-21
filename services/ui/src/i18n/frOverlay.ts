@@ -30,8 +30,11 @@ export const frOverlay = {
     language: 'Langue',
     brokerMisconfigured:
       'La connexion est requise mais le broker d\'identité n\'est pas configuré. Contactez l\'opérateur ou ouvrez Paramètres.',
-    signInRequired: 'Connexion requise',
-    signInRequiredHint: 'Cette instance exige une connexion pour téléverser des données et lancer des analyses.',
+    signInRequired: 'Connexion pour espaces de travail et analyses',
+    signInRequiredHint:
+      'Les données de démo et Beacon sont consultables sans connexion. Téléversement, espaces de travail, cohortes et soumission de workflows exigent un passeport.',
+    signInBrowsingHint:
+      'Données et Beacon accessibles sans connexion. Langue : menu latéral ou dialogue d\'accueil (English, Deutsch, …).',
   },
   auth: {
     completingSignIn: 'Finalisation de la connexion…',
@@ -124,6 +127,7 @@ export const frOverlay = {
       'Si l\'opérateur a mis tout le pilote en pause, les URL restent indisponibles jusqu\'à reprise — différent du réveil idle normal.',
     browseData: 'Parcourir les données',
     dismiss: 'Compris — masquer ce guide',
+    languageNote: 'Langue : menu ci-dessous ou pied de la barre latérale (English, Deutsch, Français, العربية).',
   },
   pilot: {
     remoteSeedHint:
@@ -805,6 +809,35 @@ export const frOverlay = {
       'Checklist de la connexion aux résultats : espace de travail → données → outils → cohorte → exécutions.',
     pilotDisclaimer:
       'Checklist d\'intégration pilote — pas de gestion d\'étude complète. En production, utilisez espaces de travail, DUO/consentement et workflows institut directement.',
+    notWorkflow:
+      'Cette page n\'exécute pas un pipeline fixe. Elle explique les concepts et renvoie vers les vraies pages de travail.',
+    topicIdentityTitle: 'Identité',
+    topicIdentityIs: 'Ce que c\'est : votre passeport GA4GH via le broker de l\'institut.',
+    topicIdentityIsLocal: 'Ce que c\'est : un utilisateur démo local sans Keycloak.',
+    topicIdentityNot: 'Ce que ce n\'est pas : un compte Ferrum séparé ou un mot de passe stocké ici.',
+    topicWorkspaceTitle: 'Espaces de travail',
+    topicWorkspaceIs: 'Ce que c\'est : un dossier de projet pour données, cohortes et exécutions.',
+    topicWorkspaceNot: 'Ce que ce n\'est pas : un chemin disque ou une étape d\'assistant obligatoire.',
+    topicDataTitle: 'Données (DRS)',
+    topicDataIs: 'Ce que c\'est : fichiers gérés et liens enregistrés via les API GA4GH.',
+    topicDataNot: 'Ce que ce n\'est pas : un téléversement automatique de tout votre ordinateur.',
+    topicToolsTitle: 'Outils (TRS)',
+    topicToolsIs: 'Ce que c\'est : descripteurs de workflow enregistrés (WDL, CWL, Nextflow, Snakemake).',
+    topicToolsNot: 'Ce que ce n\'est pas : installation Docker ou jobs cluster par cette page.',
+    topicCohortTitle: 'Cohortes',
+    topicCohortIs: 'Ce que c\'est : jeux d\'échantillons avec métadonnées et liens DRS.',
+    topicCohortNot: 'Ce que ce n\'est pas : un système complet de gestion d\'étude clinique.',
+    topicRunTitle: 'Exécutions de workflow',
+    topicRunIs: 'Ce que c\'est : soumettre une analyse (simulée sur ce pilote hébergé).',
+    topicRunNot: 'Ce que ce n\'est pas : un calcul conteneur réel sur Fly — fin au niveau API seulement.',
+    topicResultsTitle: 'Résultats',
+    topicResultsIs: 'Ce que c\'est : statut, journaux et objets de sortie enregistrés dans DRS.',
+    topicResultsNot: 'Ce que ce n\'est pas : un rapport imposé dans un ordre fixe.',
+    signInForWorkspace: 'Connectez-vous d\'abord — les espaces de travail sont privés à votre passeport.',
+    noWorkspaceYet: 'Pas encore d\'espace de travail. Créez-en un pour regrouper données et exécutions.',
+    noWorkspacePilot:
+      'Pas encore d\'espace pour votre compte. Créez-en un ci-dessous (le pilote ne partage pas un espace démo unique entre utilisateurs).',
+    runNeedsWorkspaceCohort: 'Choisissez un espace et créez une cohorte ci-dessus avant un lancement sur cohorte.',
     step1: '1. Identité',
     step2: '2. Espace de travail',
     step3: '3. Données',
