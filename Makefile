@@ -14,7 +14,7 @@ export FERRUM_WES_TES_WORK_HOST_PREFIX
 DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
 export DOCKER_BIN
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot down-pilot up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity test-demo test-tes test-tes-full test-pilot test-pilot-cloud test-federated
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -26,8 +26,9 @@ help:
 	@echo "  make smoke-pilot Local smoke after up-tes (health, Crypt4GH, lineage, cohort, CWL + optional germline WES)"
 	@echo "  make test-tes    CI-style TES e2e (ingest, Crypt4GH round-trip, WES COMPLETE) — stack must be up"
 	@echo "  make test-tes-full  test-tes + smoke-pilot with SMOKE_REQUIRE_COMPLETE=1"
-	@echo "  make up-pilot  Start demo + ga4gh-infra with external auth (builds ../ga4gh-infra locally)"
-	@echo "  make up-pilot-cloud  Local Ferrum + Fly ga4gh-infra/Keycloak (Fly must be running)"
+	@echo "  make up-pilot  Local Ferrum + Fly ga4gh-infra/Keycloak AAI (default laptop pilot; Fly must be running)"
+	@echo "  make up-pilot-local  Full local ga4gh-infra + mock-idp (offline/CI, no Fly)"
+	@echo "  make up-pilot-cloud  Alias for make up-pilot"
 	@echo "  make down      Stop stack; keep volumes"
 	@echo "  make destroy   Stop stack; remove volumes and project images"
 	@echo ""
@@ -82,9 +83,13 @@ smoke-pilot:
 verify-parity:
 	@bash scripts/verify-source-parity.sh
 
-# Pilot profile: Ferrum + ga4gh-infra AAI (mock-idp). Sibling ga4gh-infra checkout required.
-up-pilot:
+# Default pilot: local Ferrum data plane + Fly AAI (Pasteur Keycloak flow on laptop).
+up-pilot: up-pilot-cloud
+
+# Full offline ga4gh stack (mock-idp). Use for CI or when Fly is unavailable.
+up-pilot-local:
 	@test -d "$(GA4GH_INFRA_SRC)" || (echo "GA4GH_INFRA_SRC not found: $(GA4GH_INFRA_SRC)" && exit 1)
+	@$(MAKE) -C "$(GA4GH_INFRA_SRC)" prepare-vendor
 	@echo "Building ga4gh-infra from $(GA4GH_INFRA_SRC) (GHCR :0.1.0 tags are optional; local build is the default)."
 	$(COMPOSE_PILOT) up -d --build --pull never
 	@echo "Waiting for AAI broker (max 90s)..."
@@ -100,13 +105,15 @@ up-pilot:
 		sleep 2; \
 	done
 	@echo ""
-	@echo "Ferrum pilot stack is up:"
+	@echo "Ferrum pilot-local stack is up (mock-idp AAI, no Fly):"
 	@echo "  Gateway:  http://localhost:$${GATEWAY_PORT:-8080}"
 	@echo "  UI:       http://localhost:$${UI_PORT:-8082}/"
 	@echo "  Broker:   http://localhost:8180/login/mock-idp (AAI sign-in for UI)"
 	@command -v open >/dev/null 2>&1 && open "http://localhost:$${UI_PORT:-8082}/" || true
 
-down-pilot:
+down-pilot: down-pilot-cloud
+
+down-pilot-local:
 	$(COMPOSE_PILOT) down
 
 # Local Ferrum demo stack; auth via Fly pasteur-pilot ga4gh-infra + Keycloak (return_url localhost OK).
@@ -125,12 +132,13 @@ up-pilot-cloud:
 	done
 	@GA4GH_URL="$${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}"; \
 	  echo ""; \
-	  echo "Ferrum pilot-cloud is up (local data plane + Fly AAI):"; \
+	  echo "Ferrum pilot is up (local data plane + Fly AAI):"; \
 	  echo "  UI:       http://localhost:$${UI_PORT:-8082}/"; \
 	  echo "  Gateway:  http://localhost:$${GATEWAY_PORT:-8080}"; \
 	  echo "  Fly AAI:  $$GA4GH_URL/login/keycloak"; \
 	  echo "  Sign in:  pasteur-demo-1 / PasteurDemo1!"; \
-	  echo "  Smoke:    make test-pilot-cloud"
+	  echo "  Smoke:    make test-pilot"; \
+	  echo "  Offline mock-idp stack instead: make up-pilot-local"
 	@command -v open >/dev/null 2>&1 && open "http://localhost:$${UI_PORT:-8082}/" || true
 
 down-pilot-cloud:
@@ -226,7 +234,9 @@ test-tes:
 test-tes-full:
 	./deploy/scripts/ci-tes-pilot-e2e.sh
 
-test-pilot:
+test-pilot: test-pilot-cloud
+
+test-pilot-local:
 	chmod +x deploy/scripts/ci-pilot-aai-e2e.sh
 	./deploy/scripts/ci-pilot-aai-e2e.sh
 

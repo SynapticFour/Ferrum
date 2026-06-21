@@ -1,6 +1,6 @@
-# Pilot-cloud overlay: local Ferrum demo stack + Fly.io ga4gh-infra / Keycloak AAI.
-# No local aai-broker or mock-idp — auth plane stays on Fly.
+# Default pilot overlay: local Ferrum + Fly ga4gh-infra / Keycloak AAI (no local broker stack).
 #
+#   make up-pilot          # default — same as make up-pilot-cloud
 #   make up-pilot-cloud
 #
 # Requires: Fly pilot ga4gh-infra + keycloak running (./pilot.sh resume all --wait).

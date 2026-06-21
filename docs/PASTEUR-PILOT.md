@@ -22,8 +22,8 @@ There is **no web UI on the ga4gh-infra root URL** (API/broker only). End users 
 | Goal | Command |
 |------|---------|
 | Open demo, no AAI | `make up` |
-| **AAI locally (mock-idp)** | `make up-pilot` → `make test-pilot` |
-| **AAI with Fly Keycloak** | `make up-pilot-cloud` → `make test-pilot-cloud` (Fly must be running) |
+| **Laptop pilot (local Ferrum + Fly Keycloak AAI)** | `make up-pilot` → `make test-pilot` (Fly must be running) |
+| **Offline mock-idp / full local ga4gh** | `make up-pilot-local` → `make test-pilot-local` |
 | Real workflow compute | `make up-tes` |
 | Optional pilot files (local) | `make seed-pilot` after stack is up — BAM, VCF, chr22 ref+truth on MinIO |
 | Verify remote Fly (after operator seed) | `FERRUM_PASSPORT_JWT=… BASE_URL=https://pasteur-pilot-ferrum.fly.dev ./scripts/seed-pilot-remote.sh` — verify only |

@@ -1,7 +1,5 @@
-# ga4gh-infra stack for local pilot profile (ports 8180–8190, 9100).
-# Requires sibling checkout: export GA4GH_INFRA_SRC=/path/to/ga4gh-infra
-#
-#   make up-pilot
+# ga4gh-infra stack for local offline pilot (mock-idp). Merged via make up-pilot-local only.
+# Default laptop pilot (make up-pilot) uses Fly AAI — see docker-compose.pilot-cloud.yml.
 
 services:
   mock-idp:
@@ -12,6 +10,8 @@ services:
       dockerfile: docker/Dockerfile.mock-idp
     environment:
       MOCK_IDP_ISSUER: http://mock-idp:9100
+      # Browser must not follow Docker-internal hostnames; broker uses issuer for token/JWKS.
+      MOCK_IDP_PUBLIC_URL: http://localhost:9100
       MOCK_IDP_HOST: 0.0.0.0
       MOCK_IDP_SIGNING_KEY_PEM: /secrets/mock_idp_rs256.pem
       MOCK_IDP_PORT: "9100"

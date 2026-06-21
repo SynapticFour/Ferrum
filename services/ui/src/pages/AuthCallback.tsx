@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
@@ -15,6 +16,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 export function AuthCallback() {
   const navigate = useNavigate();
   const setPassport = useAuthStore((s) => s.setPassport);
+  const queryClient = useQueryClient();
   const { t } = useI18n();
   const [failed, setFailed] = useState(false);
   const handledRef = useRef(false);
@@ -35,10 +37,11 @@ export function AuthCallback() {
 
     storePassport(token);
     setPassport(token);
+    void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
     dismissTesterWelcomeGuide();
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     void navigate({ to: '/', replace: true });
-  }, [navigate, setPassport]);
+  }, [navigate, queryClient, setPassport]);
 
   if (failed) {
     return (

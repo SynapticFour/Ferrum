@@ -28,7 +28,7 @@ tower = "0.4"
 tower-http = { version = "0.5", features = ["trace"] }
 config = "0.14"
 utoipa = { version = "4", optional = true }
-jsonwebtoken = "10"
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 async-trait = "0.1"
 ulid = "1"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "multipart"] }
@@ -49,6 +49,7 @@ noodles-bgzf = { version = "0.46", optional = true, default-features = false, fe
 ] }
 
 [dev-dependencies]
+rsa = { version = "0.9", features = ["sha2"] }
 tokio = { version = "1", features = ["full"] }
 tempfile = "3"
 tower = { version = "0.4", features = ["util"] }

@@ -319,6 +319,8 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
 
     if let Some(ref cfg) = config {
         probe_auth_endpoints(cfg, offline_first).await;
+        let auth_cfg = ferrum_core::AuthMiddlewareConfig::from_crate_config(&cfg.auth);
+        ferrum_core::warm_jwks_cache(&auth_cfg).await;
     }
 
     let _memory_guard = config

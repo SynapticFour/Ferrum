@@ -1,5 +1,4 @@
-# Pilot overlay: Ferrum gateway with external auth + ga4gh-infra service registry.
-# Merged with deploy/docker-compose.yml + deploy/docker-compose.ga4gh-infra.yml via make up-pilot.
+# Offline pilot overlay (mock-idp). Merged with ga4gh-infra compose via make up-pilot-local.
 services:
   ferrum-gateway:
     build:
