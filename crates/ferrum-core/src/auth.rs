@@ -773,31 +773,37 @@ async fn decode_passport_via_clearinghouse(
             );
             jsonwebtoken::errors::ErrorKind::InvalidToken
         })?;
-    let visas = clearinghouse
-        .extract_visas(&passport)
-        .await
-        .unwrap_or_default();
-    let visa_objects = visas
-        .into_iter()
-        .map(|visa| VisaObject {
-            r#type: visa.claim.r#type.to_string(),
-            asserted: visa.claim.asserted,
-            value: visa.claim.value,
-            source: visa.claim.source,
-            conditions: visa
-                .claim
-                .conditions
-                .as_ref()
-                .and_then(|c| serde_json::to_value(c).ok())
-                .map(|v| vec![v]),
-            by: visa
-                .claim
-                .by
-                .as_ref()
-                .and_then(|b| serde_json::to_value(b).ok())
-                .and_then(|v| v.as_str().map(str::to_string)),
-        })
-        .collect();
+    let visa_objects = match clearinghouse.extract_visas(&passport).await {
+        Ok(visas) => visas
+            .into_iter()
+            .map(|visa| VisaObject {
+                r#type: visa.claim.r#type.to_string(),
+                asserted: visa.claim.asserted,
+                value: visa.claim.value,
+                source: visa.claim.source,
+                conditions: visa
+                    .claim
+                    .conditions
+                    .as_ref()
+                    .and_then(|c| serde_json::to_value(c).ok())
+                    .map(|v| vec![v]),
+                by: visa
+                    .claim
+                    .by
+                    .as_ref()
+                    .and_then(|b| serde_json::to_value(b).ok())
+                    .and_then(|v| v.as_str().map(str::to_string)),
+            })
+            .collect(),
+        Err(err) => {
+            tracing::warn!(
+                error = %err,
+                embedded_visa_count = passport.visa_jwts.len(),
+                "clearinghouse visa extract failed; parsing embedded passport visas without registry verification"
+            );
+            decode_passport_visas(&passport.visa_jwts)
+        }
+    };
     Ok(AuthClaims::Passport {
         claims: PassportClaims {
             sub: Some(passport.sub),
