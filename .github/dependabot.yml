@@ -96,3 +96,5 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@vitejs/plugin-react"
         update-types: ["version-update:semver-major"]
+      # Bumps applied manually on main; grouped PRs fail smoke lint gate.
+      - dependency-name: "*"
