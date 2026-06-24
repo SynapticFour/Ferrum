@@ -55,14 +55,13 @@ export function canStreamPreview(
   storageKind: 'managed' | 'url' | 'unknown',
   name: string,
   mime?: string | null,
-  _size?: number | null,
 ): boolean {
   if (storageKind === 'url') return false;
   if (!isPreviewableType(name, mime)) return false;
   return storageKind === 'managed' || storageKind === 'unknown';
 }
 
-export function wouldPreviewByType(name: string, mime?: string | null, _size?: number | null): boolean {
+export function wouldPreviewByType(name: string, mime?: string | null): boolean {
   return isPreviewableType(name, mime);
 }
 

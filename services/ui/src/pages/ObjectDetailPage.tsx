@@ -62,9 +62,9 @@ export function ObjectDetailPage() {
   const kind = obj ? drsStorageKind(obj) : 'unknown';
   const displayName = obj?.name ?? id;
   const isEncrypted = obj?.is_encrypted === true;
-  const previewByType = obj ? wouldPreviewByType(displayName, obj.mime_type, obj.size) : false;
+  const previewByType = obj ? wouldPreviewByType(displayName, obj.mime_type) : false;
   const streamPreviewable = obj
-    ? canStreamPreview(kind, displayName, obj.mime_type, obj.size)
+    ? canStreamPreview(kind, displayName, obj.mime_type)
     : false;
 
   const { data: workspaces } = useQuery({
