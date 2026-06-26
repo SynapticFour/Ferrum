@@ -62,7 +62,7 @@ up-tes:
 	@for img in $(TES_IMAGES); do \
 		docker pull --platform $(TES_PLATFORM) $$img || echo "WARN: could not pull $$img"; \
 	done
-	$(COMPOSE_TES) pull
+	$(COMPOSE_TES) pull --ignore-buildable
 	$(COMPOSE_TES) up -d --build
 	@echo "Waiting for gateway (max 90s)..."
 	@for i in $$(seq 1 45); do \
@@ -177,7 +177,7 @@ laptop:
 # Pull images, build, start stack. Wait for gateway and UI to be reachable; fail with hint if not.
 # Init seeds demo data (workspace, DRS, TRS, Keycloak). Use demo-user when auth is disabled.
 demo:
-	$(COMPOSE) pull
+	$(COMPOSE) pull --ignore-buildable
 	$(COMPOSE) up -d --build
 	@echo "Waiting for gateway (max 60s)..."
 	@for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do \
@@ -239,7 +239,7 @@ rebuild-gateway-tes:
 
 # Pull only
 pull:
-	$(COMPOSE) pull
+	$(COMPOSE) pull --ignore-buildable
 
 test-demo:
 	chmod +x deploy/scripts/ci-docker-demo-e2e.sh
