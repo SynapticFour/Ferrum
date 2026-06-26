@@ -17,9 +17,9 @@ COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
 COPY tools ./tools
 COPY third_party ./third_party
-
-# Optional path deps (ga4gh-clearinghouse, ga4gh-types) must exist even when features are off.
-RUN git clone --depth 1 --branch main https://github.com/SynapticFour/ga4gh-infra.git /ga4gh-infra
+COPY deploy/scripts/clone-ga4gh-infra.sh /tmp/clone-ga4gh-infra.sh
+ARG GA4GH_INFRA_REF=55d44957a1ee91140f83b6598ce0f9c492148d15
+RUN chmod +x /tmp/clone-ga4gh-infra.sh && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
 
 RUN if [ -n "$FERRUM_GATEWAY_FEATURES" ]; then \
       cargo build --release -p ferrum-gateway --features "$FERRUM_GATEWAY_FEATURES"; \

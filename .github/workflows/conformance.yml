@@ -1,7 +1,7 @@
 # Run HelixTest GA4GH conformance suite against the Ferrum demo stack.
 # - helixtest-full: one full run (--all); report uploaded as artifact.
 # - helixtest-services: per-service steps (WES, TES, DRS, TRS, Beacon) for clear pass/fail in the Actions UI.
-# Pin HelixTest by setting HELIXTEST_REF (branch or tag) in the workflow or repo env.
+# Pin HelixTest / ga4gh-infra via VERSIONS.lock (see load-versions action).
 # See docs/HELIXTEST-INTEGRATION.md ("What is tested in Ferrum CI") for coverage matrix and URL mapping.
 
 name: Conformance (HelixTest)
@@ -13,9 +13,7 @@ on:
     branches: [main, master]
 
 env:
-  # Pin HelixTest to a branch or tag; change to e.g. v0.1.0 when HelixTest tags releases
-  HELIXTEST_REF: main
-  GA4GH_INFRA_REF: main
+  # HELIXTEST_REF / GA4GH_INFRA_REF: loaded from VERSIONS.lock per job
   # HelixTest can skip the Auth (Level 4) suite in Ferrum mode to avoid conflicts where
   # Ferrum keeps some non-auth conformance endpoints intentionally open.
   HELIXTEST_SKIP_AUTH: "true"
@@ -35,12 +33,14 @@ jobs:
     steps:
       - name: Checkout Ferrum
         uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
 
-      - name: Clone HelixTest
-        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+      - uses: ./.github/actions/clone-helixtest
+        with:
+          ref: ${{ env.HELIXTEST_REF }}
 
       - name: Align HelixTest TES checksum with committed tes_echo_out.txt (noop backend)
         run: |
@@ -178,12 +178,14 @@ jobs:
     steps:
       - name: Checkout Ferrum
         uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
 
-      - name: Clone HelixTest
-        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+      - uses: ./.github/actions/clone-helixtest
+        with:
+          ref: ${{ env.HELIXTEST_REF }}
 
       - name: Align HelixTest TES checksum with committed tes_echo_out.txt (noop backend)
         run: |

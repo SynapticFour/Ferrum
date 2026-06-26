@@ -22,6 +22,9 @@ fi
 
 ARCHIVE="$(ls "${BUNDLE_DIR}"/images-*.tar.gz 2>/dev/null | head -n 1 || true)"
 if [[ -z "${ARCHIVE}" ]]; then
+  ARCHIVE="$(ls "${BUNDLE_DIR}"/images-*.tar 2>/dev/null | head -n 1 || true)"
+fi
+if [[ -z "${ARCHIVE}" ]]; then
   echo "No images archive found."
   exit 1
 fi

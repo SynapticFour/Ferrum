@@ -12,7 +12,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  GA4GH_INFRA_REF: main
+  # GA4GH_INFRA_REF: loaded from VERSIONS.lock
 
 jobs:
   mii-validate:
@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}

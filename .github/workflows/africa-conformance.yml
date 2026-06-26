@@ -10,8 +10,7 @@ on:
     branches: [main, master]
 
 env:
-  HELIXTEST_REF: main
-  GA4GH_INFRA_REF: main
+  # HELIXTEST_REF / GA4GH_INFRA_REF: loaded from VERSIONS.lock per job
   GATEWAY_BASE: http://localhost:8080
   FERRUM_PUBLIC_BASE_URL: http://localhost:8080
   RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1.91.1-bookworm
@@ -24,12 +23,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
 
-      - name: Clone HelixTest
-        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+      - uses: ./.github/actions/clone-helixtest
+        with:
+          ref: ${{ env.HELIXTEST_REF }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -61,12 +62,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
 
-      - name: Clone HelixTest
-        run: git clone --depth 1 --branch "${{ env.HELIXTEST_REF }}" https://github.com/SynapticFour/HelixTest.git helixtest-repo
+      - uses: ./.github/actions/clone-helixtest
+        with:
+          ref: ${{ env.HELIXTEST_REF }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -95,6 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}

@@ -7,7 +7,7 @@ on:
 env:
   RUN_MII_CONNECT: "false"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  GA4GH_INFRA_REF: main
+  # GA4GH_INFRA_REF / HELIXTEST_REF: loaded from VERSIONS.lock per job
   # crates.io occasionally flakes in GHA (SSL_ERROR_SYSCALL); default cargo retry is 3.
   CARGO_NET_RETRY: "10"
 
@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
@@ -29,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
@@ -49,6 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
@@ -78,6 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
@@ -118,6 +122,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
@@ -137,6 +142,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
@@ -163,6 +169,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
@@ -210,6 +217,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}

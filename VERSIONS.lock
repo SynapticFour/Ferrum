@@ -1,0 +1,29 @@
+# Ferrum ecosystem — cross-repo version pins
+#
+# WHO UPDATES THIS FILE
+#   Release engineer when cutting a Ferrum release (see RELEASING.md):
+#     1. Bump FERRUM_VERSION to the new v*.*.* tag.
+#     2. Set GA4GH_INFRA_REF to a compatible ga4gh-infra git tag (ga4gh-infra-v*)
+#        or commit SHA if no tag exists yet.
+#     3. Set HELIXTEST_REF to a HelixTest tag or commit SHA (recommended conformance).
+#     4. Run CI on main, then tag and push.
+#   Also sync synapticfour-business pilot Dockerfiles / build-pilot-image.sh checks.
+#
+# WHO READS THIS FILE
+#   - Ferrum CI (.github/workflows/* via load-versions action)
+#   - deploy/docker-compose.yml (GA4GH_INFRA_REF build-arg)
+#   - deploy/scripts/run-helixtest-local.sh
+#   - synapticfour-business pilot-deploy (sources this file from sibling Ferrum/)
+
+# Ferrum release tag (customer bundles, pilot FERRUM_REF)
+FERRUM_VERSION=v0.2.0
+
+# ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
+# When ga4gh-infra publishes ga4gh-infra-v*, prefer the tag over a raw SHA.
+GA4GH_INFRA_REF=55d44957a1ee91140f83b6598ce0f9c492148d15
+
+# Docker image pins for ga4gh-infra compose (see ga4gh-infra/docker/.env.example)
+GA4GH_INFRA_IMAGE_VERSION=0.1.0
+
+# HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
+HELIXTEST_REF=c0ea4da3694ee8f5658d8da6e8cf4b57ed11b68b

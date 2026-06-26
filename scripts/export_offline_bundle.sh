@@ -3,21 +3,26 @@ set -euo pipefail
 
 OUTPUT_DIR="./offline-bundle"
 COMPOSE_FILE="deploy/docker-compose.yml"
-GATEWAY_IMAGE="ferrum-gateway:latest"
+VERSION="${FERRUM_VERSION:-latest}"
+GATEWAY_IMAGE="ferrum-gateway:${VERSION}"
+UI_IMAGE="ferrum-ui:${VERSION}"
+INIT_IMAGE="ferrum-init:${VERSION}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --output-dir) OUTPUT_DIR="$2"; shift 2 ;;
     --compose-file) COMPOSE_FILE="$2"; shift 2 ;;
+    --version) VERSION="$2"; GATEWAY_IMAGE="ferrum-gateway:${VERSION}"; UI_IMAGE="ferrum-ui:${VERSION}"; INIT_IMAGE="ferrum-init:${VERSION}"; shift 2 ;;
     --gateway-image) GATEWAY_IMAGE="$2"; shift 2 ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
   esac
 done
 
 mkdir -p "${OUTPUT_DIR}"
-ARCHIVE="${OUTPUT_DIR}/images-$(date +%Y%m%d-%H%M%S).tar"
+ARCHIVE="${OUTPUT_DIR}/images-${VERSION}.tar"
 
-echo "Pulling/building required images..."
+echo "Pulling/building required images (version ${VERSION})..."
+export FERRUM_VERSION="${VERSION}"
 docker compose -f "${COMPOSE_FILE}" build ferrum-gateway ferrum-ui ferrum-init
 docker pull postgres:16-alpine
 docker pull minio/minio:latest
@@ -27,8 +32,8 @@ docker pull nginx:alpine
 echo "Saving images..."
 docker save \
   "${GATEWAY_IMAGE}" \
-  ferrum-ui:latest \
-  ferrum-init:latest \
+  "${UI_IMAGE}" \
+  "${INIT_IMAGE}" \
   postgres:16-alpine \
   minio/minio:latest \
   keycloak/keycloak:26.0 \
@@ -38,8 +43,11 @@ docker save \
 gzip -f "${ARCHIVE}"
 
 cat > "${OUTPUT_DIR}/manifest.txt" <<EOF
+ferrum_version=${VERSION}
 compose_file=${COMPOSE_FILE}
 gateway_image=${GATEWAY_IMAGE}
+ui_image=${UI_IMAGE}
+init_image=${INIT_IMAGE}
 generated_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 EOF
 
@@ -49,4 +57,3 @@ EOF
 )
 
 echo "Offline bundle ready: ${OUTPUT_DIR}"
-

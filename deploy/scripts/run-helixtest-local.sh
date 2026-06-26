@@ -13,6 +13,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
+# Default HelixTest ref from VERSIONS.lock (override with HELIXTEST_REF=...)
+if [[ -f "$ROOT/scripts/load-versions.sh" ]]; then
+  # shellcheck disable=SC1091
+  source "$ROOT/scripts/load-versions.sh"
+fi
 HELIXTEST_REF="${HELIXTEST_REF:-main}"
 GATEWAY_BASE="${GATEWAY_BASE:-http://localhost:8080}"
 HELIXTEST_DIR="${HELIXTEST_DIR:-$ROOT/.helixtest-checkout}"
@@ -73,7 +78,7 @@ fi
 
 if [ ! -d "$HELIXTEST_DIR/.git" ]; then
   echo "Cloning HelixTest (${HELIXTEST_REF}) into ${HELIXTEST_DIR}..."
-  git clone --depth 1 --branch "$HELIXTEST_REF" https://github.com/SynapticFour/HelixTest.git "$HELIXTEST_DIR"
+  HELIXTEST_REF="$HELIXTEST_REF" bash "$ROOT/deploy/scripts/clone-helixtest.sh" "$HELIXTEST_DIR"
 else
   echo "Using existing HelixTest checkout at ${HELIXTEST_DIR}"
 fi

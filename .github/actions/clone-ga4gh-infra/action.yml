@@ -13,9 +13,16 @@ runs:
         set -euo pipefail
         REF="${{ inputs.ref }}"
         DEST="../ga4gh-infra"
+        REPO="https://github.com/${GITHUB_REPOSITORY_OWNER}/ga4gh-infra.git"
         if [ -d "$DEST/.git" ]; then
           echo "ga4gh-infra already present at $DEST"
           exit 0
         fi
-        git clone --depth 1 --branch "$REF" \
-          "https://github.com/${GITHUB_REPOSITORY_OWNER}/ga4gh-infra.git" "$DEST"
+        if [[ "$REF" =~ ^(main|master)$ ]] || [[ "$REF" =~ ^v[0-9] ]] || [[ "$REF" =~ ^ga4gh-infra-v ]]; then
+          git clone --depth 1 --branch "$REF" "$REPO" "$DEST"
+        else
+          git clone --depth 1 "$REPO" "$DEST"
+          git -C "$DEST" fetch --depth 1 origin "$REF"
+          git -C "$DEST" checkout FETCH_HEAD
+        fi
+        echo "ga4gh-infra @ $(git -C "$DEST" rev-parse --short HEAD)"

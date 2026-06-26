@@ -54,6 +54,9 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.init
+      args:
+        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-55d44957a1ee91140f83b6598ce0f9c492148d15}
+    image: ferrum-init:${FERRUM_VERSION:-latest}
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
@@ -90,7 +93,8 @@ services:
         DEBIAN_RUNTIME_IMAGE: ${DEBIAN_RUNTIME_IMAGE:-debian:bookworm-slim}
         FERRUM_GIT_SHA: ${FERRUM_GIT_SHA:-unknown}
         FERRUM_BUILD_PROFILE: ${FERRUM_BUILD_PROFILE:-demo}
-    image: ferrum-gateway:latest
+        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-55d44957a1ee91140f83b6598ce0f9c492148d15}
+    image: ferrum-gateway:${FERRUM_VERSION:-latest}
     pull_policy: build
     environment:
       FERRUM_BIND: "0.0.0.0:8080"
@@ -140,7 +144,7 @@ services:
         VITE_ENABLE_PROBLEM_REPORT: "${VITE_ENABLE_PROBLEM_REPORT:-true}"
         VITE_PROBLEM_REPORT_EMAIL: "${VITE_PROBLEM_REPORT_EMAIL:-contact@synapticfour.com}"
         VITE_PROBLEM_REPORT_GITHUB_REPO: "${VITE_PROBLEM_REPORT_GITHUB_REPO:-SynapticFour/Ferrum}"
-    image: ferrum-ui:latest
+    image: ferrum-ui:${FERRUM_VERSION:-latest}
     pull_policy: build
     depends_on:
       ferrum-gateway: { condition: service_healthy }

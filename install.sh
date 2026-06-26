@@ -5,6 +5,7 @@ REPO="SynapticFour/Ferrum"
 BIN_NAME="ferrum-gateway"
 INSTALL_DIR="$HOME/.ferrum/bin"
 OFFLINE=0
+COMPOSE_FILE="deploy/docker-compose.yml"
 
 for arg in "$@"; do
   case "$arg" in
@@ -13,6 +14,59 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+compose_install() {
+  if [ -f .env ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . ./.env
+    set +a
+  fi
+
+  if [ -z "${FERRUM_VERSION:-}" ]; then
+    echo "ERROR: FERRUM_VERSION ist nicht gesetzt. Bitte .env konfigurieren."
+    echo "       Beispiel: cp deploy/.env.example .env  und  FERRUM_VERSION=v0.2.0 setzen"
+    exit 1
+  fi
+
+  export FERRUM_VERSION
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "ERROR: Docker nicht gefunden."
+    exit 1
+  fi
+
+  echo "[ferrum] Compose-Installation (Version ${FERRUM_VERSION})..."
+
+  if [ "$OFFLINE" = "1" ]; then
+    docker compose -f "$COMPOSE_FILE" up -d --pull never
+  else
+    docker compose -f "$COMPOSE_FILE" pull || true
+    docker compose -f "$COMPOSE_FILE" up -d --build
+  fi
+
+  GATEWAY="${FERRUM_PUBLIC_BASE_URL:-http://localhost:${GATEWAY_PORT:-8080}}"
+  echo "[ferrum] Warte auf ${GATEWAY}/health ..."
+  i=0
+  while [ "$i" -lt 24 ]; do
+    if curl -sf "${GATEWAY}/health" >/dev/null 2>&1; then
+      echo "[ferrum] Stack bereit: ${GATEWAY}/health"
+      echo "[ferrum] UI: http://localhost:${UI_PORT:-8082}"
+      return 0
+    fi
+    i=$((i + 1))
+    sleep 5
+  done
+
+  echo "ERROR: Gateway nicht erreichbar unter ${GATEWAY}/health"
+  docker compose -f "$COMPOSE_FILE" logs ferrum-gateway 2>&1 | tail -40 || true
+  exit 1
+}
+
+if [ -f "$COMPOSE_FILE" ]; then
+  compose_install
+  exit 0
+fi
 
 # Detect platform
 OS="$(uname -s)"
@@ -72,7 +126,7 @@ if [ "$OFFLINE" = "1" ]; then
     exit 0
   fi
   if [ -f "./ferrum-offline-bundle.tar.gz" ]; then
-    echo "Import offline bundle with: ./scripts/import_offline_bundle.sh ./ferrum-offline-bundle.tar.gz"
+    echo "Import offline bundle with: ./import.sh"
     exit 0
   fi
   echo "Error: offline install requires ./scripts/build-edge-native.sh, a pre-built binary under ./target/,"
