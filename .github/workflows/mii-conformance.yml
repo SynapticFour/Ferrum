@@ -10,6 +10,11 @@ on:
       - "profiles/mii/**"
       - ".github/workflows/mii-conformance.yml"
 
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   # GA4GH_INFRA_REF: loaded from VERSIONS.lock

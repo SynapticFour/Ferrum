@@ -12,6 +12,11 @@ on:
   pull_request:
     branches: [main, master]
 
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   # HELIXTEST_REF / GA4GH_INFRA_REF: loaded from VERSIONS.lock per job
   # HelixTest can skip the Auth (Level 4) suite in Ferrum mode to avoid conflicts where

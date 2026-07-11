@@ -9,6 +9,11 @@ on:
   pull_request:
     branches: [main, master]
 
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   # HELIXTEST_REF / GA4GH_INFRA_REF: loaded from VERSIONS.lock per job
   GATEWAY_BASE: http://localhost:8080

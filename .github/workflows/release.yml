@@ -10,6 +10,11 @@ on:
         description: 'Dry-run version label (e.g. v0.2.0-rc1) — creates draft release'
         required: true
 
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
   id-token: write
