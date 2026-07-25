@@ -1,7 +1,9 @@
 # First Release Checklist — Ferrum v0.2.0
 
-Operator checklist before the **first real customer-facing tag** (`v0.2.0`).  
+Operator checklist before the **first real customer-facing tag** (`v0.2.0`).
 Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gaps.md`](./portfolio/gaps.md), [`../RELEASING.md`](../RELEASING.md).
+
+> **Debt note (2026-07-25):** `FERRUM_VERSION=v0.2.0` is set in `VERSIONS.lock`, but `GA4GH_INFRA_REF` and `HELIXTEST_REF` are still bare commit SHAs (no `ga4gh-infra-v*` / HelixTest release tags at those pins yet). Do **not** treat customer install as signed off until the Pre-tag boxes below are checked. Creating those tags is a deliberate release-engineering step — not done as drive-by hygiene.
 
 ---
 

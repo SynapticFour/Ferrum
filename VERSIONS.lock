@@ -20,10 +20,13 @@ FERRUM_VERSION=v0.2.0
 
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
 # When ga4gh-infra publishes ga4gh-infra-v*, prefer the tag over a raw SHA.
+# DEBT 2026-07-25: still a bare SHA — tag before first customer-facing Ferrum release
+# (see docs/first-release-checklist.md).
 GA4GH_INFRA_REF=55d44957a1ee91140f83b6598ce0f9c492148d15
 
 # Docker image pins for ga4gh-infra compose (see ga4gh-infra/docker/.env.example)
 GA4GH_INFRA_IMAGE_VERSION=0.1.0
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
+# DEBT 2026-07-25: still a bare SHA — tag before first customer-facing Ferrum release.
 HELIXTEST_REF=c0ea4da3694ee8f5658d8da6e8cf4b57ed11b68b
