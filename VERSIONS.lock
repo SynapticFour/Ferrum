@@ -3,9 +3,8 @@
 # WHO UPDATES THIS FILE
 #   Release engineer when cutting a Ferrum release (see RELEASING.md):
 #     1. Bump FERRUM_VERSION to the new v*.*.* tag.
-#     2. Set GA4GH_INFRA_REF to a compatible ga4gh-infra git tag (ga4gh-infra-v*)
-#        once that tag exists on origin; until then keep the commit SHA below.
-#     3. Set HELIXTEST_REF to a HelixTest tag (vX.Y.Z) once that tag exists on origin.
+#     2. Set GA4GH_INFRA_REF to a compatible ga4gh-infra git tag (ga4gh-infra-v*).
+#     3. Set HELIXTEST_REF to a HelixTest tag (vX.Y.Z).
 #     4. Run CI on main, then tag and push Ferrum.
 #   Also sync synapticfour-business pilot Dockerfiles / build-pilot-image.sh checks.
 #
@@ -19,28 +18,16 @@
 FERRUM_VERSION=v0.2.0
 
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
-#
-# Phase B (2026-08-01): `git tag -l` / `git ls-remote --tags origin` on sibling
-# ga4gh-infra showed **no published tags**. An annotated tag was prepared locally:
-#   ga4gh-infra-v0.1.0 → 55d44957a1ee91140f83b6598ce0f9c492148d15
-# Push before switching this pin from SHA to tag name (CI clones from GitHub):
-#   cd ../ga4gh-infra && git push origin ga4gh-infra-v0.1.0
-#   then set GA4GH_INFRA_REF=ga4gh-infra-v0.1.0
-# DEBT: REF remains a bare SHA until that tag is on origin (customer release gate).
-GA4GH_INFRA_REF=55d44957a1ee91140f83b6598ce0f9c492148d15
+# Tagged on origin 2026-08-01: ga4gh-infra-v0.1.0 → 55d44957a1ee91140f83b6598ce0f9c492148d15
+GA4GH_INFRA_REF=ga4gh-infra-v0.1.0
 GA4GH_INFRA_TAG=ga4gh-infra-v0.1.0
+GA4GH_INFRA_SHA=55d44957a1ee91140f83b6598ce0f9c492148d15
 
 # Docker image pins for ga4gh-infra compose (see ga4gh-infra/docker/.env.example)
 GA4GH_INFRA_IMAGE_VERSION=0.1.0
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
-#
-# Phase B (2026-08-01): sibling HelixTest had **no published tags**. Annotated tag
-# prepared locally:
-#   v0.1.0 → c0ea4da3694ee8f5658d8da6e8cf4b57ed11b68b
-# Push before switching this pin from SHA to tag name:
-#   cd ../HelixTest && git push origin v0.1.0
-#   then set HELIXTEST_REF=v0.1.0
-# DEBT: REF remains a bare SHA until that tag is on origin (customer release gate).
-HELIXTEST_REF=c0ea4da3694ee8f5658d8da6e8cf4b57ed11b68b
+# Tagged on origin 2026-08-01: v0.1.0 → c0ea4da3694ee8f5658d8da6e8cf4b57ed11b68b
+HELIXTEST_REF=v0.1.0
 HELIXTEST_TAG=v0.1.0
+HELIXTEST_SHA=c0ea4da3694ee8f5658d8da6e8cf4b57ed11b68b
