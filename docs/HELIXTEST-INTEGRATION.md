@@ -112,6 +112,8 @@ HelixTest’s auth tests call DRS **without** attaching the JWT to every request
 
 To keep CI stable, Ferrum’s conformance workflow sets `HELIXTEST_SKIP_AUTH=true`, which makes HelixTest skip the Auth (Level 4) suite in `--mode ferrum`. This avoids false failures while still running the other (non-auth) conformance suites.
 
+**This skip is a CI convenience only — not customer or pilot evidence.** Demo stacks with `require_auth=false` are **NON-PILOT**. For pilot auth verification, use `deploy/configs/pilot.toml` (`require_auth=true`), unset `HELIXTEST_SKIP_AUTH`, and prefer a scheduled/nightly auth-on job over enabling Auth Level 4 on every PR. See [customer-runbook.md](./customer-runbook.md).
+
 If you want to validate strict Auth Level 4 end-to-end, unset `HELIXTEST_SKIP_AUTH` and ensure all relevant requests include `Authorization: Bearer ...` (or implement path-specific gateway auth gating).
 
 ---
@@ -195,13 +197,13 @@ export FERRUM_PUBLIC_BASE_URL=http://localhost:8080       # htsget ticket → DR
 
 Ferrum’s CI runs HelixTest **on every push and pull request** to `main`/`master`. The workflow [../.github/workflows/conformance.yml](../.github/workflows/conformance.yml) has two jobs:
 
-1. **HelixTest (full)**  
+1. **HelixTest (full)**
    Starts the demo stack, runs `helixtest --all --mode ferrum --report json --fail-level 1`, uploads the JSON report as an artifact, and fails the job if the suite or level check fails.
 
-2. **HelixTest (core services)**  
+2. **HelixTest (core services)**
    Same stack startup, then:
    - `Run HelixTest (WES, TES, DRS, TRS, Beacon)` — `--only wes --only tes --only drs --only trs --only beacon`
-   - **`Run HelixTest (htsget only)`** — `--only htsget` (separate Actions step for isolated failures)  
+   - **`Run HelixTest (htsget only)`** — `--only htsget` (separate Actions step for isolated failures)
    htsget is also run in job 1 via `--all` (service-info, GET/POST tickets, DRS stream path in `urls[0]`, error codes, optional dataset-auth via env).
 
 Both jobs clone HelixTest from GitHub. The ref (branch or tag) is set by the `HELIXTEST_REF` env var at the top of the workflow (default: `main`). To pin to a specific version, set it to a tag (e.g. `v0.1.0`) when HelixTest publishes releases.

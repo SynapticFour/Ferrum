@@ -13,13 +13,52 @@ Kurzanleitung für IT-Betrieb und Forschungs-IT. Technische Details: [GitHub Rel
 
 ---
 
+## Auth honesty (pilot vs demo / CI)
+
+| Profile | Config | `require_auth` | Use for |
+|---------|--------|----------------|---------|
+| **Demo / local** | `deploy/configs/local.toml`, default `make up` | `false` | Dev and quick demos only — **NON-PILOT** |
+| **Guided pilot** | `deploy/configs/pilot.toml` | `true` | Customer pilots; wire JWKS to ga4gh-infra / IdP |
+| **Production** | `deploy/configs/production.toml` | `true` | Hardened deploy |
+
+**Do not treat demo defaults as pilot evidence.** A stack with `require_auth=false` is intentionally open for local exploration; it is not a customer auth posture.
+
+**HelixTest / conformance CI:** the Conformance workflow sets `HELIXTEST_SKIP_AUTH=true` so Auth (Level 4) is skipped against the demo stack. That is a **CI convenience**, not customer or compliance evidence. For pilot verification, run HelixTest (or your own checks) against a stack using `deploy/configs/pilot.toml` (or equivalent) with `require_auth=true` and a real JWKS, and **do not** set `HELIXTEST_SKIP_AUTH`. Details: [HELIXTEST-INTEGRATION.md](./HELIXTEST-INTEGRATION.md).
+
+**Nightly / scheduled auth-on path (recommended, not required on every PR):** run a separate job or cron that starts the stack with `FERRUM_AUTH__REQUIRE_AUTH=true` (or `FERRUM_CONFIG=deploy/configs/pilot.toml`), unset `HELIXTEST_SKIP_AUTH`, and execute HelixTest Auth Level 4. Prefer this over enabling auth on every PR conformance job.
+
+---
+
+## Compute honesty (TES / WES noop)
+
+**Default demo (`make up`, default Compose):** TES uses the **noop** backend. WES run lifecycle APIs work, but tasks do **not** execute real containers or produce real workflow outputs. UI may show completed-looking runs from seeds or simulated states.
+
+**What pilots must not assume**
+
+- That a green WES/TES API or HelixTest result on the default demo means unsupervised production compute.
+- That Fly / hosted pilot overlays with TES `noop` run real GATK or container workloads.
+- That conformance CI (also noop-aligned for TES checksums) proves site compute capacity.
+
+**How to enable real TES locally**
+
+```bash
+make up-tes          # demo + Docker-backed TES
+make test-tes        # ingest / Crypt4GH / WES COMPLETE smoke
+make smoke-pilot     # broader pilot smoke (after optional make seed-pilot)
+```
+
+See [TESTING.md](../TESTING.md) and [TES-DOCKER-BACKEND.md](./TES-DOCKER-BACKEND.md). Nested Docker on macOS Desktop can still fail bind mounts; Linux CI job `test-tes` is the hard gate for container-backed paths.
+
+---
+
 ## 1. Standard-Installation (Docker Compose)
 
 **Online (empfohlen):**
 
 1. Release von GitHub laden und entpacken, oder Repository klonen.
 2. Konfiguration anlegen: `cp deploy/.env.example .env` — Passwörter ändern und **`FERRUM_VERSION=vX.Y.Z`** setzen (Release-Tag, z. B. `v0.2.0`). **Pflicht** — ohne diese Variable bricht `./install.sh` ab; es wird nicht automatisch `:latest` verwendet.
-3. `./install.sh` ausführen (startet Stack, prüft `/health`).
+3. Für **Pilot**: Auth-Profil mit `require_auth=true` verwenden (`deploy/configs/pilot.toml` oder `production.toml`) und JWKS setzen — nicht die Demo-Defaults.
+4. `./install.sh` ausführen (startet Stack, prüft `/health`).
 
 **Offline (Air-Gap):**
 
@@ -33,13 +72,13 @@ Kurzanleitung für IT-Betrieb und Forschungs-IT. Technische Details: [GitHub Rel
 
 ## 2. ga4gh-infra nachinstallieren (Access / Passports)
 
-Ferrum und **ga4gh-infra** (Identität, Passports, Service Registry) werden **getrennt** ausgeliefert. Version in Ferrum `VERSIONS.lock` (`GA4GH_INFRA_REF`) beachten.
+Ferrum und **ga4gh-infra** (Identität, Passports, Service Registry) werden **getrennt** ausgeliefert. Version in Ferrum `VERSIONS.lock` (`GA4GH_INFRA_REF` / intended `GA4GH_INFRA_TAG`) beachten.
 
-1. Passendes **ga4gh-infra-Release** von GitHub laden (Tag laut Ferrum-Dokumentation).
+1. Passendes **ga4gh-infra-Release** von GitHub laden (Tag laut Ferrum-Dokumentation — prefer `ga4gh-infra-v*` once published; until then the pin may be a commit SHA documented in `VERSIONS.lock`).
 2. `docker/.env.example` nach `docker/.env` kopieren, `GA4GH_INFRA_VERSION` setzen, `./scripts/install.sh` oder `make up` in ga4gh-infra ausführen.
 3. In Ferrum `.env`: Broker-URL und JWKS (`KEYCLOAK_JWKS_URL` / `FERRUM_AUTH__*`) auf ga4gh-infra zeigen, Ferrum-Stack neu starten: `docker compose -f deploy/docker-compose.yml up -d`.
 
-Ohne ga4gh-infra läuft Ferrum im Demo-Modus (Keycloak lokal, ohne Clearinghouse).
+Ohne ga4gh-infra läuft Ferrum im Demo-Modus (Keycloak lokal, ohne Clearinghouse) — geeignet für Entwicklung, nicht als Pilot-Auth-Nachweis.
 
 ---
 
@@ -47,9 +86,10 @@ Ohne ga4gh-infra läuft Ferrum im Demo-Modus (Keycloak lokal, ohne Clearinghouse
 
 **HelixTest** ist ein separates Validierungstool — nicht Teil des Ferrum-Bundles.
 
-1. HelixTest-Release oder Binary von GitHub laden (empfohlene Version: `HELIXTEST_REF` in Ferrum `VERSIONS.lock`).
+1. HelixTest-Release oder Binary von GitHub laden (empfohlene Version: `HELIXTEST_REF` / intended `HELIXTEST_TAG` in Ferrum `VERSIONS.lock`).
 2. Ferrum-Stack muss laufen; Basis-URL z. B. `http://localhost:8080`.
 3. Beispiel: `helixtest --all --mode ferrum --report table` — grüne Checks bestätigen GA4GH-Kernfunktionen.
+4. Für **Pilot-Auth-Nachweis**: Stack mit `require_auth=true`, **ohne** `HELIXTEST_SKIP_AUTH`.
 
 ---
 

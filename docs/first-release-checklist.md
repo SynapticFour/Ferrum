@@ -3,17 +3,26 @@
 Operator checklist before the **first real customer-facing tag** (`v0.2.0`).
 Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gaps.md`](./portfolio/gaps.md), [`../RELEASING.md`](../RELEASING.md).
 
-> **Debt note (2026-07-25):** `FERRUM_VERSION=v0.2.0` is set in `VERSIONS.lock`, but `GA4GH_INFRA_REF` and `HELIXTEST_REF` are still bare commit SHAs (no `ga4gh-infra-v*` / HelixTest release tags at those pins yet). Do **not** treat customer install as signed off until the Pre-tag boxes below are checked. Creating those tags is a deliberate release-engineering step — not done as drive-by hygiene.
+> **Phase B note (2026-08-01):** Guided-pilot pack landed — `deploy/configs/pilot.toml` (`require_auth=true`), auth/compute honesty in [`customer-runbook.md`](./customer-runbook.md), intended sibling tags documented in `VERSIONS.lock` (`GA4GH_INFRA_TAG=ga4gh-infra-v0.1.0`, `HELIXTEST_TAG=v0.1.0`). Annotated tags exist **locally** on sibling checkouts only; they are **not** on `origin` yet, so `GA4GH_INFRA_REF` / `HELIXTEST_REF` remain bare SHAs for CI. Do **not** treat customer install as signed off until the Pre-tag boxes below are checked.
 
 ---
 
 ## Pre-tag
 
-- [ ] **`VERSIONS.lock`:** all refs point to **real tags** (no bare commit SHAs)
-- [ ] **ga4gh-infra:** first tag `ga4gh-infra-v*.*.*` created and pushed
-- [ ] **HelixTest:** first tag created and pushed (pin in Ferrum `VERSIONS.lock`)
-- [ ] **`CHANGELOG.md`** updated for v0.2.0 (Ferrum + ga4gh-infra if applicable)
+- [x] **`VERSIONS.lock`:** intended tags named and SHA pins documented (`GA4GH_INFRA_TAG` / `HELIXTEST_TAG`); REF still SHA until tags are on origin
+- [ ] **`VERSIONS.lock`:** switch `GA4GH_INFRA_REF` / `HELIXTEST_REF` to **real tags** (no bare commit SHAs) after push
+- [ ] **ga4gh-infra:** first tag `ga4gh-infra-v0.1.0` **pushed** to origin (`git push origin ga4gh-infra-v0.1.0`)
+- [ ] **HelixTest:** first tag `v0.1.0` **pushed** to origin (`git push origin v0.1.0`)
+- [ ] **`CHANGELOG.md`** updated for v0.2.0 cut (Ferrum + ga4gh-infra if applicable) — Unreleased hygiene done; release notes still pending
 - [ ] CI green on `main` (Ferrum, ga4gh-infra, pinned clones in CI)
+
+## Guided pilot honesty (Phase B)
+
+- [x] Customer/pilot config with `require_auth=true` (`deploy/configs/pilot.toml`)
+- [x] Runbook documents demo `require_auth=false` as **NON-PILOT**; `HELIXTEST_SKIP_AUTH` as CI convenience only
+- [x] Runbook documents TES/WES **noop** default, `make up-tes` / `make test-tes`, and pilot compute assumptions
+- [x] README softens unsupervised production-compute implication for default demo
+- [ ] Optional: scheduled/nightly HelixTest job with auth on (documented; not required on every PR)
 
 ## Release workflow
 
@@ -33,8 +42,9 @@ Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gap
 
 ## Documentation
 
-- [ ] **`docs/customer-runbook.md`:** someone **unfamiliar with the product** can read it and complete install without asking
-- [ ] Runbook covers: online install, ga4gh-infra optional add-on, HelixTest optional verify, version pin / no `:latest`
+- [x] **`docs/customer-runbook.md`:** auth honesty, compute honesty, install + ga4gh-infra + HelixTest (fresh-operator dry-run still recommended)
+- [x] Runbook covers: online install, ga4gh-infra optional add-on, HelixTest optional verify, version pin / no `:latest`
+- [ ] Fresh-operator dry-run: someone **unfamiliar with the product** completes install without asking
 
 ## Offline / air-gap
 

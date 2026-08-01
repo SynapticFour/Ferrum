@@ -54,8 +54,11 @@ infrastructure, and institutions preparing for EHDS obligations now have a start
 point that didn't exist before.
 
 Ferrum is tested continuously — HelixTest runs in CI, the demo stack is reproducible, and
-conformance profiles cover standard and Field Edge deployments. For production rollout at
-clinical scale, we recommend a staged pilot with your data volumes and operator runbooks.
+conformance profiles cover standard and Field Edge deployments. Default demo compute is
+**TES noop** (API lifecycle only); use `make up-tes` for real local containers. Demo auth
+defaults are open (`require_auth=false`) — pilots should use `deploy/configs/pilot.toml`.
+For production rollout at clinical scale, plan a staged pilot with your data volumes and
+[customer runbook](docs/customer-runbook.md).
 
 Questions, pilots, or commercial licensing: [contact@synapticfour.com](mailto:contact@synapticfour.com)
 
@@ -176,13 +179,15 @@ Open **http://localhost:8082** for the UI. The gateway API is available at **htt
 From a clone (without the `ferrum` CLI installer), the same stack is available via **Make**:
 
 ```bash
-make up      # start demo (alias: make demo)
-make up-tes  # demo + Docker-backed TES (real WES lifecycle locally)
+make up      # start demo (alias: make demo) — TES noop; auth off (NON-PILOT)
+make up-tes  # demo + Docker-backed TES (real containers locally; not default)
 make seed-pilot   # optional: real BAM+VCF on MinIO (after stack is up)
 make smoke-pilot  # smoke: lineage, preview, cohort, WES submit
 make down    # stop; keep volumes
 make destroy # stop; remove volumes and project images
 ```
+
+Pilot auth and compute expectations: [docs/customer-runbook.md](docs/customer-runbook.md).
 
 ### Stop / tear down
 
@@ -219,10 +224,10 @@ Every push and pull request runs the open-source [HelixTest](https://github.com/
 
 | CI job | What runs |
 |--------|-----------|
-| **HelixTest (full)** | `helixtest --all --mode ferrum` — entire suite HelixTest ships for Ferrum (API contracts, workflows, cross-service E2E, auth, Crypt4GH, **htsget**, etc.); JSON report uploaded as an artifact. |
+| **HelixTest (full)** | `helixtest --all --mode ferrum` — suite against the demo stack (API contracts, workflows, cross-service E2E, Crypt4GH, **htsget**, etc.); JSON report uploaded as an artifact. Auth Level 4 is skipped via `HELIXTEST_SKIP_AUTH` (CI convenience, not pilot evidence). |
 | **HelixTest (core services)** | Same stack, then split steps: WES + TES + DRS + TRS + Beacon, then **htsget** alone — clearer pass/fail in the Actions UI. |
 
-Results are a **technical signal**, not official GA4GH certification (see HelixTest’s disclaimer). **Full matrix of areas covered, env vars, and how to reproduce locally:** [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
+Results are a **technical signal**, not official GA4GH certification (see HelixTest’s disclaimer). Default CI uses TES **noop** and skipped auth — see [customer-runbook.md](docs/customer-runbook.md). **Full matrix:** [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
 
 ---
 

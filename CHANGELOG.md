@@ -6,13 +6,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **Phase B guided-pilot pack** — `deploy/configs/pilot.toml` (`require_auth=true`); auth/compute honesty in [customer-runbook.md](docs/customer-runbook.md); intended sibling tags documented in `VERSIONS.lock` (`GA4GH_INFRA_TAG` / `HELIXTEST_TAG`).
 - **Pilot demo stack (P3–P9, P5)** — `make up-tes`, `make seed-pilot`, `make smoke-pilot`; TinyGermlineHC smoke (Linux CI hard-fails; Mac soft-warns); cohort/analysis wizard auto-fill for shared ref+truth; WES run `tags` and UI links to cohort/sample; Data Browser workspace filter and seed hints; Crypt4GH demo wiring (`crypt4gh-keys` volume, `ferrum-node-keygen`, encrypt round-trip in `test-tes` / `smoke-pilot`); `seed-pilot-remote.sh` for Fly enrichment.
 - **CI** — Docker TES + pilot smoke job; crates.io flake retries and `rust-deps` cache; init musl keygen fix for Alpine.
 
 ### Changed
 
+- **Docs / README** — Demo defaults called out as NON-PILOT (`require_auth=false`, TES noop); `HELIXTEST_SKIP_AUTH` documented as CI convenience; first-release checklist Phase B updates.
 - **UI** — Context-aware Crypt4GH upload hints (local keys missing vs hosted pilot); guided empty-state hints on Workflows and Dashboard.
-
 - **Phase 7 — Ecosystem alignment (T7)** — [FIELD-ECOSYSTEM.md](docs/FIELD-ECOSYSTEM.md), [FIELD-GA4GH-DEMO-PI.md](docs/FIELD-GA4GH-DEMO-PI.md), [FIELD-WEBSITE-COPY.md](docs/FIELD-WEBSITE-COPY.md), [DEPRECATED-LAPTOP-ALIASES.md](docs/DEPRECATED-LAPTOP-ALIASES.md), [FIELD-GAP-REASSESSMENT.md](docs/FIELD-GAP-REASSESSMENT.md); CLI field i18n strings; `ci-field-ecosystem-e2e.sh`; ADR-024.
 - **Phase 6 — Operations & resilience (T6)** — `ferrum backup create|restore|verify`; `[ops] verify_checksums_on_startup`; systemd unit + logrotate; [FIELD-OPS.md](docs/FIELD-OPS.md), [FIELD-REGULATORY.md](docs/FIELD-REGULATORY.md); ADR-023; ARM64 50 MB hard gate; `ci-field-ops-e2e.sh`.
 - **Phase 5 — Analysis pipeline (T5)** — `[pipeline]` config; post-ingest htsget + Beacon VCF hooks; `ferrum pipeline qc|index-beacon|htsget-status|forward-wes`; `ferrum reference install-field-bundle`; [FIELD-ONT-BASECALLING.md](docs/FIELD-ONT-BASECALLING.md), [FIELD-BEACON-INDEX.md](docs/FIELD-BEACON-INDEX.md); ADR-022; `ci-field-pipeline-e2e.sh`.
@@ -72,12 +73,6 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 
 - **Docs** — [docs/README.md](docs/README.md): licensing/compliance; [docs/GA4GH.md](docs/GA4GH.md): GA4GH interoperability guidance.
-
-## [Unreleased]
-
-### Added
-
-- *(none yet)*
 
 ## [0.1.0] and earlier
 

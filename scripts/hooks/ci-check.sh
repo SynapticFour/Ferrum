@@ -8,9 +8,10 @@ echo "ci-check: cargo fmt --check"
 cargo fmt --all -- --check
 
 echo "ci-check: cargo clippy"
-cargo clippy --workspace --all-targets --all-features -- -D warnings
+# Match .github/workflows/ci.yml (default features only — not --all-features)
+cargo clippy --workspace --all-targets -- -D warnings
 
 echo "ci-check: tests"
-cargo test --workspace
+cargo test --workspace --all-targets
 
 echo "ci-check: OK"
