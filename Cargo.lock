@@ -1944,6 +1944,7 @@ dependencies = [
  "ulid",
  "url",
  "utoipa",
+ "wiremock",
 ]
 
 [[package]]
@@ -2030,6 +2031,7 @@ dependencies = [
  "ulid",
  "utoipa",
  "utoipa-swagger-ui 6.0.0",
+ "wiremock",
  "zstd",
 ]
 

@@ -450,6 +450,10 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         })
     });
 
+    let solum_consent = config
+        .as_ref()
+        .and_then(|cfg| ferrum_core::SolumConsentClient::from_config(&cfg.solum).map(Arc::new));
+
     #[cfg(feature = "full")]
     let provenance_store: Option<Arc<ferrum_core::ProvenanceStore>> = pg_pool
         .clone()
@@ -518,6 +522,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             residency_audit: Some(residency_audit),
             background_gate: Some(background_gate),
             ads_introspect: ads_introspect.clone(),
+            solum_consent: solum_consent.clone(),
             ingest_require_auth: config
                 .as_ref()
                 .map(|c| c.auth.require_auth)
@@ -596,6 +601,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             None,
             vec![],
             ads_introspect.clone(),
+            solum_consent.clone(),
         )
     });
 

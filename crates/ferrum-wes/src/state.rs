@@ -6,7 +6,7 @@ use crate::metrics::MetricsCollector;
 use crate::multiqc::MultiQCRunner;
 use crate::repo::WesRepo;
 use crate::run_manager::RunManager;
-use ferrum_core::{AdsIntrospectClient, ProvenanceStore};
+use ferrum_core::{AdsIntrospectClient, ProvenanceStore, SolumConsentClient};
 use std::sync::Arc;
 
 pub struct AppState {
@@ -29,6 +29,8 @@ pub struct AppState {
     pub checkpoint_store: Option<Arc<CheckpointStore>>,
     /// When set, enforce ADS introspection for runs tagged with ADS resource ids.
     pub ads_introspect: Option<Arc<AdsIntrospectClient>>,
+    /// Optional Solum consent status client (H2.1 Teeth) for POST /runs.
+    pub solum_consent: Option<Arc<SolumConsentClient>>,
     /// When set (gateway + discovery), POST /runs may forward to a remote WES for federated compute pools.
     #[cfg(feature = "discovery")]
     pub federation_config: Option<Arc<ferrum_core::FerrumConfig>>,

@@ -456,6 +456,15 @@ pub async fn post_runs(
     )
     .await?;
 
+    if let Some(client) = app.solum_consent.as_ref() {
+        if let Some((subject, purpose)) = client.binding_from_tags(&tags) {
+            client
+                .require_granted(&subject, &purpose)
+                .await
+                .map_err(|e| WesError::Forbidden(format!("solum consent: {e}")))?;
+        }
+    }
+
     #[cfg(feature = "discovery")]
     if let Some(run_id) = crate::federated_forward::try_forward_federated_run(
         &app,

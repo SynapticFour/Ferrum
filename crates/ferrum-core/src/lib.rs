@@ -22,6 +22,7 @@ pub mod power;
 pub mod provenance;
 pub mod residency;
 pub mod security;
+pub mod solum_consent;
 pub mod ssrf;
 pub mod sync_export;
 pub mod sync_push;
@@ -41,7 +42,7 @@ pub use config::{
     DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig, FerrumConfig,
     FerrumPeerConfig, IngestConfig, MultiQCConfig, OperationsConfig, OutbreakConfig,
     OutbreakPolicy, PowerConfig, PricingConfig, PricingTier, SecurityConfig, ServicesConfig,
-    StorageConfig, SyncConfig, WesServiceConfig,
+    SolumConfig, StorageConfig, SyncConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
 pub use dialect::{
@@ -86,6 +87,10 @@ pub use residency::{
 };
 pub use security::{
     safe_join, validate_drs_name, ResourceAuthorizer, SecurityEvent, SecurityEventLogger,
+};
+pub use solum_consent::{
+    enforce_solum_consent, SolumConsentClient, SolumConsentError, SolumConsentStatus,
+    SOLUM_SIDECAR_TOKEN_HEADER,
 };
 pub use ssrf::{is_private_ip, validate_url_ssrf, SafeHttpClient, SsrfPolicy};
 pub use sync_export::{build_sneakernet_bundle, resolve_objects_root, SneakernetManifest};

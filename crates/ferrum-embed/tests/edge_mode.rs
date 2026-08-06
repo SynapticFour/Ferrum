@@ -53,6 +53,7 @@ fn drs_state_for_edge(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum
         residency_audit: Some(Arc::new(ferrum_core::ResidencyAuditLog::new(pool))),
         background_gate: Some(Arc::new(ferrum_core::BackgroundWorkGate::default())),
         ads_introspect: None,
+        solum_consent: None,
         ingest_require_auth: false,
         pipeline: ferrum_core::PipelineConfig::default(),
     }

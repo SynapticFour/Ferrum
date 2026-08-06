@@ -55,7 +55,23 @@ pub async fn check_object_byte_access(
         canonical_object_id,
         auth,
     )
-    .await
+    .await?;
+
+    enforce_solum_object_consent(state, canonical_object_id).await
+}
+
+async fn enforce_solum_object_consent(state: &AppState, object_id: &str) -> Result<()> {
+    let Some(client) = state.solum_consent.as_ref() else {
+        return Ok(());
+    };
+    let metadata = state.repo.get_metadata(object_id).await?;
+    let Some((subject, purpose)) = client.binding_from_metadata(&metadata) else {
+        return Ok(());
+    };
+    client
+        .require_granted(&subject, &purpose)
+        .await
+        .map_err(|e| DrsError::Forbidden(format!("solum consent: {e}")))
 }
 
 async fn enforce_ads_dataset_access(

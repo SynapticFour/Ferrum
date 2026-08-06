@@ -106,6 +106,7 @@ pub fn router(
     drs_ingest_base_url: Option<String>,
     allowed_workflow_sources: Vec<String>,
     ads_introspect: Option<Arc<ferrum_core::AdsIntrospectClient>>,
+    solum_consent: Option<Arc<ferrum_core::SolumConsentClient>>,
     #[cfg(feature = "discovery")] federation_config: Option<Arc<ferrum_core::FerrumConfig>>,
 ) -> Router {
     let checkpoint_store = Some(Arc::new(crate::checkpoint::CheckpointStore::new(
@@ -148,6 +149,7 @@ pub fn router(
         allowed_workflow_sources,
         checkpoint_store,
         ads_introspect,
+        solum_consent,
         #[cfg(feature = "discovery")]
         federation_config,
     };

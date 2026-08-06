@@ -29,7 +29,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_http::trace::TraceLayer;
 
-/// WES router params: pool, work dir base, optional TES URL, optional TRS register URL, optional provenance store, optional pricing config, optional MultiQC config, optional DRS ingest base URL, allowed_workflow_sources. When None, WES routes return 503.
+/// WES router params: pool, work dir base, optional TES URL, optional TRS register URL, optional provenance store, optional pricing config, optional MultiQC config, optional DRS ingest base URL, allowed_workflow_sources, optional ADS introspect, optional Solum consent. When None, WES routes return 503.
 #[cfg(feature = "full")]
 pub type WesRouterParams = (
     sqlx::PgPool,
@@ -42,6 +42,7 @@ pub type WesRouterParams = (
     Option<String>,
     Vec<String>,
     Option<std::sync::Arc<ferrum_core::AdsIntrospectClient>>,
+    Option<std::sync::Arc<ferrum_core::SolumConsentClient>>,
 );
 #[cfg(not(feature = "full"))]
 pub type WesRouterParams = ();
@@ -234,6 +235,7 @@ pub fn app(
                 drs_ingest_base_url,
                 allowed_workflow_sources,
                 ads_introspect,
+                solum_consent,
             )) => ferrum_wes::router(
                 pool.clone(),
                 work_dir.clone(),
@@ -245,6 +247,7 @@ pub fn app(
                 drs_ingest_base_url.clone(),
                 allowed_workflow_sources.clone(),
                 ads_introspect.clone(),
+                solum_consent.clone(),
                 cfg.map(|c| std::sync::Arc::new(c.clone())),
             ),
             None => ferrum_wes::router_unconfigured(),
@@ -378,7 +381,7 @@ pub fn app(
         admin_pool.clone().or_else(|| {
             wes_params
                 .as_ref()
-                .map(|(pool, _, _, _, _, _, _, _, _, _)| pool.clone())
+                .map(|(pool, _, _, _, _, _, _, _, _, _, _)| pool.clone())
         }),
         config,
     ) {

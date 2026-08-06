@@ -44,6 +44,8 @@ pub struct AppState {
     pub background_gate: Option<Arc<BackgroundWorkGate>>,
     /// Optional ADS introspection for published datasets (ga4gh-infra co-deploy).
     pub ads_introspect: Option<Arc<ferrum_core::AdsIntrospectClient>>,
+    /// Optional Solum consent status client (H2.1 Teeth).
+    pub solum_consent: Option<Arc<ferrum_core::SolumConsentClient>>,
     /// When true, ingest routes require collector/admin role (set by gateway from auth config).
     pub ingest_require_auth: bool,
     /// Post-ingest QC / Beacon / htsget automation (Phase 5).

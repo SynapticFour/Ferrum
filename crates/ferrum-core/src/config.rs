@@ -62,6 +62,38 @@ pub struct FerrumConfig {
     /// Field operations: backup, integrity checks (Phase 6).
     #[serde(default)]
     pub ops: OperationsConfig,
+    /// Optional Solum sidecar consent checks (H2.1 Teeth). Env: `FERRUM_SOLUM__*`.
+    #[serde(default)]
+    pub solum: SolumConfig,
+}
+
+/// Solum sidecar integration for purpose-bound DRS/WES deny (H2.1).
+///
+/// Feature is off when [`SolumConfig::base_url`] is unset/empty. Env prefix:
+/// `FERRUM_SOLUM__BASE_URL`, `FERRUM_SOLUM__SIDECAR_TOKEN`,
+/// `FERRUM_SOLUM__DEFAULT_SUBJECT`, `FERRUM_SOLUM__DEFAULT_PURPOSE`,
+/// `FERRUM_SOLUM__TIMEOUT_SECS`. Token may also come from `SOLUM_SIDECAR_TOKEN`.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct SolumConfig {
+    /// Sidecar base URL (e.g. `http://127.0.0.1:8787`). Empty/absent disables checks.
+    #[serde(default)]
+    pub base_url: Option<String>,
+    /// Shared secret for `X-Solum-Sidecar-Token`.
+    #[serde(default)]
+    pub sidecar_token: Option<String>,
+    /// Default Solum subject when object/run tags omit `solum_subject`.
+    #[serde(default)]
+    pub default_subject: Option<String>,
+    /// Default Solum purpose when object/run tags omit `solum_purpose`.
+    #[serde(default)]
+    pub default_purpose: Option<String>,
+    /// HTTP timeout for status checks (seconds).
+    #[serde(default = "default_solum_timeout_secs")]
+    pub timeout_secs: u64,
+}
+
+fn default_solum_timeout_secs() -> u64 {
+    5
 }
 
 /// Upload/register ingest limits for [`FerrumConfig::ingest`].

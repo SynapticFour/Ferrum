@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **H2.1 Teeth** — optional Solum sidecar consent checks (`[solum]` / `FERRUM_SOLUM__*`): bound DRS byte access and WES `POST /runs` fail-closed unless `GET /v1/consent/status` returns `granted`; see [customer-runbook.md](docs/customer-runbook.md).
 - **H2 WES fail-closed** — when `FERRUM_AUTH__REQUIRE_AUTH` is enabled, anonymous WES list/submit/cancel/resume/status/log/tasks return **401**; `require_auth_enabled()` helper; pilot compose `FERRUM_AUTH__ISSUER` aligned to public broker URL; customer-runbook notes on visas + issuer mismatch.
 - **Phase B guided-pilot pack** — `deploy/configs/pilot.toml` (`require_auth=true`); auth/compute honesty in [customer-runbook.md](docs/customer-runbook.md); intended sibling tags documented in `VERSIONS.lock` (`GA4GH_INFRA_TAG` / `HELIXTEST_TAG`).
 - **Pilot demo stack (P3–P9, P5)** — `make up-tes`, `make seed-pilot`, `make smoke-pilot`; TinyGermlineHC smoke (Linux CI hard-fails; Mac soft-warns); cohort/analysis wizard auto-fill for shared ref+truth; WES run `tags` and UI links to cohort/sample; Data Browser workspace filter and seed hints; Crypt4GH demo wiring (`crypt4gh-keys` volume, `ferrum-node-keygen`, encrypt round-trip in `test-tes` / `smoke-pilot`); `seed-pilot-remote.sh` for Fly enrichment.

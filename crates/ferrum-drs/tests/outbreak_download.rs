@@ -93,6 +93,7 @@ async fn outbreak_drs_state() -> AppState {
         residency_audit: None,
         background_gate: None,
         ads_introspect: None,
+        solum_consent: None,
         ingest_require_auth: false,
         pipeline: ferrum_core::PipelineConfig::default(),
     }
