@@ -1,7 +1,10 @@
 # Deployment-Audit — SynapticFour Portfolio
 
-> **Phase 1 — Analyse only.** Stand: 2026-06-26. Keine Code-Änderungen.
-> Zielbild: Customer-Sovereign Deployment (Kunde deployt selbst, kein Zugriff auf Kundeninfrastruktur).
+> **HISTORICAL copy** inside Ferrum (Stand **2026-06-26**). See [`README.md`](./README.md).
+> **Corrigendum 2026-08-06:** SynaptiSec living product = SynapticProducts only; this inventory is incomplete. Canonical GA4GH map: [`../ECOSYSTEM.md`](../ECOSYSTEM.md).
+
+> **Phase 1 — Analyse only.** Keine Code-Änderungen.
+> Zielbild (damals): Customer-Sovereign Deployment.
 
 ---
 

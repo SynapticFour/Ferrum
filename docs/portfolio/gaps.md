@@ -1,7 +1,8 @@
 # Gaps — Customer-Sovereign Deployment
 
-> **Stand:** 2026-06-26 · **Phase 2 abgeschlossen**
-> Referenz: [`audit.md`](./audit.md), [`decisions.md`](./decisions.md)
+> **HISTORICAL copy** inside Ferrum (Stand **2026-06-26**). See [`README.md`](./README.md).
+> SynaptiSec rows obsolete — living product is SynapticProducts (`apps/synaptisec`).
+> Referenz: [`audit.md`](./audit.md), [`decisions.md`](./decisions.md).
 
 ---
 

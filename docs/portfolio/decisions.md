@@ -1,8 +1,9 @@
 # Phase-2-Entscheidungen — Deployment-Portfolio
 
-> **Stand:** 2026-06-26 · **Phase 2 abgeschlossen**
-> Referenz: [`audit.md`](./audit.md), [`gaps.md`](./gaps.md)
-> Referenzimplementierung: **Ferrum** (~80 % Zielbild)
+> **HISTORICAL copy** inside Ferrum (Stand **2026-06-26**). See [`README.md`](./README.md).
+> **Entscheidung 4 (SynaptiSec)** superseded — Products-only; standalone archived.
+> Referenz: [`audit.md`](./audit.md), [`gaps.md`](./gaps.md).
+> Referenzimplementierung (damals): **Ferrum** (~80 % Zielbild).
 
 ---
 
