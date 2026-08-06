@@ -238,6 +238,22 @@ impl RevocationCheck for RevokedTokensChecker {
     }
 }
 
+/// True when `FERRUM_AUTH__REQUIRE_AUTH` is set to an enabling value (`true`/`1`/`yes`/`on`).
+///
+/// Used by WES/DRS handlers to fail closed when Bearer claims are absent.
+/// Matches pilot/production compose overlays (`FERRUM_AUTH__REQUIRE_AUTH=true`).
+pub fn require_auth_enabled() -> bool {
+    std::env::var("FERRUM_AUTH__REQUIRE_AUTH")
+        .ok()
+        .map(|v| {
+            v.eq_ignore_ascii_case("true")
+                || v == "1"
+                || v.eq_ignore_ascii_case("yes")
+                || v.eq_ignore_ascii_case("on")
+        })
+        .unwrap_or(false)
+}
+
 /// Auth config used by the middleware (from FerrumConfig).
 #[derive(Clone)]
 pub struct AuthMiddlewareConfig {
@@ -1108,6 +1124,23 @@ mod published_access_tests {
         };
         assert!(claims.can_ingest());
         assert!(!claims.can_sync());
+    }
+
+    #[test]
+    fn require_auth_enabled_reads_env() {
+        let prev = std::env::var("FERRUM_AUTH__REQUIRE_AUTH").ok();
+        std::env::remove_var("FERRUM_AUTH__REQUIRE_AUTH");
+        assert!(!super::require_auth_enabled());
+        std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "true");
+        assert!(super::require_auth_enabled());
+        std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "1");
+        assert!(super::require_auth_enabled());
+        std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
+        assert!(!super::require_auth_enabled());
+        match prev {
+            Some(v) => std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", v),
+            None => std::env::remove_var("FERRUM_AUTH__REQUIRE_AUTH"),
+        }
     }
 
     #[test]

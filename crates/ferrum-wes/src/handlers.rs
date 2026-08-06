@@ -20,6 +20,18 @@ use std::sync::Arc;
 use tokio_stream::wrappers::BroadcastStream;
 use utoipa::{IntoParams, ToSchema};
 
+/// Fail closed when `FERRUM_AUTH__REQUIRE_AUTH` is set and no Bearer claims were injected.
+fn reject_anonymous_when_auth_required(
+    auth: &Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<()> {
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(WesError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
+    Ok(())
+}
+
 /// GET /service-info with supported workflow types and engines.
 #[utoipa::path(get, path = "/service-info", responses((status = 200, body = WesServiceInfo)))]
 pub async fn get_service_info(State(app): State<Arc<AppState>>) -> Json<WesServiceInfo> {
@@ -172,6 +184,7 @@ pub async fn list_runs(
     Query(q): Query<ListRunsQuery>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunListResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     let page_size = q.page_size.unwrap_or(100).min(1000);
     let state_filter = q.state.as_deref().map(RunState::from_str);
     let owner_sub = auth.as_ref().and_then(|c| c.sub());
@@ -245,6 +258,7 @@ pub async fn post_runs(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     req: axum::extract::Request,
 ) -> Result<Json<RunIdResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     let headers = req.headers().clone();
     let bytes = req
         .into_body()
@@ -612,15 +626,8 @@ pub async fn get_run_status(
     // Demo/CI: conformance tests frequently query run status without a stable auth context.
     // If auth is not explicitly required, keep /runs/{id}/status usable even when ownership
     // cannot be reliably established.
-    let require_auth = std::env::var("FERRUM_AUTH__REQUIRE_AUTH")
-        .ok()
-        .map(|v| {
-            v.eq_ignore_ascii_case("true")
-                || v == "1"
-                || v.eq_ignore_ascii_case("yes")
-                || v.eq_ignore_ascii_case("on")
-        })
-        .unwrap_or(false);
+    reject_anonymous_when_auth_required(&auth)?;
+    let require_auth = ferrum_core::require_auth_enabled();
     let visibility_checked = require_auth;
     if require_auth && !run_visible(&app, &run_id, auth.as_ref()).await? {
         tracing::warn!(
@@ -731,6 +738,7 @@ pub async fn get_run_log(
     Path(run_id): Path<String>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunLog>> {
+    reject_anonymous_when_auth_required(&auth)?;
     if !run_visible(&app, &run_id, auth.as_ref()).await? {
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
@@ -847,6 +855,7 @@ pub async fn cancel_run(
     Path(run_id): Path<String>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<RunIdResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     if !run_visible(&app, &run_id, auth.as_ref()).await? {
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
@@ -864,6 +873,7 @@ pub async fn list_tasks(
     Path(run_id): Path<String>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<TaskListResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     if !run_visible(&app, &run_id, auth.as_ref()).await? {
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }
@@ -1763,6 +1773,7 @@ pub async fn resume_run(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     body: Option<Json<ResumeRunRequest>>,
 ) -> Result<Json<ResumeRunResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     if !run_visible(&app, &run_id, auth.as_ref()).await? {
         return Err(WesError::NotFound(format!("run not found: {}", run_id)));
     }

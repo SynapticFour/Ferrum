@@ -12,7 +12,9 @@ services:
       FERRUM_AUTH__MODE: external
       FERRUM_AUTH__REQUIRE_AUTH: "true"
       FERRUM_AUTH__CLEARINGHOUSE: "true"
-      FERRUM_AUTH__ISSUER: http://aai-broker:8080
+      # Public iss must match tokens from host browser/curl login (FERRUM_PUBLIC_BROKER_URL).
+      # JWKS is fetched in-cluster from aai-broker.
+      FERRUM_AUTH__ISSUER: http://localhost:8180
       FERRUM_AUTH__JWKS_URL: http://aai-broker:8080/jwks.json
       FERRUM_PUBLIC_BROKER_URL: http://localhost:8180
       FERRUM_BROKER_LOGIN_IDP: mock-idp

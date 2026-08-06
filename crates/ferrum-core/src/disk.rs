@@ -42,7 +42,7 @@ fn platform_free_space(path: &Path) -> Option<(u64, u64)> {
     if rc != 0 {
         return None;
     }
-    let block_size = stat.f_frsize as u64;
+    let block_size = stat.f_frsize;
     let total = stat.f_blocks as u64 * block_size;
     let free = stat.f_bavail as u64 * block_size;
     Some((total, free))

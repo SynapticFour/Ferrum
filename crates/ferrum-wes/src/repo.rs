@@ -105,11 +105,7 @@ impl WesRepo {
         // Demo/CI: when auth is not required, conformance expects the service to remain usable
         // without strict owner/workspace visibility constraints (HelixTest often calls multiple
         // endpoints without stable token context).
-        let require_auth = matches!(
-            std::env::var("FERRUM_AUTH__REQUIRE_AUTH").as_deref(),
-            Ok("true")
-        );
-        if !require_auth {
+        if !ferrum_core::require_auth_enabled() {
             return Ok(true);
         }
 

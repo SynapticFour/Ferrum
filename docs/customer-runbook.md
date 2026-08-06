@@ -23,6 +23,10 @@ Kurzanleitung für IT-Betrieb und Forschungs-IT. Technische Details: [GitHub Rel
 
 **Do not treat demo defaults as pilot evidence.** A stack with `require_auth=false` is intentionally open for local exploration; it is not a customer auth posture.
 
+**WES fail-closed (H2):** When `require_auth=true` / `FERRUM_AUTH__REQUIRE_AUTH=true`, unauthenticated `GET/POST /ga4gh/wes/v1/runs` (and cancel/resume/status/log/tasks) return **HTTP 401**. Service-info remains public. Ingest still requires a Bearer **and** `ferrum:collector` (or admin) — mock-idp Passports alone are not enough; issue a collector visa via IdP or Edge local accounts ([INSTALLATION.md](./INSTALLATION.md) visa table).
+
+**Pilot-local issuer:** Tokens from `http://localhost:8180/login/…` carry `iss=http://localhost:8180`. `deploy/docker-compose.pilot.yml` sets `FERRUM_AUTH__ISSUER` to that public URL while fetching JWKS from `http://aai-broker:8080` in-cluster. Mismatching issuer/JWKS trust causes silent auth failure (Bearer present but treated as anonymous → 401 on WES).
+
 **HelixTest / conformance CI:** the Conformance workflow sets `HELIXTEST_SKIP_AUTH=true` so Auth (Level 4) is skipped against the demo stack. That is a **CI convenience**, not customer or compliance evidence. For pilot verification, run HelixTest (or your own checks) against a stack using `deploy/configs/pilot.toml` (or equivalent) with `require_auth=true` and a real JWKS, and **do not** set `HELIXTEST_SKIP_AUTH`. Details: [HELIXTEST-INTEGRATION.md](./HELIXTEST-INTEGRATION.md).
 
 **Nightly / scheduled auth-on path (recommended, not required on every PR):** run a separate job or cron that starts the stack with `FERRUM_AUTH__REQUIRE_AUTH=true` (or `FERRUM_CONFIG=deploy/configs/pilot.toml`), unset `HELIXTEST_SKIP_AUTH`, and execute HelixTest Auth Level 4. Prefer this over enabling auth on every PR conformance job.
