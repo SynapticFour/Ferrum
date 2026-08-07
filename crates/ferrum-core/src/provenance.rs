@@ -190,13 +190,7 @@ impl ProvenanceGraph {
             .iter()
             .map(|n| {
                 let (id, label, node_type) = match n {
-                    ProvenanceNode::DrsObject {
-                        id,
-                        name,
-                        size: _,
-                        mime_type: _,
-                        ..
-                    } => (
+                    ProvenanceNode::DrsObject { id, name, .. } => (
                         node_id(&NodeType::DrsObject, id),
                         name.as_deref().unwrap_or(id).to_string(),
                         "drs_object",
@@ -205,7 +199,6 @@ impl ProvenanceGraph {
                         id,
                         workflow_type,
                         workflow_url,
-                        state: _,
                         ..
                     } => (
                         node_id(&NodeType::WesRun, id),
