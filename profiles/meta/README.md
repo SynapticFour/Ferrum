@@ -37,6 +37,24 @@ At ingest, attach metadata via:
 
 Validated bundles are stored in `metadata_submissions`; DRS objects get `metadata_ref` (dataset alias).
 
+## Optional Metadata Store API (M1)
+
+To manage submissions over HTTP (without re-ingest), enable:
+
+```toml
+[metadata_store]
+enabled = true
+```
+
+Then:
+
+- `PUT /api/v1/metadata/submissions/{alias}` — validate + upsert
+- `POST /api/v1/metadata/submissions` — validate + upsert
+- `GET /api/v1/metadata/submissions/{alias}` — full document
+- `GET /api/v1/metadata/submissions` — list
+
+See [docs/METADATA-STORE.md](../../docs/METADATA-STORE.md) and ADR-025.
+
 ## Fixtures
 
 | File | Profile |

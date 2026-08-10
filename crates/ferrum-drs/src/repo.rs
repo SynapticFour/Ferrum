@@ -26,6 +26,23 @@ pub struct DrsRepo {
     hostname: String,
 }
 
+/// Full ferrum-meta submission row from `metadata_submissions`.
+#[derive(Debug, Clone)]
+pub struct MetadataSubmissionRow {
+    pub id: String,
+    pub alias: String,
+    pub profile: String,
+    pub document: String,
+}
+
+/// Summary row for Metadata Store list endpoints.
+#[derive(Debug, Clone)]
+pub struct MetadataSubmissionSummary {
+    pub alias: String,
+    pub profile: String,
+    pub created_time: String,
+}
+
 impl DrsRepo {
     const CHECKSUM_STATUS_META_KEY: &'static str = "checksum_status";
     const VCF_INDEX_STATUS_META_KEY: &'static str = "vcf_index_status";
@@ -269,6 +286,75 @@ impl DrsRepo {
             Ok::<(), DrsError>(())
         })?;
         Ok(())
+    }
+
+    /// Fetch a stored ferrum-meta submission by alias.
+    pub async fn get_metadata_submission(
+        &self,
+        alias: &str,
+    ) -> Result<Option<MetadataSubmissionRow>> {
+        let row: Option<(String, String, String, String)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT id, alias, profile, document FROM metadata_submissions WHERE alias = $1 LIMIT 1",
+            )
+            .bind(alias)
+            .fetch_optional(p)
+            .await
+        })?;
+        Ok(
+            row.map(|(id, alias, profile, document)| MetadataSubmissionRow {
+                id,
+                alias,
+                profile,
+                document,
+            }),
+        )
+    }
+
+    /// List stored ferrum-meta submissions (newest first by `created_time`).
+    pub async fn list_metadata_submissions(
+        &self,
+        profile: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<MetadataSubmissionSummary>> {
+        let limit = limit.clamp(1, 500);
+        let offset = offset.max(0);
+        let rows: Vec<(String, String, String)> = if let Some(profile) = profile {
+            pool_query!(self, |p| {
+                sqlx::query_as(
+                    "SELECT alias, profile, CAST(created_time AS TEXT) FROM metadata_submissions
+                     WHERE profile = $1
+                     ORDER BY created_time DESC
+                     LIMIT $2 OFFSET $3",
+                )
+                .bind(profile)
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(p)
+                .await
+            })?
+        } else {
+            pool_query!(self, |p| {
+                sqlx::query_as(
+                    "SELECT alias, profile, CAST(created_time AS TEXT) FROM metadata_submissions
+                     ORDER BY created_time DESC
+                     LIMIT $1 OFFSET $2",
+                )
+                .bind(limit)
+                .bind(offset)
+                .fetch_all(p)
+                .await
+            })?
+        };
+        Ok(rows
+            .into_iter()
+            .map(|(alias, profile, created_time)| MetadataSubmissionSummary {
+                alias,
+                profile,
+                created_time,
+            })
+            .collect())
     }
 
     /// Set `metadata_ref` on an existing DRS object.

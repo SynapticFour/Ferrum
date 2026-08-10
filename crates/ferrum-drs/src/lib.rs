@@ -9,6 +9,7 @@ pub mod handlers;
 pub mod ingest;
 pub mod ingest_chunk;
 pub mod metadata;
+pub mod metadata_api;
 pub mod pipeline_hooks;
 pub mod presign;
 pub mod repo;
@@ -30,6 +31,7 @@ use handlers::{
     get_object_view, get_service_info, list_bundle_contents, list_objects, options_object,
     post_object, put_object,
 };
+pub use metadata_api::{metadata_api_router, metadata_api_router_disabled};
 pub use state::AppState;
 use std::sync::Arc;
 pub use sync_api::{sync_api_router, sync_api_router_unconfigured};

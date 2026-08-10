@@ -64,6 +64,7 @@ async fn test_upload_writes_data_uploaded_event() {
         ads_introspect: None,
         solum_consent: None,
         ingest_require_auth: false,
+        metadata_store_enabled: false,
         pipeline: ferrum_core::PipelineConfig::default(),
     };
     process_upload_from_parts(

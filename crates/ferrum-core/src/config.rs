@@ -65,6 +65,21 @@ pub struct FerrumConfig {
     /// Optional Solum sidecar consent checks (H2.1 Teeth). Env: `FERRUM_SOLUM__*`.
     #[serde(default)]
     pub solum: SolumConfig,
+    /// Optional Metadata Store HTTP API (`/api/v1/metadata/*`). Env: `FERRUM_METADATA_STORE__ENABLED`.
+    #[serde(default)]
+    pub metadata_store: MetadataStoreConfig,
+}
+
+/// Optional ferrum-meta submission management API ([metadata_store] config).
+///
+/// When disabled (default), routes under `/api/v1/metadata` return 501.
+/// Ingest-time storage via `metadata_submissions` remains available either way.
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct MetadataStoreConfig {
+    /// Mount read/write Metadata Store API. Default: false (opt-in).
+    /// Env: `FERRUM_METADATA_STORE__ENABLED`.
+    pub enabled: bool,
 }
 
 /// Solum sidecar integration for purpose-bound DRS/WES deny (H2.1).
@@ -964,6 +979,7 @@ impl FerrumConfig {
             .set_default("encryption.crypt4gh_decrypt_stream", true)?
             .set_default("encryption.crypt4gh_master_key_id", "node")?
             .set_default("ingest.default_encrypt_upload", false)?
+            .set_default("metadata_store.enabled", false)?
             .set_default("mii_connect.enabled", false)?
             .set_default(
                 "mii_connect.modules",

@@ -202,6 +202,17 @@ pub fn app(
                     "/api/v1/sync",
                     ferrum_drs::sync_api_router(std::sync::Arc::new(state.clone())),
                 );
+                if cfg.map(|c| c.metadata_store.enabled).unwrap_or(false) {
+                    app = app.nest(
+                        "/api/v1/metadata",
+                        ferrum_drs::metadata_api_router(std::sync::Arc::new(state.clone())),
+                    );
+                } else {
+                    app = app.nest(
+                        "/api/v1/metadata",
+                        ferrum_drs::metadata_api_router_disabled(),
+                    );
+                }
             }
             None => {
                 app = app.nest("/ga4gh/drs/v1", ferrum_drs::router_unconfigured());
@@ -210,6 +221,10 @@ pub fn app(
                     ferrum_drs::ingest_api_v1_router_unconfigured(),
                 );
                 app = app.nest("/api/v1/sync", ferrum_drs::sync_api_router_unconfigured());
+                app = app.nest(
+                    "/api/v1/metadata",
+                    ferrum_drs::metadata_api_router_disabled(),
+                );
             }
         }
     }

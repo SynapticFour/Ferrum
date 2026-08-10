@@ -527,6 +527,10 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
                 .as_ref()
                 .map(|c| c.auth.require_auth)
                 .unwrap_or(false),
+            metadata_store_enabled: config
+                .as_ref()
+                .map(|c| c.metadata_store.enabled)
+                .unwrap_or(false),
             pipeline: config
                 .as_ref()
                 .map(|c| c.pipeline.clone())

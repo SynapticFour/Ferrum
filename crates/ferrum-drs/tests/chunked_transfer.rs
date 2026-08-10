@@ -74,6 +74,7 @@ async fn drs_test_state() -> (AppState, tempfile::TempDir) {
             ads_introspect: None,
             solum_consent: None,
             ingest_require_auth: false,
+            metadata_store_enabled: false,
             pipeline: ferrum_core::PipelineConfig::default(),
         },
         tmp,

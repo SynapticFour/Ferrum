@@ -1,9 +1,9 @@
 # Implementation Plan — Optional Metadata Store (Ferrum)
 
-**Status:** Proposal (not started)
+**Status:** M0 + M1 done (2026-08-10); M2+ open
 **Date:** 2026-08-10
 **Owner:** Ferrum product / Synaptic Four platform
-**Related:** [ferrum-meta](https://github.com/SynapticFour/ferrum-meta), `ferrum-meta-connect`, Field T3 (`metadata_ref` / `metadata_submissions`)
+**Related:** [ferrum-meta](https://github.com/SynapticFour/ferrum-meta), `ferrum-meta-connect`, Field T3 (`metadata_ref` / `metadata_submissions`), ADR-025, [METADATA-STORE.md](../METADATA-STORE.md)
 
 ---
 
@@ -95,32 +95,31 @@ So the ask is not “invent metadata storage.” It is: **promote the field inge
 
 ## 4. Phased implementation
 
-### M0 — Framing (docs / ADR) — ~0.5–1 day
+### M0 — Framing (docs / ADR) — **done 2026-08-10**
 
-- ADR in Ferrum `DECISIONS.md`: Metadata Store is optional Ferrum runtime; ferrum-meta remains schema-only.
-- Update `docs/ECOSYSTEM.md` + `profiles/meta/README.md` honesty: “stored at ingest” vs “manageable store.”
+- ADR-025 in Ferrum `DECISIONS.md`: Metadata Store is optional Ferrum runtime; ferrum-meta remains schema-only.
+- [METADATA-STORE.md](../METADATA-STORE.md) + `profiles/meta/README.md` honesty.
 - Customer one-pager: what it proves / does not prove (no EGA acceptance claim).
 
-**Exit:** Documented contract; no code required.
+**Exit:** Documented contract. ✅
 
-### M1 — Read/Write API over existing store — ~3–5 days
+### M1 — Read/Write API over existing store — **done 2026-08-10**
 
 Expose what already exists:
 
 | Method | Path | Behaviour |
 |--------|------|-----------|
 | `PUT` / `POST` | `/api/v1/metadata/submissions` | Validate (`ferrum-meta-connect`) → upsert by alias |
-| `GET` | `/api/v1/metadata/submissions/{alias}` | Return full document + profile + timestamps |
+| `GET` | `/api/v1/metadata/submissions/{alias}` | Return full document + profile |
 | `GET` | `/api/v1/metadata/submissions` | List (alias, profile, created_time); pagination |
-| `GET` | `/ga4gh/drs/v1/objects/{id}` | Keep `metadata_ref`; add optional `?expand=metadata` **or** documented sibling URL |
 
 Also:
 
-- Auth gates consistent with ingest
-- Soft feature flag: if disabled, routes 404 or 501 with clear message
-- Tests: extend `ferrum-drs` metadata tests; Demo/Showcase fixture optional
+- Auth gates consistent with ingest / analyze roles
+- Soft feature flag: if disabled, routes **501**
+- Tests: `crates/ferrum-drs/tests/metadata_store_api.rs`
 
-**Exit:** curl/CLI can store and retrieve a submission without going through file ingest.
+**Exit:** curl/CLI can store and retrieve a submission without going through file ingest. ✅
 
 ### M2 — Versioning & attach/detach — ~2–4 days
 

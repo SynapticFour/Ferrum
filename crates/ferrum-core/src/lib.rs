@@ -40,9 +40,9 @@ pub use clock::{clock_status, ClockStatus, DEFAULT_MAX_SKEW_SECS, DEFAULT_NTP_HO
 pub use config::{
     AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, AuthMode, BandwidthConfig,
     DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig, FerrumConfig,
-    FerrumPeerConfig, IngestConfig, MultiQCConfig, OperationsConfig, OutbreakConfig,
-    OutbreakPolicy, PowerConfig, PricingConfig, PricingTier, SecurityConfig, ServicesConfig,
-    SolumConfig, StorageConfig, SyncConfig, WesServiceConfig,
+    FerrumPeerConfig, IngestConfig, MetadataStoreConfig, MultiQCConfig, OperationsConfig,
+    OutbreakConfig, OutbreakPolicy, PowerConfig, PricingConfig, PricingTier, SecurityConfig,
+    ServicesConfig, SolumConfig, StorageConfig, SyncConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
 pub use dialect::{

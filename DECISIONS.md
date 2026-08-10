@@ -12,6 +12,21 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-08-10 - ADR-025: Optional Metadata Store API in Ferrum
+
+- **Status:** Accepted (M0/M1 shipped; M2+ phased)
+- **Context:** ferrum-meta is the schema plane; Ferrum already persists submissions in `metadata_submissions` at ingest and binds DRS via `metadata_ref`. Users still could not manage (PUT/GET/list) scientific metadata over HTTP as first-class infra. A full catalog/export service was out of scope for the first shippable claim.
+- **Decision:**
+  - Keep **ferrum-meta** schema-only.
+  - Add optional Ferrum **`[metadata_store]`** (`FERRUM_METADATA_STORE__ENABLED`) mounting **`/api/v1/metadata/*`** over the existing `metadata_submissions` table (document-first).
+  - Default **off**; ingest-time storage remains available either way.
+  - Auth mirrors ingest: writes need `can_ingest` when `require_auth`; reads need `can_analyze`.
+  - Later phases (versioning, JSONB query, Beacon binding, archive export) follow [IMPLEMENTATION-PLAN-METADATA-STORE.md](docs/internal/IMPLEMENTATION-PLAN-METADATA-STORE.md).
+- **Consequences:** Hub/Lab-Kit can opt in without Edge paying a default surface. No separate microservice. Not an EGA/GHGA acceptance claim. Clinical SoR stays in Solum.
+- **Alternatives considered:** Separate metadata microservice (ops tax); normalize LinkML entities day-1 (schema drift); put scientific description in ADS (wrong plane).
+
+---
+
 ### 2026-06-18 - ADR-018: Rename Laptop Mode to Edge mode
 
 - **Status:** Accepted

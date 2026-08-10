@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **Metadata Store (M0/M1, optional)** — `[metadata_store] enabled` / `FERRUM_METADATA_STORE__ENABLED`; `/api/v1/metadata/submissions` PUT/POST/GET/list over existing `metadata_submissions`; ADR-025; [METADATA-STORE.md](docs/METADATA-STORE.md); plan [IMPLEMENTATION-PLAN-METADATA-STORE.md](docs/internal/IMPLEMENTATION-PLAN-METADATA-STORE.md).
 - **H5 managed single-tenant note** — customer-runbook: one hosted deployment = one tenant (no shared multi-tenant DRS schema in H5).
 - **H4 Kenya Edge links** — FIELD-REGULATORY / FIELD-SYNC-QUEUE / FIELD-AUTH-OFFLINE point at Solum `kenya-dpa` offline sync policy (PROVISIONAL; fail-closed transfer).
 - **H3 subject bridge constants** — `SOLUM_SUBJECT_METADATA_KEY` / `SOLUM_PURPOSE_METADATA_KEY` locked to Solum ADR 0003; runbook notes Patient.id auto subject-link.

@@ -19,7 +19,8 @@ Five repositories implement a coherent on-premises GA4GH platform. This file is 
 | Layer | Owner | Notes |
 |-------|--------|--------|
 | Identity | **ga4gh-infra** | Broker, visas, DUO, ADS, service registry |
-| Data/compute | **Ferrum** | DRS, WES/TES, TRS, Beacon; built-in passports in standalone mode |
+| Data/compute | **Ferrum** | DRS, WES/TES, TRS, Beacon; built-in passports in standalone mode; optional Metadata Store (`[metadata_store]`) |
+| Schema (scientific meta) | **[ferrum-meta](https://github.com/SynapticFour/ferrum-meta)** | LinkML profiles; runtime store/API in Ferrum (ADR-025) |
 | Deployment | **Ferrum-Lab-Kit** | Selective GA4GH surfaces for labs; does not fork Ferrum |
 | Demo/benchmark | **Ferrum-GA4GH-Demo** | Reproducible GIAB benchmark; optional `--with-infra` |
 | Conformance | **HelixTest** | Automated API and workflow tests |
