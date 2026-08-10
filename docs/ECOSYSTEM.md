@@ -75,9 +75,11 @@ Secondary options (always available): repo `scripts/stack-*.sh`, raw `docker com
 **Benchmark + co-deploy (demo):**
 
 ```bash
-export FERRUM_SRC=/path/to/Ferrum
+export FERUM_SRC=/path/to/Ferrum
+# or: export FERRUM_SRC=/path/to/Ferrum   # alias accepted by Demo
 export GA4GH_INFRA_SRC=/path/to/ga4gh-infra
 cd Ferrum-GA4GH-Demo && ./run --with-infra
+# Evidence: make smoke-evidence · coverage: docs/COVERAGE.md
 ```
 
 **Field edge + infra (lab / Pi hub):**

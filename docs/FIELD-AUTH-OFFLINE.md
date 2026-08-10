@@ -66,3 +66,11 @@ ferrum update pack --gateway ./ferrum-gateway --output edge-bundle.tar.gz \
 ```
 
 Related: [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [GA4GH-INFRA-INTEGRATION.md](GA4GH-INFRA-INTEGRATION.md), [DATA-RESIDENCY-AUDIT.md](DATA-RESIDENCY-AUDIT.md).
+
+## Solum consent while offline (H4 Kenya pack)
+
+When Ferrum `[solum]` / `FERRUM_SOLUM__*` points at a Solum sidecar using `kenya-dpa`:
+
+- Bound DRS/WES checks stay **fail-closed** if Solum is unreachable or status ≠ `granted` (H2.1 Teeth).
+- Align with Solum [H4-OFFLINE-SYNC-POLICY.md](https://github.com/SynapticFour/Solum/blob/main/docs/H4-OFFLINE-SYNC-POLICY.md): restrict non-emergency work on unknown / unreconciled revoke until hub sync.
+- Heavy WES belongs on the **hub**, not the Pi ([FIELD-GA4GH-DEMO-PI.md](FIELD-GA4GH-DEMO-PI.md)).

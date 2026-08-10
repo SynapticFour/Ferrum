@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **H5 managed single-tenant note** — customer-runbook: one hosted deployment = one tenant (no shared multi-tenant DRS schema in H5).
+- **H4 Kenya Edge links** — FIELD-REGULATORY / FIELD-SYNC-QUEUE / FIELD-AUTH-OFFLINE point at Solum `kenya-dpa` offline sync policy (PROVISIONAL; fail-closed transfer).
+- **H3 subject bridge constants** — `SOLUM_SUBJECT_METADATA_KEY` / `SOLUM_PURPOSE_METADATA_KEY` locked to Solum ADR 0003; runbook notes Patient.id auto subject-link.
 - **H2.1 Teeth** — optional Solum sidecar consent checks (`[solum]` / `FERRUM_SOLUM__*`): bound DRS byte access and WES `POST /runs` fail-closed unless `GET /v1/consent/status` returns `granted`; see [customer-runbook.md](docs/customer-runbook.md).
 - **H2 WES fail-closed** — when `FERRUM_AUTH__REQUIRE_AUTH` is enabled, anonymous WES list/submit/cancel/resume/status/log/tasks return **401**; `require_auth_enabled()` helper; pilot compose `FERRUM_AUTH__ISSUER` aligned to public broker URL; customer-runbook notes on visas + issuer mismatch.
 - **Phase B guided-pilot pack** — `deploy/configs/pilot.toml` (`require_auth=true`); auth/compute honesty in [customer-runbook.md](docs/customer-runbook.md); intended sibling tags documented in `VERSIONS.lock` (`GA4GH_INFRA_TAG` / `HELIXTEST_TAG`).
@@ -14,6 +17,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
 
+- **ECOSYSTEM Demo cross-link** — document `FERUM_SRC` / `FERRUM_SRC` alias and Demo `make smoke-evidence` / COVERAGE.
 - **Docs / README** — Demo defaults called out as NON-PILOT (`require_auth=false`, TES noop); `HELIXTEST_SKIP_AUTH` documented as CI convenience; first-release checklist Phase B updates.
 - **UI** — Context-aware Crypt4GH upload hints (local keys missing vs hosted pilot); guided empty-state hints on Workflows and Dashboard.
 - **Phase 7 — Ecosystem alignment (T7)** — [FIELD-ECOSYSTEM.md](docs/FIELD-ECOSYSTEM.md), [FIELD-GA4GH-DEMO-PI.md](docs/FIELD-GA4GH-DEMO-PI.md), [FIELD-WEBSITE-COPY.md](docs/FIELD-WEBSITE-COPY.md), [DEPRECATED-LAPTOP-ALIASES.md](docs/DEPRECATED-LAPTOP-ALIASES.md), [FIELD-GAP-REASSESSMENT.md](docs/FIELD-GAP-REASSESSMENT.md); CLI field i18n strings; `ci-field-ecosystem-e2e.sh`; ADR-024.

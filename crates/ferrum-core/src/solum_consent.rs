@@ -7,6 +7,11 @@ use crate::config::SolumConfig;
 use serde::Deserialize;
 use thiserror::Error;
 
+/// Metadata / tag key for Solum clinical subject (must match Solum `solum_subject_id`).
+pub const SOLUM_SUBJECT_METADATA_KEY: &str = "solum_subject";
+/// Metadata / tag key for Solum purpose binding.
+pub const SOLUM_PURPOSE_METADATA_KEY: &str = "solum_purpose";
+
 /// Header expected by the Solum sidecar token middleware.
 pub const SOLUM_SIDECAR_TOKEN_HEADER: &str = "X-Solum-Sidecar-Token";
 
@@ -97,19 +102,23 @@ impl SolumConsentClient {
     pub fn binding_from_metadata(&self, metadata: &[(String, String)]) -> Option<(String, String)> {
         let subject = metadata
             .iter()
-            .find(|(k, _)| k == "solum_subject")
+            .find(|(k, _)| k == SOLUM_SUBJECT_METADATA_KEY)
             .map(|(_, v)| v.as_str());
         let purpose = metadata
             .iter()
-            .find(|(k, _)| k == "solum_purpose")
+            .find(|(k, _)| k == SOLUM_PURPOSE_METADATA_KEY)
             .map(|(_, v)| v.as_str());
         self.resolve_binding(subject, purpose)
     }
 
     /// Binding from WES run `tags` JSON object.
     pub fn binding_from_tags(&self, tags: &serde_json::Value) -> Option<(String, String)> {
-        let subject = tags.get("solum_subject").and_then(|v| v.as_str());
-        let purpose = tags.get("solum_purpose").and_then(|v| v.as_str());
+        let subject = tags
+            .get(SOLUM_SUBJECT_METADATA_KEY)
+            .and_then(|v| v.as_str());
+        let purpose = tags
+            .get(SOLUM_PURPOSE_METADATA_KEY)
+            .and_then(|v| v.as_str());
         self.resolve_binding(subject, purpose)
     }
 
@@ -193,6 +202,21 @@ mod tests {
             default_purpose: Some("secondary_use_hdab".into()),
             timeout_secs: 5,
         }
+    }
+
+    #[test]
+    fn subject_bridge_metadata_keys_match_solum_adr() {
+        // Keep in lockstep with Solum ADR 0003 / sidecar subject-link.
+        assert_eq!(SOLUM_SUBJECT_METADATA_KEY, "solum_subject");
+        assert_eq!(SOLUM_PURPOSE_METADATA_KEY, "solum_purpose");
+        let client = SolumConsentClient::from_config(&cfg("http://127.0.0.1:9")).unwrap();
+        let meta = vec![
+            (SOLUM_SUBJECT_METADATA_KEY.into(), "bridge-patient-1".into()),
+            (SOLUM_PURPOSE_METADATA_KEY.into(), "care_provision".into()),
+        ];
+        let (s, p) = client.binding_from_metadata(&meta).unwrap();
+        assert_eq!(s, "bridge-patient-1");
+        assert_eq!(p, "care_provision");
     }
 
     #[test]

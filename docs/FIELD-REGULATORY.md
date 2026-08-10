@@ -23,7 +23,7 @@ Consult local counsel. Common themes:
 | **AU Data Policy Framework / national DPAs** | Local storage default (Edge mode); residency audit for cross-border Beacon queries |
 | **H3Africa / national ethics boards** | IRB approval numbers in ferrum-meta; outbreak mode requires explicit activator role |
 | **South Africa POPIA** | Lawful processing, security safeguards; breach notification to Information Regulator |
-| **Kenya Data Protection Act** | Registration with ODPC for controllers; cross-border transfer rules |
+| **Kenya Data Protection Act** | Registration with ODPC for controllers; cross-border transfer rules. When co-deploying **Solum** `kenya-dpa`, follow Solum [H4-OFFLINE-SYNC-POLICY.md](https://github.com/SynapticFour/Solum/blob/main/docs/H4-OFFLINE-SYNC-POLICY.md) — profile is **PROVISIONAL** until counsel; empty transfer destinations stay fail-closed. Showcase: [H4-PILOT-CHECKLIST.md](https://github.com/SynapticFour/SynapticFour-Showcase/blob/main/docs/pilots/H4-PILOT-CHECKLIST.md). |
 | **Nigeria NDPA 2023** | Consent and purpose limitation for identifiable genomic data |
 | **WHO outbreak sharing** | GISAID metadata + outbreak policies; emergency Beacon access is logged |
 
