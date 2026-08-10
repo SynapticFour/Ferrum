@@ -4,10 +4,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- **Public docs hygiene** — removed `docs/internal/` and `docs/portfolio/` from the public tree (ops/pilot/marketing drafts); Metadata Store roadmap lives at [METADATA-STORE-ROADMAP.md](docs/METADATA-STORE-ROADMAP.md).
+
 ### Added
 
 - **Metadata Store M2** — versioning (`version` / `content_sha256` / history table), `If-Match` concurrency, `GET .../versions`, DRS attach/detach `PUT /api/v1/metadata/objects/{id}/metadata_ref`; see [METADATA-STORE.md](docs/METADATA-STORE.md).
-- **Metadata Store (M0/M1, optional)** — `[metadata_store] enabled` / `FERRUM_METADATA_STORE__ENABLED`; `/api/v1/metadata/submissions` PUT/POST/GET/list over existing `metadata_submissions`; ADR-025; [METADATA-STORE.md](docs/METADATA-STORE.md); plan [IMPLEMENTATION-PLAN-METADATA-STORE.md](docs/internal/IMPLEMENTATION-PLAN-METADATA-STORE.md).
+- **Metadata Store (M0/M1, optional)** — `[metadata_store] enabled` / `FERRUM_METADATA_STORE__ENABLED`; `/api/v1/metadata/submissions` PUT/POST/GET/list over existing `metadata_submissions`; ADR-025; [METADATA-STORE.md](docs/METADATA-STORE.md); plan [METADATA-STORE-ROADMAP.md](docs/METADATA-STORE-ROADMAP.md).
 - **H5 managed single-tenant note** — customer-runbook: one hosted deployment = one tenant (no shared multi-tenant DRS schema in H5).
 - **H4 Kenya Edge links** — FIELD-REGULATORY / FIELD-SYNC-QUEUE / FIELD-AUTH-OFFLINE point at Solum `kenya-dpa` offline sync policy (PROVISIONAL; fail-closed transfer).
 - **H3 subject bridge constants** — `SOLUM_SUBJECT_METADATA_KEY` / `SOLUM_PURPOSE_METADATA_KEY` locked to Solum ADR 0003; runbook notes Patient.id auto subject-link.
@@ -22,7 +26,7 @@ All notable changes to this project will be documented in this file. The format 
 - **ECOSYSTEM Demo cross-link** — document `FERUM_SRC` / `FERRUM_SRC` alias and Demo `make smoke-evidence` / COVERAGE.
 - **Docs / README** — Demo defaults called out as NON-PILOT (`require_auth=false`, TES noop); `HELIXTEST_SKIP_AUTH` documented as CI convenience; first-release checklist Phase B updates.
 - **UI** — Context-aware Crypt4GH upload hints (local keys missing vs hosted pilot); guided empty-state hints on Workflows and Dashboard.
-- **Phase 7 — Ecosystem alignment (T7)** — [FIELD-ECOSYSTEM.md](docs/FIELD-ECOSYSTEM.md), [FIELD-GA4GH-DEMO-PI.md](docs/FIELD-GA4GH-DEMO-PI.md), [FIELD-WEBSITE-COPY.md](docs/FIELD-WEBSITE-COPY.md), [DEPRECATED-LAPTOP-ALIASES.md](docs/DEPRECATED-LAPTOP-ALIASES.md), [FIELD-GAP-REASSESSMENT.md](docs/FIELD-GAP-REASSESSMENT.md); CLI field i18n strings; `ci-field-ecosystem-e2e.sh`; ADR-024.
+- **Phase 7 — Ecosystem alignment (T7)** — [FIELD-ECOSYSTEM.md](docs/FIELD-ECOSYSTEM.md), [FIELD-GA4GH-DEMO-PI.md](docs/FIELD-GA4GH-DEMO-PI.md), FIELD ecosystem docs; CLI field i18n strings; `ci-field-ecosystem-e2e.sh`; ADR-024.
 - **Phase 6 — Operations & resilience (T6)** — `ferrum backup create|restore|verify`; `[ops] verify_checksums_on_startup`; systemd unit + logrotate; [FIELD-OPS.md](docs/FIELD-OPS.md), [FIELD-REGULATORY.md](docs/FIELD-REGULATORY.md); ADR-023; ARM64 50 MB hard gate; `ci-field-ops-e2e.sh`.
 - **Phase 5 — Analysis pipeline (T5)** — `[pipeline]` config; post-ingest htsget + Beacon VCF hooks; `ferrum pipeline qc|index-beacon|htsget-status|forward-wes`; `ferrum reference install-field-bundle`; [FIELD-ONT-BASECALLING.md](docs/FIELD-ONT-BASECALLING.md), [FIELD-BEACON-INDEX.md](docs/FIELD-BEACON-INDEX.md); ADR-022; `ci-field-pipeline-e2e.sh`.
 - **Phase 4 — Sync & federation (T4)** — `sync_queue` table; `ferrum sync status|enqueue|push|export`; hub multipart push + chunked resume; DUO/consent enqueue filter; sneakernet export; `/api/v1/sync/*`; ga4gh-infra registration on push; [FIELD-SYNC-HUB.md](docs/FIELD-SYNC-HUB.md); ADR-021; `ci-field-sync-e2e.sh`.
@@ -43,7 +47,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Table security** — PostgreSQL RLS on governance tables; residency audit HTTP filtering for non-admin callers; [COMPLIANCE.md](docs/COMPLIANCE.md) sensitive-table section.
 - **`ferrum-reference` crate** — Pluggable reference genome registry (`reference_genomes` table); `/api/v1/references` HTTP API; WES `REFERENCE_MISMATCH` warnings; Beacon `meta.referenceGenome`.
 - **HelixTest Africa mode** — `--mode ferrum-africa --africa-profile {offline,ont,outbreak,federation,all}` (opt-in; standard `--mode ferrum` unchanged).
-- **Docs** — [REFERENCE-GENOMES.md](docs/REFERENCE-GENOMES.md); Africa Mode in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md); reference genomes section in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); [internal/TEST-COVERAGE-GAPS.md](docs/internal/TEST-COVERAGE-GAPS.md); ADR-016 in [DECISIONS.md](DECISIONS.md).
+- **Docs** — [REFERENCE-GENOMES.md](docs/REFERENCE-GENOMES.md); Africa Mode in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md); reference genomes section in [AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md); ADR-016 in [DECISIONS.md](DECISIONS.md).
 - **CI** — `.github/workflows/africa-conformance.yml` (additive Africa HelixTest profiles).
 - **`ferrum-federation` crate** — P2P federated Beacon fan-out (`FerrumPeer`, `FederationConfig`, rate limits); `GET /ga4gh/beacon/v2/g_variants?federate=true`.
 - **Bandwidth-adaptive DRS** — `BandwidthMonitor`, `transfer_checkpoints`, `resume_token` on access, optional `Content-Encoding: zstd` on low-bandwidth streams.
@@ -70,7 +74,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
-- **Demo init / partial DB volumes** — `deploy/scripts/init-demo.sh` records applied migrations in `_ferrum_init_migrations`, bootstraps from `_sqlx_migrations` or existing schema, and skips destructive re-apply on re-init; only pending `.up.sql` files run. Documented in [internal/TEST-COVERAGE-GAPS.md](docs/internal/TEST-COVERAGE-GAPS.md) and [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
+- **Demo init / partial DB volumes** — `deploy/scripts/init-demo.sh` records applied migrations in `_ferrum_init_migrations`, bootstraps from `_sqlx_migrations` or existing schema, and skips destructive re-apply on re-init; only pending `.up.sql` files run. Documented in [HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
 - **CI** — `cargo fmt` drift; laptop-mode job falls back when `unshare --net` is unavailable on GitHub runners; E2E script invoked with `bash`; Clippy fixes across workspace.
 - **ONT ingest API** — response includes `drs_object_id` alias alongside `object_id` for HelixTest Africa ONT profile.
 - **DRS GET** — `ont_metrics` included on object metadata when present (laptop/SQLite and Postgres).

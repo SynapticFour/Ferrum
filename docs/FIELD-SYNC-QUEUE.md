@@ -79,5 +79,4 @@ See [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md): duplicate sample → 409; Edge does 
 
 - [DATA-RESIDENCY-AUDIT.md](DATA-RESIDENCY-AUDIT.md)
 - [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md)
-- [FIELD-MATURITY-PLAN.md](internal/FIELD-MATURITY-PLAN.md)
 - **Solum Kenya / H4:** when Edge `[solum]` consent teeth are enabled under `kenya-dpa`, sync targets must respect KE residency; prefer hub in KE. Policy: [H4-OFFLINE-SYNC-POLICY.md](https://github.com/SynapticFour/Solum/blob/main/docs/H4-OFFLINE-SYNC-POLICY.md). Subject bridge: DRS metadata `solum_subject` = Solum `solum_subject_id` after push.

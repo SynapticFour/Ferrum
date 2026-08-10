@@ -104,7 +104,6 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 ## Internal notes (contributors)
 
-Engineering trackers, pilot runbooks, and coverage matrices live in **[internal/](internal/)** — not part of the customer documentation set.
 
 ---
 

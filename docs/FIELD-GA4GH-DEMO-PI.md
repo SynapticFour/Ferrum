@@ -29,7 +29,7 @@ Optional co-deploy **ga4gh-infra** on a **hub** machine (not Pi): see [GA4GH-INF
 | Scenario | Use |
 |----------|-----|
 | Reproducible GIAB throughput benchmark | `Ferrum-GA4GH-Demo` `./run --with-infra` on x86 server |
-| Field MinION collection + offline storage | Ferrum Edge + [FIELD-MATURITY-PLAN.md](internal/FIELD-MATURITY-PLAN.md) |
+| Field MinION collection + offline storage | Ferrum Edge (see [FIELD-OPS.md](FIELD-OPS.md)) |
 | Conformance regression | HelixTest against Demo stack or production Postgres |
 
 ## Pi hardware checklist

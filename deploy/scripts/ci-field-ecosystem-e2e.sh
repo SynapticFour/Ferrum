@@ -9,9 +9,7 @@ echo "ci-field-ecosystem-e2e: required docs"
 for f in \
   docs/FIELD-ECOSYSTEM.md \
   docs/FIELD-GA4GH-DEMO-PI.md \
-  docs/internal/FIELD-WEBSITE-COPY.md \
-  docs/internal/DEPRECATED-LAPTOP-ALIASES.md \
-  docs/internal/FIELD-GAP-REASSESSMENT.md; do
+  docs/FIELD-ECOSYSTEM.md; do
   test -f "$f"
 done
 test -x scripts/install-field-edge.sh

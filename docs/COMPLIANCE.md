@@ -420,7 +420,7 @@ Ferrum stores genomic and operational metadata in PostgreSQL (production) or SQL
 
 **SQLite:** no database-level RLS; operators must rely on gateway authentication, network isolation, and filesystem permissions on `~/.ferrum/`.
 
-Operational email and DNS (pilot outreach): [OPERATIONS.md](OPERATIONS.md).
+Operational email and DNS for pilot outreach are handled outside this repository.
 
 ---
 

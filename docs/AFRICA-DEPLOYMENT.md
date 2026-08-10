@@ -255,7 +255,7 @@ ferrum meta init --profile pathogen --output ~/collection.yaml
 ferrum ingest watch ~/minion_runs --meta-bundle ~/collection.yaml --collector "Dr. A"
 ```
 
-See [profiles/meta/README.md](../profiles/meta/README.md) and [FIELD-MATURITY-PLAN.md](internal/FIELD-MATURITY-PLAN.md) Phase 2.
+See [profiles/meta/README.md](../profiles/meta/README.md) and [METADATA-STORE.md](METADATA-STORE.md).
 
 Basecalling runs **externally** (Dorado/Guppy). Ferrum stores the canonical DRS object plus optional `ont_metrics` JSON on `drs_objects.ont_metrics`. Pathogen organism tags are written to `pathogen_annotations` for Beacon queries. ferrum-meta bundles are validated offline and linked via `metadata_ref`.
 
@@ -361,7 +361,7 @@ helixtest --all --mode ferrum-africa --africa-profile all
 
 Profiles: `offline`, `ont`, `outbreak`, `federation`, `all`. See [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md).
 
-**What Africa HelixTest does not cover yet** (bandwidth/resume, power mode, WES reference mismatch, federation without a peer, outbreak when disabled in config): see [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md) and [internal/TEST-COVERAGE-GAPS.md](internal/TEST-COVERAGE-GAPS.md).
+**What Africa HelixTest does not cover yet** (bandwidth/resume, power mode, WES reference mismatch, federation without a peer, outbreak when disabled in config): see [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md).
 
 **Demo stack:** after upgrading Ferrum on an existing Postgres volume, `ferrum-init` applies only migrations not recorded in `_ferrum_init_migrations` (see init script). Use `docker compose down -v` only when you need a completely fresh database.
 
@@ -454,7 +454,7 @@ Ferrum is designed for **flexible deployment** rather than a single SaaS shape:
 | **Federated network** | Cross-border surveillance | Beacon federation with residency audit |
 | **Managed hosting** | Partners / integrators | Operator-run; pricing negotiated (support, SLA, training) |
 
-Synaptic Four does **not** publish fixed per-country prices in this repository. Commercial terms, support tiers, and institutional agreements are described narratively in [BUSINESS-MODEL.md](BUSINESS-MODEL.md). Pilot outreach email authentication: [OPERATIONS.md](OPERATIONS.md).
+Synaptic Four does **not** publish fixed per-country prices in this repository. Commercial terms, support tiers, and institutional agreements are described narratively in [BUSINESS-MODEL.md](BUSINESS-MODEL.md). Pilot outreach and commercial terms: contact Synaptic Four (see [BUSINESS-MODEL.md](BUSINESS-MODEL.md)).
 
 ---
 

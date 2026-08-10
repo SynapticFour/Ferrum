@@ -22,7 +22,7 @@ Track important architectural and operational decisions here.
   - Default **off**; ingest-time storage remains available either way.
   - Auth mirrors ingest: writes need `can_ingest` when `require_auth`; reads need `can_analyze`.
   - **M2:** version history (`metadata_submission_versions`), `If-Match` / `expected_version`, DRS attach/detach.
-  - Later phases (JSONB query, Beacon binding, archive export) follow [IMPLEMENTATION-PLAN-METADATA-STORE.md](docs/internal/IMPLEMENTATION-PLAN-METADATA-STORE.md).
+  - Later phases (JSONB query, Beacon binding, archive export) follow [IMPLEMENTATION-PLAN-METADATA-STORE.md](docs/METADATA-STORE-ROADMAP.md).
 - **Consequences:** Hub/Lab-Kit can opt in without Edge paying a default surface. No separate microservice. Not an EGA/GHGA acceptance claim. Clinical SoR stays in Solum.
 - **Alternatives considered:** Separate metadata microservice (ops tax); normalize LinkML entities day-1 (schema drift); put scientific description in ADS (wrong plane).
 
@@ -40,7 +40,7 @@ Track important architectural and operational decisions here.
 
 ### 2026-06-18 - ADR-019: Field sync queue (design)
 
-- **Status:** Accepted (design); implementation phased per [docs/internal/FIELD-MATURITY-PLAN.md](docs/internal/FIELD-MATURITY-PLAN.md)
+- **Status:** Accepted (design); implementation phased per [FIELD-ECOSYSTEM.md](docs/FIELD-ECOSYSTEM.md)
 - **Context:** Edge nodes accumulate DRS objects and metadata offline. When connectivity returns, operators need a reliable, resumable, auditable upload path to a hub (cloud S3, national node, or peer Ferrum instance) without re-ingesting from MinION.
 - **Decision:** Introduce a **sync queue** as an append-only SQLite table (`sync_queue`) on edge nodes, managed by `ferrum sync` CLI subcommands:
   - `ferrum sync status` — list pending/completed/failed items with byte counts
@@ -57,8 +57,8 @@ Track important architectural and operational decisions here.
 
 - **Status:** Accepted
 - **Context:** Ferrum Edge mode is deployed via Ferrum-Lab-Kit, compared in Ferrum-GA4GH-Demo docs, and validated by HelixTest Africa profiles. Naming drift (`laptop` vs `field-edge`) and Pi-vs-Demo confusion blocked operators.
-- **Decision:** Document canonical **`field-edge` / Edge mode** mapping in FIELD-ECOSYSTEM; Pi path uses `install-field-edge.sh` (not Demo Docker on ARM). Supplement HelixTest Africa with Ferrum Rust tests for WES reference mismatch, bandwidth, and power (503). Website copy deck + CLI field i18n (en/fr/de). **Defer** laptop alias removal to v0.3 major; inventory in DEPRECATED-LAPTOP-ALIASES.md.
-- **Consequences:** Post-roadmap follow-ups tracked in [FIELD-GAP-REASSESSMENT](docs/internal/FIELD-GAP-REASSESSMENT.md); external Lab Kit repo may need separate PR.
+- **Decision:** Document canonical **`field-edge` / Edge mode** mapping in FIELD-ECOSYSTEM; Pi path uses `install-field-edge.sh` (not Demo Docker on ARM). Supplement HelixTest Africa with Ferrum Rust tests for WES reference mismatch, bandwidth, and power (503). Website copy deck + CLI field i18n (en/fr/de). **Defer** laptop alias removal to v0.3 major; inventory in FIELD-ECOSYSTEM.md.
+- **Consequences:** Post-roadmap follow-ups tracked in [FIELD-ECOSYSTEM.md](docs/FIELD-ECOSYSTEM.md); external Lab Kit repo may need separate PR.
 
 ---
 

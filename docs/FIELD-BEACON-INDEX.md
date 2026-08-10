@@ -38,5 +38,4 @@ GET /ga4gh/beacon/v2/g_variants?referenceName=chr1&start=100&referenceBases=A&al
 ## Related
 
 - [FEDERATION.md](FEDERATION.md)
-- [FIELD-MATURITY-PLAN.md](internal/FIELD-MATURITY-PLAN.md) Phase 5
 - `crates/ferrum-beacon/src/vcf_index.rs`

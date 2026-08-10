@@ -7,7 +7,6 @@
 # Local enrichment (Docker stack with MinIO fixtures):
 #   make seed-pilot
 #
-# See docs/internal/SEED-CATALOGS.md for local vs remote DRS name differences.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,7 +40,7 @@ curl_pilot "$BASE_URL/health" >/dev/null || {
 }
 
 echo "seed-pilot-remote: verifying $BASE_URL (workspace=${PILOT_WORKSPACE_ID}, cohort=${PILOT_COHORT_ID})"
-echo "  See docs/internal/SEED-CATALOGS.md — remote deploys may use different DRS object names than local make seed-pilot."
+echo "  remote deploys may use different DRS object names than local make seed-pilot."
 
 echo "seed-pilot-remote: verify DRS has objects"
 obj_count="$(curl_pilot "$BASE_URL/ga4gh/drs/v1/objects?limit=5" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")"

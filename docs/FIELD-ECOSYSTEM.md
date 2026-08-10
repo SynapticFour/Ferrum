@@ -2,7 +2,7 @@
 
 How Ferrum **Edge mode** maps to sibling SynapticFour repos. Use this when wiring Lab Kit, GA4GH Demo, or HelixTest for Pi / field deployments.
 
-Related: [ECOSYSTEM.md](ECOSYSTEM.md), [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-MATURITY-PLAN.md](internal/FIELD-MATURITY-PLAN.md).
+Related: [ECOSYSTEM.md](ECOSYSTEM.md), [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md).
 
 ## Naming (7.1 — Ferrum-Lab-Kit)
 
@@ -65,8 +65,8 @@ Workflow: `.github/workflows/africa-conformance.yml` + `deploy/scripts/ci-field-
 
 ## Website copy (7.4)
 
-Marketing strings for synapticfour.com / ferrum-field: [FIELD-WEBSITE-COPY.md](internal/FIELD-WEBSITE-COPY.md). CLI localisation: `FERRUM_LANG=fr|de` (see [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md#localisation)).
+CLI localisation: `FERRUM_LANG=fr|de` (see [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md#localisation)).
 
 ## Laptop alias deprecation (7.5)
 
-**Not removed in Phase 7** — one deprecation cycle per ADR-018. Removal target: **next major release (v0.3)**. Inventory: [DEPRECATED-LAPTOP-ALIASES.md](internal/DEPRECATED-LAPTOP-ALIASES.md).
+**Not removed in Phase 7** — one deprecation cycle per ADR-018. Removal target: **next major release (v0.3)**.
