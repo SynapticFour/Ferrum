@@ -36,7 +36,7 @@ async fn metadata_ref_stored_on_object() {
     assert!(report.valid, "{report}");
 
     let alias = submission_alias(&bundle).expect("alias");
-    repo.upsert_metadata_submission(&alias, "pathogen", &bundle.to_string())
+    repo.upsert_metadata_submission(&alias, "pathogen", &bundle.to_string(), None)
         .await
         .expect("store submission");
 

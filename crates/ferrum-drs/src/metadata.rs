@@ -8,6 +8,9 @@ use serde_json::Value;
 pub struct StoredMetadata {
     pub metadata_ref: String,
     pub profile: MetaProfile,
+    pub version: i64,
+    pub content_sha256: String,
+    pub unchanged: bool,
 }
 
 pub fn validate_ferrum_meta_bundle(
@@ -30,17 +33,30 @@ pub async fn store_ferrum_meta_bundle(
     bundle: &Value,
     profile: Option<MetaProfile>,
 ) -> Result<StoredMetadata, DrsError> {
+    store_ferrum_meta_bundle_versioned(repo, bundle, profile, None).await
+}
+
+pub async fn store_ferrum_meta_bundle_versioned(
+    repo: &DrsRepo,
+    bundle: &Value,
+    profile: Option<MetaProfile>,
+    expected_version: Option<i64>,
+) -> Result<StoredMetadata, DrsError> {
     let (profile, _report) =
         validate_ferrum_meta_bundle(bundle, profile).map_err(DrsError::Validation)?;
     let alias = submission_alias(bundle)
         .ok_or_else(|| DrsError::Validation("ferrum-meta submission has no alias".into()))?;
     let document = serde_json::to_string(bundle)
         .map_err(|e| DrsError::Validation(format!("serialize ferrum-meta: {e}")))?;
-    repo.upsert_metadata_submission(&alias, profile.as_str(), &document)
+    let result = repo
+        .upsert_metadata_submission(&alias, profile.as_str(), &document, expected_version)
         .await?;
     Ok(StoredMetadata {
-        metadata_ref: alias,
+        metadata_ref: result.alias,
         profile,
+        version: result.version,
+        content_sha256: result.content_sha256,
+        unchanged: result.unchanged,
     })
 }
 
@@ -50,6 +66,10 @@ pub async fn link_object_metadata_ref(
     metadata_ref: &str,
 ) -> Result<(), DrsError> {
     repo.set_object_metadata_ref(object_id, metadata_ref).await
+}
+
+pub async fn unlink_object_metadata_ref(repo: &DrsRepo, object_id: &str) -> Result<(), DrsError> {
+    repo.clear_object_metadata_ref(object_id).await
 }
 
 pub fn provenance_destination(

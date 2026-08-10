@@ -33,6 +33,10 @@ pub struct MetadataSubmissionRow {
     pub alias: String,
     pub profile: String,
     pub document: String,
+    pub version: i64,
+    pub content_sha256: String,
+    pub updated_time: Option<String>,
+    pub created_time: Option<String>,
 }
 
 /// Summary row for Metadata Store list endpoints.
@@ -40,7 +44,32 @@ pub struct MetadataSubmissionRow {
 pub struct MetadataSubmissionSummary {
     pub alias: String,
     pub profile: String,
+    pub version: i64,
+    pub content_sha256: String,
     pub created_time: String,
+    pub updated_time: Option<String>,
+}
+
+/// Result of a versioned upsert.
+#[derive(Debug, Clone)]
+pub struct MetadataUpsertResult {
+    pub alias: String,
+    pub profile: String,
+    pub version: i64,
+    pub content_sha256: String,
+    pub unchanged: bool,
+}
+
+/// Historical version row.
+#[derive(Debug, Clone)]
+pub struct MetadataSubmissionVersionRow {
+    pub alias: String,
+    pub version: i64,
+    pub profile: String,
+    pub document: String,
+    pub content_sha256: String,
+    pub created_time: String,
+    pub is_current: bool,
 }
 
 impl DrsRepo {
@@ -263,55 +292,297 @@ impl DrsRepo {
         Ok(row.and_then(|r| r.0))
     }
 
-    /// Upsert a ferrum-meta submission document keyed by alias.
+    /// Upsert a ferrum-meta submission document keyed by alias (versioned).
+    ///
+    /// When `expected_version` is set and does not match the current head, returns
+    /// [`DrsError::Conflict`]. Identical content is a no-op (`unchanged = true`).
     pub async fn upsert_metadata_submission(
         &self,
         alias: &str,
         profile: &str,
         document: &str,
-    ) -> Result<()> {
+        expected_version: Option<i64>,
+    ) -> Result<MetadataUpsertResult> {
+        use sha2::{Digest, Sha256};
+        let content_sha256 = hex::encode(Sha256::digest(document.as_bytes()));
+        let current = self.get_metadata_submission(alias).await?;
+
+        if let Some(cur) = current.as_ref() {
+            if let Some(expected) = expected_version {
+                if expected != cur.version {
+                    return Err(DrsError::Conflict(format!(
+                        "metadata submission '{alias}' version mismatch: expected {expected}, current {}",
+                        cur.version
+                    )));
+                }
+            }
+            if cur.content_sha256 == content_sha256 && !cur.content_sha256.is_empty() {
+                return Ok(MetadataUpsertResult {
+                    alias: cur.alias.clone(),
+                    profile: cur.profile.clone(),
+                    version: cur.version,
+                    content_sha256: cur.content_sha256.clone(),
+                    unchanged: true,
+                });
+            }
+        } else if let Some(expected) = expected_version {
+            return Err(DrsError::Conflict(format!(
+                "metadata submission '{alias}' does not exist (If-Match version {expected})"
+            )));
+        }
+
+        let new_version = current.as_ref().map(|c| c.version + 1).unwrap_or(1);
         let id = alias.to_string();
-        pool_query!(self, |p| {
-            sqlx::query(
-                "INSERT INTO metadata_submissions (id, alias, profile, document)
-                 VALUES ($1, $2, $3, $4)
-                 ON CONFLICT(alias) DO UPDATE SET profile = $3, document = $4",
-            )
-            .bind(&id)
-            .bind(alias)
-            .bind(profile)
-            .bind(document)
-            .execute(p)
+
+        if self.dialect == DbDialect::Postgres {
+            pool_query!(self, |p| {
+                sqlx::query(
+                    "INSERT INTO metadata_submissions
+                        (id, alias, profile, document, version, content_sha256, updated_time)
+                     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                     ON CONFLICT(alias) DO UPDATE SET
+                        profile = EXCLUDED.profile,
+                        document = EXCLUDED.document,
+                        version = EXCLUDED.version,
+                        content_sha256 = EXCLUDED.content_sha256,
+                        updated_time = NOW()",
+                )
+                .bind(&id)
+                .bind(alias)
+                .bind(profile)
+                .bind(document)
+                .bind(new_version)
+                .bind(&content_sha256)
+                .execute(p)
+                .await?;
+                Ok::<(), DrsError>(())
+            })?;
+        } else {
+            pool_query!(self, |p| {
+                sqlx::query(
+                    "INSERT INTO metadata_submissions
+                        (id, alias, profile, document, version, content_sha256, updated_time)
+                     VALUES ($1, $2, $3, $4, $5, $6, datetime('now'))
+                     ON CONFLICT(alias) DO UPDATE SET
+                        profile = excluded.profile,
+                        document = excluded.document,
+                        version = excluded.version,
+                        content_sha256 = excluded.content_sha256,
+                        updated_time = datetime('now')",
+                )
+                .bind(&id)
+                .bind(alias)
+                .bind(profile)
+                .bind(document)
+                .bind(new_version)
+                .bind(&content_sha256)
+                .execute(p)
+                .await?;
+                Ok::<(), DrsError>(())
+            })?;
+        }
+
+        self.insert_metadata_version_row(alias, new_version, profile, document, &content_sha256)
             .await?;
-            Ok::<(), DrsError>(())
-        })?;
+
+        Ok(MetadataUpsertResult {
+            alias: alias.to_string(),
+            profile: profile.to_string(),
+            version: new_version,
+            content_sha256,
+            unchanged: false,
+        })
+    }
+
+    async fn insert_metadata_version_row(
+        &self,
+        alias: &str,
+        version: i64,
+        profile: &str,
+        document: &str,
+        content_sha256: &str,
+    ) -> Result<()> {
+        let id = format!("{alias}:v{version}");
+        if self.dialect == DbDialect::Postgres {
+            pool_query!(self, |p| {
+                sqlx::query(
+                    "INSERT INTO metadata_submission_versions
+                        (id, alias, version, profile, document, content_sha256, created_time)
+                     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                     ON CONFLICT (alias, version) DO NOTHING",
+                )
+                .bind(&id)
+                .bind(alias)
+                .bind(version)
+                .bind(profile)
+                .bind(document)
+                .bind(content_sha256)
+                .execute(p)
+                .await?;
+                Ok::<(), DrsError>(())
+            })?;
+        } else {
+            pool_query!(self, |p| {
+                sqlx::query(
+                    "INSERT OR IGNORE INTO metadata_submission_versions
+                        (id, alias, version, profile, document, content_sha256, created_time)
+                     VALUES ($1, $2, $3, $4, $5, $6, datetime('now'))",
+                )
+                .bind(&id)
+                .bind(alias)
+                .bind(version)
+                .bind(profile)
+                .bind(document)
+                .bind(content_sha256)
+                .execute(p)
+                .await?;
+                Ok::<(), DrsError>(())
+            })?;
+        }
         Ok(())
     }
 
-    /// Fetch a stored ferrum-meta submission by alias.
+    /// Fetch a stored ferrum-meta submission by alias (current head).
     pub async fn get_metadata_submission(
         &self,
         alias: &str,
     ) -> Result<Option<MetadataSubmissionRow>> {
-        let row: Option<(String, String, String, String)> = pool_query!(self, |p| {
+        type MetaHeadRow = (
+            String,
+            String,
+            String,
+            String,
+            i64,
+            String,
+            Option<String>,
+            Option<String>,
+        );
+        let row: Option<MetaHeadRow> = pool_query!(self, |p| {
             sqlx::query_as(
-                "SELECT id, alias, profile, document FROM metadata_submissions WHERE alias = $1 LIMIT 1",
+                "SELECT id, alias, profile, document,
+                        COALESCE(version, 1),
+                        COALESCE(content_sha256, ''),
+                        CAST(updated_time AS TEXT),
+                        CAST(created_time AS TEXT)
+                 FROM metadata_submissions WHERE alias = $1 LIMIT 1",
             )
             .bind(alias)
             .fetch_optional(p)
             .await
         })?;
-        Ok(
-            row.map(|(id, alias, profile, document)| MetadataSubmissionRow {
+        Ok(row.map(
+            |(
                 id,
                 alias,
                 profile,
                 document,
-            }),
-        )
+                version,
+                content_sha256,
+                updated_time,
+                created_time,
+            )| {
+                MetadataSubmissionRow {
+                    id,
+                    alias,
+                    profile,
+                    document,
+                    version,
+                    content_sha256,
+                    updated_time,
+                    created_time,
+                }
+            },
+        ))
     }
 
-    /// List stored ferrum-meta submissions (newest first by `created_time`).
+    /// List version history for an alias (newest first).
+    pub async fn list_metadata_submission_versions(
+        &self,
+        alias: &str,
+    ) -> Result<Vec<MetadataSubmissionVersionRow>> {
+        let current = self.get_metadata_submission(alias).await?;
+        let current_version = current.as_ref().map(|c| c.version);
+        let rows: Vec<(i64, String, String, String, String)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT version, profile, document, content_sha256, CAST(created_time AS TEXT)
+                 FROM metadata_submission_versions
+                 WHERE alias = $1
+                 ORDER BY version DESC",
+            )
+            .bind(alias)
+            .fetch_all(p)
+            .await
+        })?;
+        Ok(rows
+            .into_iter()
+            .map(
+                |(version, profile, document, content_sha256, created_time)| {
+                    MetadataSubmissionVersionRow {
+                        alias: alias.to_string(),
+                        version,
+                        profile,
+                        document,
+                        content_sha256,
+                        created_time,
+                        is_current: current_version == Some(version),
+                    }
+                },
+            )
+            .collect())
+    }
+
+    /// Fetch a specific historical (or current) version by number.
+    pub async fn get_metadata_submission_version(
+        &self,
+        alias: &str,
+        version: i64,
+    ) -> Result<Option<MetadataSubmissionVersionRow>> {
+        let current = self.get_metadata_submission(alias).await?;
+        if let Some(cur) = current.as_ref() {
+            if cur.version == version {
+                return Ok(Some(MetadataSubmissionVersionRow {
+                    alias: cur.alias.clone(),
+                    version: cur.version,
+                    profile: cur.profile.clone(),
+                    document: cur.document.clone(),
+                    content_sha256: cur.content_sha256.clone(),
+                    created_time: cur
+                        .updated_time
+                        .clone()
+                        .or_else(|| cur.created_time.clone())
+                        .unwrap_or_default(),
+                    is_current: true,
+                }));
+            }
+        }
+        let row: Option<(i64, String, String, String, String)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT version, profile, document, content_sha256, CAST(created_time AS TEXT)
+                 FROM metadata_submission_versions
+                 WHERE alias = $1 AND version = $2
+                 LIMIT 1",
+            )
+            .bind(alias)
+            .bind(version)
+            .fetch_optional(p)
+            .await
+        })?;
+        Ok(row.map(
+            |(version, profile, document, content_sha256, created_time)| {
+                MetadataSubmissionVersionRow {
+                    alias: alias.to_string(),
+                    version,
+                    profile,
+                    document,
+                    content_sha256,
+                    created_time,
+                    is_current: false,
+                }
+            },
+        ))
+    }
+
+    /// List stored ferrum-meta submissions (newest first by `updated_time` / `created_time`).
     pub async fn list_metadata_submissions(
         &self,
         profile: Option<&str>,
@@ -320,40 +591,52 @@ impl DrsRepo {
     ) -> Result<Vec<MetadataSubmissionSummary>> {
         let limit = limit.clamp(1, 500);
         let offset = offset.max(0);
-        let rows: Vec<(String, String, String)> = if let Some(profile) = profile {
-            pool_query!(self, |p| {
-                sqlx::query_as(
-                    "SELECT alias, profile, CAST(created_time AS TEXT) FROM metadata_submissions
-                     WHERE profile = $1
-                     ORDER BY created_time DESC
-                     LIMIT $2 OFFSET $3",
-                )
-                .bind(profile)
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(p)
-                .await
-            })?
-        } else {
-            pool_query!(self, |p| {
-                sqlx::query_as(
-                    "SELECT alias, profile, CAST(created_time AS TEXT) FROM metadata_submissions
-                     ORDER BY created_time DESC
-                     LIMIT $1 OFFSET $2",
-                )
-                .bind(limit)
-                .bind(offset)
-                .fetch_all(p)
-                .await
-            })?
-        };
+        let rows: Vec<(String, String, i64, String, String, Option<String>)> =
+            if let Some(profile) = profile {
+                pool_query!(self, |p| {
+                    sqlx::query_as(
+                        "SELECT alias, profile, COALESCE(version, 1), COALESCE(content_sha256, ''),
+                                CAST(created_time AS TEXT), CAST(updated_time AS TEXT)
+                         FROM metadata_submissions
+                         WHERE profile = $1
+                         ORDER BY COALESCE(updated_time, created_time) DESC
+                         LIMIT $2 OFFSET $3",
+                    )
+                    .bind(profile)
+                    .bind(limit)
+                    .bind(offset)
+                    .fetch_all(p)
+                    .await
+                })?
+            } else {
+                pool_query!(self, |p| {
+                    sqlx::query_as(
+                        "SELECT alias, profile, COALESCE(version, 1), COALESCE(content_sha256, ''),
+                                CAST(created_time AS TEXT), CAST(updated_time AS TEXT)
+                         FROM metadata_submissions
+                         ORDER BY COALESCE(updated_time, created_time) DESC
+                         LIMIT $1 OFFSET $2",
+                    )
+                    .bind(limit)
+                    .bind(offset)
+                    .fetch_all(p)
+                    .await
+                })?
+            };
         Ok(rows
             .into_iter()
-            .map(|(alias, profile, created_time)| MetadataSubmissionSummary {
-                alias,
-                profile,
-                created_time,
-            })
+            .map(
+                |(alias, profile, version, content_sha256, created_time, updated_time)| {
+                    MetadataSubmissionSummary {
+                        alias,
+                        profile,
+                        version,
+                        content_sha256,
+                        created_time,
+                        updated_time,
+                    }
+                },
+            )
             .collect())
     }
 
@@ -367,6 +650,26 @@ impl DrsRepo {
         let affected = pool_query!(self, |p| {
             sqlx::query(sql)
                 .bind(metadata_ref)
+                .bind(object_id)
+                .execute(p)
+                .await
+                .map(|r| r.rows_affected())
+        })?;
+        if affected == 0 {
+            return Err(DrsError::NotFound(object_id.to_string()));
+        }
+        Ok(())
+    }
+
+    /// Clear `metadata_ref` on an existing DRS object.
+    pub async fn clear_object_metadata_ref(&self, object_id: &str) -> Result<()> {
+        let sql = if self.dialect == DbDialect::Postgres {
+            "UPDATE drs_objects SET metadata_ref = NULL, updated_time = NOW() WHERE id = $1"
+        } else {
+            "UPDATE drs_objects SET metadata_ref = NULL, updated_time = datetime('now') WHERE id = $1"
+        };
+        let affected = pool_query!(self, |p| {
+            sqlx::query(sql)
                 .bind(object_id)
                 .execute(p)
                 .await

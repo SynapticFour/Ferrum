@@ -84,6 +84,12 @@ impl IngestApiError {
             },
             DrsError::Forbidden(m) => Self::forbidden(m),
             DrsError::Validation(m) => Self::validation(m),
+            DrsError::Conflict(m) => Self {
+                status: StatusCode::CONFLICT,
+                code: "conflict",
+                message: m,
+                details: None,
+            },
             DrsError::TransferQueued(m) => Self {
                 status: StatusCode::TOO_MANY_REQUESTS,
                 code: "transfer_queued",

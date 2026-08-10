@@ -21,7 +21,8 @@ Track important architectural and operational decisions here.
   - Add optional Ferrum **`[metadata_store]`** (`FERRUM_METADATA_STORE__ENABLED`) mounting **`/api/v1/metadata/*`** over the existing `metadata_submissions` table (document-first).
   - Default **off**; ingest-time storage remains available either way.
   - Auth mirrors ingest: writes need `can_ingest` when `require_auth`; reads need `can_analyze`.
-  - Later phases (versioning, JSONB query, Beacon binding, archive export) follow [IMPLEMENTATION-PLAN-METADATA-STORE.md](docs/internal/IMPLEMENTATION-PLAN-METADATA-STORE.md).
+  - **M2:** version history (`metadata_submission_versions`), `If-Match` / `expected_version`, DRS attach/detach.
+  - Later phases (JSONB query, Beacon binding, archive export) follow [IMPLEMENTATION-PLAN-METADATA-STORE.md](docs/internal/IMPLEMENTATION-PLAN-METADATA-STORE.md).
 - **Consequences:** Hub/Lab-Kit can opt in without Edge paying a default surface. No separate microservice. Not an EGA/GHGA acceptance claim. Clinical SoR stays in Solum.
 - **Alternatives considered:** Separate metadata microservice (ops tax); normalize LinkML entities day-1 (schema drift); put scientific description in ADS (wrong plane).
 

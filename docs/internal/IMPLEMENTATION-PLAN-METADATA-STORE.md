@@ -1,6 +1,6 @@
 # Implementation Plan — Optional Metadata Store (Ferrum)
 
-**Status:** M0 + M1 done (2026-08-10); M2+ open
+**Status:** M0–M2 done (2026-08-10); M3+ open
 **Date:** 2026-08-10
 **Owner:** Ferrum product / Synaptic Four platform
 **Related:** [ferrum-meta](https://github.com/SynapticFour/ferrum-meta), `ferrum-meta-connect`, Field T3 (`metadata_ref` / `metadata_submissions`), ADR-025, [METADATA-STORE.md](../METADATA-STORE.md)
@@ -121,14 +121,15 @@ Also:
 
 **Exit:** curl/CLI can store and retrieve a submission without going through file ingest. ✅
 
-### M2 — Versioning & attach/detach — ~2–4 days
+### M2 — Versioning & attach/detach — **done 2026-08-10**
 
-- `metadata_submissions` → add `version`, `updated_time`, `content_sha256`; keep `alias` as logical id
-- `GET .../submissions/{alias}/versions`
-- `POST .../objects/{drs_id}/metadata_ref` — attach/detach without re-upload
-- Conflict policy: optimistic concurrency (`If-Match` / version header)
+- `metadata_submissions` columns: `version`, `updated_time`, `content_sha256`
+- History table `metadata_submission_versions`
+- `GET /api/v1/metadata/submissions/{alias}/versions` (+ `.../versions/{n}`)
+- `PUT /api/v1/metadata/objects/{object_id}/metadata_ref` — attach/detach
+- Optimistic concurrency: `If-Match: "<version>"` or `?expected_version=` → **409** on mismatch; response `ETag`
 
-**Exit:** Auditable history; DRS link management without re-ingest.
+**Exit:** Auditable history; DRS link management without re-ingest. ✅
 
 ### M3 — Query projections (optional depth) — ~1–2 weeks
 
@@ -196,8 +197,8 @@ Edge binary: same codepaths; query endpoints may be hub-only via config `mode = 
 
 | Priority | Milestone | Why |
 |----------|-----------|-----|
-| P0 | M0 + M1 | Turns “we store blobs” into “users can manage metadata in our infra” |
-| P1 | M2 | Required for real curation / audit conversations |
+| P0 | M0 + M1 | ✅ Turns “we store blobs” into “users can manage metadata in our infra” |
+| P1 | M2 | ✅ Required for real curation / audit conversations |
 | P2 | M3 | Required for “search our catalog” demos |
 | P3 | M4 | Portfolio coherence (Beacon/ADS) |
 | P4 | M5–M6 | Archive + Showcase polish |

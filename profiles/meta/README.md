@@ -37,7 +37,7 @@ At ingest, attach metadata via:
 
 Validated bundles are stored in `metadata_submissions`; DRS objects get `metadata_ref` (dataset alias).
 
-## Optional Metadata Store API (M1)
+## Optional Metadata Store API (M1/M2)
 
 To manage submissions over HTTP (without re-ingest), enable:
 
@@ -48,10 +48,12 @@ enabled = true
 
 Then:
 
-- `PUT /api/v1/metadata/submissions/{alias}` — validate + upsert
+- `PUT /api/v1/metadata/submissions/{alias}` — validate + upsert (optional `If-Match: "<version>"`)
 - `POST /api/v1/metadata/submissions` — validate + upsert
-- `GET /api/v1/metadata/submissions/{alias}` — full document
+- `GET /api/v1/metadata/submissions/{alias}` — current document + version
 - `GET /api/v1/metadata/submissions` — list
+- `GET /api/v1/metadata/submissions/{alias}/versions` — history
+- `PUT /api/v1/metadata/objects/{id}/metadata_ref` — attach/detach
 
 See [docs/METADATA-STORE.md](../../docs/METADATA-STORE.md) and ADR-025.
 

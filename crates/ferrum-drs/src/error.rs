@@ -14,6 +14,8 @@ pub enum DrsError {
     Forbidden(String),
     #[error("validation: {0}")]
     Validation(String),
+    #[error("conflict: {0}")]
+    Conflict(String),
     #[error("transfer queued: {0}")]
     TransferQueued(String),
     #[error("database: {0}")]
@@ -28,6 +30,7 @@ impl From<DrsError> for FerrumError {
             DrsError::NotFound(s) => FerrumError::NotFound(s),
             DrsError::Forbidden(s) => FerrumError::Forbidden(s),
             DrsError::Validation(s) => FerrumError::ValidationError(s),
+            DrsError::Conflict(s) => FerrumError::ValidationError(s),
             DrsError::TransferQueued(s) => FerrumError::ValidationError(s),
             DrsError::Database(se) => FerrumError::DatabaseError(se),
             DrsError::Other(o) => FerrumError::Internal(o),
