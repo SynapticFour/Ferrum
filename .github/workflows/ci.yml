@@ -19,7 +19,8 @@ env:
   CARGO_NET_RETRY: "10"
 
 jobs:
-  build:
+  # One Linux compile chain (Solum model): avoid parallel cold cargo jobs.
+  rust:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -29,19 +30,8 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
-      - uses: ./.github/actions/rust-deps
-      - run: cargo build --workspace
-
-  lint:
-    if: github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/load-versions
-      - uses: ./.github/actions/clone-ga4gh-infra
         with:
-          ref: ${{ env.GA4GH_INFRA_REF }}
-      - uses: dtolnay/rust-toolchain@stable
+          components: rustfmt, clippy
       - uses: ./.github/actions/rust-deps
       - name: Format check
         run: cargo fmt --all -- --check
@@ -52,18 +42,6 @@ jobs:
           max_attempts: 3
           retry_wait_seconds: 30
           command: cargo clippy --workspace --all-targets -- -D warnings
-
-  test:
-    if: github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/load-versions
-      - uses: ./.github/actions/clone-ga4gh-infra
-        with:
-          ref: ${{ env.GA4GH_INFRA_REF }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: ./.github/actions/rust-deps
       - name: Run workspace tests
         run: cargo test --workspace --all-targets
       - name: Federated access smoke (ADS proxy + DRS/WES gates)
@@ -144,8 +122,12 @@ jobs:
       - run: cargo check -p ferrum-drs --features bam-lazy-ingest
       - run: cargo check -p ferrum-meta-connect
 
+  # ARM + size budget: main / manual only (PR already covered by rust job on x86).
   build-arm64:
-    if: github.actor != 'dependabot[bot]'
+    if: |
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
@@ -217,8 +199,12 @@ jobs:
         working-directory: services/ui
         run: npm run test:e2e
 
+  # Docker TES stack: main / manual only (cold image builds dominate minutes).
   test-tes:
-    if: github.actor != 'dependabot[bot]'
+    if: |
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     name: Docker TES + pilot smoke (WES COMPLETE)
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -240,13 +226,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/load-versions
-      - uses: ./.github/actions/clone-ga4gh-infra
-        with:
-          ref: ${{ env.GA4GH_INFRA_REF }}
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: ./.github/actions/rust-deps
-      - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
-      - name: cargo deny check
-        run: cargo deny check
+      - uses: EmbarkStudios/cargo-deny-action@v2
