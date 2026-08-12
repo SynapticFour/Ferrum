@@ -111,6 +111,8 @@ helixtest --all --mode ferrum+infra --profile ferrum-infra
 | Lab co-deploy profiles | [Ferrum-Lab-Kit `config/profiles/field-edge+infra.toml`](https://github.com/SynapticFour/Ferrum-Lab-Kit/blob/main/config/profiles/field-edge+infra.toml) |
 | HelixTest co-deploy mode | [HelixTest `helixtest/docs/ferrum.md`](https://github.com/SynapticFour/HelixTest/blob/main/helixtest/docs/ferrum.md) |
 | Africa-Mode (Edge / SQLite) | [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md), [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md) |
+| Solum clinical companion | [Solum](https://github.com/SynapticFour/Solum) — consent teeth + subject bridge |
+| Subject bridge operator runbook | [solum-subject-bridge-runbook.md](solum-subject-bridge-runbook.md) |
 
 ## CI
 
