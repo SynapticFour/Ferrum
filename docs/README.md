@@ -9,6 +9,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | Topic | Where to read |
 |--------|----------------|
 | **Software license (BUSL-1.1)** — research vs commercial, Change Date → Apache-2.0 | [LICENSE](../LICENSE), [BUSINESS-MODEL.md](BUSINESS-MODEL.md) |
+| **API / release compatibility & deprecation** | [COMPATIBILITY.md](COMPATIBILITY.md) |
 | **Open core, Lab Kit, keys, enterprise** (high-level only; not a substitute for counsel) | [BUSINESS-MODEL.md](BUSINESS-MODEL.md) |
 | **Data protection / sector regulation** (GDPR, EU examples, operator duties) | [COMPLIANCE.md](COMPLIANCE.md) |
 | **Security model, reporting vulnerabilities** | [SECURITY.md](../SECURITY.md) |
