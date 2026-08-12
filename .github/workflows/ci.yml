@@ -232,3 +232,21 @@ jobs:
         run: |
           chmod +x deploy/scripts/ci-tes-pilot-e2e.sh
           bash deploy/scripts/ci-tes-pilot-e2e.sh
+
+  # Supply-chain gate (org level-up C1–C2): licenses, sources, bans, advisories via deny.toml
+  supply-chain:
+    if: github.actor != 'dependabot[bot]'
+    name: cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/load-versions
+      - uses: ./.github/actions/clone-ga4gh-infra
+        with:
+          ref: ${{ env.GA4GH_INFRA_REF }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: cargo deny check
+        run: cargo deny check

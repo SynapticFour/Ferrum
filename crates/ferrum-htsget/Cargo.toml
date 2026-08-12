@@ -2,6 +2,9 @@
 name = "ferrum-htsget"
 version = "0.2.0"
 edition = "2021"
+license = "BUSL-1.1"
+description = "htsget service for Ferrum"
+repository = "https://github.com/SynapticFour/Ferrum"
 
 [dependencies]
 ferrum-core = { path = "../ferrum-core" }

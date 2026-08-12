@@ -5,7 +5,11 @@ exclude-unpublished = true
 [advisories]
 yanked       = "warn"
 unmaintained = "workspace"
-ignore       = []
+ignore       = [
+    # rsa crate Marvin Attack — no upstream patch yet; used for JWT/Passport paths.
+    # Track: https://rustsec.org/advisories/RUSTSEC-2023-0071 — revisit when rsa ships CT fix.
+    { id = "RUSTSEC-2023-0071", reason = "No patched rsa release; Passport/JWT path accepted residual until upstream CT fix" },
+]
 
 [licenses]
 version               = 2
@@ -25,6 +29,8 @@ allow = [
     "Zlib",
     "OpenSSL",
     "CC0-1.0",
+    "bzip2-1.0.6",
+    "CDLA-Permissive-2.0",
 ]
 # Workspace crates (Ferrum) use BUSL-1.1; only check dependencies
 [licenses.private]
@@ -44,7 +50,8 @@ license-files = [{ path = "LICENSE", hash = 0xf04ece33 }]
 
 [bans]
 multiple-versions = "warn"
-wildcards         = "deny"
+# Workspace path crates commonly use `version = "*"` for internal deps; warn until pinned.
+wildcards         = "warn"
 highlight         = "all"
 deny              = []
 skip              = []

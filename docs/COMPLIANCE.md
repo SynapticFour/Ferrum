@@ -206,7 +206,7 @@ obligations (threshold: 50+ employees or €10M+ turnover).
 | Risk management policies | Security event log; OWASP-hardened codebase |
 | Incident response | Webhook alerting; structured security events |
 | Business continuity | Stateless microservices; Docker/Kubernetes deployment |
-| Supply chain security | SBOM generated on every release; cargo-audit in CI |
+| Supply chain security | SBOM generated on release; **cargo-deny in CI** (`deny.toml`: licenses, sources, bans, advisories) |
 | Cryptography | AES-256-GCM at rest; TLS in transit; Crypt4GH for genomics |
 | Access control | GA4GH Passports; role-based workspace access |
 | Vulnerability management | Automated dependency auditing via cargo-deny |
@@ -397,8 +397,8 @@ Before going into production with sensitive data, operators should complete:
 - [ ] Verify security event log is operational
 - [ ] Test breach notification webhook
 - [ ] Document data retention and deletion procedures
-- [ ] Establish incident response procedure (72h notification obligation)
-- [ ] Schedule quarterly dependency audits (cargo-audit)
+- [x] Establish incident response procedure — see [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) (72h notification: operator/controller + counsel; company plan in synapticfour-business)
+- [x] Dependency policy in CI — `cargo deny check` on every PR/push (`deny.toml`); optionally schedule extra `cargo audit` quarterly
 
 ---
 

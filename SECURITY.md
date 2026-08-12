@@ -24,9 +24,12 @@ We take security seriously. Please report vulnerabilities **privately** to avoid
 
 ## Security model overview
 
+- **Threat model (adversaries, assets, residual risk):** [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
+- **Incident response (product runbook):** [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)
 - **Authentication:** JWT and/or GA4GH Passports; JWKS and optional issuer validation. See [INSTALLATION.md](docs/INSTALLATION.md) and [GA4GH.md](docs/GA4GH.md).
 - **Encryption:** When **Crypt4GH at-rest encryption** is enabled and configured, object bodies can be stored encrypted; downloads may use header re-wrapping / per-requester keys as described in [CRYPT4GH.md](docs/CRYPT4GH.md). Deployments without Crypt4GH rely on **other** storage and organisational controls—see your security assessment.
 - **Authorization:** Passport Visa claims and optional role-based checks before granting access to DRS objects, WES runs, workspaces, and other resources.
+- **Supply chain:** `cargo deny check` in CI (`deny.toml`); SBOM on release.
 
 ## OWASP alignment
 
@@ -48,7 +51,7 @@ Security-focused tests live in the `ferrum-security-tests` crate (SSRF, validati
 - **Secrets:** Store database URLs, S3 credentials, and Crypt4GH node keys in secret managers or restricted config; avoid committing them to version control.
 - **TLS:** Use HTTPS in production; terminate TLS at a reverse proxy (e.g. nginx) or load balancer.
 - **Network:** Restrict access to Ferrum and backing services (PostgreSQL, MinIO) to trusted networks where possible.
-- **Updates:** Apply security and dependency updates promptly; run `cargo audit` (or similar) as part of your process. Org policy for ship-critical repos (Dependabot monthly or documented manual cadence): [DEPENDENCY-UPDATE-POLICY.md](https://github.com/SynapticFour/synapticfour-infra/blob/main/docs/DEPENDENCY-UPDATE-POLICY.md).
+- **Updates:** Apply security and dependency updates promptly; CI runs **cargo-deny** (`deny.toml`). Operators may additionally run `cargo audit`. Org policy: [DEPENDENCY-UPDATE-POLICY.md](https://github.com/SynapticFour/synapticfour-infra/blob/main/docs/DEPENDENCY-UPDATE-POLICY.md).
 - **MII manifest sync (`ferrum mii sync-manifest`):** When not using `--offline`, the CLI downloads FHIR NPM packages over HTTPS from the configured registry (default `https://packages.fhir.org`). Treat downloaded `.tgz` files like any other supply-chain artifact: verify versions against your change-management policy, prefer offline mirrors in high-assurance environments, and store caches with appropriate access controls.
 
 ### Production hardening checklist (non-exhaustive)
@@ -71,8 +74,8 @@ Security-focused tests live in the `ferrum-security-tests` crate (SSRF, validati
   - [ ] Periodically review access rules (datasets, workspaces, Passport policies).
 
 - **Operations**
-  - [ ] Define and test an incident response process (including 72‑Stunden‑Pflichten, falls anwendbar).
-  - [ ] Automatisieren von Updates und regelmäßigen Dependency‑Audits in CI.
+  - [x] Define an incident response process — see [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) (test via tabletop; company plan in synapticfour-business).
+  - [x] Automate dependency policy checks in CI (`cargo deny check`).
 
 ---
 
