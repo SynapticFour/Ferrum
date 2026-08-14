@@ -100,6 +100,13 @@ async fn start_edge_mode() -> Result<(), Box<dyn std::error::Error + Send + Sync
     println!("[ferrum] For the full Docker demo (Postgres, MinIO, Keycloak, WES): clone Ferrum and run `make up`, or start Docker and run `ferrum demo start` again.");
     println!("[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml");
     std::env::set_var("FERRUM_OFFLINE", "1");
+    std::env::set_var("FERRUM_DEMO", "1");
+    // NON-PILOT: `ferrum demo start --edge` is an open local demo. Operators who already
+    // set FERRUM_AUTH__REQUIRE_AUTH keep that value (including true for a gated field node).
+    if std::env::var("FERRUM_AUTH__REQUIRE_AUTH").is_err() {
+        std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
+        println!("[ferrum] Demo auth is off (FERRUM_AUTH__REQUIRE_AUTH=false). This is NON-PILOT.");
+    }
     run_gateway_server().await
 }
 
@@ -523,10 +530,9 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             background_gate: Some(background_gate),
             ads_introspect: ads_introspect.clone(),
             solum_consent: solum_consent.clone(),
-            ingest_require_auth: config
-                .as_ref()
-                .map(|c| c.auth.require_auth)
-                .unwrap_or(false),
+            ingest_require_auth: ferrum_core::require_auth_from_env_or(
+                config.as_ref().map(|c| c.auth.require_auth).unwrap_or(true),
+            ),
             metadata_store_enabled: config
                 .as_ref()
                 .map(|c| c.metadata_store.enabled)

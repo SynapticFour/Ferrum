@@ -272,6 +272,11 @@ pub fn require_auth_enabled() -> bool {
     env_require_auth().unwrap_or_else(|| REQUIRE_AUTH_RUNTIME.load(Ordering::Relaxed))
 }
 
+/// Env `FERRUM_AUTH__REQUIRE_AUTH` wins when set; otherwise `fallback` (typically config).
+pub fn require_auth_from_env_or(fallback: bool) -> bool {
+    env_require_auth().unwrap_or(fallback)
+}
+
 /// Auth config used by the middleware (from FerrumConfig).
 #[derive(Clone)]
 pub struct AuthMiddlewareConfig {
@@ -1229,6 +1234,10 @@ mod published_access_tests {
         assert!(super::require_auth_enabled());
         std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
         assert!(!super::require_auth_enabled());
+        assert!(!super::require_auth_from_env_or(true));
+        std::env::remove_var("FERRUM_AUTH__REQUIRE_AUTH");
+        assert!(super::require_auth_from_env_or(true));
+        assert!(!super::require_auth_from_env_or(false));
         super::set_require_auth_runtime(prev_runtime);
         match prev {
             Some(v) => std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", v),

@@ -1,15 +1,4 @@
+# Dependabot is disabled. Pin and bump dependencies with MSRV 1.91.1 and cargo deny.
+# Re-enable only with an owner decision (see docs/OPERATOR-TRUST.md).
 version: 2
-updates:
-  - package-ecosystem: cargo
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-  - package-ecosystem: docker
-    directory: /deploy
-    schedule:
-      interval: weekly
+updates: []

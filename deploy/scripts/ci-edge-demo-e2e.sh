@@ -51,6 +51,10 @@ printf '%s' 'GA4GH edge demo offline E2E payload' >"$PAYLOAD"
 cat >"$TMP/config.toml" <<EOF
 bind = "127.0.0.1:${PORT}"
 
+# NON-PILOT: this job is unauthenticated ingest/stream smoke. Production default is true.
+[auth]
+require_auth = false
+
 [africa]
 offline_first = true
 sqlite_path = "${TMP}/ferrum.db"

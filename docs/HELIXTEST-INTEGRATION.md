@@ -30,7 +30,9 @@ This section is the **single place** in the Ferrum repo that maps **GitHub Actio
 | **HelixTest (core services)** | Same stack | Per-service `--only` steps | Fast feedback in the Actions UI. |
 | **DRS /stream microbench** | Same stack | `deploy/scripts/ci-drs-microbench-stream.sh` (after gateway healthy) | **Fast path** (no HelixTest): plaintext **`microbench-plain-v1`** stream, **4096** bytes, SHA-256 check, **`X-Ferrum-DRS-Stream-Path`**. Catches DRS stream / MinIO seed regressions before heavy suites. |
 
-HelixTest is cloned from GitHub on each run; the ref is **`HELIXTEST_REF`** in the workflow (default `main`). Patch steps align expected checksums with Ferrum’s noop TES backend and seeded DRS URLs; auth-heavy Level‑4 behaviour is skipped in CI as documented below.
+HelixTest is cloned from GitHub on each run; the ref is **`HELIXTEST_REF`** / **`HELIXTEST_SHA`** in `VERSIONS.lock`. Auth-heavy Level‑4 behaviour is skipped in demo CI as documented below. CI does **not** rewrite HelixTest expected checksums.
+
+Ferrum **htsget** rejects genomic region params (`referenceName` / `start` / `end` / POST `regions`) with HTTP 400. HelixTest Ferrum modes expect that 400 (a silent whole-file ticket is not a pass).
 
 ### Areas typically included under `--all --mode ferrum`
 

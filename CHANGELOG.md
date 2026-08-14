@@ -15,7 +15,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
 
-- **Docs / CI** — README, COMPLIANCE, [OPERATOR-TRUST.md](docs/OPERATOR-TRUST.md), and HelixTest workflow describe demo vs pilot honestly (no AES-256-GCM / TLS-enforced claims; Crypt4GH is ChaCha20-Poly1305; TLS is operator proxy). Workflow renamed to Demo lifecycle. CodeQL on PRs; dependency-review fails the job; Dependabot re-enabled; Helm chart 0.2.0; MinIO image pinned; `rust-toolchain.toml` 1.91.1.
+- **Docs / CI** — README, COMPLIANCE, [OPERATOR-TRUST.md](docs/OPERATOR-TRUST.md), and HelixTest workflow describe demo vs pilot honestly (no AES-256-GCM / TLS-enforced claims; Crypt4GH is ChaCha20-Poly1305; TLS is operator proxy). Workflow renamed to Demo lifecycle. CodeQL on PRs; dependency-review fails the job; Dependabot **disabled**; Helm chart 0.2.0; MinIO image pinned; `rust-toolchain.toml` 1.91.1.
 - **Build** — `ferrum-discovery` vendors GA4GH Service Info types (Apache-2.0). Optional `ga4gh-clearinghouse` is a git pin (`ga4gh-infra-v0.1.0`) so default `cargo build` does not need a sibling checkout.
 - **Audit** — residency append failures are logged (`append_warn`); provenance `record_derived_from` errors are warned, not dropped.
 
@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
+- **CI / demo auth** — Africa Conformance and `ferrum demo start --edge` set `FERRUM_AUTH__REQUIRE_AUTH=false` explicitly (NON-PILOT). Ingest honors that env override. Linux clippy `unnecessary_cast` on `statvfs` fields allowed for portable libc types. HelixTest Ferrum modes expect HTTP 400 for htsget POST `regions`.
 - **VCF Beacon index** — stream-parse local VCF (plain or gzip, 50 MiB cap) and batch INSERT (256) instead of `read_to_end` + per-row writes.
 - **Residency audit queries** — time/requester filters run in SQL; full-table fetch remains only for chain verify.
 - **Edge `sync_push`** — multipart uses a file stream; chunked resume reads 256 KiB with seek (not the whole object in RAM).

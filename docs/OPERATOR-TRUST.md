@@ -67,6 +67,7 @@ The GitHub Actions workflow [`.github/workflows/conformance.yml`](../.github/wor
 - Optional Passport clearinghouse: `--features clearinghouse` (gateway `external-auth`) pulls `ga4gh-clearinghouse` from GitHub tag `ga4gh-infra-v0.1.0`.
 - `cargo deny check` in CI (`deny.toml`). RUSTSEC-2023-0071 (`rsa` Marvin) is **ignored until upstream ships a CT fix** — residual accepted for JWT/Passport paths.
 - Helm chart `version` / `appVersion`: **0.2.0**. MinIO image is pinned (not `:latest`).
+- **Dependabot is disabled** (`.github/dependabot.yml` has no update ecosystems). Bump crates/actions in PRs against MSRV 1.91.1.
 
 ---
 
@@ -92,7 +93,8 @@ The GitHub Actions workflow [`.github/workflows/conformance.yml`](../.github/wor
 | `FERRUM_TES_EXTRA_BINDS` | Operator-controlled extra Docker binds (not client TES JSON). |
 | `FERRUM_TES_DOCKER_MOUNT_SOCKET` | Opt-in `docker.sock` mount (privileged). |
 | `FERRUM_TES_HELIXTEST_STUB` / `FERRUM_WES_HELIXTEST_STUBS` | Demo stubs; must be false/unset in pilots. |
-| `FERRUM_DEMO` | Gateway fail-open auth only when set with no config (local demos). |
+| `FERRUM_DEMO` | Gateway fail-open auth when set with **no** config file. Demo CLI (`ferrum demo start --edge`) also sets this. |
+| `FERRUM_AUTH__REQUIRE_AUTH=false` | Explicit NON-PILOT open ingest/APIs. Africa Conformance and `ferrum demo start --edge` (when unset) set this. Code default remains **true**. |
 
 TES Docker nested-engine variables: [TES-DOCKER-BACKEND.md](TES-DOCKER-BACKEND.md).
 

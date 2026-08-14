@@ -44,9 +44,11 @@ fn platform_free_space(path: &Path) -> Option<(u64, u64)> {
     if rc != 0 {
         return None;
     }
-    let block_size = stat.f_frsize;
-    let total = stat.f_blocks as u64 * block_size;
-    let free = stat.f_bavail as u64 * block_size;
+    // libc field widths differ (Linux `u64` vs macOS `fsblkcnt_t` / `c_ulong`).
+    #[allow(clippy::unnecessary_cast)]
+    let total = stat.f_blocks as u64 * stat.f_frsize as u64;
+    #[allow(clippy::unnecessary_cast)]
+    let free = stat.f_bavail as u64 * stat.f_frsize as u64;
     Some((total, free))
 }
 

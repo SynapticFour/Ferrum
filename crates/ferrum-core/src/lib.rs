@@ -33,8 +33,8 @@ pub mod workspace;
 pub use ads::{AdsIntrospectClient, AdsIntrospectError};
 pub use auth::{
     auth_layer, auth_middleware, auth_middleware_with_config, require_auth_enabled,
-    set_require_auth_runtime, warm_jwks_cache, AuthClaims, AuthMiddlewareConfig, PassportClaims,
-    RevocationCheck, RevokedTokensChecker, VisaObject,
+    require_auth_from_env_or, set_require_auth_runtime, warm_jwks_cache, AuthClaims,
+    AuthMiddlewareConfig, PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
 };
 pub use clock::{clock_status, ClockStatus, DEFAULT_MAX_SKEW_SECS, DEFAULT_NTP_HOST};
 pub use config::{

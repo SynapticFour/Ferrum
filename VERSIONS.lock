@@ -27,7 +27,7 @@ GA4GH_INFRA_SHA=55d44957a1ee91140f83b6598ce0f9c492148d15
 GA4GH_INFRA_IMAGE_VERSION=0.1.0
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
-# Latest origin/main as of 2026-08-14 (no tag newer than v0.1.0).
-HELIXTEST_REF=3472d4445485b0f01bb90d6c13734f16d23ff84d
+# Latest origin/main as of 2026-08-15 (htsget region POST → 400 for Ferrum modes).
+HELIXTEST_REF=0ed7a96db3e45ddd58fdf26ab0428491ca2b1444
 HELIXTEST_TAG=v0.1.0
-HELIXTEST_SHA=3472d4445485b0f01bb90d6c13734f16d23ff84d
+HELIXTEST_SHA=0ed7a96db3e45ddd58fdf26ab0428491ca2b1444
