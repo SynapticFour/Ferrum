@@ -27,7 +27,7 @@ jobs:
     name: HelixTest Africa (offline)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
@@ -66,7 +66,7 @@ jobs:
     name: HelixTest Africa (ont)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
@@ -102,7 +102,7 @@ jobs:
     name: Ferrum Africa HTTP gaps (Rust)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
