@@ -67,9 +67,13 @@ pub fn sql_pathogen_count(d: DbDialect) -> String {
         DbDialect::Postgres => "($4::double precision IS NULL OR ont_qscore_min >= $4)",
         DbDialect::Sqlite => "($4 IS NULL OR ont_qscore_min >= $4)",
     };
+    let organism_clause = match d {
+        DbDialect::Postgres => "$1::text IS NULL",
+        DbDialect::Sqlite => "$1 IS NULL",
+    };
     format!(
         "SELECT {count_expr} FROM pathogen_annotations
-         WHERE ($1::text IS NULL OR organism = $1)
+         WHERE ({organism_clause} OR organism = $1)
            AND {amr_contains}
            AND {serotype_clause}
            AND {qscore_clause}"
@@ -92,10 +96,14 @@ pub fn sql_pathogen_exists(d: DbDialect) -> String {
         DbDialect::Postgres => "($4::double precision IS NULL OR ont_qscore_min >= $4)",
         DbDialect::Sqlite => "($4 IS NULL OR ont_qscore_min >= $4)",
     };
+    let organism_clause = match d {
+        DbDialect::Postgres => "$1::text IS NULL",
+        DbDialect::Sqlite => "$1 IS NULL",
+    };
     format!(
         "SELECT EXISTS (
             SELECT 1 FROM pathogen_annotations
-            WHERE ($1::text IS NULL OR organism = $1)
+            WHERE ({organism_clause} OR organism = $1)
               AND {amr_contains}
               AND {serotype_clause}
               AND {qscore_clause}
@@ -282,4 +290,26 @@ pub fn sql_beacon_variant_match_ids(d: DbDialect) -> String {
 /// JSON array string for SQLite `json_each` chromosome binding.
 pub fn chromosomes_json(candidates: &[String]) -> String {
     serde_json::to_string(candidates).unwrap_or_else(|_| "[]".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{sql_pathogen_count, sql_pathogen_exists};
+    use crate::pool::DbDialect;
+
+    #[test]
+    fn sqlite_pathogen_sql_does_not_use_postgres_text_cast_on_organism() {
+        let count = sql_pathogen_count(DbDialect::Sqlite);
+        let exists = sql_pathogen_exists(DbDialect::Sqlite);
+        assert!(
+            !count.contains("$1::text"),
+            "sqlite count still has $1::text: {count}"
+        );
+        assert!(
+            !exists.contains("$1::text"),
+            "sqlite exists still has $1::text: {exists}"
+        );
+        assert!(count.contains("$1 IS NULL"));
+        assert!(exists.contains("$1 IS NULL"));
+    }
 }

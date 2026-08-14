@@ -5,6 +5,8 @@ pub type Result<T> = std::result::Result<T, TrsError>;
 
 #[derive(Error, Debug)]
 pub enum TrsError {
+    #[error("unauthorized: {0}")]
+    Unauthorized(String),
     #[error("not found: {0}")]
     NotFound(String),
     #[error("validation: {0}")]
@@ -16,6 +18,7 @@ pub enum TrsError {
 impl IntoResponse for TrsError {
     fn into_response(self) -> axum::response::Response {
         let status = match &self {
+            TrsError::Unauthorized(_) => axum::http::StatusCode::UNAUTHORIZED,
             TrsError::NotFound(_) => axum::http::StatusCode::NOT_FOUND,
             TrsError::Validation(_) => axum::http::StatusCode::BAD_REQUEST,
             _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR,

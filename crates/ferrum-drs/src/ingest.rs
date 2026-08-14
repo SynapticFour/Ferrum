@@ -46,6 +46,8 @@ pub struct ParsedMultipartUpload {
     /// Total file size for chunked upload sessions.
     pub total_bytes: Option<i64>,
     pub data: Vec<u8>,
+    /// When set, chunk bytes live on disk (avoid a second full-buffer read after spool).
+    pub chunk_path: Option<tempfile::TempPath>,
 }
 
 pub async fn parse_multipart_upload(multipart: &mut Multipart) -> Result<ParsedMultipartUpload> {

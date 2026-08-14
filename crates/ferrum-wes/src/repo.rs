@@ -136,7 +136,10 @@ impl WesRepo {
                 }
             }
         }
-        Ok(run_owner.is_none() || run_owner.as_deref() == Some("anonymous"))
+        Ok(
+            (run_owner.is_none() || run_owner.as_deref() == Some("anonymous"))
+                && !ferrum_core::require_auth_enabled(),
+        )
     }
 
     pub async fn update_state(&self, run_id: &str, state: RunState) -> Result<()> {

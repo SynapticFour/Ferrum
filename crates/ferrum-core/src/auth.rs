@@ -1,7 +1,13 @@
 //! Auth middleware: JWT validation (jsonwebtoken), GA4GH Passport extraction, Bearer + cookie. A07: revocation check.
 
 use async_trait::async_trait;
-use axum::{extract::Request, middleware::Next, response::Response};
+use axum::{
+    extract::Request,
+    http::StatusCode,
+    middleware::Next,
+    response::{IntoResponse, Response},
+    Json,
+};
 use base64::Engine;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
@@ -228,13 +234,17 @@ impl RevokedTokensChecker {
 #[async_trait]
 impl RevocationCheck for RevokedTokensChecker {
     async fn is_revoked(&self, jti: &str) -> bool {
-        let row: Option<(bool,)> = sqlx::query_as("SELECT true FROM revoked_tokens WHERE jti = $1")
+        match sqlx::query_as::<_, (bool,)>("SELECT true FROM revoked_tokens WHERE jti = $1")
             .bind(jti)
             .fetch_optional(&self.pool)
             .await
-            .ok()
-            .and_then(|r| r);
-        row.is_some()
+        {
+            Ok(row) => row.is_some(),
+            Err(e) => {
+                tracing::error!(error = %e, "revocation lookup failed; treating token as revoked");
+                true
+            }
+        }
     }
 }
 
@@ -380,6 +390,17 @@ pub async fn auth_middleware(request: Request, next: Next) -> Response {
     auth_middleware_with_config(config, request, next).await
 }
 
+fn unauthorized_json(message: &str) -> Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({
+            "error": "unauthorized",
+            "message": message,
+        })),
+    )
+        .into_response()
+}
+
 /// Same as [auth_middleware] but takes config explicitly. Use this when the gateway passes config in so it is always available.
 pub async fn auth_middleware_with_config(
     config: Option<Arc<AuthMiddlewareConfig>>,
@@ -395,16 +416,17 @@ pub async fn auth_middleware_with_config(
         if let Some(ref cfg) = config {
             match decode_jwt_or_passport(&token, cfg).await {
                 Ok(claims) => {
-                    let insert = if let (Some(jti), Some(check)) =
+                    let revoked = if let (Some(jti), Some(check)) =
                         (claims.jti(), cfg.revocation_check.as_ref())
                     {
-                        !check.is_revoked(jti).await
+                        check.is_revoked(jti).await
                     } else {
-                        true
+                        false
                     };
-                    if insert {
-                        request.extensions_mut().insert(claims);
+                    if revoked {
+                        return unauthorized_json("token revoked");
                     }
+                    request.extensions_mut().insert(claims);
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -412,17 +434,15 @@ pub async fn auth_middleware_with_config(
                         jwks_url = ?cfg.jwks_url,
                         "JWT/Passport validation failed"
                     );
+                    return unauthorized_json("invalid or expired token");
                 }
             }
         } else {
-            // No config: try default HS256 with no issuer check
-            if let Ok(claims) = decode_jwt_fallback(&token) {
-                request.extensions_mut().insert(claims);
-            }
+            return unauthorized_json("authentication is not configured");
         }
     }
 
-    // Demo mode: when no claims were set, inject demo-user if auth is not required (config absent = treat as demo; config.require_auth false = demo).
+    // Demo mode: inject demo-user only when no token was sent and auth is not required.
     if request.extensions().get::<AuthClaims>().is_none() {
         let inject = config.as_ref().is_none_or(|cfg| !cfg.require_auth);
         if inject {
@@ -481,9 +501,9 @@ async fn decode_jwt_or_passport(
         reject_token_if_too_old(claims.iat, cfg.max_token_age_hours)?;
         let visa_jwts = claims.ga4gh_passport_v1.as_deref().unwrap_or(&[]);
         let visas = if cfg.use_clearinghouse {
-            decode_passport_visas_clearinghouse(token, visa_jwts)
+            decode_passport_visas_clearinghouse(token, visa_jwts).await
         } else {
-            decode_passport_visas(visa_jwts)
+            decode_passport_visas_verified(visa_jwts, cfg).await
         };
         return Ok(AuthClaims::Passport {
             claims: claims.clone(),
@@ -527,28 +547,6 @@ async fn decode_jwt_or_passport(
     }
 
     Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into())
-}
-
-fn decode_jwt_fallback(token: &str) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
-    let decoded = jsonwebtoken::decode_header(token)?;
-    // OWASP A02: only allow HS256 in fallback; never accept Algorithm::None or algorithm confusion
-    if decoded.alg != Algorithm::HS256 {
-        return Err(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm.into());
-    }
-    let claims = jsonwebtoken::decode::<PassportClaims>(
-        token,
-        &DecodingKey::from_secret(b""),
-        &Validation::new(Algorithm::HS256),
-    )?;
-    reject_token_if_too_old(claims.claims.iat, 24)?; // A07: default 24h when no config
-    Ok(AuthClaims::Jwt {
-        sub: claims.claims.sub.unwrap_or_default(),
-        iss: claims.claims.iss,
-        exp: claims.claims.exp.unwrap_or(0),
-        jti: claims.claims.jti,
-        scope: claims.claims.scope,
-        raw_token: Some(token.to_string()),
-    })
 }
 
 struct CachedJwks {
@@ -815,9 +813,9 @@ async fn decode_passport_via_clearinghouse(
             tracing::warn!(
                 error = %err,
                 embedded_visa_count = passport.visa_jwts.len(),
-                "clearinghouse visa extract failed; parsing embedded passport visas without registry verification"
+                "clearinghouse visa extract failed; refusing unverified embedded visas"
             );
-            decode_passport_visas(&passport.visa_jwts)
+            Vec::new()
         }
     };
     Ok(AuthClaims::Passport {
@@ -944,7 +942,7 @@ fn should_refresh_jwks_after_decode(
     )
 }
 
-fn decode_passport_visas_clearinghouse(
+async fn decode_passport_visas_clearinghouse(
     passport_jwt: &str,
     visa_jwts: &[String],
 ) -> Vec<VisaObject> {
@@ -966,28 +964,27 @@ fn decode_passport_visas_clearinghouse(
 
         if trusted.is_empty() {
             tracing::warn!(
-                "clearinghouse enabled but FERRUM_AUTH__ISSUER/JWKS_URL missing; falling back to unverified visa parse"
+                "clearinghouse enabled but FERRUM_AUTH__ISSUER/JWKS_URL missing; refusing unverified visas"
             );
-            return decode_passport_visas(visa_jwts);
+            return Vec::new();
         }
 
-        let result = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let clearinghouse =
-                    Clearinghouse::new(ClearinghouseConfig::new(trusted, Duration::from_secs(300)))
-                        .await
-                        .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-
-                let passport = clearinghouse
-                    .validate_passport(passport_jwt)
+        let result = async {
+            let clearinghouse =
+                Clearinghouse::new(ClearinghouseConfig::new(trusted, Duration::from_secs(300)))
                     .await
                     .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-                clearinghouse
-                    .extract_visas(&passport)
-                    .await
-                    .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)
-            })
-        });
+
+            let passport = clearinghouse
+                .validate_passport(passport_jwt)
+                .await
+                .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+            clearinghouse
+                .extract_visas(&passport)
+                .await
+                .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)
+        }
+        .await;
 
         match result {
             Ok(visas) => visas
@@ -1011,43 +1008,89 @@ fn decode_passport_visas_clearinghouse(
                         .and_then(|v| v.as_str().map(str::to_string)),
                 })
                 .collect(),
-            Err(_) => decode_passport_visas(visa_jwts),
+            Err(_) => {
+                tracing::warn!("clearinghouse visa extract failed; refusing unverified visas");
+                Vec::new()
+            }
         }
     }
 
     #[cfg(not(feature = "clearinghouse"))]
     {
         let _ = passport_jwt;
-        decode_passport_visas(visa_jwts)
+        let _ = visa_jwts;
+        tracing::warn!(
+            "clearinghouse requested but crate built without the feature; refusing unverified visas"
+        );
+        Vec::new()
     }
 }
 
-fn decode_passport_visas(visa_jwts: &[String]) -> Vec<VisaObject> {
+async fn decode_passport_visas_verified(
+    visa_jwts: &[String],
+    cfg: &AuthMiddlewareConfig,
+) -> Vec<VisaObject> {
     let mut out = Vec::new();
-    for s in visa_jwts {
-        if let Some(v) = parse_visa_claim_without_verification(s) {
-            out.push(v);
+    for token in visa_jwts {
+        match verify_visa_jwt(token, cfg).await {
+            Ok(Some(v)) => out.push(v),
+            Ok(None) => {}
+            Err(e) => {
+                tracing::warn!(error = %e, "dropping visa JWT that failed signature verification");
+            }
         }
     }
     out
 }
 
-/// Parse ga4gh_visa_v1 from a compact JWT payload without signature verification.
-///
-/// Security model: Passport JWT signature is verified upstream (`decode_passport_jwt`) before
-/// its embedded visa JWT strings are accepted. Here we extract visa claims to avoid invalid
-/// RS/ES verification with placeholder keys.
-fn parse_visa_claim_without_verification(token: &str) -> Option<VisaObject> {
-    let mut parts = token.split('.');
-    let _header = parts.next()?;
-    let payload = parts.next()?;
-    let _sig = parts.next()?;
+async fn verify_visa_jwt(
+    token: &str,
+    cfg: &AuthMiddlewareConfig,
+) -> Result<Option<VisaObject>, jsonwebtoken::errors::Error> {
+    let header = jsonwebtoken::decode_header(token)?;
+    let alg = header.alg;
+    if alg == Algorithm::HS256 {
+        let secret = cfg
+            .jwt_secret
+            .as_deref()
+            .ok_or(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm)?;
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.algorithms = vec![Algorithm::HS256];
+        validation.validate_exp = true;
+        let data = decode::<VisaJwtPayload>(token, &DecodingKey::from_secret(secret), &validation)?;
+        return Ok(data.claims.ga4gh_visa_v1);
+    }
+    if alg != Algorithm::RS256 && alg != Algorithm::ES256 {
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm.into());
+    }
+    if cfg.jwks_url.is_none() && cfg.jwks_file.is_none() {
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    }
+    let kid = header.kid.unwrap_or_default();
+    // Visa issuer is often not the Passport broker; do not pin `iss` to cfg.issuer.
+    let mut validation = Validation::new(alg);
+    validation.validate_exp = true;
+    validation.validate_aud = false;
+    validation.algorithms = vec![Algorithm::RS256, Algorithm::ES256];
 
-    let payload_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(payload)
-        .ok()?;
-    let claims: VisaJwtPayload = serde_json::from_slice(&payload_bytes).ok()?;
-    claims.ga4gh_visa_v1
+    for attempt in 0..2 {
+        let set = fetch_jwks_cached(cfg, attempt > 0).await?;
+        let jwk = if !kid.is_empty() {
+            set.find(&kid)
+        } else {
+            set.keys.first()
+        };
+        let Some(jwk) = jwk else {
+            continue;
+        };
+        let key = DecodingKey::from_jwk(jwk)?;
+        match decode::<VisaJwtPayload>(token, &key, &validation) {
+            Ok(data) => return Ok(data.claims.ga4gh_visa_v1),
+            Err(e) if attempt == 0 && should_refresh_jwks_after_decode(&e, cfg) => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into())
 }
 
 #[derive(Debug, Deserialize)]

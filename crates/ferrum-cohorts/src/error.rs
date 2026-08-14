@@ -11,6 +11,8 @@ pub enum CohortError {
     NotFound(String),
     #[error("validation: {0}")]
     Validation(String),
+    #[error("unauthorized: {0}")]
+    Unauthorized(String),
     #[error("forbidden: {0}")]
     Forbidden(String),
     #[error("database: {0}")]
@@ -24,6 +26,9 @@ impl IntoResponse for CohortError {
         let (status, msg) = match &self {
             CohortError::NotFound(_) => (axum::http::StatusCode::NOT_FOUND, self.to_string()),
             CohortError::Validation(_) => (axum::http::StatusCode::BAD_REQUEST, self.to_string()),
+            CohortError::Unauthorized(_) => {
+                (axum::http::StatusCode::UNAUTHORIZED, self.to_string())
+            }
             CohortError::Forbidden(_) => (axum::http::StatusCode::FORBIDDEN, self.to_string()),
             _ => (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,

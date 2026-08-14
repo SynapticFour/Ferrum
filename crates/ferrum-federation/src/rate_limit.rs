@@ -19,7 +19,7 @@ impl PeerRateLimiter {
 
     /// Returns true if the request is allowed under the peer budget.
     pub fn allow(&self, peer_name: &str) -> bool {
-        let mut map = self.windows.lock().expect("rate limiter lock");
+        let mut map = self.windows.lock().unwrap_or_else(|e| e.into_inner());
         let now = Instant::now();
         let window = Duration::from_secs(60);
         let entry = map.entry(peer_name.to_string()).or_insert((now, 0));

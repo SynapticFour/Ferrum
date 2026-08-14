@@ -45,7 +45,7 @@ impl TransferQueue {
     pub fn enqueue(&self, object_id: String, size_bytes: u64, direction: TransferDirection) {
         self.queue
             .lock()
-            .expect("transfer queue lock")
+            .unwrap_or_else(|e| e.into_inner())
             .push_back(QueuedTransfer {
                 object_id,
                 size_bytes,
@@ -55,7 +55,7 @@ impl TransferQueue {
     }
 
     pub fn len(&self) -> usize {
-        self.queue.lock().expect("transfer queue lock").len()
+        self.queue.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -63,14 +63,14 @@ impl TransferQueue {
     }
 
     pub fn drain_if_ready(&self, bandwidth: &BandwidthMonitor) -> Vec<QueuedTransfer> {
-        let mut last = self.last_drain.lock().expect("last drain lock");
+        let mut last = self.last_drain.lock().unwrap_or_else(|e| e.into_inner());
         let class = bandwidth.classify();
         let due = last.elapsed() >= Duration::from_secs(self.schedule_secs);
         if !due && class == BandwidthClass::VeryLow {
             return Vec::new();
         }
         *last = Instant::now();
-        let mut q = self.queue.lock().expect("transfer queue lock");
+        let mut q = self.queue.lock().unwrap_or_else(|e| e.into_inner());
         q.drain(..).collect()
     }
 }

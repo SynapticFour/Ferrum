@@ -478,4 +478,8 @@ impl ObjectStorage for S3Storage {
             })?;
         Ok(out.content_length().unwrap_or(0) as u64)
     }
+
+    async fn put_file(&self, key: &str, path: &std::path::Path) -> Result<()> {
+        S3Storage::put_file(self, key, path).await
+    }
 }

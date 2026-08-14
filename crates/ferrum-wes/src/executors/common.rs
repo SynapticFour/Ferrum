@@ -25,6 +25,9 @@ pub async fn cancel_child_gracefully(mut child: tokio::process::Child) {
     // directly on Unix.
     #[cfg(unix)]
     if let Some(pid) = child.id() {
+        // SAFETY: `pid` is from `Child::id()` of a process this runtime spawned.
+        // SIGTERM is a valid signal. We target the process, not a process group
+        // (executors that need group kill should call `process_group(0)` at spawn).
         let _ = unsafe { libc::kill(pid as i32, libc::SIGTERM) };
     }
     match tokio::time::timeout(Duration::from_secs(30), child.wait()).await {

@@ -37,6 +37,8 @@ fn platform_free_space(path: &Path) -> Option<(u64, u64)> {
     use std::os::unix::ffi::OsStrExt;
 
     let c_path = CString::new(path.as_os_str().as_bytes()).ok()?;
+    // SAFETY: `c_path` is a valid NUL-terminated C string from `CString`; `stat` is zeroed
+    // and used only if `statvfs` returns 0, which fills the struct.
     let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
     let rc = unsafe { libc::statvfs(c_path.as_ptr(), &mut stat) };
     if rc != 0 {

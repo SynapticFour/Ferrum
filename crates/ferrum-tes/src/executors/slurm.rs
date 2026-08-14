@@ -39,6 +39,19 @@ fn build_podman_cli_line(exec: &crate::types::TesExecutor) -> String {
     parts.join(" ")
 }
 
+fn shell_escape_sbatch_wrap(cmd: &str) -> Result<String> {
+    if cmd.contains('\n') || cmd.contains('\r') {
+        return Err(TesError::Validation(
+            "executor command must not contain newlines".into(),
+        ));
+    }
+    Ok(cmd
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('`', "\\`")
+        .replace('$', "\\$"))
+}
+
 const DEFAULT_SUBMIT_TEMPLATE: &str = r#"#!/bin/bash
 #SBATCH --job-name={{job_name}}
 #SBATCH --output={{output}}
@@ -55,7 +68,7 @@ fn render_submit_script(task_id: &str, request: &CreateTaskRequest) -> Result<St
     let job_name = format!("tes-{}", task_id);
     let output = format!("tes-{}-%j.out", task_id);
     let error = format!("tes-{}-%j.err", task_id);
-    let executor_command = build_podman_cli_line(exec);
+    let executor_command = shell_escape_sbatch_wrap(&build_podman_cli_line(exec))?;
 
     let mut hb = Handlebars::new();
     hb.register_template_string("submit", DEFAULT_SUBMIT_TEMPLATE)

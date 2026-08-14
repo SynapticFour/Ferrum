@@ -61,6 +61,8 @@ struct NormalizedParams {
     fields: Option<Vec<String>>,
     tags: Option<Vec<String>>,
     notags: Option<Vec<String>>,
+    /// True when the client asked for genomic region slicing (not implemented).
+    region_slicing: bool,
 }
 
 fn split_csv(s: &str) -> Vec<String> {
@@ -173,6 +175,7 @@ fn validate_get_params(
         fields,
         tags,
         notags,
+        region_slicing: q.reference_name.is_some() || q.start.is_some() || q.end.is_some(),
     };
 
     validate_start_end_with_ref(endpoint, p.reference_name.as_deref(), p.start, p.end)?;
@@ -222,6 +225,7 @@ fn validate_post_params(
         fields: body.fields,
         tags: body.tags,
         notags: body.notags,
+        region_slicing: body.regions.is_some(),
     };
 
     if p.class.as_deref() == Some("header") {
@@ -296,6 +300,14 @@ async fn ticket_for_object(
         .ok_or_else(|| {
             htsget_error_response(StatusCode::NOT_FOUND, "NotFound", "object not found")
         })?;
+
+    if params.region_slicing {
+        return Err(htsget_error_response(
+            StatusCode::BAD_REQUEST,
+            "Unsupported",
+            "region slicing not supported; omit referenceName, start, end, and regions",
+        ));
+    }
 
     let kind = classify_object(obj.mime_type.as_deref(), obj.name.as_deref());
     if kind == FileKind::Other {

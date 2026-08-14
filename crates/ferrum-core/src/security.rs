@@ -98,6 +98,30 @@ impl SecurityEventLogger {
     }
 }
 
+/// Reject object-storage keys that would escape a base directory.
+///
+/// Unlike [`safe_join`], this does **not** `canonicalize()` and therefore works for keys
+/// that do not exist yet (`put_bytes` / `put_file`). Slash-separated keys such as
+/// `drs/{ulid}` are allowed; `..`, absolute paths, prefixes, and NUL bytes are not.
+pub fn validate_object_key(key: &str) -> Result<()> {
+    if key.is_empty() || key.len() > 1024 || key.contains('\0') || key.contains('\\') {
+        return Err(FerrumError::PathTraversal);
+    }
+    if Path::new(key).is_absolute() {
+        return Err(FerrumError::PathTraversal);
+    }
+    use std::path::Component;
+    for component in Path::new(key).components() {
+        match component {
+            Component::Normal(_) | Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(FerrumError::PathTraversal);
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Path sanitization to prevent traversal (A03). Returns canonical path if within base.
 pub fn safe_join(base: &Path, user_segment: &str) -> Result<PathBuf> {
     // Reject segments that could escape
@@ -149,4 +173,24 @@ pub trait ResourceAuthorizer: Send + Sync {
     async fn can_read(&self, sub: &str, resource_id: &str) -> Result<bool>;
     async fn can_write(&self, sub: &str, resource_id: &str) -> Result<bool>;
     async fn can_admin(&self, sub: &str) -> Result<bool>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_object_key;
+
+    #[test]
+    fn object_key_allows_nested_ulid() {
+        assert!(validate_object_key("drs/01ARZ3NDEKTSV4RRFFQ69G5FAV").is_ok());
+    }
+
+    #[test]
+    fn object_key_rejects_parent_dir() {
+        assert!(validate_object_key("../etc/passwd").is_err());
+        assert!(validate_object_key("drs/../../etc/passwd").is_err());
+        assert!(validate_object_key("/etc/passwd").is_err());
+        assert!(validate_object_key("foo\\..\\bar").is_err());
+        assert!(validate_object_key("foo\0bar").is_err());
+        assert!(validate_object_key("").is_err());
+    }
 }

@@ -6,6 +6,7 @@ use axum::{routing::get, Json, Router};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::{OnceLock, RwLock};
+use std::time::{Duration, Instant};
 
 static DATA_PATH: OnceLock<RwLock<Option<PathBuf>>> = OnceLock::new();
 static CLOCK_CFG: OnceLock<RwLock<(String, i64)>> = OnceLock::new();
@@ -32,7 +33,7 @@ pub fn set_health_clock_config(ntp_host: String, max_skew_secs: i64) {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct HealthResponse {
     pub status: String,
     pub version: Option<String>,
@@ -50,6 +51,25 @@ pub fn health_router() -> Router {
 }
 
 async fn health_handler() -> Json<HealthResponse> {
+    const TTL: Duration = Duration::from_secs(15);
+    static CACHE: OnceLock<RwLock<(Instant, HealthResponse)>> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| {
+        RwLock::new((
+            Instant::now().checked_sub(TTL).unwrap_or_else(Instant::now),
+            HealthResponse {
+                status: "ok".into(),
+                version: None,
+                disk: None,
+                clock: None,
+            },
+        ))
+    });
+    if let Ok(guard) = cache.read() {
+        if guard.0.elapsed() < TTL {
+            return Json(guard.1.clone());
+        }
+    }
+
     let disk = data_path_store()
         .read()
         .ok()
@@ -72,12 +92,16 @@ async fn health_handler() -> Json<HealthResponse> {
         status = "degraded".to_string();
     }
 
-    Json(HealthResponse {
+    let body = HealthResponse {
         status,
         version: option_env!("CARGO_PKG_VERSION").map(str::to_string),
         disk,
         clock,
-    })
+    };
+    if let Ok(mut guard) = cache.write() {
+        *guard = (Instant::now(), body.clone());
+    }
+    Json(body)
 }
 
 async fn ready_handler() -> Json<HealthResponse> {

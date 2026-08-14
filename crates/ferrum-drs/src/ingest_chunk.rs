@@ -48,6 +48,30 @@ fn assembly_path(token: &str) -> PathBuf {
     upload_sessions_dir().join(format!("{token}.bin"))
 }
 
+async fn append_assembly_from_path(dest: &Path, src: &Path) -> Result<u64> {
+    if let Some(parent) = dest.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| DrsError::Other(e.into()))?;
+    }
+    let mut out = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dest)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    let mut input = tokio::fs::File::open(src)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    let copied = tokio::io::copy(&mut input, &mut out)
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    out.sync_all()
+        .await
+        .map_err(|e| DrsError::Other(e.into()))?;
+    Ok(copied)
+}
+
 async fn append_assembly(path: &Path, data: &[u8]) -> Result<()> {
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent)
@@ -104,7 +128,18 @@ pub async fn process_chunked_upload_from_parts(
         .storage
         .clone()
         .ok_or_else(|| DrsError::Validation("ingest not configured: no storage".into()))?;
-    if parsed.data.is_empty() {
+    if parsed.data.is_empty() && parsed.chunk_path.is_none() {
+        return Err(DrsError::Validation("no chunk data in multipart".into()));
+    }
+    let chunk_len = if let Some(ref path) = parsed.chunk_path {
+        tokio::fs::metadata(path)
+            .await
+            .map_err(|e| DrsError::Other(e.into()))?
+            .len() as i64
+    } else {
+        parsed.data.len() as i64
+    };
+    if chunk_len <= 0 {
         return Err(DrsError::Validation("no chunk data in multipart".into()));
     }
     let total_bytes = parsed.total_bytes.ok_or_else(|| {
@@ -126,7 +161,7 @@ pub async fn process_chunked_upload_from_parts(
 
     let bw = state.bandwidth.as_ref();
     let max_chunk = effective_ingest_chunk_max_bytes(bw.map(|m| m.as_ref())) as i64;
-    if parsed.data.len() as i64 > max_chunk {
+    if chunk_len > max_chunk {
         return Err(DrsError::Validation(format!(
             "chunk exceeds max ingest chunk size ({max_chunk} bytes)"
         )));
@@ -195,9 +230,14 @@ pub async fn process_chunked_upload_from_parts(
     }
 
     let assembly = assembly_path(&upload_token);
-    append_assembly(&assembly, &parsed.data).await?;
+    let appended = if let Some(ref src) = parsed.chunk_path {
+        append_assembly_from_path(&assembly, src.as_ref()).await?
+    } else {
+        append_assembly(&assembly, &parsed.data).await?;
+        parsed.data.len() as u64
+    };
 
-    let completed = completed_before + parsed.data.len() as i64;
+    let completed = completed_before + appended as i64;
     update_checkpoint_progress(state.repo.pool(), &upload_token, completed).await?;
 
     if completed < total_bytes {

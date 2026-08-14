@@ -9,8 +9,9 @@ use futures_util::stream::{Stream, StreamExt};
 use http;
 use http_body_util::{combinators::UnsyncBoxBody, BodyStream, StreamBody};
 use hyper::body::Frame;
-use std::sync::mpsc;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use tower::{Layer, Service};
 
 /// Lesson 4: bounded channels + cooperative yielding to avoid unbounded buffering.
@@ -57,6 +58,32 @@ pub struct Crypt4GHProxyService<S> {
     config: Arc<Crypt4GHProxyConfig>,
 }
 
+/// Extract `{id}` from `/ga4gh/drs/v1/objects/{id}/stream` (or `/objects/{id}`).
+pub fn object_id_from_drs_path(path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    let idx = parts.iter().position(|p| *p == "objects")?;
+    let id = parts.get(idx + 1)?;
+    if id.is_empty() || *id == "stream" || *id == "access" {
+        return None;
+    }
+    Some((*id).to_string())
+}
+
+fn json_error_response(
+    status: http::StatusCode,
+    msg: &'static str,
+) -> http::Response<UnsyncBoxBody<Bytes, std::io::Error>> {
+    let payload = Bytes::from(format!(r#"{{"error":"{msg}"}}"#));
+    let stream = futures_util::stream::once(async move { Ok(Frame::data(payload)) });
+    let mut res = http::Response::new(UnsyncBoxBody::new(StreamBody::new(stream)));
+    *res.status_mut() = status;
+    res.headers_mut().insert(
+        http::header::CONTENT_TYPE,
+        http::HeaderValue::from_static("application/json"),
+    );
+    res
+}
+
 impl<S, ReqBody, ResBody> Service<http::Request<ReqBody>> for Crypt4GHProxyService<S>
 where
     S: Service<http::Request<ReqBody>, Response = http::Response<ResBody>> + Clone + Send + 'static,
@@ -87,36 +114,47 @@ where
             .get(HEADER_CRYPT4GH_PUBLIC_KEY)
             .and_then(|v| v.to_str().ok())
             .map(str::to_string);
-        let object_id = req
-            .uri()
-            .path()
-            .split('/')
-            .rfind(|s| !s.is_empty())
-            .unwrap_or("")
-            .to_string();
+        let object_id = object_id_from_drs_path(req.uri().path()).unwrap_or_default();
 
         Box::pin(async move {
             let response = inner.call(req).await?;
             let (parts, body) = response.into_parts();
 
-            let should_reencrypt =
-                claims.is_some() && pubkey_b64.is_some() && !object_id.is_empty();
-
-            if !should_reencrypt {
+            // No requester pubkey: pass through (including errors).
+            if pubkey_b64.is_none() {
                 let stream = body_to_stream(body);
                 let new_body = UnsyncBoxBody::new(StreamBody::new(stream));
                 return Ok(http::Response::from_parts(parts, new_body));
             }
 
-            let claims = claims.unwrap();
-            let pubkey_b64 = pubkey_b64.unwrap();
+            if !parts.status.is_success() {
+                let stream = body_to_stream(body);
+                let new_body = UnsyncBoxBody::new(StreamBody::new(stream));
+                return Ok(http::Response::from_parts(parts, new_body));
+            }
+
+            // Pubkey present: fail closed rather than forwarding ciphertext.
+            if object_id.is_empty() {
+                return Ok(json_error_response(
+                    http::StatusCode::BAD_REQUEST,
+                    "could not determine DRS object id for Crypt4GH rewrap",
+                ));
+            }
+
+            let Some(claims) = claims else {
+                return Ok(json_error_response(
+                    http::StatusCode::FORBIDDEN,
+                    "authentication required for Crypt4GH rewrap",
+                ));
+            };
             let visas: Vec<VisaObject> = match &claims {
-                AuthClaims::Jwt { .. } => {
-                    let stream = body_to_stream(body);
-                    let new_body = UnsyncBoxBody::new(StreamBody::new(stream));
-                    return Ok(http::Response::from_parts(parts, new_body));
-                }
                 AuthClaims::Passport { visas, .. } => visas.clone(),
+                AuthClaims::Jwt { .. } => {
+                    return Ok(json_error_response(
+                        http::StatusCode::FORBIDDEN,
+                        "Passport visas required for Crypt4GH rewrap",
+                    ));
+                }
             };
             let subject_id = match &claims {
                 AuthClaims::Passport { claims: c, .. } => c.sub.as_deref().unwrap_or(""),
@@ -124,17 +162,20 @@ where
             };
 
             if !config.policy_engine.check(&object_id, &visas, subject_id) {
-                let stream = body_to_stream(body);
-                let new_body = UnsyncBoxBody::new(StreamBody::new(stream));
-                return Ok(http::Response::from_parts(parts, new_body));
+                return Ok(json_error_response(
+                    http::StatusCode::FORBIDDEN,
+                    "Crypt4GH rewrap denied by policy",
+                ));
             }
 
+            let pubkey_b64 = pubkey_b64.unwrap();
             let pubkey = match base64::engine::general_purpose::STANDARD.decode(pubkey_b64.trim()) {
                 Ok(p) => p,
                 Err(_) => {
-                    let stream = body_to_stream(body);
-                    let new_body = UnsyncBoxBody::new(StreamBody::new(stream));
-                    return Ok(http::Response::from_parts(parts, new_body));
+                    return Ok(json_error_response(
+                        http::StatusCode::BAD_REQUEST,
+                        "invalid X-Crypt4GH-Public-Key",
+                    ));
                 }
             };
             let recipient_keys =
@@ -147,16 +188,15 @@ where
             {
                 Ok(Some(k)) => k,
                 _ => {
-                    let stream = body_to_stream(body);
-                    let new_body = UnsyncBoxBody::new(StreamBody::new(stream));
-                    return Ok(http::Response::from_parts(parts, new_body));
+                    return Ok(json_error_response(
+                        http::StatusCode::BAD_GATEWAY,
+                        "Crypt4GH master key unavailable",
+                    ));
                 }
             };
 
-            // Lesson 4: bounded channels provide backpressure. We avoid blocking Tokio
-            // worker threads by using `try_send` + `yield_now` in the async pump.
-            let (tx_in, rx_in) = mpsc::sync_channel::<Bytes>(PROXY_IN_FLIGHT_IN);
-            let (tx_out, rx_out) = mpsc::sync_channel::<Bytes>(PROXY_IN_FLIGHT_OUT);
+            let (tx_in, rx_in) = tokio::sync::mpsc::channel::<Bytes>(PROXY_IN_FLIGHT_IN);
+            let (tx_out, rx_out) = tokio::sync::mpsc::channel::<Bytes>(PROXY_IN_FLIGHT_OUT);
             let mut reader = ChannelReader::new(rx_in);
             let mut writer = ChannelWriter::new(tx_out);
             let keys = master_keys.clone();
@@ -166,24 +206,22 @@ where
                 let mut stream = BodyStream::new(body);
                 while let Some(Ok(frame)) = stream.next().await {
                     if let Ok(data) = frame.into_data() {
-                        let mut chunk = data;
-                        loop {
-                            match tx_in.try_send(chunk) {
-                                Ok(()) => break,
-                                Err(mpsc::TrySendError::Full(v)) => {
-                                    chunk = v;
-                                    tokio::task::yield_now().await;
-                                }
-                                Err(mpsc::TrySendError::Disconnected(_v)) => break,
-                            }
+                        if tx_in.send(data).await.is_err() {
+                            break;
                         }
                     }
                 }
-                drop(tx_in);
             });
 
-            tokio::task::spawn_blocking(move || {
+            let join = tokio::task::spawn_blocking(move || {
                 crypt4gh::reencrypt(&keys, &recipients, &mut reader, &mut writer, true)
+            });
+            tokio::spawn(async move {
+                match join.await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => tracing::error!(error = %e, "Crypt4GH proxy reencrypt failed"),
+                    Err(e) => tracing::error!(error = %e, "Crypt4GH proxy reencrypt join failed"),
+                }
             });
 
             let stream = ReencryptStream { rx: rx_out };
@@ -198,73 +236,66 @@ fn body_to_stream<B>(body: B) -> impl Stream<Item = Result<Frame<Bytes>, std::io
 where
     B: http_body::Body<Data = Bytes, Error = std::io::Error> + Send + Unpin + 'static,
 {
-    // Lesson 4: bounded to avoid unbounded buffering; use try_send/yield to avoid
-    // blocking Tokio workers.
-    let (tx, rx) = mpsc::sync_channel(32);
+    let (tx, rx) = tokio::sync::mpsc::channel(32);
     tokio::spawn(async move {
         let mut stream = BodyStream::new(body);
         while let Some(Ok(frame)) = stream.next().await {
             if let Ok(data) = frame.into_data() {
-                let mut item = Ok(Frame::data(data));
-                loop {
-                    match tx.try_send(item) {
-                        Ok(()) => break,
-                        Err(mpsc::TrySendError::Full(v)) => {
-                            item = v;
-                            tokio::task::yield_now().await;
-                        }
-                        Err(mpsc::TrySendError::Disconnected(_v)) => break,
-                    }
+                if tx.send(Ok(Frame::data(data))).await.is_err() {
+                    break;
                 }
             }
         }
-        drop(tx);
     });
     BodyStreamAdapter { rx }
 }
 
 struct BodyStreamAdapter {
-    rx: mpsc::Receiver<Result<Frame<Bytes>, std::io::Error>>,
+    rx: tokio::sync::mpsc::Receiver<Result<Frame<Bytes>, std::io::Error>>,
 }
 
 impl Stream for BodyStreamAdapter {
     type Item = Result<Frame<Bytes>, std::io::Error>;
 
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        match self.rx.try_recv() {
-            Ok(item) => std::task::Poll::Ready(Some(item)),
-            Err(mpsc::TryRecvError::Empty) => {
-                // mpsc doesn't automatically wake us; repoll cooperatively.
-                cx.waker().wake_by_ref();
-                std::task::Poll::Pending
-            }
-            Err(mpsc::TryRecvError::Disconnected) => std::task::Poll::Ready(None),
-        }
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.get_mut().rx.poll_recv(cx)
     }
 }
 
 struct ReencryptStream {
-    rx: mpsc::Receiver<Bytes>,
+    rx: tokio::sync::mpsc::Receiver<Bytes>,
 }
 
 impl Stream for ReencryptStream {
     type Item = Result<Frame<Bytes>, std::io::Error>;
 
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        let rx = &self.rx;
-        match rx.try_recv() {
-            Ok(chunk) => std::task::Poll::Ready(Some(Ok(Frame::data(chunk)))),
-            Err(mpsc::TryRecvError::Empty) => {
-                cx.waker().wake_by_ref();
-                std::task::Poll::Pending
-            }
-            Err(mpsc::TryRecvError::Disconnected) => std::task::Poll::Ready(None),
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.get_mut().rx.poll_recv(cx) {
+            Poll::Ready(Some(chunk)) => Poll::Ready(Some(Ok(Frame::data(chunk)))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::object_id_from_drs_path;
+
+    #[test]
+    fn object_id_from_stream_path() {
+        assert_eq!(
+            object_id_from_drs_path("/ga4gh/drs/v1/objects/abc123/stream").as_deref(),
+            Some("abc123")
+        );
+        assert_eq!(
+            object_id_from_drs_path("/ga4gh/drs/v1/objects/abc123").as_deref(),
+            Some("abc123")
+        );
+        assert_eq!(
+            object_id_from_drs_path("/ga4gh/drs/v1/objects/stream"),
+            None
+        );
+        assert_eq!(object_id_from_drs_path("/health"), None);
     }
 }

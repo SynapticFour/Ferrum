@@ -21,6 +21,7 @@ members = [
     "crates/ferrum-ont",
     "crates/ferrum-federation",
     "crates/ferrum-reference",
+    "crates/ferrum-discovery",
     "tools/ferrum-cli",
     "crates/ferrum-bench",
 ]

@@ -1,7 +1,7 @@
 use crate::error::{Result, TrsError};
 use crate::repo::TrsRepo;
 use crate::types::*;
-use axum::extract::{Path, Query, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::response::IntoResponse;
 use axum::Json;
 use std::sync::Arc;
@@ -137,8 +137,14 @@ pub async fn get_descriptor_query(
 #[utoipa::path(post, path = "/internal/register", request_body = RegisterToolRequest, responses((status = 200, body = Tool)))]
 pub async fn register_tool(
     State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(body): Json<RegisterToolRequest>,
 ) -> Result<Json<Tool>> {
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(TrsError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
     let workflow_url = body
         .workflow_url
         .as_deref()
@@ -205,7 +211,11 @@ pub async fn register_tool(
         )
         .await?;
 
-    let row = state.repo.get_tool(&tool_id).await?.unwrap();
+    let row = state
+        .repo
+        .get_tool(&tool_id)
+        .await?
+        .ok_or_else(|| TrsError::NotFound("registered tool missing after insert".into()))?;
     let versions = state.repo.get_versions(&tool_id).await.unwrap_or_default();
     let mut tool = crate::types::tool_from_row(row.0, row.1, row.2, row.3, row.4, row.5);
     tool.url = Some(format!("/ga4gh/trs/v2/tools/{}", tool_id));

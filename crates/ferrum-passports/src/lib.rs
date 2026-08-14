@@ -46,7 +46,13 @@ pub fn router_unconfigured() -> Router {
 /// Returns the Passports router. Requires a PostgreSQL pool. Mount at /passports/v1 in gateway.
 pub fn router(pool: sqlx::PgPool) -> Router {
     let config = PassportConfig::from_env();
-    let keys = SigningKeys::from_config(&config).expect("signing keys");
+    let keys = match SigningKeys::from_config(&config) {
+        Ok(k) => k,
+        Err(e) => {
+            tracing::error!(error = %e, "Passports signing keys unavailable");
+            return router_unconfigured();
+        }
+    };
     let state = Arc::new(AppState {
         config,
         keys,

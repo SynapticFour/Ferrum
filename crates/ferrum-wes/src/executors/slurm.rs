@@ -206,13 +206,17 @@ impl WorkflowExecutor for SlurmExecutor {
     }
 
     async fn cancel(&self, handle: &ProcessHandle) -> Result<()> {
-        if let Some(t) = self
+        let job_id = self
             .run_to_job
             .write()
             .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
             .remove(&handle.run_id)
-        {
-            let _ = Command::new("scancel").arg(&t.job_id).status();
+            .map(|t| t.job_id);
+        if let Some(job_id) = job_id {
+            let _ = tokio::task::spawn_blocking(move || {
+                let _ = Command::new("scancel").arg(&job_id).status();
+            })
+            .await;
         }
         Ok(())
     }
@@ -244,7 +248,10 @@ impl WorkflowExecutor for SlurmExecutor {
             .write()
             .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
             .remove(&handle.run_id);
-        let rows = sacct_job(&job_id)?;
+        let job_id_acct = job_id.clone();
+        let rows = tokio::task::spawn_blocking(move || sacct_job(&job_id_acct))
+            .await
+            .map_err(|e| WesError::Executor(e.to_string()))??;
         let exit_code = rows.first().and_then(|_| {
             let out = Command::new("scontrol")
                 .args(["show", "job", &job_id])

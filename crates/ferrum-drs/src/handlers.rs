@@ -24,7 +24,7 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -394,15 +394,27 @@ pub async fn get_object_view(
             "view only supported for local storage"
         )));
     }
+    const VIEW_MAX_BYTES: u64 = 2 * 1024 * 1024;
+    if obj.size > 0 && obj.size as u64 > VIEW_MAX_BYTES {
+        return Err(DrsError::Validation(
+            "view is limited to HTML objects of at most 2 MiB".into(),
+        ));
+    }
     let mut reader = storage
         .get(&key)
         .await
-        .map_err(|e| DrsError::Other(e.into()))?;
+        .map_err(|e| DrsError::Other(e.into()))?
+        .take(VIEW_MAX_BYTES + 1);
     let mut body = Vec::new();
     reader
         .read_to_end(&mut body)
         .await
         .map_err(|e| DrsError::Other(e.into()))?;
+    if body.len() as u64 > VIEW_MAX_BYTES {
+        return Err(DrsError::Validation(
+            "view is limited to HTML objects of at most 2 MiB".into(),
+        ));
+    }
     // A08: Verify stored sha-256 on serve; on mismatch return 500 and log.
     if let Some(expected) = obj
         .checksums
@@ -633,6 +645,12 @@ pub async fn get_object_stream(
 
     let object_size = if obj.size > 0 { obj.size as u64 } else { 0 };
     let http_range = parse_range_header(headers.get("range"), object_size);
+    if is_encrypted && http_range.is_some() {
+        return Err(DrsError::Validation(
+            "HTTP Range is not supported for Crypt4GH-encrypted objects; omit the Range header"
+                .into(),
+        ));
+    }
     let (range_start, range_end) = http_range.unwrap_or((0, object_size.saturating_sub(1)));
     let stream_start = skip_bytes.max(range_start);
     let stream_end = range_end.min(object_size.saturating_sub(1));
@@ -698,7 +716,8 @@ pub async fn get_object_stream(
             .map(|b| b.classify().use_zstd_compression())
             .unwrap_or(false);
 
-    if !is_encrypted && use_zstd {
+    if !is_encrypted && use_zstd && obj.size > 0 && (obj.size as u64) <= 8 * 1024 * 1024 {
+        let bw_t0 = Instant::now();
         let mut reader = reader;
         let mut body = Vec::new();
         reader
@@ -725,7 +744,10 @@ pub async fn get_object_stream(
             zstd::encode_all(body.as_slice(), 3).map_err(|e| DrsError::Other(e.into()))?;
         if let Some(ref bw) = state.bandwidth {
             if compressed.len() as u64 >= ferrum_storage::MIN_BANDWIDTH_SAMPLE_BYTES {
-                bw.record_transfer(compressed.len() as u64, 100);
+                bw.record_transfer(
+                    compressed.len() as u64,
+                    bw_t0.elapsed().as_millis().max(1) as u64,
+                );
             }
         }
         if let Some(ref token) = stream_query.resume_token {
@@ -771,6 +793,7 @@ pub async fn get_object_stream(
         let stream_start_task = stream_start;
         let max_send_task = max_send_bytes;
         tokio::spawn(async move {
+            let bw_t0 = Instant::now();
             let mut reader = reader;
             if stream_start_task > 0 {
                 let mut remaining = stream_start_task;
@@ -819,7 +842,7 @@ pub async fn get_object_stream(
             let transferred = stream_start_task + bytes_counter.load(Ordering::Relaxed);
             if let Some(ref bw) = bw_for_task {
                 if transferred >= ferrum_storage::MIN_BANDWIDTH_SAMPLE_BYTES {
-                    bw.record_transfer(transferred, 100);
+                    bw.record_transfer(transferred, bw_t0.elapsed().as_millis().max(1) as u64);
                 }
             }
             if let Some(token) = resume_for_task {

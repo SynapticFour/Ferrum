@@ -86,7 +86,8 @@ pub use residency::{
     ResidencyAuditLog, ResidencyAuditQueryResult, ResidencyVerifyResult, GENESIS_HASH,
 };
 pub use security::{
-    safe_join, validate_drs_name, ResourceAuthorizer, SecurityEvent, SecurityEventLogger,
+    safe_join, validate_drs_name, validate_object_key, ResourceAuthorizer, SecurityEvent,
+    SecurityEventLogger,
 };
 pub use solum_consent::{
     enforce_solum_consent, SolumConsentClient, SolumConsentError, SolumConsentStatus,

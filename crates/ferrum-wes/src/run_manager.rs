@@ -188,7 +188,7 @@ impl RunManager {
             ExecutorKind::Tes
         } else {
             match run.workflow_type.to_lowercase().as_str() {
-                "nextflow" | "nxf" => ExecutorKind::Nextflow,
+                "nextflow" | "nxf" | "nfl" => ExecutorKind::Nextflow,
                 "cwl" => ExecutorKind::Cwltool,
                 "wdl" => ExecutorKind::Cromwell,
                 "snakemake" => ExecutorKind::Snakemake,
@@ -252,14 +252,15 @@ impl RunManager {
             run_id: run_id.to_string(),
         };
         let kind = self.run_to_executor.read().await.get(run_id).copied();
-        let executor: Option<&dyn WorkflowExecutor> = kind.map(|k| match k {
-            ExecutorKind::Nextflow => &self.nextflow as &dyn WorkflowExecutor,
-            ExecutorKind::Cwltool => &self.cwltool as &dyn WorkflowExecutor,
-            ExecutorKind::Cromwell => &self.cromwell as &dyn WorkflowExecutor,
-            ExecutorKind::Snakemake => &self.snakemake as &dyn WorkflowExecutor,
-            ExecutorKind::Tes => self.tes.as_deref().unwrap() as &dyn WorkflowExecutor,
-            ExecutorKind::Slurm => &self.slurm as &dyn WorkflowExecutor,
-        });
+        let executor: Option<&dyn WorkflowExecutor> = match kind {
+            Some(ExecutorKind::Nextflow) => Some(&self.nextflow),
+            Some(ExecutorKind::Cwltool) => Some(&self.cwltool),
+            Some(ExecutorKind::Cromwell) => Some(&self.cromwell),
+            Some(ExecutorKind::Snakemake) => Some(&self.snakemake),
+            Some(ExecutorKind::Tes) => self.tes.as_deref().map(|t| t as &dyn WorkflowExecutor),
+            Some(ExecutorKind::Slurm) => Some(&self.slurm),
+            None => None,
+        };
         if let Some(exec) = executor {
             exec.cancel(&handle).await?;
             self.run_to_executor.write().await.remove(run_id);
@@ -300,14 +301,15 @@ impl RunManager {
         }
 
         let kind = self.run_to_executor.read().await.get(run_id).copied();
-        let executor: Option<&dyn WorkflowExecutor> = kind.map(|k| match k {
-            ExecutorKind::Nextflow => &self.nextflow as &dyn WorkflowExecutor,
-            ExecutorKind::Cwltool => &self.cwltool as &dyn WorkflowExecutor,
-            ExecutorKind::Cromwell => &self.cromwell as &dyn WorkflowExecutor,
-            ExecutorKind::Snakemake => &self.snakemake as &dyn WorkflowExecutor,
-            ExecutorKind::Tes => self.tes.as_deref().unwrap() as &dyn WorkflowExecutor,
-            ExecutorKind::Slurm => &self.slurm as &dyn WorkflowExecutor,
-        });
+        let executor: Option<&dyn WorkflowExecutor> = match kind {
+            Some(ExecutorKind::Nextflow) => Some(&self.nextflow),
+            Some(ExecutorKind::Cwltool) => Some(&self.cwltool),
+            Some(ExecutorKind::Cromwell) => Some(&self.cromwell),
+            Some(ExecutorKind::Snakemake) => Some(&self.snakemake),
+            Some(ExecutorKind::Tes) => self.tes.as_deref().map(|t| t as &dyn WorkflowExecutor),
+            Some(ExecutorKind::Slurm) => Some(&self.slurm),
+            None => None,
+        };
         if let Some(exec) = executor {
             let (state, exit_code) = exec.poll_status(&handle).await?;
             // Only drop tracking on terminal states. QUEUED/INITIALIZING/PAUSED must keep the

@@ -7,7 +7,7 @@ use crate::keys::{
 };
 use crate::repo::PassportRepo;
 use crate::types::VisaObject;
-use axum::extract::{Query, State};
+use axum::extract::{Extension, Query, State};
 use axum::http::header::{CACHE_CONTROL, PRAGMA};
 use axum::response::Redirect;
 use axum::{Form, Json};
@@ -382,12 +382,31 @@ pub async fn jwks(State(state): State<Arc<AppState>>) -> Result<Json<serde_json:
     Ok(Json(v))
 }
 
+fn require_admin_when_auth_required(
+    auth: &Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<()> {
+    if !ferrum_core::require_auth_enabled() {
+        return Ok(());
+    }
+    let Some(Extension(claims)) = auth else {
+        return Err(PassportError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    };
+    if !claims.is_admin() {
+        return Err(PassportError::Unauthorized("admin visa required".into()));
+    }
+    Ok(())
+}
+
 /// GET /admin/visa_grants - list visa grants (optional ?user_sub= &dataset_id=)
 #[utoipa::path(get, path = "/admin/visa_grants", responses((status = 200)))]
 pub async fn admin_list_visa_grants(
     State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<Vec<serde_json::Value>>> {
+    require_admin_when_auth_required(&auth)?;
     let user_sub = q.get("user_sub").map(String::as_str);
     let dataset_id = q.get("dataset_id").map(String::as_str);
     let rows = state
@@ -417,8 +436,10 @@ pub async fn admin_list_visa_grants(
 #[utoipa::path(post, path = "/admin/visa_grants", request_body = CreateVisaGrantRequest, responses((status = 201)))]
 pub async fn admin_create_visa_grant(
     State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(body): Json<CreateVisaGrantRequest>,
 ) -> Result<(axum::http::StatusCode, Json<serde_json::Value>)> {
+    require_admin_when_auth_required(&auth)?;
     let expires_at = body
         .expires_at
         .as_deref()
@@ -451,8 +472,10 @@ pub struct VisaGrantIdPath {
 /// DELETE /admin/visa_grants/:id
 pub async fn admin_delete_visa_grant(
     State(state): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     axum::extract::Path(path): axum::extract::Path<VisaGrantIdPath>,
 ) -> Result<axum::http::StatusCode> {
+    require_admin_when_auth_required(&auth)?;
     let deleted = state.repo.delete_visa_grant(path.id).await?;
     if deleted {
         Ok(axum::http::StatusCode::NO_CONTENT)

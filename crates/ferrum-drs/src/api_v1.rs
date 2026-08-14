@@ -406,6 +406,11 @@ async fn process_register_items(
                 if *size < 0 {
                     return Err(IngestApiError::validation("size must be >= 0"));
                 }
+                if ferrum_core::validate_object_key(storage_key).is_err() {
+                    return Err(IngestApiError::validation(
+                        "storage_key must be a relative object key without '..' or absolute paths",
+                    ));
+                }
                 let object_id = ulid::Ulid::new().to_string();
                 let ch: Vec<ChecksumInput> = checksums.clone().unwrap_or_default();
                 let obj_name = name
@@ -636,9 +641,7 @@ async fn do_upload_chunk(
 
     let spooled =
         chunk_spooled.ok_or_else(|| IngestApiError::validation("no chunk data in multipart"))?;
-    parsed.data = tokio::fs::read(&spooled.path)
-        .await
-        .map_err(|e| IngestApiError::internal(format!("read chunk: {e}")))?;
+    parsed.chunk_path = Some(spooled.path);
 
     let claims = auth.as_ref().map(|e| &e.0);
     process_chunked_upload_from_parts(state, claims, parsed)

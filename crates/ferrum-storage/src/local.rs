@@ -25,13 +25,8 @@ impl LocalStorage {
 }
 
 pub(crate) fn path_for_local(base_path: &std::path::Path, key: &str) -> Result<PathBuf> {
-    let path = base_path.join(key);
-    if path.strip_prefix(base_path).is_err() {
-        return Err(FerrumError::ValidationError(
-            "invalid key: path escape".to_string(),
-        ));
-    }
-    Ok(path)
+    ferrum_core::validate_object_key(key)?;
+    Ok(base_path.join(key))
 }
 
 #[async_trait]
@@ -41,13 +36,9 @@ impl ObjectStorage for LocalStorage {
         let key = key.to_string();
         let data = data.to_vec();
         posix::spawn_blocking(move || {
-            let path = base_path.join(&key);
-            if path.strip_prefix(&base_path).is_err() {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "invalid key: path escape",
-                ));
-            }
+            let path = path_for_local(&base_path, &key).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid key: path escape")
+            })?;
             if let Some(parent) = path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
@@ -97,13 +88,9 @@ impl ObjectStorage for LocalStorage {
         let base_path = self.base_path.clone();
         let key = key.to_string();
         posix::spawn_blocking(move || {
-            let path = base_path.join(&key);
-            if path.strip_prefix(&base_path).is_err() {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "invalid key: path escape",
-                ));
-            }
+            let path = path_for_local(&base_path, &key).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid key: path escape")
+            })?;
             if path.exists() {
                 std::fs::remove_file(path)?;
             }
@@ -125,14 +112,10 @@ impl ObjectStorage for LocalStorage {
         let base_path = self.base_path.clone();
         let key = key.to_string();
         let exists = posix::spawn_blocking(move || {
-            let path = base_path.join(&key);
-            if path.strip_prefix(&base_path).is_err() {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "invalid key: path escape",
-                ));
-            }
-            Ok(path.exists())
+            let path = path_for_local(&base_path, &key).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid key: path escape")
+            })?;
+            Ok::<bool, std::io::Error>(path.exists())
         })
         .await
         .map_err(|e| FerrumError::StorageError(e.into()))?
@@ -150,15 +133,11 @@ impl ObjectStorage for LocalStorage {
         let base_path = self.base_path.clone();
         let key_owned = key.to_string();
         let len = posix::spawn_blocking(move || {
-            let path = base_path.join(&key_owned);
-            if path.strip_prefix(&base_path).is_err() {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "invalid key: path escape",
-                ));
-            }
+            let path = path_for_local(&base_path, &key_owned).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid key: path escape")
+            })?;
             let meta = std::fs::metadata(&path)?;
-            Ok(meta.len())
+            Ok::<u64, std::io::Error>(meta.len())
         })
         .await
         .map_err(|e| FerrumError::StorageError(e.into()))?
@@ -191,5 +170,27 @@ impl ObjectStorage for LocalStorage {
             .await
             .map_err(|e| FerrumError::StorageError(e.into()))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::path_for_local;
+    use std::path::Path;
+
+    #[test]
+    fn path_for_local_rejects_parent_dir() {
+        let base = Path::new("/tmp/ferrum-store");
+        assert!(path_for_local(base, "../etc/passwd").is_err());
+        assert!(path_for_local(base, "drs/../../secret").is_err());
+        assert!(path_for_local(base, "/etc/passwd").is_err());
+    }
+
+    #[test]
+    fn path_for_local_allows_nested_key() {
+        let base = Path::new("/tmp/ferrum-store");
+        let p = path_for_local(base, "drs/01ARZ3NDEKTSV4RRFFQ69G5FAV").unwrap();
+        assert!(p.starts_with(base));
+        assert!(p.ends_with("01ARZ3NDEKTSV4RRFFQ69G5FAV"));
     }
 }

@@ -3,7 +3,7 @@
 use crate::error::{Result, TesError};
 use crate::state::AppState;
 use crate::types::*;
-use axum::extract::{Path, Query, State};
+use axum::extract::{Extension, Path, Query, State};
 use axum::Json;
 use std::sync::Arc;
 use utoipa::{IntoParams, ToSchema};
@@ -13,6 +13,18 @@ pub struct ListTasksQuery {
     pub page_size: Option<i64>,
     pub page_token: Option<String>,
     pub state: Option<String>,
+}
+
+/// Fail closed when `FERRUM_AUTH__REQUIRE_AUTH` is set and no Bearer claims were injected.
+fn reject_anonymous_when_auth_required(
+    auth: &Option<Extension<ferrum_core::AuthClaims>>,
+) -> Result<()> {
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(TesError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
+    Ok(())
 }
 
 #[utoipa::path(get, path = "/service-info", responses((status = 200, body = TesServiceInfo)))]
@@ -27,29 +39,35 @@ pub async fn get_service_info() -> Json<TesServiceInfo> {
 #[utoipa::path(post, path = "/tasks", request_body = CreateTaskRequest, responses((status = 200, body = CreateTaskResponse)))]
 pub async fn create_task(
     State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(body): Json<CreateTaskRequest>,
 ) -> Result<Json<CreateTaskResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     if body.executors.is_empty() {
         return Err(TesError::Validation("executors required".into()));
     }
     let id = ulid::Ulid::new().to_string();
-    let inputs = body
-        .inputs
-        .as_ref()
-        .map(|v| serde_json::to_value(v).unwrap())
-        .unwrap_or(serde_json::json!([]));
-    let outputs = body
-        .outputs
-        .as_ref()
-        .map(|v| serde_json::to_value(v).unwrap())
-        .unwrap_or(serde_json::json!([]));
-    let executors = serde_json::to_value(&body.executors).unwrap();
+    let inputs = match body.inputs.as_ref() {
+        Some(v) => serde_json::to_value(v).map_err(|e| TesError::Validation(e.to_string()))?,
+        None => serde_json::json!([]),
+    };
+    let outputs = match body.outputs.as_ref() {
+        Some(v) => serde_json::to_value(v).map_err(|e| TesError::Validation(e.to_string()))?,
+        None => serde_json::json!([]),
+    };
+    let executors =
+        serde_json::to_value(&body.executors).map_err(|e| TesError::Validation(e.to_string()))?;
     let resources = body.resources.as_ref();
     let volumes = body
         .volumes
         .as_ref()
-        .map(|v| serde_json::to_value(v).unwrap());
-    let tags = body.tags.as_ref().map(|m| serde_json::to_value(m).unwrap());
+        .map(|v| serde_json::to_value(v).map_err(|e| TesError::Validation(e.to_string())))
+        .transpose()?;
+    let tags = body
+        .tags
+        .as_ref()
+        .map(|m| serde_json::to_value(m).map_err(|e| TesError::Validation(e.to_string())))
+        .transpose()?;
     app.repo
         .create(
             &id,
@@ -93,8 +111,10 @@ pub async fn create_task(
 #[utoipa::path(get, path = "/tasks", params(ListTasksQuery), responses((status = 200, body = TaskListResponse)))]
 pub async fn list_tasks(
     State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Query(q): Query<ListTasksQuery>,
 ) -> Result<Json<TaskListResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     let page_size = q.page_size.unwrap_or(100).min(1000);
     let (rows, next_page_token) = app
         .repo
@@ -113,8 +133,10 @@ pub async fn list_tasks(
 #[utoipa::path(get, path = "/tasks/{id}", params(("id" = String, Path, description = "Task ID")), responses((status = 200, body = Task), (status = 404)))]
 pub async fn get_task(
     State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Path(id): Path<String>,
 ) -> Result<Json<Task>> {
+    reject_anonymous_when_auth_required(&auth)?;
     let row = app
         .repo
         .get(&id)
@@ -185,7 +207,11 @@ pub async fn get_task(
         _,
         _,
         logs2,
-    ) = app.repo.get(&id).await?.unwrap();
+    ) = app
+        .repo
+        .get(&id)
+        .await?
+        .ok_or_else(|| TesError::NotFound(format!("task not found: {}", id)))?;
     let executors_vec: Option<Vec<TesExecutor>> = serde_json::from_value(executors2).ok();
     let inputs_vec: Option<Vec<TesInput>> = serde_json::from_value(inputs2).ok();
     let outputs_vec: Option<Vec<TesOutput>> = serde_json::from_value(outputs2).ok();
@@ -213,8 +239,10 @@ pub async fn get_task(
 #[utoipa::path(post, path = "/tasks/{id}:cancel", params(("id" = String, Path, description = "Task ID")), responses((status = 200, body = CreateTaskResponse), (status = 404)))]
 pub async fn cancel_task(
     State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Path(id): Path<String>,
 ) -> Result<Json<CreateTaskResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     let row = app
         .repo
         .get(&id)

@@ -16,20 +16,25 @@ use std::sync::Arc;
 use ulid::Ulid;
 use utoipa::ToSchema;
 
-/// Prefer JWT/Passport sub; fallback to x-owner-sub for backward compat (spoofable — gateway should enforce auth).
+/// Prefer JWT/Passport sub. Ignore spoofable `x-owner-sub` when auth is required.
 fn owner_sub_from_request(
     auth: Option<&Extension<ferrum_core::AuthClaims>>,
     headers: &HeaderMap,
-) -> String {
-    auth.and_then(|c| c.sub().map(String::from))
-        .or_else(|| {
-            headers
-                .get("x-owner-sub")
-                .or_else(|| headers.get("x-passport-sub"))
-                .and_then(|v| v.to_str().ok())
-                .map(String::from)
-        })
-        .unwrap_or_else(|| "anonymous".to_string())
+) -> Result<String> {
+    if let Some(sub) = auth.and_then(|c| c.sub().map(String::from)) {
+        return Ok(sub);
+    }
+    if ferrum_core::require_auth_enabled() {
+        return Err(CohortError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
+    Ok(headers
+        .get("x-owner-sub")
+        .or_else(|| headers.get("x-passport-sub"))
+        .and_then(|v| v.to_str().ok())
+        .map(String::from)
+        .unwrap_or_else(|| "anonymous".to_string()))
 }
 
 #[derive(Debug, Deserialize)]
@@ -131,7 +136,7 @@ pub async fn create_cohort(
     headers: HeaderMap,
     Json(req): Json<CreateCohortRequest>,
 ) -> Result<Json<CohortDetail>> {
-    let owner = owner_sub_from_request(auth.as_ref(), &headers);
+    let owner = owner_sub_from_request(auth.as_ref(), &headers)?;
     if let Some(ref ws_id) = req.workspace_id {
         let sub = auth
             .as_ref()
@@ -325,7 +330,7 @@ pub async fn clone_cohort(
     if !state.repo.cohort_accessible_by(&id, sub).await? {
         return Err(CohortError::NotFound(format!("cohort {}", id)));
     }
-    let owner = owner_sub_from_request(auth.as_ref(), &headers);
+    let owner = owner_sub_from_request(auth.as_ref(), &headers)?;
     let row = state
         .repo
         .get_cohort(&id)
@@ -466,7 +471,7 @@ pub async fn add_samples(
     if !state.repo.cohort_accessible_by(&id, sub).await? {
         return Err(CohortError::NotFound(format!("cohort {}", id)));
     }
-    let owner = owner_sub_from_request(auth.as_ref(), &headers);
+    let owner = owner_sub_from_request(auth.as_ref(), &headers)?;
     let cohort = state
         .repo
         .get_cohort(&id)

@@ -1667,8 +1667,10 @@ pub struct CostEstimateRequest {
 /// POST /cost/estimate — estimate cost from workflow_engine_params (same shape as POST /runs body).
 pub async fn post_cost_estimate(
     State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(body): Json<CostEstimateRequest>,
 ) -> Result<Json<crate::metrics::CostEstimate>> {
+    reject_anonymous_when_auth_required(&auth)?;
     let metrics = app
         .metrics
         .as_ref()
@@ -1705,8 +1707,10 @@ pub struct CostSummaryPeriod {
 /// GET /cost/summary — aggregate costs for chargeback (from_date, to_date, optional tags filter).
 pub async fn get_cost_summary(
     State(app): State<Arc<AppState>>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
     Query(q): Query<CostSummaryQuery>,
 ) -> Result<Json<CostSummaryResponse>> {
+    reject_anonymous_when_auth_required(&auth)?;
     let metrics = app
         .metrics
         .as_ref()

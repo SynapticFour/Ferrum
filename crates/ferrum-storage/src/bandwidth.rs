@@ -60,14 +60,14 @@ impl BandwidthMonitor {
         }
         let bps = (bytes as f64 * 8000.0) / duration_ms as f64;
         {
-            let mut ema = self.ema_bps.lock().expect("ema lock");
+            let mut ema = self.ema_bps.lock().unwrap_or_else(|e| e.into_inner());
             if *ema <= 0.0 {
                 *ema = bps;
             } else {
                 *ema = 0.3 * bps + 0.7 * (*ema);
             }
         }
-        let mut samples = self.samples.lock().expect("samples lock");
+        let mut samples = self.samples.lock().unwrap_or_else(|e| e.into_inner());
         samples.push_back(Sample { bytes, duration_ms });
         while samples.len() > MAX_SAMPLES {
             samples.pop_front();
@@ -75,11 +75,11 @@ impl BandwidthMonitor {
     }
 
     pub fn current_bandwidth_bps(&self) -> u64 {
-        let ema = *self.ema_bps.lock().expect("ema lock");
+        let ema = *self.ema_bps.lock().unwrap_or_else(|e| e.into_inner());
         if ema > 0.0 {
             return ema as u64;
         }
-        let samples = self.samples.lock().expect("samples lock");
+        let samples = self.samples.lock().unwrap_or_else(|e| e.into_inner());
         if samples.is_empty() {
             return self.config.high_bps;
         }
@@ -106,8 +106,8 @@ impl BandwidthMonitor {
 
     /// Inject mock speeds for tests (replaces samples with synthetic history).
     pub fn inject_mock_bps(&self, bps: u64) {
-        *self.ema_bps.lock().expect("ema lock") = bps as f64;
-        let mut samples = self.samples.lock().expect("samples lock");
+        *self.ema_bps.lock().unwrap_or_else(|e| e.into_inner()) = bps as f64;
+        let mut samples = self.samples.lock().unwrap_or_else(|e| e.into_inner());
         samples.clear();
         samples.push_back(Sample {
             bytes: bps / 8,

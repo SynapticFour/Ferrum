@@ -22,7 +22,12 @@ fn pool() -> &'static rayon::ThreadPool {
         let n = std::env::var("FERRUM_POSIX_IO_THREADS")
             .ok()
             .and_then(|s| s.parse().ok())
-            .unwrap_or(32)
+            .unwrap_or_else(|| {
+                std::thread::available_parallelism()
+                    .map(|n| n.get())
+                    .unwrap_or(4)
+                    .clamp(2, 8)
+            })
             .max(1);
         ThreadPoolBuilder::new()
             .num_threads(n)

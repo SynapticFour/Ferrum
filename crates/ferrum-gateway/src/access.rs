@@ -69,8 +69,22 @@ async fn forward(
         .headers()
         .get("X-ADS-Base-URL")
         .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
     {
-        normalize_ads_from_service_url(header_url)
+        let normalized = normalize_ads_from_service_url(header_url);
+        let policy = ferrum_core::SsrfPolicy {
+            allow_private_networks: false,
+            allowed_schemes: vec!["https".into(), "http".into()],
+            ..Default::default()
+        };
+        ferrum_core::validate_url_ssrf(&normalized, &policy).map_err(|_| {
+            (
+                StatusCode::BAD_REQUEST,
+                "X-ADS-Base-URL failed SSRF checks".into(),
+            )
+        })?;
+        normalized
     } else {
         state.ads_base_url().await?
     };

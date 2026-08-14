@@ -56,9 +56,13 @@ pub fn make_executor(backend: &str, work_dir: Option<PathBuf>) -> ExecutorBacken
         "noop" => Arc::new(crate::executors::NoopExecutor::new()),
         "slurm" => Arc::new(SlurmExecutor::new(work_dir)),
         #[cfg(feature = "docker")]
-        "docker" => Arc::new(
-            crate::executors::DockerExecutor::connect_default().expect("Docker connection failed"),
-        ),
+        "docker" => match crate::executors::DockerExecutor::connect_default() {
+            Ok(d) => Arc::new(d),
+            Err(e) => {
+                tracing::error!(error = %e, "Docker connection failed; falling back to podman");
+                Arc::new(PodmanExecutor::new())
+            }
+        },
         _ => Arc::new(PodmanExecutor::new()),
     }
 }
