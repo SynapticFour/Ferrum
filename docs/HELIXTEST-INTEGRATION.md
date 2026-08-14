@@ -205,7 +205,7 @@ Ferrum’s CI runs HelixTest **on every push and pull request** to `main`/`maste
    - **`Run HelixTest (htsget only)`** — `--only htsget` (separate Actions step for isolated failures)
    htsget is also run in job 1 via `--all` (service-info, GET/POST tickets, DRS stream path in `urls[0]`, error codes, optional dataset-auth via env).
 
-Both jobs clone HelixTest from GitHub. The ref (branch or tag) is set by the `HELIXTEST_REF` env var at the top of the workflow (default: `main`). To pin to a specific version, set it to a tag (e.g. `v0.1.0`) when HelixTest publishes releases.
+Both jobs clone HelixTest from GitHub. The ref is **`HELIXTEST_REF`** in `VERSIONS.lock` (a commit SHA of HelixTest `main` as of 2026-08-14; last published tag is `v0.1.0`).
 
 You can adjust `--fail-level` (e.g. `2`) in the workflow for stricter gating.
 

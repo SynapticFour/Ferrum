@@ -4,7 +4,7 @@
 #   Release engineer when cutting a Ferrum release (see RELEASING.md):
 #     1. Bump FERRUM_VERSION to the new v*.*.* tag.
 #     2. Set GA4GH_INFRA_REF to a compatible ga4gh-infra git tag (ga4gh-infra-v*).
-#     3. Set HELIXTEST_REF to a HelixTest tag (vX.Y.Z).
+#     3. Set HELIXTEST_REF to a HelixTest tag (vX.Y.Z) or commit SHA.
 #     4. Run CI on main, then tag and push Ferrum.
 #   Also sync synapticfour-business pilot Dockerfiles / build-pilot-image.sh checks.
 #
@@ -27,7 +27,7 @@ GA4GH_INFRA_SHA=55d44957a1ee91140f83b6598ce0f9c492148d15
 GA4GH_INFRA_IMAGE_VERSION=0.1.0
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
-# Tagged on origin 2026-08-01: v0.1.0 → c0ea4da3694ee8f5658d8da6e8cf4b57ed11b68b
-HELIXTEST_REF=v0.1.0
+# Latest origin/main as of 2026-08-14 (no tag newer than v0.1.0).
+HELIXTEST_REF=bace1c9b4071bbf04281fbbc84dec509f3b198e0
 HELIXTEST_TAG=v0.1.0
-HELIXTEST_SHA=c0ea4da3694ee8f5658d8da6e8cf4b57ed11b68b
+HELIXTEST_SHA=bace1c9b4071bbf04281fbbc84dec509f3b198e0
