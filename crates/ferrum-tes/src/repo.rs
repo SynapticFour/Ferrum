@@ -122,6 +122,15 @@ impl TesRepo {
         Ok(())
     }
 
+    pub async fn set_outputs(&self, id: &str, outputs: &Value) -> Result<()> {
+        sqlx::query("UPDATE tes_tasks SET outputs = $1 WHERE id = $2")
+            .bind(outputs)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn set_logs(&self, id: &str, logs: &Value) -> Result<()> {
         sqlx::query("UPDATE tes_tasks SET logs = $1 WHERE id = $2")
             .bind(logs)

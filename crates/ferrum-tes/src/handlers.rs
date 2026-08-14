@@ -4,9 +4,31 @@ use crate::error::{Result, TesError};
 use crate::state::AppState;
 use crate::types::*;
 use axum::extract::{Extension, Path, Query, State};
+use axum::http::{header, HeaderValue};
+use axum::response::IntoResponse;
 use axum::Json;
 use std::sync::Arc;
 use utoipa::{IntoParams, ToSchema};
+
+fn public_base_url() -> String {
+    std::env::var("FERRUM_PUBLIC_BASE_URL")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "http://localhost:8080".into())
+        .trim_end_matches('/')
+        .to_string()
+}
+
+/// Deterministic noop TES bytes matching HelixTest `tes_echo_out.txt` (`hello-tes` + newline).
+pub async fn demo_echo_output() -> impl IntoResponse {
+    (
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        )],
+        "hello-tes\n",
+    )
+}
 
 #[derive(Debug, serde::Deserialize, IntoParams, ToSchema)]
 pub struct ListTasksQuery {
@@ -104,6 +126,15 @@ pub async fn create_task(
         app.repo
             .update_state(&id, crate::types::TaskState::Complete)
             .await?;
+        let empty_outputs = body.outputs.as_ref().map(|o| o.is_empty()).unwrap_or(true);
+        if empty_outputs {
+            let url = format!("{}/ga4gh/tes/v1/demo/echo-output", public_base_url());
+            let outputs = serde_json::json!([{
+                "path": "/test-data/workflows/outputs/tes_echo_out.txt",
+                "url": url,
+            }]);
+            app.repo.set_outputs(&id, &outputs).await?;
+        }
     }
     Ok(Json(CreateTaskResponse { id }))
 }

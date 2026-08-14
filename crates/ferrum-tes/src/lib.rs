@@ -17,7 +17,9 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::executor::ExecutorBackend;
 use crate::executors::{PodmanExecutor, SlurmExecutor};
-use crate::handlers::{cancel_task, create_task, get_service_info, get_task, list_tasks};
+use crate::handlers::{
+    cancel_task, create_task, demo_echo_output, get_service_info, get_task, list_tasks,
+};
 use crate::repo::TesRepo;
 use crate::state::AppState;
 use crate::types::{
@@ -86,6 +88,7 @@ pub fn router(pool: sqlx::PgPool, backend: Option<String>, work_dir: Option<Path
     let state = Arc::new(AppState { repo, executor });
     Router::new()
         .route("/service-info", get(get_service_info))
+        .route("/demo/echo-output", get(demo_echo_output))
         .route("/tasks", get(list_tasks).post(create_task))
         .route("/tasks/:id", get(get_task))
         // TES 1.1 spec uses /tasks/{id}:cancel; Axum can't represent ":" as a second param,

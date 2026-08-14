@@ -1,5 +1,9 @@
 # Africa Conformance (HelixTest ferrum-africa mode)
 # Additive workflow — standard conformance.yml is unchanged.
+#
+# HelixTest main (after a2dd906) scores a suite at level 0 unless Level 0 tests ran.
+# Africa checks are Level 2 (no L0), so `--fail-level 1` exits 1 even when every
+# executed test passed. Exit is still 1 on any Fail (`has_failures`).
 
 name: Africa Conformance
 
@@ -59,7 +63,7 @@ jobs:
           AUTH_URL: ${{ env.GATEWAY_BASE }}/passports/v1
         run: |
           cargo run --bin helixtest --release -- \
-            --all --mode ferrum-africa --africa-profile offline --fail-level 1
+            --all --mode ferrum-africa --africa-profile offline
 
   africa-ont:
     if: github.actor != 'dependabot[bot]'
@@ -95,7 +99,7 @@ jobs:
           WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
         run: |
           cargo run --bin helixtest --release -- \
-            --all --mode ferrum-africa --africa-profile ont --fail-level 1
+            --all --mode ferrum-africa --africa-profile ont
 
   africa-field-rust:
     if: github.actor != 'dependabot[bot]'

@@ -100,8 +100,8 @@ Not `.../descriptor/CWL` — that order is a non-standard alias Ferrum also supp
 
 ### WES / TES / E2E (HelixTest `framework` expectations)
 
-- **WES** uses synthetic `trs://test-tool/...` URLs (echo, fail, cwl-echo, `trs://nonexistent/invalid/0.0`). Ferrum maps these to the expected states and TES-backed echo/E2E outputs without real workflow engines.
-- **TES checksum**: the suite compares a local `tes_echo_out.txt` SHA256 to a file under `test-data/expected/`. CI recomputes that expected hash from the committed `tes_echo_out.txt` so it matches the noop backend (the container does not write to the runner tree).
+- **WES** uses synthetic `trs://test-tool/...` URLs (echo, fail, scatter-gather, cwl-echo, `trs://nonexistent/invalid/0.0`). Ferrum maps these to the expected states and TES-backed echo/E2E/`scatter_result` outputs without real workflow engines.
+- **TES checksum**: HelixTest compares output bytes (TES `outputs[].url`, else a *fresh* local `tes_echo_out.txt`) to `test-data/expected/`. Demo TES is **noop**; it completes immediately and serves those bytes at `GET /ga4gh/tes/v1/demo/echo-output`. CI still recomputes the expected hash from HelixTest’s committed `tes_echo_out.txt` so the golden matches.
 - **E2E** is DRS-first by default: HelixTest submits WES runs with `workflow_params.input_drs_uri` and prefers `drs://...` references for the input object. It expects `outputs.result_drs_id` after a `demo-bam-to-vcf` TRS run; Ferrum sets that to seeded `demo-sample-vcf`. The object’s `access_url` must be an HTTPS URL that returns 200 in CI (init seed uses a stable `raw.githubusercontent.com` file, not EBI FTP). HelixTest’s `expected/e2e/result.txt.sha256` may still contain a placeholder; **CI** runs `deploy/scripts/align-helixtest-e2e-checksum.sh` so the expected hash matches that URL (keep in sync with `init-demo.sh` for `demo-sample-vcf`).
 - **WES** negative `trs://` cases must not report a terminal state on the **first** `GET .../runs/{id}/status` poll; Ferrum defers `EXECUTOR_ERROR` to the second poll (see `RunManager::synthetic_helixtest_error_phases`).
 

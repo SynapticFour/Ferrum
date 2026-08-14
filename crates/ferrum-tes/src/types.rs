@@ -96,9 +96,11 @@ pub struct TesInput {
     pub path: String,
 }
 
-/// Output path to capture.
+/// Output path to capture (TES 1.1: `url` is the downloadable location).
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct TesOutput {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
     pub path: String,
 }
 

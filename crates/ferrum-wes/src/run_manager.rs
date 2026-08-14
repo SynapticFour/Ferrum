@@ -442,6 +442,15 @@ impl RunManager {
             self.repo
                 .merge_run_outputs(run_id, out.as_object().expect("echo outputs object"))
                 .await?;
+        } else if workflow_url.contains("test-tool/scatter-gather") {
+            let scatter_result = params
+                .get("items")
+                .cloned()
+                .unwrap_or_else(|| serde_json::json!([1, 2, 3, 4]));
+            let out = serde_json::json!({ "scatter_result": scatter_result });
+            self.repo
+                .merge_run_outputs(run_id, out.as_object().expect("scatter outputs object"))
+                .await?;
         } else if workflow_url.contains("demo-bam-to-vcf") && params.get("input_drs_uri").is_some()
         {
             let out = serde_json::json!({ "result_drs_id": "demo-sample-vcf" });
