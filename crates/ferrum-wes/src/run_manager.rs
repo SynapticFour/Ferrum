@@ -147,6 +147,17 @@ impl RunManager {
 
     /// Submit a run: create work dir, create log stream, call executor, register handle, persist work_dir.
     pub async fn submit(&self, run: &WesRun) -> Result<ProcessHandle> {
+        let requested_backend = run
+            .workflow_engine_params
+            .get("ferrum_backend")
+            .or(run.workflow_engine_params.get("ferrum-backend"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if requested_backend.eq_ignore_ascii_case("lsf") {
+            return Err(crate::error::WesError::Validation(
+                "LSF is not implemented; use slurm or omit ferrum_backend for local/TES".into(),
+            ));
+        }
         let work_dir = self.work_dir_base.join(&run.run_id);
         std::fs::create_dir_all(&work_dir).map_err(crate::error::WesError::Io)?;
         let use_tes = self.tes.is_some();
@@ -430,7 +441,11 @@ impl RunManager {
     }
 
     /// Populate `outputs` for HelixTest Ferrum-mode and E2E pipeline expectations.
+    /// Opt-in via `FERRUM_WES_HELIXTEST_STUBS` (demo compose only; not institute evidence).
     async fn merge_helixtest_outputs_if_needed(&self, run_id: &str) -> Result<()> {
+        if !ferrum_core::env_flag("FERRUM_WES_HELIXTEST_STUBS") {
+            return Ok(());
+        }
         let Some(row) = self.repo.get_run(run_id).await? else {
             return Ok(());
         };

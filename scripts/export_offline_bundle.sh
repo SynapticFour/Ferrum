@@ -25,7 +25,7 @@ echo "Pulling/building required images (version ${VERSION})..."
 export FERRUM_VERSION="${VERSION}"
 docker compose -f "${COMPOSE_FILE}" build ferrum-gateway ferrum-ui ferrum-init
 docker pull postgres:16-alpine
-docker pull minio/minio:latest
+docker pull minio/minio:RELEASE.2024-12-18T13-15-44Z
 docker pull keycloak/keycloak:26.0
 docker pull nginx:alpine
 
@@ -35,7 +35,7 @@ docker save \
   "${UI_IMAGE}" \
   "${INIT_IMAGE}" \
   postgres:16-alpine \
-  minio/minio:latest \
+  minio/minio:RELEASE.2024-12-18T13-15-44Z \
   keycloak/keycloak:26.0 \
   nginx:alpine \
   -o "${ARCHIVE}"

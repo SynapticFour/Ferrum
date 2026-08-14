@@ -382,15 +382,10 @@ pub async fn jwks(State(state): State<Arc<AppState>>) -> Result<Json<serde_json:
     Ok(Json(v))
 }
 
-fn require_admin_when_auth_required(
-    auth: &Option<Extension<ferrum_core::AuthClaims>>,
-) -> Result<()> {
-    if !ferrum_core::require_auth_enabled() {
-        return Ok(());
-    }
+fn require_admin(auth: &Option<Extension<ferrum_core::AuthClaims>>) -> Result<()> {
     let Some(Extension(claims)) = auth else {
         return Err(PassportError::Unauthorized(
-            "Bearer authentication required when require_auth is enabled".into(),
+            "Bearer authentication required for passport admin APIs".into(),
         ));
     };
     if !claims.is_admin() {
@@ -406,7 +401,7 @@ pub async fn admin_list_visa_grants(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     Query(q): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<Vec<serde_json::Value>>> {
-    require_admin_when_auth_required(&auth)?;
+    require_admin(&auth)?;
     let user_sub = q.get("user_sub").map(String::as_str);
     let dataset_id = q.get("dataset_id").map(String::as_str);
     let rows = state
@@ -439,7 +434,7 @@ pub async fn admin_create_visa_grant(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     Json(body): Json<CreateVisaGrantRequest>,
 ) -> Result<(axum::http::StatusCode, Json<serde_json::Value>)> {
-    require_admin_when_auth_required(&auth)?;
+    require_admin(&auth)?;
     let expires_at = body
         .expires_at
         .as_deref()
@@ -475,7 +470,7 @@ pub async fn admin_delete_visa_grant(
     auth: Option<Extension<ferrum_core::AuthClaims>>,
     axum::extract::Path(path): axum::extract::Path<VisaGrantIdPath>,
 ) -> Result<axum::http::StatusCode> {
-    require_admin_when_auth_required(&auth)?;
+    require_admin(&auth)?;
     let deleted = state.repo.delete_visa_grant(path.id).await?;
     if deleted {
         Ok(axum::http::StatusCode::NO_CONTENT)

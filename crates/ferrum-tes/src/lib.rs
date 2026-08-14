@@ -1,5 +1,6 @@
 //! GA4GH Task Execution Service (TES) 1.1.
 
+pub mod bind_policy;
 pub mod error;
 pub mod executor;
 pub mod executors;
@@ -61,8 +62,14 @@ pub fn make_executor(backend: &str, work_dir: Option<PathBuf>) -> ExecutorBacken
         "docker" => match crate::executors::DockerExecutor::connect_default() {
             Ok(d) => Arc::new(d),
             Err(e) => {
-                tracing::error!(error = %e, "Docker connection failed; falling back to podman");
-                Arc::new(PodmanExecutor::new())
+                tracing::error!(
+                    error = %e,
+                    "Docker connection failed; TES docker backend will not silently fall back to podman"
+                );
+                panic!(
+                    "FERRUM_TES_BACKEND=docker but the Docker daemon is unreachable: {e}. \
+                     Do not fall back to another executor."
+                );
             }
         },
         _ => Arc::new(PodmanExecutor::new()),

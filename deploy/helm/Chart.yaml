@@ -2,8 +2,8 @@ apiVersion: v2
 name: ferrum
 description: GA4GH-compliant bioinformatics data and workflow management
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.2.0
+appVersion: "0.2.0"
 keywords:
   - ga4gh
   - bioinformatics

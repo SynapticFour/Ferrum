@@ -1,9 +1,9 @@
 //! GA4GH htsget 1.3.0-style tickets backed by DRS.
 //!
 //! Ticket endpoints resolve a DRS object (same DB as DRS), enforce dataset auth like DRS, and
-//! return a JSON ticket whose `urls` point at [`GET /ga4gh/drs/v1/objects/{id}/stream`](crate) on
-//! this deployment. Genomic range / field / tag filters are validated where required by the spec;
-//! the byte stream is always the **full** object (clients may filter locally; spec allows superset).
+//! return a JSON ticket whose `urls` point at DRS `/objects/{id}/stream` on this deployment.
+//! Genomic range requests (`referenceName` / `start` / `end` / POST `regions`) and `class=header`
+//! are **rejected** (HTTP 400). This is not a full htsget 1.3.0 slicer.
 
 mod error;
 mod handlers;
@@ -26,7 +26,7 @@ pub struct HtsgetState {
 #[derive(OpenApi)]
 #[openapi(info(
     title = "Ferrum htsget",
-    description = "GA4GH htsget 1.3.0 tickets; data via DRS stream",
+    description = "GA4GH htsget tickets (whole-object DRS stream; region slicing not implemented)",
     version = "1.3.0"
 ))]
 pub struct HtsgetApiDoc;

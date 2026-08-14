@@ -26,21 +26,22 @@ We take security seriously. Please report vulnerabilities **privately** to avoid
 
 - **Threat model (adversaries, assets, residual risk):** [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)
 - **Incident response (product runbook):** [docs/INCIDENT_RESPONSE.md](docs/INCIDENT_RESPONSE.md)
-- **Authentication:** JWT and/or GA4GH Passports; JWKS and optional issuer validation. See [INSTALLATION.md](docs/INSTALLATION.md) and [GA4GH.md](docs/GA4GH.md).
-- **Encryption:** When **Crypt4GH at-rest encryption** is enabled and configured, object bodies can be stored encrypted; downloads may use header re-wrapping / per-requester keys as described in [CRYPT4GH.md](docs/CRYPT4GH.md). Deployments without Crypt4GH rely on **other** storage and organisational controls—see your security assessment.
-- **Authorization:** Passport Visa claims and optional role-based checks before granting access to DRS objects, WES runs, workspaces, and other resources.
+- **Authentication:** JWT and/or GA4GH Passports; JWKS, optional issuer and **audience**. Code default `require_auth=true`. See [OPERATOR-TRUST.md](docs/OPERATOR-TRUST.md), [INSTALLATION.md](docs/INSTALLATION.md) and [GA4GH.md](docs/GA4GH.md).
+- **Encryption:** Crypt4GH uses **ChaCha20-Poly1305** when at-rest encryption is enabled. TLS is the operator reverse-proxy’s responsibility. Default ingest encryption is off (`default_encrypt_upload=false`).
+- **Authorization:** Exact Passport visa matches (not substring); admin routes stay gated. Client `X-ADS-Base-URL` is ignored.
+- **Compute:** TES Docker request volumes are prefix-allowlisted. WES LSF is not implemented. Slurm interpolates POSIX-quoted paths only.
 - **Supply chain:** `cargo deny check` in CI (`deny.toml`); SBOM on release.
 
 ## OWASP alignment
 
 We apply OWASP Top 10–oriented practices across the stack:
 
-- **A01 Broken Access Control:** Auth middleware on requests; workspace membership and WES run visibility enforced; WES cache stats require authentication.
-- **A02 Cryptographic Failures:** JWT algorithm pinning (RS256/ES256 for Passport; no `none` or algorithm confusion).
-- **A03 Injection:** Input validation for DRS names, workspace names/slugs, and invite emails (length, charset, no control chars); workflow params passed via file in Nextflow (no CLI/env injection); path sanitization (`safe_join`) and SSRF-safe URL validation before fetches.
-- **A07 Identification and Authentication Failures:** Token revocation (optional); optional token age limit.
-- **A09 Security Logging:** Security events (access denied, auth failure, path traversal, SSRF attempts) logged and optionally persisted.
-- **A10 Server-Side Request Forgery (SSRF):** URL validation policy (scheme, blocked hosts, private IPs); safe HTTP client used for outbound requests.
+- **A01 Broken Access Control:** Auth middleware; exact visa roles; admin APIs always gated; workspace membership and WES run visibility enforced.
+- **A02 Cryptographic Failures:** JWT algorithm pinning (RS256/ES256 for Passport; no `none` or algorithm confusion). Crypt4GH ChaCha20-Poly1305 when enabled.
+- **A03 Injection:** Input validation; Slurm POSIX quoting of workflow URLs; TES volume allowlist (no arbitrary host binds).
+- **A07 Identification and Authentication Failures:** Fail-closed `require_auth` default; optional audience; token revocation (optional).
+- **A09 Security Logging:** Security events logged; residency audit append failures are warned, not dropped.
+- **A10 Server-Side Request Forgery (SSRF):** URL validation (scheme, blocked hosts, private IPv4/IPv6 ULA/link-local/mapped, DNS resolve); client ADS URL override ignored.
 
 Security-focused tests live in the `ferrum-security-tests` crate (SSRF, validation, etc.).
 
@@ -57,9 +58,10 @@ Security-focused tests live in the `ferrum-security-tests` crate (SSRF, validati
 ### Production hardening checklist (non-exhaustive)
 
 - **Identity & auth**
-  - [ ] Configure `[auth]` with `require_auth = true` for production.
-  - [ ] Use a trusted OIDC provider / Passport broker and set `jwks_url` and `issuer`.
-  - [ ] Disable demo‑/test users in Keycloak or other IdPs.
+  - [ ] Configure `[auth]` with `require_auth = true` for production (code default; do not ship demo compose).
+  - [ ] Use a trusted OIDC provider / Passport broker and set `jwks_url`, `issuer`, and `audience` if your tokens carry `aud`.
+  - [ ] Unset `FERRUM_TES_HELIXTEST_STUB` and `FERRUM_WES_HELIXTEST_STUBS`.
+  - [ ] Set a tight `FERRUM_TES_ALLOWED_BIND_PREFIXES` if TES Docker is enabled.
 
 - **Transport security**
   - [ ] Terminate TLS with modern ciphers and protocols; prefer TLS 1.2+.

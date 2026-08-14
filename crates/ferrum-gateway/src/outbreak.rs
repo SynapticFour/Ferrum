@@ -74,8 +74,8 @@ async fn post_activate(
         .unwrap_or_default();
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.as_ref().and_then(|a| a.0.sub());
-        let _ = audit
-            .append("outbreak_activated", None, requester, None, false, None)
+        audit
+            .append_warn("outbreak_activated", None, requester, None, false, None)
             .await;
     }
     Ok(Json(serde_json::json!({
@@ -102,8 +102,8 @@ async fn post_deactivate(
     })?;
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.as_ref().and_then(|a| a.0.sub());
-        let _ = audit
-            .append("outbreak_deactivated", None, requester, None, false, None)
+        audit
+            .append_warn("outbreak_deactivated", None, requester, None, false, None)
             .await;
     }
     Ok(Json(serde_json::json!({

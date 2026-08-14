@@ -4,7 +4,7 @@ use crate::error::{Result, TesError};
 use crate::state::AppState;
 use crate::types::*;
 use axum::extract::{Extension, Path, Query, State};
-use axum::http::{header, HeaderValue};
+use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
 use std::sync::Arc;
@@ -20,7 +20,15 @@ fn public_base_url() -> String {
 }
 
 /// Deterministic noop TES bytes matching HelixTest `tes_echo_out.txt` (`hello-tes` + newline).
-pub async fn demo_echo_output() -> impl IntoResponse {
+/// Disabled unless `FERRUM_TES_HELIXTEST_STUB` is an explicit opt-in (demo compose only).
+pub async fn demo_echo_output() -> axum::response::Response {
+    if !ferrum_core::env_flag("FERRUM_TES_HELIXTEST_STUB") {
+        return (
+            StatusCode::NOT_FOUND,
+            "demo echo output is disabled (set FERRUM_TES_HELIXTEST_STUB=1 for NON-PILOT demo only)",
+        )
+            .into_response();
+    }
     (
         [(
             header::CONTENT_TYPE,
@@ -28,6 +36,7 @@ pub async fn demo_echo_output() -> impl IntoResponse {
         )],
         "hello-tes\n",
     )
+        .into_response()
 }
 
 #[derive(Debug, serde::Deserialize, IntoParams, ToSchema)]
@@ -121,13 +130,13 @@ pub async fn create_task(
             .set_external_id(&id, ext, app.executor.name())
             .await?;
     }
-    // Demo/CI backend: complete immediately so conformance checks can validate lifecycle.
+    // Demo/CI backend: complete immediately. HelixTest checksum stub is opt-in only.
     if app.executor.name() == "noop" {
         app.repo
             .update_state(&id, crate::types::TaskState::Complete)
             .await?;
         let empty_outputs = body.outputs.as_ref().map(|o| o.is_empty()).unwrap_or(true);
-        if empty_outputs {
+        if empty_outputs && ferrum_core::env_flag("FERRUM_TES_HELIXTEST_STUB") {
             let url = format!("{}/ga4gh/tes/v1/demo/echo-output", public_base_url());
             let outputs = serde_json::json!([{
                 "path": "/test-data/workflows/outputs/tes_echo_out.txt",

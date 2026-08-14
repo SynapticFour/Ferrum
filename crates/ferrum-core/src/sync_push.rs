@@ -120,8 +120,8 @@ async fn push_one_item(
     }
 
     mark_completed(pool, &item.id, info.size).await?;
-    let _ = audit
-        .append(
+    audit
+        .append_warn(
             "sync_push_completed",
             Some(&item.object_id),
             opts.requester.as_deref(),

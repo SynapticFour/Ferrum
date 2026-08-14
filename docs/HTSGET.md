@@ -1,6 +1,8 @@
 # Ferrum htsget
 
-GA4GH **htsget** 1.3.0-style JSON tickets are served at `/ga4gh/htsget/v1`. Object identifiers are the same as **DRS** (canonical id, alias, or `drs://host/id` when the host matches `FERRUM_DRS_HOSTNAME`).
+JSON tickets are served at `/ga4gh/htsget/v1`. Object identifiers are the same as **DRS** (canonical id, alias, or `drs://host/id` when the host matches `FERRUM_DRS_HOSTNAME`).
+
+**This is not a full htsget 1.3.0 slicer.** Tickets point at the **whole DRS object** stream. Requests that include genomic region parameters (`referenceName`, `start`, `end`, POST `regions`) or `class=header` return **HTTP 400** `InvalidInput`. Service-info documents that limitation. Do not treat a green HelixTest demo job as evidence of region-level htsget.
 
 ## Configuration
 
@@ -21,7 +23,7 @@ Classification uses `mime_type` and optional object `name` (e.g. `.bam`, `.vcf`,
 
 ## Service info
 
-Per spec, use `/reads/service-info` and `/variants/service-info` (not a single `/service-info` at the v1 root).
+Per spec, use `/reads/service-info` and `/variants/service-info` (not a single `/service-info` at the v1 root). Descriptions state that region slicing is not implemented.
 
 ## Swagger
 

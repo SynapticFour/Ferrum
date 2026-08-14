@@ -12,6 +12,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | **API / release compatibility & deprecation** | [COMPATIBILITY.md](COMPATIBILITY.md) |
 | **Open core, Lab Kit, keys, enterprise** (high-level only; not a substitute for counsel) | [BUSINESS-MODEL.md](BUSINESS-MODEL.md) |
 | **Data protection / sector regulation** (GDPR, EU examples, operator duties) | [COMPLIANCE.md](COMPLIANCE.md) |
+| **Operator trust (demo vs pilot, stubs, honest feature matrix)** | [OPERATOR-TRUST.md](OPERATOR-TRUST.md) |
 | **Security model, reporting vulnerabilities** | [SECURITY.md](../SECURITY.md) |
 
 **Important:** Docs in this tree are **technical orientation** unless marked otherwise. They are **not legal advice**. Operators and organisations remain responsible for their own compliance, contracts, and jurisdictional requirements.
@@ -97,7 +98,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Development setup, testing, PR process, adding a GA4GH service, Rust style. |
 | [SECURITY.md](../SECURITY.md) | Supported versions, reporting vulnerabilities, security model, operator considerations. |
 | [COMPLIANCE.md](COMPLIANCE.md) | Regulatory compliance: GDPR, BDSG, Gaia-X, NIS2, EHDS, GA4GH |
-| [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md) | **Conformance & QA:** what HelixTest exercises in CI (WES, TES, DRS, TRS, Beacon, htsget, E2E, auth, Crypt4GH), URL mapping, demo object IDs, local runs, CI jobs. |
+| [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md) | **Demo lifecycle QA:** what HelixTest exercises in CI (not certification). Institute posture: [OPERATOR-TRUST.md](OPERATOR-TRUST.md). |
 | [deployment/UPDATE-SOP.md](deployment/UPDATE-SOP.md) | SOP template for controlled updates/bugfixes and rollback. |
 | [deployment/RELEASE-CHECKLIST.md](deployment/RELEASE-CHECKLIST.md) | 10 required checks before release/hotfix rollout. |
 

@@ -25,7 +25,7 @@ Ferrum **WES** routes runs to an executor from **`workflow_type`** (and optional
 
 | Key | Effect |
 |-----|--------|
-| **`ferrum_backend`** / **`ferrum-backend`** | Value **`slurm`** forces **Slurm** executor when TES is **not** configured (see `run_manager.rs`). |
+| **`ferrum_backend`** / **`ferrum-backend`** | Value **`slurm`** forces **Slurm** when TES is **not** configured. Value **`lsf`** returns a validation error (**LSF is not implemented**). |
 
 For **Docker / Podman TES** (long runs, scratch space, nested engines), see **[TES-DOCKER-BACKEND.md](TES-DOCKER-BACKEND.md)** — **`executors[].entrypoint`**, host bind mounts, WES → TES volume strategy.
 

@@ -19,6 +19,14 @@ fn private_ip_rfc1918() {
 }
 
 #[test]
+fn private_ip_ipv6_ula() {
+    assert!(is_private_ip(
+        &"fd12:3456:789a::1".parse::<IpAddr>().unwrap()
+    ));
+    assert!(is_private_ip(&"fc00::1".parse::<IpAddr>().unwrap()));
+}
+
+#[test]
 fn public_ip_allowed() {
     assert!(!is_private_ip(&"8.8.8.8".parse::<IpAddr>().unwrap()));
 }

@@ -266,6 +266,7 @@ pub async fn post_runs(
         .await
         .map_err(|e| WesError::Other(e.into()))?
         .to_bytes();
+    #[cfg(feature = "discovery")]
     let raw_body = bytes.clone();
 
     let ct = headers

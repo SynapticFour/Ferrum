@@ -110,25 +110,33 @@ impl SlurmExecutor {
         self
     }
 
+    /// POSIX single-quote so interpolated paths cannot break out of the sbatch script.
+    fn posix_quote(s: &str) -> Result<String> {
+        if s.contains('\0') || s.contains('\n') || s.contains('\r') {
+            return Err(WesError::Validation(
+                "path contains NUL or newline; refused for Slurm script interpolation".into(),
+            ));
+        }
+        Ok(format!("'{}'", s.replace('\'', "'\\''")))
+    }
+
     fn write_run_script(work_dir: &Path, run: &WesRun) -> Result<std::path::PathBuf> {
         let script_path = work_dir.join("slurm_run.sh");
+        let workflow = Self::posix_quote(&run.workflow_url)?;
+        let cwd = Self::posix_quote(&work_dir.display().to_string())?;
         let cmd = match run.workflow_type.to_lowercase().as_str() {
             "nextflow" | "nxf" | "nfl" => {
-                format!("nextflow run {} 2>&1", run.workflow_url)
+                format!("nextflow run {workflow} 2>&1")
             }
             "cwl" => {
-                let outdir = work_dir.join("out");
-                format!(
-                    "cwltool --outdir {} {} 2>&1",
-                    outdir.display(),
-                    run.workflow_url
-                )
+                let outdir = Self::posix_quote(&work_dir.join("out").display().to_string())?;
+                format!("cwltool --outdir {outdir} {workflow} 2>&1")
             }
             "wdl" => {
-                format!("java -jar cromwell.jar run {} 2>&1", run.workflow_url)
+                format!("java -jar cromwell.jar run {workflow} 2>&1")
             }
             "snakemake" => {
-                format!("snakemake --snakefile {} --cores 1 2>&1", run.workflow_url)
+                format!("snakemake --snakefile {workflow} --cores 1 2>&1")
             }
             _ => {
                 return Err(WesError::Validation(
@@ -136,12 +144,18 @@ impl SlurmExecutor {
                 ))
             }
         };
-        let content = format!(
-            "#!/bin/bash\n#SBATCH --job-name=wes-{}\ncd \"{}\"\n{}\n",
-            run.run_id,
-            work_dir.display(),
-            cmd
-        );
+        let job = run
+            .run_id
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect::<String>();
+        let content = format!("#!/bin/bash\n#SBATCH --job-name=wes-{job}\ncd {cwd}\n{cmd}\n");
         std::fs::write(&script_path, content).map_err(WesError::Io)?;
         Ok(script_path)
     }
@@ -299,5 +313,22 @@ impl WorkflowExecutor for SlurmExecutor {
             }
         }
         Ok((state, exit_code))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SlurmExecutor;
+
+    #[test]
+    fn posix_quote_wraps_and_escapes() {
+        assert_eq!(SlurmExecutor::posix_quote("ok").unwrap(), "'ok'");
+        assert_eq!(SlurmExecutor::posix_quote("it's").unwrap(), "'it'\\''s'");
+    }
+
+    #[test]
+    fn posix_quote_rejects_newline() {
+        assert!(SlurmExecutor::posix_quote("a\nb").is_err());
+        assert!(SlurmExecutor::posix_quote("a\0b").is_err());
     }
 }

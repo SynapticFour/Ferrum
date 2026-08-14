@@ -29,12 +29,10 @@ use tokio::io::{AsyncReadExt, AsyncWrite};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-fn federated_ads_base(headers: &HeaderMap) -> Option<&str> {
-    headers
-        .get("X-ADS-Base-URL")
-        .and_then(|v| v.to_str().ok())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+fn federated_ads_base(_headers: &HeaderMap) -> Option<&str> {
+    // Client-supplied X-ADS-Base-URL is ignored (SSRF / credential forwarding).
+    // Dataset ADS checks use the operator-configured AdsIntrospectClient only.
+    None
 }
 use utoipa::ToSchema;
 
@@ -322,8 +320,8 @@ pub async fn get_access(
             .as_ref()
             .and_then(|a| a.0.sub())
             .or(client_ip.as_deref());
-        let _ = audit
-            .append(
+        audit
+            .append_warn(
                 "data_accessed",
                 Some(&canonical),
                 requester,
@@ -671,8 +669,8 @@ pub async fn get_object_stream(
             .as_ref()
             .and_then(|a| a.0.sub())
             .or(client_ip.as_deref());
-        let _ = audit
-            .append(
+        audit
+            .append_warn(
                 "data_downloaded",
                 Some(&canonical),
                 requester,

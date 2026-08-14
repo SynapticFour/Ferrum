@@ -259,8 +259,8 @@ pub async fn query_variants(
     let _ = &envelope.meta;
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.as_ref().and_then(|a| a.0.sub());
-        let _ = audit
-            .append("beacon_query", None, requester, None, false, None)
+        audit
+            .append_warn("beacon_query", None, requester, None, false, None)
             .await;
     }
     let (body, filters_exprs, pathogen_base) = envelope_to_variant_query_with_filters(envelope);
@@ -713,8 +713,8 @@ pub async fn get_g_variants(
     let requester = auth.as_ref().and_then(|a| a.0.sub());
 
     if let Some(ref audit) = state.residency_audit {
-        let _ = audit
-            .append("beacon_query", None, requester, None, false, None)
+        audit
+            .append_warn("beacon_query", None, requester, None, false, None)
             .await;
     }
 

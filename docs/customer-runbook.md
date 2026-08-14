@@ -32,7 +32,7 @@ Kurzanleitung für IT-Betrieb und Forschungs-IT. Technische Details: [GitHub Rel
 **Managed single-tenant (H5 optional):** A hosted Ferrum install for one customer is one deployment (config, storage, secrets) — not a shared multi-tenant DRS/WES schema. Align with Showcase [ADR 0003 tenant boundaries](https://github.com/SynapticFour/SynapticFour-Showcase/blob/main/docs/adr/0003-tenant-boundaries.md). Workspace / object ACLs inside one deployment remain Ferrum’s existing model; do not invent cross-customer row tenancy in H5.
 **Pilot-local issuer:** Tokens from `http://localhost:8180/login/…` carry `iss=http://localhost:8180`. `deploy/docker-compose.pilot.yml` sets `FERRUM_AUTH__ISSUER` to that public URL while fetching JWKS from `http://aai-broker:8080` in-cluster. Mismatching issuer/JWKS trust causes silent auth failure (Bearer present but treated as anonymous → 401 on WES).
 
-**HelixTest / conformance CI:** the Conformance workflow sets `HELIXTEST_SKIP_AUTH=true` so Auth (Level 4) is skipped against the demo stack. That is a **CI convenience**, not customer or compliance evidence. For pilot verification, run HelixTest (or your own checks) against a stack using `deploy/configs/pilot.toml` (or equivalent) with `require_auth=true` and a real JWKS, and **do not** set `HELIXTEST_SKIP_AUTH`. Details: [HELIXTEST-INTEGRATION.md](./HELIXTEST-INTEGRATION.md).
+**HelixTest / demo lifecycle CI:** the Demo lifecycle workflow sets `HELIXTEST_SKIP_AUTH=true` and enables HelixTest stubs on the **demo** stack. That is a **CI convenience**, not customer or compliance evidence. For pilot verification, run HelixTest (or your own checks) against a stack using `deploy/configs/pilot.toml` (or equivalent) with `require_auth=true` and a real JWKS, and **do not** set `HELIXTEST_SKIP_AUTH` or the HelixTest stub env vars. Details: [HELIXTEST-INTEGRATION.md](./HELIXTEST-INTEGRATION.md), [OPERATOR-TRUST.md](./OPERATOR-TRUST.md).
 
 **Nightly / scheduled auth-on path (recommended, not required on every PR):** run a separate job or cron that starts the stack with `FERRUM_AUTH__REQUIRE_AUTH=true` (or `FERRUM_CONFIG=deploy/configs/pilot.toml`), unset `HELIXTEST_SKIP_AUTH`, and execute HelixTest Auth Level 4. Prefer this over enabling auth on every PR conformance job.
 
@@ -46,7 +46,7 @@ Kurzanleitung für IT-Betrieb und Forschungs-IT. Technische Details: [GitHub Rel
 
 - That a green WES/TES API or HelixTest result on the default demo means unsupervised production compute.
 - That Fly / hosted pilot overlays with TES `noop` run real GATK or container workloads.
-- That conformance CI (also noop-aligned for TES checksums) proves site compute capacity.
+- That demo-lifecycle CI (noop TES, stubs on) does **not** prove site compute capacity. Use `make up-tes` / the `test-tes` job.
 
 **How to enable real TES locally**
 

@@ -54,7 +54,7 @@ but it does not, by itself, make any deployment GDPR‑compliant.
 | Art. 20 — Data portability | DRS export via standard GA4GH APIs; RO-Crate export |
 | Art. 25 — Privacy by design | Encryption at rest and in transit when configured; no plaintext storage is intended in normal operation |
 | Art. 30 — Records of processing | Security event log and audit trail built into all services |
-| Art. 32 — Security of processing | OWASP Top 10 hardened; AES-256-GCM encryption; TLS enforced |
+| Art. 32 — Security of processing | Crypt4GH (ChaCha20-Poly1305) when encryption is configured; TLS is the operator's reverse-proxy responsibility. Default ingest encryption is off (`default_encrypt_upload=false`). |
 | Art. 33 — Breach notification | Security event log with 72h-aligned alerting infrastructure |
 | Art. 35 — DPIA | See [DPIA Template](#dpia-template) below |
 
@@ -160,7 +160,7 @@ self‑description by the operator.
 | **Transparency** | Open source (BUSL-1.1); all APIs documented via OpenAPI |
 | **Portability** | GA4GH standard APIs; no vendor lock-in |
 | **Interoperability** | DRS, WES, TES, TRS, Beacon v2, Passports |
-| **Security** | OWASP hardened; Crypt4GH encryption; TLS enforced |
+| **Security** | Crypt4GH when configured; TLS at the operator proxy; cargo-deny in CI |
 | **European Values** | Developed in Germany; designed with GDPR principles in mind. Actual legal compliance depends on the operator and its processes. |
 
 ### Gaia-X Label Levels
@@ -203,11 +203,11 @@ obligations (threshold: 50+ employees or €10M+ turnover).
 
 | NIS2 Requirement | Ferrum Feature |
 |---|---|
-| Risk management policies | Security event log; OWASP-hardened codebase |
+| Risk management policies | Security event log; OWASP Top 10 addressed in code review and this repo's security tests |
 | Incident response | Webhook alerting; structured security events |
 | Business continuity | Stateless microservices; Docker/Kubernetes deployment |
 | Supply chain security | SBOM generated on release; **cargo-deny in CI** (`deny.toml`: licenses, sources, bans, advisories) |
-| Cryptography | AES-256-GCM at rest; TLS in transit; Crypt4GH for genomics |
+| Cryptography | Crypt4GH (ChaCha20-Poly1305) for genomic objects when enabled; TLS in transit is operator-terminated |
 | Access control | GA4GH Passports; role-based workspace access |
 | Vulnerability management | Automated dependency auditing via cargo-deny |
 

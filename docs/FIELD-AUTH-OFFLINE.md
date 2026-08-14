@@ -26,9 +26,9 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 Set `require_auth = true` in config to enforce roles on ingest.
 
-## JWKS offline (7-day cache + file fallback)
+## JWKS offline (file fallback + long TTL)
 
-Default JWKS cache TTL is **7 days** (`auth.jwks_cache_ttl_seconds = 604800`).
+Hub default JWKS cache TTL is **1 hour** (`auth.jwks_cache_ttl_secs = 3600`). Field/offline nodes should set **7 days** (or similar) and a local `jwks_file`:
 
 For field nodes without reliable internet:
 
@@ -38,7 +38,7 @@ mode = "external"
 require_auth = true
 issuer = "https://broker.example.org"
 jwks_file = "/home/pi/.ferrum/jwks/broker-2026.json"
-jwks_cache_ttl_seconds = 604800
+jwks_cache_ttl_secs = 604800
 ```
 
 Env overrides: `FERRUM_AUTH__JWKS_FILE`, `FERRUM_AUTH__JWKS_CACHE_TTL_SECS`.

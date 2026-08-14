@@ -1961,10 +1961,9 @@ dependencies = [
 
 [[package]]
 name = "ferrum-discovery"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "ferrum-core",
- "ga4gh-types",
  "reqwest",
  "serde",
  "serde_json",
@@ -2556,6 +2555,7 @@ dependencies = [
 [[package]]
 name = "ga4gh-clearinghouse"
 version = "0.1.0"
+source = "git+https://github.com/SynapticFour/ga4gh-infra?tag=ga4gh-infra-v0.1.0#55d44957a1ee91140f83b6598ce0f9c492148d15"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2572,6 +2572,7 @@ dependencies = [
 [[package]]
 name = "ga4gh-types"
 version = "0.1.0"
+source = "git+https://github.com/SynapticFour/ga4gh-infra?tag=ga4gh-infra-v0.1.0#55d44957a1ee91140f83b6598ce0f9c492148d15"
 dependencies = [
  "chrono",
  "serde",

@@ -11,7 +11,7 @@ Deployment scenarios and update delivery strategy:
 
 | Requirement | Minimum | Recommended | Notes |
 |-------------|---------|-------------|--------|
-| Rust | 1.75+ | 1.83+ | For building from source |
+| Rust | 1.91 (see `rust-toolchain.toml`) | 1.91.1 | For building from source |
 | Docker | 20.10+ | 24+ | For demo stack |
 | PostgreSQL | 14 | 16 | For production |
 | MinIO or S3 | — | — | S3-compatible storage |
@@ -250,7 +250,7 @@ ansible-playbook playbooks/install-ferrum.yml -i inventory/hpc.yml
 **Inventory structure:**
 
 - **head_node** — Runs gateway, optionally PostgreSQL.
-- **compute_nodes** — SLURM/LSF workers; WES/TES submit jobs here.
+- **compute_nodes** — Slurm workers; WES/TES submit jobs here. (LSF is not implemented.)
 - **storage_nodes** — NFS or MinIO; Ferrum data and DRS objects.
 
 Use **vault** for secrets (`vault_ferrum_db_password`, etc.). SLURM integration is configured via WES/TES executor settings (e.g. `workflow_engine_params` and Ferrum config).
@@ -299,9 +299,12 @@ helm install ferrum ./deploy/helm \
 | | `s3_bucket` | string | — | Bucket name |
 | | `s3_access_key_id` | string | — | Access key |
 | | `s3_secret_access_key` | string | — | Secret key |
-| `[auth]` | `require_auth` | bool | false | Require JWT/Passport |
+| `[auth]` | `require_auth` | bool | **true** | Require JWT/Passport. Demo `local.toml` / compose set `false` (NON-PILOT). |
 | | `jwks_url` | string | — | JWKS for token validation |
+| | `jwks_file` | string | — | Offline JWKS JSON path |
+| | `jwks_cache_ttl_secs` | u64 | 3600 | JWKS cache TTL (field nodes may set 7 days) |
 | | `issuer` | string | — | Expected JWT issuer |
+| | `audience` | string | — | Expected JWT `aud` (`FERRUM_AUTH__AUDIENCE`) |
 | `[services]` | `enable_drs` | bool | true | Enable DRS |
 | | `enable_wes` | bool | true | Enable WES |
 | | `enable_tes` | bool | true | Enable TES |

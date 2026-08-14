@@ -65,29 +65,7 @@ async fn forward(
     ads_path: &str,
     req: Request<Body>,
 ) -> Result<Response, (StatusCode, String)> {
-    let ads = if let Some(header_url) = req
-        .headers()
-        .get("X-ADS-Base-URL")
-        .and_then(|v| v.to_str().ok())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    {
-        let normalized = normalize_ads_from_service_url(header_url);
-        let policy = ferrum_core::SsrfPolicy {
-            allow_private_networks: false,
-            allowed_schemes: vec!["https".into(), "http".into()],
-            ..Default::default()
-        };
-        ferrum_core::validate_url_ssrf(&normalized, &policy).map_err(|_| {
-            (
-                StatusCode::BAD_REQUEST,
-                "X-ADS-Base-URL failed SSRF checks".into(),
-            )
-        })?;
-        normalized
-    } else {
-        state.ads_base_url().await?
-    };
+    let ads = state.ads_base_url().await?;
     let mut url = format!("{ads}/{}", ads_path.trim_start_matches('/'));
     if let Some(query) = req.uri().query() {
         url.push('?');

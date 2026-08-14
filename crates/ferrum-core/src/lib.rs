@@ -33,8 +33,8 @@ pub mod workspace;
 pub use ads::{AdsIntrospectClient, AdsIntrospectError};
 pub use auth::{
     auth_layer, auth_middleware, auth_middleware_with_config, require_auth_enabled,
-    warm_jwks_cache, AuthClaims, AuthMiddlewareConfig, PassportClaims, RevocationCheck,
-    RevokedTokensChecker, VisaObject,
+    set_require_auth_runtime, warm_jwks_cache, AuthClaims, AuthMiddlewareConfig, PassportClaims,
+    RevocationCheck, RevokedTokensChecker, VisaObject,
 };
 pub use clock::{clock_status, ClockStatus, DEFAULT_MAX_SKEW_SECS, DEFAULT_NTP_HOST};
 pub use config::{
@@ -93,7 +93,9 @@ pub use solum_consent::{
     enforce_solum_consent, SolumConsentClient, SolumConsentError, SolumConsentStatus,
     SOLUM_SIDECAR_TOKEN_HEADER,
 };
-pub use ssrf::{is_private_ip, validate_url_ssrf, SafeHttpClient, SsrfPolicy};
+pub use ssrf::{
+    is_private_ip, validate_url_ssrf, validate_url_ssrf_resolved, SafeHttpClient, SsrfPolicy,
+};
 pub use sync_export::{build_sneakernet_bundle, resolve_objects_root, SneakernetManifest};
 pub use sync_push::{push_pending_items, PushItemResult, PushOptions};
 pub use sync_queue::{
@@ -108,3 +110,16 @@ pub use types::{
     ServiceType,
 };
 pub use workspace::{get_workspace_member_role, is_workspace_editor_or_owner, is_workspace_member};
+
+/// True when `name` is set to `1`, `true`, `yes`, or `on` (case-insensitive).
+/// Unset or any other value is false. Use this for explicit opt-in of demo/stub behaviour.
+pub fn env_flag(name: &str) -> bool {
+    std::env::var(name)
+        .map(|s| {
+            matches!(
+                s.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
+}

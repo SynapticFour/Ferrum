@@ -6,6 +6,21 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Security
 
+- **Fail-closed defaults** — `auth.require_auth` defaults to true; Passport admin and federation admin routes stay gated when auth is off; visa roles use exact match (not `str::contains`); JWT `aud` is honored when configured; CORS does not treat empty origins as `*`.
+- **TES Docker volumes** — client `volumes` are rejected unless `FERRUM_TES_ALLOWED_BIND_PREFIXES` (or WES work-dir prefix) allowlists the host path. `..` is refused.
+- **WES Slurm** — `workflow_url` and work dirs are POSIX-quoted; newlines/NUL refused. `ferrum_backend=lsf` returns an error (LSF is not implemented).
+- **htsget honesty** — region queries (`referenceName`/`start`/`end`/POST `regions`) return 400 instead of a whole-file ticket.
+- **ADS** — client `X-ADS-Base-URL` is ignored on DRS; gateway ADS proxy no longer honors a client override. SSRF checks include IPv6 ULA/link-local/mapped addresses and DNS resolution.
+- **HelixTest stubs** — TES `hello-tes` output and WES synthetic `trs://` / checksum-shaped outputs require explicit `FERRUM_TES_HELIXTEST_STUB` / `FERRUM_WES_HELIXTEST_STUBS` (demo compose only). CI no longer rewrites HelixTest expected hashes.
+
+### Changed
+
+- **Docs / CI** — README, COMPLIANCE, [OPERATOR-TRUST.md](docs/OPERATOR-TRUST.md), and HelixTest workflow describe demo vs pilot honestly (no AES-256-GCM / TLS-enforced claims; Crypt4GH is ChaCha20-Poly1305; TLS is operator proxy). Workflow renamed to Demo lifecycle. CodeQL on PRs; dependency-review fails the job; Dependabot re-enabled; Helm chart 0.2.0; MinIO image pinned; `rust-toolchain.toml` 1.91.1.
+- **Build** — `ferrum-discovery` vendors GA4GH Service Info types (Apache-2.0). Optional `ga4gh-clearinghouse` is a git pin (`ga4gh-infra-v0.1.0`) so default `cargo build` does not need a sibling checkout.
+- **Audit** — residency append failures are logged (`append_warn`); provenance `record_derived_from` errors are warned, not dropped.
+
+### Security
+
 - **Auth fail-closed** — invalid/expired/unconfigured Bearer returns 401; empty-secret HS256 JWT fallback removed; Passport visas are verified (JWKS RS256/ES256 or HS256 `jwt_secret`) or dropped. When `require_auth` is on: Passport admin, TES mutating/list/get, federation mutating/proxy, TRS `/internal/register`, WES cost endpoints, and anonymous WES run reads are gated. Cohorts ignore spoofable `x-owner-sub`. Demo/`require_auth=false` is unchanged.
 - **Crypt4GH proxy** — object id from `/objects/{id}/stream`; pubkey present but cannot rewrap → 400/403/502 (no ciphertext passthrough); tokio mpsc instead of std mpsc busy-spin.
 - **Storage keys** — `validate_object_key` rejects `..` (slashes in `drs/{ulid}` still allowed). Encrypted DRS stream rejects HTTP Range.
@@ -18,7 +33,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Service registry** — listing cached 60s process-wide; register invalidates. Avoids re-list on every ADS resolve.
 - **Provenance graph** — DRS/WES node details loaded with two `ANY($1)` queries instead of one query per node.
 - **S3 `put_file`**, SQLite pathogen SQL without `$1::text`, WES `nfl` kind map, in-memory zstd only ≤ 8 MiB, chunk upload appends from spool `TempPath`.
-- **htsget region queries** — `referenceName`/`start`/`end`/`regions` are accepted; tickets still cover the whole DRS object (spec allows returning more data than requested). Previously 400 `Unsupported` broke HelixTest POST ticket checks.
+- **htsget region queries** — region parameters are **rejected** (HTTP 400). An earlier unreleased note that tickets silently covered the whole object was reversed; that behaviour was unsafe to present as htsget 1.3 slicing.
 - **TES noop outputs** — COMPLETE tasks with no declared outputs expose a downloadable `url` (`/ga4gh/tes/v1/demo/echo-output`, the bytes `hello-tes` plus a newline) so HelixTest L2 checksums do not depend on a stale local file.
 - **WES HelixTest scatter/gather** — `trs://test-tool/scatter-gather` stub outputs include `scatter_result` (same pattern as echo / demo-bam-to-vcf).
 - **Revocation DB errors treat as revoked**; ADS `X-ADS-Base-URL` SSRF-checked; TES Slurm `--wrap` escaped; Passport key fail → unconfigured router; mutex poison `into_inner`; `/health` NTP/statvfs 15s cache; POSIX I/O pool default 2–8 threads; `/view` 2 MiB cap; bandwidth uses real elapsed ms.
@@ -43,12 +58,12 @@ Not in this cut; still worth tracking:
 
 - **htsget `index_status=ready`** is metadata only — no `.bai`/`.tbi` is built.
 - **Clearinghouse Passport validation** still uses `block_in_place` / `block_on` on the request path.
-- **Residency/provenance `let _ =`** still swallows append/record errors (should `warn!`).
 - **Multipart ingest** can still buffer the whole file before `max_upload_bytes` (chunked spool exists).
 - **S3 `append_bytes`** is still get + rewrite (LocalStorage uses `O_APPEND`).
 - **Vendored `crypt4gh`** unwraps on decrypt of untrusted ciphertext (`[patch.crates-io]`).
 - **TES Docker socket** remains env-gated (`FERRUM_TES_DOCKER_MOUNT_SOCKET`); not mounted by default.
-- Hygiene: README crate tree drift; Postgres/SQLite query duplication; federation `PeerRateLimiter` never evicts; TES `get_task` N+1; MSRV documented as 1.75 but not in `Cargo.toml`; CLI i18n and WES `sanitize_work_dir` still `allow(dead_code)`.
+- Hygiene: Postgres/SQLite query duplication; federation `PeerRateLimiter` never evicts; TES `get_task` N+1; CLI i18n and WES `sanitize_work_dir` still `allow(dead_code)`.
+- **Bus factor 1** — cannot be fixed in code.
 
 
 ### Added

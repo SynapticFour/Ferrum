@@ -192,16 +192,11 @@ async fn get_status(State(state): State<Arc<FederationState>>) -> impl IntoRespo
     )
 }
 
-fn require_admin_when_auth_required(
-    auth: &Option<Extension<AuthClaims>>,
-) -> Result<(), (StatusCode, String)> {
-    if !ferrum_core::require_auth_enabled() {
-        return Ok(());
-    }
+fn require_admin(auth: &Option<Extension<AuthClaims>>) -> Result<(), (StatusCode, String)> {
     let Some(Extension(claims)) = auth else {
         return Err((
             StatusCode::UNAUTHORIZED,
-            "Bearer authentication required when require_auth is enabled".into(),
+            "Bearer authentication required for federation admin APIs".into(),
         ));
     };
     if !claims.is_admin() {
@@ -214,7 +209,7 @@ async fn list_registry_services(
     auth: Option<Extension<AuthClaims>>,
     Json(body): Json<RegistryConnectRequest>,
 ) -> Result<Json<RegistryListResponse>, (StatusCode, String)> {
-    require_admin_when_auth_required(&auth)?;
+    require_admin(&auth)?;
     let registry_url = body.registry_url.trim();
     if registry_url.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "registry_url required".into()));
@@ -269,7 +264,7 @@ async fn register_this_node(
     auth: Option<Extension<AuthClaims>>,
     Json(body): Json<RegisterNodeRequest>,
 ) -> Result<Json<RegisterNodeResponse>, (StatusCode, String)> {
-    require_admin_when_auth_required(&auth)?;
+    require_admin(&auth)?;
     let registry_url = body.registry_url.trim();
     let public_base = body.public_base_url.trim().trim_end_matches('/');
     if registry_url.is_empty() || public_base.is_empty() {
@@ -381,7 +376,7 @@ async fn remote_trs_tools(
     auth: Option<Extension<AuthClaims>>,
     axum::extract::Query(q): axum::extract::Query<RemoteTrsQuery>,
 ) -> Result<Json<RemoteTrsToolsResponse>, (StatusCode, String)> {
-    require_admin_when_auth_required(&auth)?;
+    require_admin(&auth)?;
     let trs_base = q.trs_base_url.trim().trim_end_matches('/');
     if trs_base.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "trs_base_url required".into()));
@@ -448,7 +443,7 @@ async fn remote_trs_descriptor(
     auth: Option<Extension<AuthClaims>>,
     axum::extract::Query(q): axum::extract::Query<RemoteTrsDescriptorQuery>,
 ) -> Result<Json<RemoteTrsDescriptorResponse>, (StatusCode, String)> {
-    require_admin_when_auth_required(&auth)?;
+    require_admin(&auth)?;
     let trs_base = q.trs_base_url.trim().trim_end_matches('/');
     if trs_base.is_empty() {
         return Err((StatusCode::BAD_REQUEST, "trs_base_url required".into()));

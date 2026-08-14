@@ -106,6 +106,36 @@ impl ResidencyAuditLog {
         Ok(id)
     }
 
+    /// Append an audit row; log a warning instead of dropping the error silently.
+    pub async fn append_warn(
+        &self,
+        event_type: &str,
+        drs_id: Option<&str>,
+        requester: Option<&str>,
+        destination: Option<&str>,
+        data_left_node: bool,
+        bytes_transferred: Option<i64>,
+    ) {
+        if let Err(e) = self
+            .append(
+                event_type,
+                drs_id,
+                requester,
+                destination,
+                data_left_node,
+                bytes_transferred,
+            )
+            .await
+        {
+            tracing::warn!(
+                error = %e,
+                event_type,
+                drs_id,
+                "residency audit append failed"
+            );
+        }
+    }
+
     pub async fn query_range(
         &self,
         from: Option<DateTime<Utc>>,

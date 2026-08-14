@@ -334,8 +334,8 @@ pub async fn process_upload_from_parts(
 
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.and_then(|c| c.sub());
-        let _ = audit
-            .append(
+        audit
+            .append_warn(
                 "data_uploaded",
                 Some(&object_id),
                 requester,
@@ -474,8 +474,8 @@ pub async fn process_upload_from_spooled(
 
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.and_then(|c| c.sub());
-        let _ = audit
-            .append(
+        audit
+            .append_warn(
                 "data_uploaded",
                 Some(&object_id),
                 requester,
@@ -690,7 +690,9 @@ pub async fn ingest_url(
             for uri in uris {
                 if let Some((_host, from_id)) = crate::uri::parse_drs_uri(uri) {
                     if let Ok(Some(canonical)) = state.repo.resolve_id_or_uri(&from_id).await {
-                        let _ = store.record_derived_from(&canonical, &object_id).await;
+                        if let Err(e) = store.record_derived_from(&canonical, &object_id).await {
+                            tracing::warn!(error = %e, "provenance record_derived_from failed");
+                        }
                     }
                 }
             }
@@ -771,7 +773,10 @@ pub async fn ingest_batch(
                                 if let Ok(Some(canonical)) =
                                     state.repo.resolve_id_or_uri(&from_id).await
                                 {
-                                    let _ = store.record_derived_from(&canonical, &id).await;
+                                    if let Err(e) = store.record_derived_from(&canonical, &id).await
+                                    {
+                                        tracing::warn!(error = %e, "provenance record_derived_from failed");
+                                    }
                                 }
                             }
                         }
@@ -904,7 +909,10 @@ pub async fn ingest_batch(
                                 if let Ok(Some(canonical)) =
                                     state.repo.resolve_id_or_uri(&from_id).await
                                 {
-                                    let _ = store.record_derived_from(&canonical, &id).await;
+                                    if let Err(e) = store.record_derived_from(&canonical, &id).await
+                                    {
+                                        tracing::warn!(error = %e, "provenance record_derived_from failed");
+                                    }
                                 }
                             }
                         }

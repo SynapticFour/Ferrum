@@ -10,6 +10,7 @@ sqlite_path = "ferrum.db"
 [auth]
 # jwt_issuer = "https://local.example.com"
 # jwt_jwks_url = "https://local.example.com/.well-known/jwks.json"
+# NON-PILOT: explicit demo. Production/pilot configs set require_auth = true.
 require_auth = false
 
 [services]

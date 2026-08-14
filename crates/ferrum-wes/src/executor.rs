@@ -25,23 +25,25 @@ pub struct WesRun {
     pub work_dir: Option<std::path::PathBuf>,
 }
 
-/// Backend for execution: local subprocess, slurm, or lsf.
+/// Backend for execution: local subprocess or Slurm. LSF is not implemented.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExecutorBackend {
     #[default]
     Local,
     Slurm,
-    Lsf,
 }
 
 impl std::str::FromStr for ExecutorBackend {
-    type Err = std::convert::Infallible;
+    type Err = String;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Ok(match s.to_lowercase().as_str() {
-            "slurm" => ExecutorBackend::Slurm,
-            "lsf" => ExecutorBackend::Lsf,
-            _ => ExecutorBackend::Local,
-        })
+        match s.to_lowercase().as_str() {
+            "slurm" => Ok(ExecutorBackend::Slurm),
+            "lsf" => Err("LSF is not implemented; use backend \"local\" or \"slurm\"".into()),
+            "local" | "" => Ok(ExecutorBackend::Local),
+            other => Err(format!(
+                "unknown WES executor backend {other:?}; expected \"local\" or \"slurm\""
+            )),
+        }
     }
 }
 
@@ -68,5 +70,26 @@ pub trait WorkflowExecutor: Send + Sync {
     /// Optional: PID of the main process for this run (for metrics sampling). Default None.
     fn process_id_for_metrics(&self, _run_id: &str) -> Option<u32> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ExecutorBackend;
+    use std::str::FromStr;
+
+    #[test]
+    fn lsf_is_not_silently_mapped_to_local() {
+        let err = ExecutorBackend::from_str("lsf").unwrap_err();
+        assert!(err.contains("not implemented"));
+        assert_eq!(
+            ExecutorBackend::from_str("slurm").unwrap(),
+            ExecutorBackend::Slurm
+        );
+        assert_eq!(
+            ExecutorBackend::from_str("local").unwrap(),
+            ExecutorBackend::Local
+        );
+        assert!(ExecutorBackend::from_str("kubernetes").is_err());
     }
 }

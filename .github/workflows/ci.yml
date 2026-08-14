@@ -219,8 +219,7 @@ jobs:
           bash deploy/scripts/ci-tes-pilot-e2e.sh
 
   # Supply-chain gate (org level-up C1–C2): licenses, sources, bans, advisories via deny.toml.
-  # Native cargo-deny (not the Docker action): path deps live at ../ga4gh-infra, which is
-  # outside the action's /github/workspace mount.
+  # Native cargo-deny: optional git dep ga4gh-clearinghouse is allow-listed in deny.toml.
   supply-chain:
     if: github.actor != 'dependabot[bot]'
     name: cargo-deny

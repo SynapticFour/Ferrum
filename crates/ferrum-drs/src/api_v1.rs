@@ -376,7 +376,11 @@ async fn process_register_items(
                                 if let Ok(Some(canonical)) =
                                     state.repo.resolve_id_or_uri(&from_id).await
                                 {
-                                    let _ = store.record_derived_from(&canonical, &object_id).await;
+                                    if let Err(e) =
+                                        store.record_derived_from(&canonical, &object_id).await
+                                    {
+                                        tracing::warn!(error = %e, "provenance record_derived_from failed");
+                                    }
                                 }
                             }
                         }
@@ -507,8 +511,8 @@ async fn append_ont_residency_audit(
 ) {
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.and_then(|c| c.sub()).or(ont_req.collector.as_deref());
-        let _ = audit
-            .append(
+        audit
+            .append_warn(
                 "data_uploaded",
                 Some(object_id),
                 requester,
@@ -531,8 +535,8 @@ async fn append_ont_residency_audit(
                 ont_req.latitude,
                 ont_req.longitude,
             );
-            let _ = audit
-                .append(
+            audit
+                .append_warn(
                     "collection_recorded",
                     Some(object_id),
                     requester,

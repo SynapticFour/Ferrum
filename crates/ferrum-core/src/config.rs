@@ -23,7 +23,7 @@ pub struct FerrumConfig {
     pub encryption: EncryptionConfig,
     #[serde(default)]
     pub pricing: PricingConfig,
-    /// A05: CORS and security options. If absent, CORS is permissive.
+    /// A05: CORS. If absent or empty, no wildcard — demo allows localhost UI only when auth is off.
     #[serde(default)]
     pub security: Option<SecurityConfig>,
     /// Workspace invite emails (SMTP). If absent, invites are stored but not emailed.
@@ -316,10 +316,10 @@ fn default_smtp_port() -> u16 {
     587
 }
 
-/// A05: Security / CORS configuration. Never use wildcard (*) in production.
+/// A05: Security / CORS configuration. Never use wildcard (*) — it is refused.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct SecurityConfig {
-    /// Allowed origins (e.g. ["https://ferrum.institution.edu"]). Empty = permissive.
+    /// Allowed origins (e.g. ["https://ferrum.institution.edu"]). Empty = same-origin only (no permissive CORS).
     #[serde(default)]
     pub allowed_origins: Option<Vec<String>>,
     #[serde(default)]
@@ -676,7 +676,10 @@ pub struct AuthConfig {
     /// GA4GH Passport / token endpoints to trust. Env: FERRUM_AUTH__PASSPORT_ENDPOINTS
     #[serde(default)]
     pub passport_endpoints: Vec<String>,
+    /// Expected JWT audience. Env: FERRUM_AUTH__AUDIENCE
     #[serde(default)]
+    pub audience: Option<String>,
+    #[serde(default = "default_require_auth")]
     pub require_auth: bool,
     /// When true and `mode = external`, validate Passports via ga4gh-clearinghouse (visa signature verification).
     #[serde(default)]
@@ -704,7 +707,11 @@ pub enum AuthMode {
 }
 
 fn default_jwks_cache_ttl_secs() -> u64 {
-    604_800 // 7 days
+    3_600 // 1 hour hub default; field nodes override (see FIELD-AUTH-OFFLINE.md)
+}
+
+fn default_require_auth() -> bool {
+    true
 }
 
 fn default_ads_api_key_env() -> String {
@@ -949,7 +956,7 @@ impl FerrumConfig {
 
         let mut builder = config::Config::builder()
             .set_default("bind", "0.0.0.0:8080")?
-            .set_default("auth.require_auth", false)?
+            .set_default("auth.require_auth", true)?
             .set_default("database.max_connections", default_max_connections() as i64)?
             .set_default("database.min_connections", default_min_connections() as i64)?
             .set_default(

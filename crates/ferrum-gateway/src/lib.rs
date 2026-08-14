@@ -80,6 +80,38 @@ pub type WorkspacesRouterParams = Option<sqlx::PgPool>;
 #[cfg(not(feature = "full"))]
 pub type WorkspacesRouterParams = Option<()>;
 
+fn cors_layer(cfg: Option<&FerrumConfig>, require_auth: bool) -> CorsLayer {
+    let listed = cfg
+        .and_then(|c| c.security.as_ref())
+        .and_then(|s| s.allowed_origins.clone())
+        .unwrap_or_default();
+    if listed.iter().any(|o| o.trim() == "*") {
+        tracing::error!("refusing wildcard CORS origin '*'; set explicit allowed_origins");
+        return CorsLayer::new();
+    }
+    let origins: Vec<axum::http::HeaderValue> = listed
+        .iter()
+        .filter_map(|o| axum::http::HeaderValue::try_from(o.as_str()).ok())
+        .collect();
+    if origins.is_empty() {
+        if require_auth {
+            return CorsLayer::new();
+        }
+        return CorsLayer::new().allow_origin([
+            axum::http::HeaderValue::from_static("http://localhost:8082"),
+            axum::http::HeaderValue::from_static("http://127.0.0.1:8082"),
+            axum::http::HeaderValue::from_static("http://localhost:8080"),
+        ]);
+    }
+    let allow_creds = cfg
+        .and_then(|c| c.security.as_ref())
+        .and_then(|s| s.allow_credentials)
+        .unwrap_or(false);
+    CorsLayer::new()
+        .allow_origin(origins)
+        .allow_credentials(allow_creds)
+}
+
 /// Build the unified gateway app with all GA4GH routes.
 /// Config can be used to enable/disable services via `config.services`.
 /// When DRS is enabled, pass Some(drs_state) with DB/storage; None returns 503 for DRS routes.
@@ -106,15 +138,26 @@ pub fn app(
     let cfg = config;
     let hot_reload = config_watch_rx.is_some();
 
-    // Resolve auth config deterministically:
-    // 1) config file values when present
-    // 2) strict env config when available
-    // 3) demo fallback
-    // Optional env override: FERRUM_AUTH__REQUIRE_AUTH=true|false (explicit only).
+    // Resolve auth: config → strict env → fail-closed (demo only if FERRUM_DEMO=1).
     let mut resolved_auth = cfg
         .map(|c| ferrum_core::AuthMiddlewareConfig::from_crate_config(&c.auth))
         .or_else(ferrum_core::AuthMiddlewareConfig::from_env_strict)
-        .unwrap_or_else(ferrum_core::AuthMiddlewareConfig::demo);
+        .unwrap_or_else(|| {
+            let demo = std::env::var("FERRUM_DEMO")
+                .ok()
+                .map(|v| {
+                    matches!(
+                        v.trim().to_ascii_lowercase().as_str(),
+                        "1" | "true" | "yes" | "on"
+                    )
+                })
+                .unwrap_or(false);
+            if demo {
+                ferrum_core::AuthMiddlewareConfig::demo()
+            } else {
+                ferrum_core::AuthMiddlewareConfig::fail_closed()
+            }
+        });
 
     if let Ok(override_value) = std::env::var("FERRUM_AUTH__REQUIRE_AUTH") {
         let parsed = override_value.trim().to_ascii_lowercase();
@@ -128,31 +171,16 @@ pub fn app(
         }
     }
 
+    ferrum_core::set_require_auth_runtime(resolved_auth.require_auth);
+
     if !resolved_auth.require_auth {
         tracing::warn!(
             "authentication is running in demo mode (require_auth=false); this is intended for local/demo deployments only"
         );
     }
+    let require_auth = resolved_auth.require_auth;
     let auth_config = Arc::new(resolved_auth);
-    let cors = cfg
-        .and_then(|c| c.security.as_ref())
-        .and_then(|s| {
-            let origins: Vec<axum::http::HeaderValue> = s
-                .allowed_origins
-                .as_ref()?
-                .iter()
-                .filter_map(|o| axum::http::HeaderValue::try_from(o.as_str()).ok())
-                .collect();
-            if origins.is_empty() {
-                return Some(CorsLayer::permissive());
-            }
-            Some(
-                CorsLayer::new()
-                    .allow_origin(origins)
-                    .allow_credentials(s.allow_credentials.unwrap_or(false)),
-            )
-        })
-        .unwrap_or_else(CorsLayer::permissive);
+    let cors = cors_layer(cfg, require_auth);
 
     let mut app = Router::new()
         .merge(health_router())

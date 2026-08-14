@@ -34,7 +34,7 @@ impl Default for SsrfPolicy {
     }
 }
 
-/// Returns true if the IP is private/loopback/link-local.
+/// Returns true if the IP is private/loopback/link-local/ULA/mapped-private.
 pub fn is_private_ip(ip: &IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {
@@ -44,7 +44,20 @@ pub fn is_private_ip(ip: &IpAddr) -> bool {
                 || v4.is_broadcast()
                 || v4.is_unspecified()
         }
-        IpAddr::V6(v6) => v6.is_loopback() || v6.is_unspecified(),
+        IpAddr::V6(v6) => {
+            let segs = v6.segments();
+            let unique_local = (segs[0] & 0xfe00) == 0xfc00;
+            let link_local = (segs[0] & 0xffc0) == 0xfe80;
+            let multicast = (segs[0] & 0xff00) == 0xff00;
+            v6.is_loopback()
+                || v6.is_unspecified()
+                || unique_local
+                || link_local
+                || multicast
+                || v6.to_ipv4_mapped().is_some_and(|v4| {
+                    v4.is_loopback() || v4.is_private() || v4.is_link_local() || v4.is_unspecified()
+                })
+        }
     }
 }
 
@@ -79,6 +92,31 @@ pub fn validate_url_ssrf(url: &str, policy: &SsrfPolicy) -> Result<()> {
     Ok(())
 }
 
+/// SSRF check plus DNS resolution so names that map to private IPs are blocked.
+pub async fn validate_url_ssrf_resolved(url: &str, policy: &SsrfPolicy) -> Result<()> {
+    validate_url_ssrf(url, policy)?;
+    let parsed =
+        Url::parse(url).map_err(|_| FerrumError::ValidationError("invalid URL".to_string()))?;
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| FerrumError::ValidationError("URL has no host".to_string()))?;
+    if host.parse::<IpAddr>().is_ok() {
+        return Ok(());
+    }
+    let port = parsed.port_or_known_default().unwrap_or(443);
+    let addrs = tokio::net::lookup_host((host, port))
+        .await
+        .map_err(|_| FerrumError::SsrfBlocked("DNS resolution failed".to_string()))?;
+    for addr in addrs {
+        if !policy.allow_private_networks && is_private_ip(&addr.ip()) {
+            return Err(FerrumError::SsrfBlocked(
+                "hostname resolved to a private network".to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// HTTP client that validates URLs against SSRF policy before requests.
 pub struct SafeHttpClient {
     inner: Client,
@@ -94,17 +132,7 @@ impl SafeHttpClient {
     }
 
     pub async fn get(&self, url: &str) -> Result<reqwest::Response> {
-        validate_url_ssrf(url, &self.policy)?;
-        if let Some(host) = Url::parse(url)
-            .ok()
-            .and_then(|u| u.host_str().map(str::to_string))
-        {
-            for blocked in &self.policy.blocked_hosts {
-                if host.eq_ignore_ascii_case(blocked) {
-                    return Err(FerrumError::SsrfBlocked("blocked host".to_string()));
-                }
-            }
-        }
+        validate_url_ssrf_resolved(url, &self.policy).await?;
         self.inner
             .get(url)
             .send()
@@ -123,12 +151,39 @@ impl SafeHttpClient {
         url: &str,
         body: &T,
     ) -> Result<reqwest::Response> {
-        validate_url_ssrf(url, &self.policy)?;
+        validate_url_ssrf_resolved(url, &self.policy).await?;
         self.inner
             .post(url)
             .json(body)
             .send()
             .await
             .map_err(|e| FerrumError::Internal(e.into()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::IpAddr;
+
+    #[test]
+    fn ipv6_ula_and_link_local_are_private() {
+        assert!(is_private_ip(&"fc00::1".parse::<IpAddr>().unwrap()));
+        assert!(is_private_ip(
+            &"fd12:3456:789a::1".parse::<IpAddr>().unwrap()
+        ));
+        assert!(is_private_ip(&"fe80::1".parse::<IpAddr>().unwrap()));
+        assert!(is_private_ip(&"ff02::1".parse::<IpAddr>().unwrap()));
+        assert!(!is_private_ip(
+            &"2001:4860:4860::8888".parse::<IpAddr>().unwrap()
+        ));
+    }
+
+    #[test]
+    fn ipv4_mapped_loopback_is_private() {
+        assert!(is_private_ip(
+            &"::ffff:127.0.0.1".parse::<IpAddr>().unwrap()
+        ));
+        assert!(is_private_ip(&"::ffff:10.0.0.1".parse::<IpAddr>().unwrap()));
     }
 }

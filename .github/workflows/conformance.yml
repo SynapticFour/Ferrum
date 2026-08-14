@@ -1,10 +1,13 @@
-# Run HelixTest GA4GH conformance suite against the Ferrum demo stack.
-# - helixtest-full: one full run (--all --fail-level 1); report uploaded as artifact.
-# - helixtest-services: per-service steps (WES, TES, DRS, TRS, Beacon) for clear pass/fail in the Actions UI.
+# Demo-stack lifecycle against HelixTest (NON-PILOT).
+# This job is NOT institute or certification evidence:
+# - demo compose defaults require_auth=false
+# - TES is noop; HelixTest stubs are on (FERRUM_TES_HELIXTEST_STUB / FERRUM_WES_HELIXTEST_STUBS)
+# - HELIXTEST_SKIP_AUTH skips Auth Level 4
+# For real compute: make up-tes / ci-tes-pilot-e2e.sh (Docker TES, stubs off).
 # Pin HelixTest / ga4gh-infra via VERSIONS.lock (see load-versions action).
-# See docs/HELIXTEST-INTEGRATION.md ("What is tested in Ferrum CI") for coverage matrix and URL mapping.
+# See docs/HELIXTEST-INTEGRATION.md.
 
-name: Conformance (HelixTest)
+name: Demo lifecycle (HelixTest)
 
 on:
   push:
@@ -46,15 +49,6 @@ jobs:
       - uses: ./.github/actions/clone-helixtest
         with:
           ref: ${{ env.HELIXTEST_REF }}
-
-      - name: Align HelixTest TES checksum with committed tes_echo_out.txt (noop backend)
-        run: |
-          SHA=$(sha256sum helixtest-repo/helixtest/test-data/workflows/outputs/tes_echo_out.txt | awk '{print $1}')
-          printf '%s' "$SHA" > helixtest-repo/helixtest/test-data/expected/workflows/tes_echo_out.txt.sha256
-          echo "TES expected SHA256 -> $SHA"
-
-      - name: Align HelixTest E2E DRS output checksum (demo-sample-vcf seed URL)
-        run: sh deploy/scripts/align-helixtest-e2e-checksum.sh
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -191,15 +185,6 @@ jobs:
       - uses: ./.github/actions/clone-helixtest
         with:
           ref: ${{ env.HELIXTEST_REF }}
-
-      - name: Align HelixTest TES checksum with committed tes_echo_out.txt (noop backend)
-        run: |
-          SHA=$(sha256sum helixtest-repo/helixtest/test-data/workflows/outputs/tes_echo_out.txt | awk '{print $1}')
-          printf '%s' "$SHA" > helixtest-repo/helixtest/test-data/expected/workflows/tes_echo_out.txt.sha256
-          echo "TES expected SHA256 -> $SHA"
-
-      - name: Align HelixTest E2E DRS output checksum (demo-sample-vcf seed URL)
-        run: sh deploy/scripts/align-helixtest-e2e-checksum.sh
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub struct WesConfig {
     /// Work directory base for run work dirs (e.g. /tmp/wes-runs).
     pub work_dir_base: Option<PathBuf>,
-    /// Executor backend: "local" | "slurm" | "lsf".
+    /// Executor backend: "local" | "slurm". LSF is not implemented.
     #[serde(default)]
     pub executor: ExecutorBackendConfig,
 }
@@ -27,12 +27,7 @@ impl Default for ExecutorBackendConfig {
 }
 
 impl WesConfig {
-    pub fn executor_backend(&self) -> ExecutorBackend {
-        self.executor
-            .backend
-            .as_deref()
-            .unwrap_or("local")
-            .parse()
-            .unwrap_or_default()
+    pub fn executor_backend(&self) -> std::result::Result<ExecutorBackend, String> {
+        self.executor.backend.as_deref().unwrap_or("local").parse()
     }
 }

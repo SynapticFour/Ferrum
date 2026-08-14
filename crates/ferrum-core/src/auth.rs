@@ -12,6 +12,7 @@ use base64::Engine;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
@@ -21,7 +22,11 @@ pub const VISA_COLLECTOR: &str = "ferrum:collector";
 pub const VISA_ANALYST: &str = "ferrum:analyst";
 pub const VISA_SYNC_OPERATOR: &str = "ferrum:sync_operator";
 
-const DEFAULT_JWKS_CACHE_TTL: Duration = Duration::from_secs(604_800);
+/// Hub default: 1 hour. Field/offline nodes should set `jwks_cache_ttl_secs` (e.g. 7 days).
+const DEFAULT_JWKS_CACHE_TTL: Duration = Duration::from_secs(3600);
+
+/// Fail-closed unless config/env explicitly disables auth. Set at gateway startup.
+static REQUIRE_AUTH_RUNTIME: AtomicBool = AtomicBool::new(true);
 
 /// GA4GH Visa object (ga4gh_visa_v1 claim value).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,9 +102,7 @@ impl AuthClaims {
     pub fn is_admin(&self) -> bool {
         match self {
             AuthClaims::Jwt { .. } => false,
-            AuthClaims::Passport { visas, .. } => visas
-                .iter()
-                .any(|v| v.value == VISA_ADMIN || v.value.contains("ferrum:admin")),
+            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| v.value == VISA_ADMIN),
         }
     }
 
@@ -107,9 +110,7 @@ impl AuthClaims {
     pub fn is_outbreak_activator(&self) -> bool {
         match self {
             AuthClaims::Jwt { .. } => false,
-            AuthClaims::Passport { visas, .. } => visas
-                .iter()
-                .any(|v| v.value == VISA_OUTBREAK || v.value.contains("outbreak_activator")),
+            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| v.value == VISA_OUTBREAK),
         }
     }
 
@@ -137,9 +138,7 @@ impl AuthClaims {
     fn has_field_visa(&self, visa_value: &str) -> bool {
         match self {
             AuthClaims::Jwt { .. } => false,
-            AuthClaims::Passport { visas, .. } => visas
-                .iter()
-                .any(|v| v.value == visa_value || v.value.contains(visa_value)),
+            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| v.value == visa_value),
         }
     }
 
@@ -160,11 +159,9 @@ impl AuthClaims {
     pub fn has_dataset_grant(&self, dataset_id: &str) -> bool {
         match self {
             AuthClaims::Jwt { .. } => false,
-            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| {
-                (v.r#type == "ControlledAccessGrants"
-                    || v.r#type.contains("ControlledAccessGrants"))
-                    && v.value == dataset_id
-            }),
+            AuthClaims::Passport { visas, .. } => visas
+                .iter()
+                .any(|v| v.r#type == "ControlledAccessGrants" && v.value == dataset_id),
         }
     }
 
@@ -248,20 +245,31 @@ impl RevocationCheck for RevokedTokensChecker {
     }
 }
 
-/// True when `FERRUM_AUTH__REQUIRE_AUTH` is set to an enabling value (`true`/`1`/`yes`/`on`).
+/// Record the resolved `require_auth` flag from config (gateway startup).
+pub fn set_require_auth_runtime(enabled: bool) {
+    REQUIRE_AUTH_RUNTIME.store(enabled, Ordering::Relaxed);
+}
+
+fn env_require_auth() -> Option<bool> {
+    let v = std::env::var("FERRUM_AUTH__REQUIRE_AUTH").ok()?;
+    let v = v.trim();
+    if v.is_empty() {
+        return None;
+    }
+    Some(
+        v.eq_ignore_ascii_case("true")
+            || v == "1"
+            || v.eq_ignore_ascii_case("yes")
+            || v.eq_ignore_ascii_case("on"),
+    )
+}
+
+/// True when auth is required. Env `FERRUM_AUTH__REQUIRE_AUTH` wins when set;
+/// otherwise the runtime flag (default **true** / fail-closed).
 ///
-/// Used by WES/DRS handlers to fail closed when Bearer claims are absent.
-/// Matches pilot/production compose overlays (`FERRUM_AUTH__REQUIRE_AUTH=true`).
+/// Used by WES/DRS/TES handlers to reject anonymous callers.
 pub fn require_auth_enabled() -> bool {
-    std::env::var("FERRUM_AUTH__REQUIRE_AUTH")
-        .ok()
-        .map(|v| {
-            v.eq_ignore_ascii_case("true")
-                || v == "1"
-                || v.eq_ignore_ascii_case("yes")
-                || v.eq_ignore_ascii_case("on")
-        })
-        .unwrap_or(false)
+    env_require_auth().unwrap_or_else(|| REQUIRE_AUTH_RUNTIME.load(Ordering::Relaxed))
 }
 
 /// Auth config used by the middleware (from FerrumConfig).
@@ -282,6 +290,8 @@ pub struct AuthMiddlewareConfig {
     pub revocation_check: Option<Arc<dyn RevocationCheck + Send + Sync>>,
     /// When true, Passport visas are verified via ga4gh-clearinghouse (requires `clearinghouse` feature).
     pub use_clearinghouse: bool,
+    /// Expected JWT `aud` (optional). When set, HS256 and Passport JWTs must match.
+    pub audience: Option<String>,
 }
 
 impl AuthMiddlewareConfig {
@@ -316,6 +326,11 @@ impl AuthMiddlewareConfig {
             max_token_age_hours: cfg.max_token_age_hours,
             revocation_check: None,
             use_clearinghouse: cfg.clearinghouse || cfg.is_external(),
+            audience: cfg
+                .audience
+                .clone()
+                .or_else(|| std::env::var("FERRUM_AUTH__AUDIENCE").ok())
+                .filter(|s| !s.is_empty()),
         }
     }
 
@@ -332,6 +347,24 @@ impl AuthMiddlewareConfig {
             max_token_age_hours: 24,
             revocation_check: None,
             use_clearinghouse: false,
+            audience: None,
+        }
+    }
+
+    /// Fail-closed: require a valid token; no demo-user injection.
+    pub fn fail_closed() -> Self {
+        Self {
+            jwt_secret: None,
+            issuer: None,
+            jwks_url: None,
+            jwks_file: None,
+            jwks_cache_ttl: DEFAULT_JWKS_CACHE_TTL,
+            passport_endpoints: Vec::new(),
+            require_auth: true,
+            max_token_age_hours: 24,
+            revocation_check: None,
+            use_clearinghouse: false,
+            audience: None,
         }
     }
 
@@ -352,6 +385,9 @@ impl AuthMiddlewareConfig {
             max_token_age_hours: 0,
             revocation_check: None,
             use_clearinghouse: false,
+            audience: std::env::var("FERRUM_AUTH__AUDIENCE")
+                .ok()
+                .filter(|s| !s.is_empty()),
         })
     }
 }
@@ -372,9 +408,9 @@ fn extract_token_from_cookie(request: &Request, cookie_name: &str) -> Option<Str
     let s = cookie_header.to_str().ok()?;
     for part in s.split(';') {
         let part = part.trim();
-        if part.starts_with(cookie_name) {
-            let rest = part.strip_prefix(cookie_name)?.trim_start_matches('=');
-            return Some(rest.to_string());
+        let (name, value) = part.split_once('=')?;
+        if name == cookie_name {
+            return Some(value.to_string());
         }
     }
     None
@@ -521,6 +557,7 @@ async fn decode_jwt_or_passport(
         if let Some(ref iss) = cfg.issuer {
             validation.iss = Some(HashSet::from([iss.clone()]));
         }
+        apply_audience(&mut validation, cfg);
         let data = decode::<PassportClaims>(token, &key, &validation)?;
         reject_token_if_too_old(data.claims.iat, cfg.max_token_age_hours)?;
         if let Some(ref scope) = data.claims.scope {
@@ -684,14 +721,23 @@ fn peek_jwt_claim_string(token: &str, claim: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-fn passport_decode_validation(alg: Algorithm, issuer: Option<&str>) -> Validation {
+fn apply_audience(validation: &mut Validation, cfg: &AuthMiddlewareConfig) {
+    if let Some(ref aud) = cfg.audience {
+        validation.set_audience(&[aud.as_str()]);
+        validation.validate_aud = true;
+    } else {
+        validation.validate_aud = false;
+    }
+}
+
+fn passport_decode_validation(alg: Algorithm, cfg: &AuthMiddlewareConfig) -> Validation {
     let mut validation = Validation::new(alg);
     validation.validate_exp = true;
-    validation.validate_aud = false;
     validation.algorithms = vec![Algorithm::RS256, Algorithm::ES256];
-    if let Some(iss) = issuer {
+    if let Some(iss) = cfg.issuer.as_deref() {
         validation.set_issuer(&[iss.trim_end_matches('/')]);
     }
+    apply_audience(&mut validation, cfg);
     validation
 }
 
@@ -879,7 +925,7 @@ async fn decode_passport_jwt(
         .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
 
     let kid = decoded_header.kid.unwrap_or_default();
-    let validation = passport_decode_validation(alg, cfg.issuer.as_deref());
+    let validation = passport_decode_validation(alg, cfg);
 
     for attempt in 0..2 {
         let force_refresh = attempt > 0;
@@ -948,6 +994,7 @@ async fn decode_passport_visas_clearinghouse(
 ) -> Vec<VisaObject> {
     #[cfg(feature = "clearinghouse")]
     {
+        let _ = visa_jwts;
         use std::time::Duration;
 
         use ga4gh_clearinghouse::{Clearinghouse, ClearinghouseConfig, TrustedBroker};
@@ -1172,18 +1219,70 @@ mod published_access_tests {
     #[test]
     fn require_auth_enabled_reads_env() {
         let prev = std::env::var("FERRUM_AUTH__REQUIRE_AUTH").ok();
+        let prev_runtime = super::REQUIRE_AUTH_RUNTIME.load(std::sync::atomic::Ordering::Relaxed);
         std::env::remove_var("FERRUM_AUTH__REQUIRE_AUTH");
-        assert!(!super::require_auth_enabled());
+        super::set_require_auth_runtime(true);
+        assert!(super::require_auth_enabled());
         std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "true");
         assert!(super::require_auth_enabled());
         std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "1");
         assert!(super::require_auth_enabled());
         std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
         assert!(!super::require_auth_enabled());
+        super::set_require_auth_runtime(prev_runtime);
         match prev {
             Some(v) => std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", v),
             None => std::env::remove_var("FERRUM_AUTH__REQUIRE_AUTH"),
         }
+    }
+
+    #[test]
+    fn admin_visa_is_exact_match_not_substring() {
+        let claims = passport_with_grant("prefix-ferrum:admin-suffix");
+        assert!(!claims.is_admin());
+        let admin = AuthClaims::Passport {
+            claims: PassportClaims {
+                sub: Some("admin@example.org".to_string()),
+                iss: None,
+                exp: None,
+                iat: None,
+                jti: None,
+                ga4gh_passport_v1: None,
+                scope: None,
+                aud: None,
+            },
+            visas: vec![VisaObject {
+                r#type: "AffiliationAndRole".to_string(),
+                asserted: 0,
+                value: super::VISA_ADMIN.to_string(),
+                source: "test".to_string(),
+                conditions: None,
+                by: None,
+            }],
+            raw_token: None,
+        };
+        assert!(admin.is_admin());
+    }
+
+    #[test]
+    fn cookie_name_is_exact_not_prefix() {
+        use axum::http::Request;
+        let req = Request::builder()
+            .header("Cookie", "ferrum_token_evil=bad; ferrum_token=good")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::extract_token_from_cookie(&req, "ferrum_token").as_deref(),
+            Some("good")
+        );
+        let prefix_only = Request::builder()
+            .header("Cookie", "ferrum_token_evil=bad")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        assert_eq!(
+            super::extract_token_from_cookie(&prefix_only, "ferrum_token"),
+            None
+        );
     }
 
     #[test]

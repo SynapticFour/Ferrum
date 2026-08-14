@@ -7,9 +7,11 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use ferrum_core::{AuthConfig, DiscoveryConfig, FerrumConfig};
-use ga4gh_types::{ServiceInfo, ServiceOrganization, ServiceType};
+
+mod service_info;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use service_info::{ServiceInfo, ServiceOrganization, ServiceType};
 use thiserror::Error;
 use tokio::sync::RwLock;
 

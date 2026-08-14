@@ -64,7 +64,7 @@ impl DockerExecutor {
         Ok(())
     }
 
-    fn collect_binds(request: &CreateTaskRequest) -> Vec<String> {
+    fn collect_binds(request: &CreateTaskRequest) -> Result<Vec<String>> {
         let mut binds = Vec::new();
         if std::env::var("FERRUM_TES_DOCKER_MOUNT_SOCKET")
             .map(|s| {
@@ -96,20 +96,12 @@ impl DockerExecutor {
             }
         }
         if let Some(vols) = &request.volumes {
-            for v in vols {
-                if let Some(s) = v.as_str() {
-                    binds.push(s.to_string());
-                    continue;
-                }
-                if let (Some(h), Some(c)) = (
-                    v.get("hostPath").and_then(|x| x.as_str()),
-                    v.get("containerPath").and_then(|x| x.as_str()),
-                ) {
-                    binds.push(format!("{}:{}", h, c));
-                }
-            }
+            binds.extend(crate::bind_policy::request_volume_binds(
+                vols,
+                &crate::bind_policy::allowed_bind_prefixes(),
+            )?);
         }
-        binds
+        Ok(binds)
     }
 
     /// Prefer explicit TES executor entrypoint/cmd (WES bash/file modes). Fall back to the
@@ -181,7 +173,7 @@ impl TaskExecutor for DockerExecutor {
         let exec = &request.executors[0];
         self.ensure_image(&exec.image).await?;
         let name = format!("tes-{}", task_id);
-        let binds = Self::collect_binds(request);
+        let binds = Self::collect_binds(request)?;
         let (entrypoint, cmd) = Self::entrypoint_and_cmd(exec);
         let network_mode = std::env::var("FERRUM_TES_DOCKER_NETWORK_MODE")
             .or_else(|_| std::env::var("FERRUM_TES_DOCKER_NETWORK"))

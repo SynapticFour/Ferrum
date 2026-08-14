@@ -21,6 +21,8 @@ services:
       FERRUM_AUTH__CLEARINGHOUSE: "true"
       FERRUM_AUTH__ISSUER: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
       FERRUM_AUTH__JWKS_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}/jwks.json
+      FERRUM_TES_HELIXTEST_STUB: "false"
+      FERRUM_WES_HELIXTEST_STUBS: "false"
       FERRUM_PUBLIC_BROKER_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
       FERRUM_BROKER_LOGIN_IDP: keycloak
       FERRUM_SERVICES__ENABLE_PASSPORTS: "false"

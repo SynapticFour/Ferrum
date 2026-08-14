@@ -181,6 +181,8 @@ fn validate_get_params(
         validate_class_header(&p)?;
     }
 
+    reject_unsupported_slice(&p, false)?;
+
     Ok(p)
 }
 
@@ -243,7 +245,23 @@ fn validate_post_params(
         ));
     }
 
+    reject_unsupported_slice(&p, body.regions.is_some())?;
+
     Ok(p)
+}
+
+/// Region slicing is not implemented: accepting the params and returning the whole DRS object
+/// would silently over-disclose. Reject so clients cannot mistake this for htsget 1.3 slicing.
+#[allow(clippy::result_large_err)]
+fn reject_unsupported_slice(p: &NormalizedParams, post_regions: bool) -> Result<(), Response> {
+    if post_regions || p.reference_name.is_some() || p.start.is_some() || p.end.is_some() {
+        return Err(htsget_error_response(
+            StatusCode::BAD_REQUEST,
+            "InvalidInput",
+            "genomic region slicing is not supported; omit referenceName, start, end, and POST regions (whole-object tickets only)",
+        ));
+    }
+    Ok(())
 }
 
 async fn ticket_for_object(
@@ -387,7 +405,7 @@ pub async fn reads_service_info() -> impl IntoResponse {
             "artifact": "htsget",
             "version": "1.3.0"
         },
-        "description": "htsget tickets for alignment data; data blocks are served via DRS stream",
+        "description": "Whole-object DRS stream tickets for alignment data. Genomic region slicing (referenceName, start, end, POST regions) and class=header are not implemented and return HTTP 400.",
         "organization": { "name": "Ferrum", "url": null },
         "htsget": {
             "datatype": "reads",
@@ -409,7 +427,7 @@ pub async fn variants_service_info() -> impl IntoResponse {
             "artifact": "htsget",
             "version": "1.3.0"
         },
-        "description": "htsget tickets for variant data; data blocks are served via DRS stream",
+        "description": "Whole-object DRS stream tickets for variant data. Genomic region slicing (referenceName, start, end, POST regions) and class=header are not implemented and return HTTP 400.",
         "organization": { "name": "Ferrum", "url": null },
         "htsget": {
             "datatype": "variants",
@@ -515,4 +533,58 @@ pub async fn post_variants_ticket(
     let (body, auth) = parse_post_ticket_body(req).await?;
     let params = validate_post_params(EndpointKind::Variants, body)?;
     ticket_for_object(&state, EndpointKind::Variants, &id, params, auth.as_ref()).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_region_query_is_rejected() {
+        let q = HtsgetGetQuery {
+            format: None,
+            class: None,
+            reference_name: Some("chr1".into()),
+            start: Some(0),
+            end: Some(100),
+            fields: None,
+            tags: None,
+            notags: None,
+        };
+        let err = validate_get_params(EndpointKind::Reads, &q).unwrap_err();
+        assert_eq!(err.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn post_regions_are_rejected() {
+        let body = PostTicketBody {
+            format: None,
+            class: None,
+            fields: None,
+            tags: None,
+            notags: None,
+            regions: Some(vec![PostRegion {
+                reference_name: "chr1".into(),
+                start: Some(0),
+                end: Some(10),
+            }]),
+        };
+        let err = validate_post_params(EndpointKind::Variants, body).unwrap_err();
+        assert_eq!(err.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn whole_object_get_is_ok() {
+        let q = HtsgetGetQuery {
+            format: Some("BAM".into()),
+            class: None,
+            reference_name: None,
+            start: None,
+            end: None,
+            fields: None,
+            tags: None,
+            notags: None,
+        };
+        assert!(validate_get_params(EndpointKind::Reads, &q).is_ok());
+    }
 }

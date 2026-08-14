@@ -6,7 +6,7 @@
 
 ## Why integrate HelixTest?
 
-- **API contract tests** for WES, TES, DRS, TRS, Beacon v2, **htsget 1.3.0**
+- **API contract tests** for WES, TES, DRS, TRS, Beacon v2, **htsget tickets** (whole-object; region slice is not implemented)
 - **Workflow execution tests** (CWL, WDL, Nextflow via WES)
 - **Cross-service E2E** (TRS → DRS → WES → TES → Beacon)
 - **Auth** (GA4GH Passports / OIDC) and **Crypt4GH** tests
@@ -22,11 +22,12 @@ This section is the **single place** in the Ferrum repo that maps **GitHub Actio
 
 ### Workflow: [`.github/workflows/conformance.yml`](../.github/workflows/conformance.yml)
 
+**This workflow is a demo-stack lifecycle check, not GA4GH certification or institute evidence.** Demo compose enables HelixTest stubs, TES noop, and `HELIXTEST_SKIP_AUTH`. Real compute is `make up-tes` / CI `test-tes`.
+
 | Job | Docker stack | HelixTest command (simplified) | Purpose |
 |-----|----------------|--------------------------------|---------|
-| **HelixTest (full)** | `deploy/docker-compose.yml` (demo + init + gateway) | `ci-drs-microbench-stream.sh` then `cargo run --bin helixtest --release -- --all --mode ferrum --report json --fail-level 1` | **Microbench** first (fast DRS `/stream` regression), then one gate with **maximum** HelixTest coverage; report uploaded as workflow artifact. |
-| **HelixTest (core services)** | Same stack | Step 1: `… --only wes --only tes --only drs --only trs --only beacon --fail-level 2` | Fast feedback in the Actions UI for the “core” GA4GH APIs. |
-| | | Step 2: `… --only htsget --fail-level 2` | **htsget** isolated so ticket/stream regressions do not hide inside a large step. |
+| **HelixTest (full)** | `deploy/docker-compose.yml` (demo + init + gateway) | `ci-drs-microbench-stream.sh` then `cargo run --bin helixtest --release -- --all --mode ferrum --report json --fail-level 1` | Demo API lifecycle; report uploaded as artifact. |
+| **HelixTest (core services)** | Same stack | Per-service `--only` steps | Fast feedback in the Actions UI. |
 | **DRS /stream microbench** | Same stack | `deploy/scripts/ci-drs-microbench-stream.sh` (after gateway healthy) | **Fast path** (no HelixTest): plaintext **`microbench-plain-v1`** stream, **4096** bytes, SHA-256 check, **`X-Ferrum-DRS-Stream-Path`**. Catches DRS stream / MinIO seed regressions before heavy suites. |
 
 HelixTest is cloned from GitHub on each run; the ref is **`HELIXTEST_REF`** in the workflow (default `main`). Patch steps align expected checksums with Ferrum’s noop TES backend and seeded DRS URLs; auth-heavy Level‑4 behaviour is skipped in CI as documented below.
@@ -100,10 +101,10 @@ Not `.../descriptor/CWL` — that order is a non-standard alias Ferrum also supp
 
 ### WES / TES / E2E (HelixTest `framework` expectations)
 
-- **WES** uses synthetic `trs://test-tool/...` URLs (echo, fail, scatter-gather, cwl-echo, `trs://nonexistent/invalid/0.0`). Ferrum maps these to the expected states and TES-backed echo/E2E/`scatter_result` outputs without real workflow engines.
-- **TES checksum**: HelixTest compares output bytes (TES `outputs[].url`, else a *fresh* local `tes_echo_out.txt`) to `test-data/expected/`. Demo TES is **noop**; it completes immediately and serves those bytes at `GET /ga4gh/tes/v1/demo/echo-output`. CI still recomputes the expected hash from HelixTest’s committed `tes_echo_out.txt` so the golden matches.
-- **E2E** is DRS-first by default: HelixTest submits WES runs with `workflow_params.input_drs_uri` and prefers `drs://...` references for the input object. It expects `outputs.result_drs_id` after a `demo-bam-to-vcf` TRS run; Ferrum sets that to seeded `demo-sample-vcf`. The object’s `access_url` must be an HTTPS URL that returns 200 in CI (init seed uses a stable `raw.githubusercontent.com` file, not EBI FTP). HelixTest’s `expected/e2e/result.txt.sha256` may still contain a placeholder; **CI** runs `deploy/scripts/align-helixtest-e2e-checksum.sh` so the expected hash matches that URL (keep in sync with `init-demo.sh` for `demo-sample-vcf`).
-- **WES** negative `trs://` cases must not report a terminal state on the **first** `GET .../runs/{id}/status` poll; Ferrum defers `EXECUTOR_ERROR` to the second poll (see `RunManager::synthetic_helixtest_error_phases`).
+- **WES** uses synthetic `trs://test-tool/...` URLs only when **`FERRUM_WES_HELIXTEST_STUBS`** is set (demo compose default). Without that flag, Ferrum does not invent run states or output JSON.
+- **TES checksum stub**: `GET /ga4gh/tes/v1/demo/echo-output` (`hello-tes` + newline) and noop output URLs exist only when **`FERRUM_TES_HELIXTEST_STUB`** is set. CI **does not** rewrite HelixTest expected hashes.
+- **E2E** `result_drs_id` stubbing is likewise gated on `FERRUM_WES_HELIXTEST_STUBS`.
+- **WES** negative `trs://` first-poll non-terminal behaviour is part of the same stub flag (`RunManager::synthetic_helixtest_error_phases`).
 
 ### Auth (Level 4)
 
@@ -111,7 +112,7 @@ HelixTest’s auth tests call DRS **without** attaching the JWT to every request
 
 To keep CI stable, Ferrum’s conformance workflow sets `HELIXTEST_SKIP_AUTH=true`, which makes HelixTest skip the Auth (Level 4) suite in `--mode ferrum`. This avoids false failures while still running the other (non-auth) conformance suites.
 
-**This skip is a CI convenience only — not customer or pilot evidence.** Demo stacks with `require_auth=false` are **NON-PILOT**. For pilot auth verification, use `deploy/configs/pilot.toml` (`require_auth=true`), unset `HELIXTEST_SKIP_AUTH`, and prefer a scheduled/nightly auth-on job over enabling Auth Level 4 on every PR. See [customer-runbook.md](./customer-runbook.md).
+**This skip is a CI convenience only — not customer or pilot evidence.** Demo stacks with `require_auth=false` are **NON-PILOT**. For pilot auth verification, use `deploy/configs/pilot.toml` (`require_auth=true`), unset `HELIXTEST_SKIP_AUTH`, and prefer a scheduled/nightly auth-on job over enabling Auth Level 4 on every PR. See [customer-runbook.md](./customer-runbook.md) and [OPERATOR-TRUST.md](OPERATOR-TRUST.md).
 
 If you want to validate strict Auth Level 4 end-to-end, unset `HELIXTEST_SKIP_AUTH` and ensure all relevant requests include `Authorization: Bearer ...` (or implement path-specific gateway auth gating).
 

@@ -13,11 +13,15 @@ pub enum HelixtestDisposition {
 }
 
 /// Classify HelixTest WES requests when `workflow_url` uses the `trs://` scheme.
+/// Synthetic dispositions are disabled unless `FERRUM_WES_HELIXTEST_STUBS` is set.
 pub fn classify_trs_workflow(
     workflow_url: &str,
     workflow_type: &str,
     params: &Value,
 ) -> HelixtestDisposition {
+    if !ferrum_core::env_flag("FERRUM_WES_HELIXTEST_STUBS") {
+        return HelixtestDisposition::Proceed;
+    }
     let Some(rest) = workflow_url.strip_prefix("trs://") else {
         return HelixtestDisposition::Proceed;
     };
@@ -53,5 +57,28 @@ pub fn classify_trs_workflow(
         }
         "echo" => HelixtestDisposition::Proceed,
         _ => HelixtestDisposition::Proceed,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn helixtest_stubs_are_opt_in() {
+        let prev = std::env::var("FERRUM_WES_HELIXTEST_STUBS").ok();
+        std::env::remove_var("FERRUM_WES_HELIXTEST_STUBS");
+        let off = classify_trs_workflow("trs://test-tool/fail/1.0", "CWL", &serde_json::json!({}));
+        assert_eq!(off, HelixtestDisposition::Proceed);
+        std::env::set_var("FERRUM_WES_HELIXTEST_STUBS", "1");
+        let on = classify_trs_workflow("trs://test-tool/fail/1.0", "CWL", &serde_json::json!({}));
+        assert_eq!(
+            on,
+            HelixtestDisposition::ImmediateTerminal(RunState::ExecutorError)
+        );
+        match prev {
+            Some(v) => std::env::set_var("FERRUM_WES_HELIXTEST_STUBS", v),
+            None => std::env::remove_var("FERRUM_WES_HELIXTEST_STUBS"),
+        }
     }
 }

@@ -53,8 +53,8 @@ pub async fn maybe_federate_get(
     if let Some(ref audit) = state.residency_audit {
         for pr in &peer_results {
             if pr.error.is_none() {
-                let _ = audit
-                    .append(
+                audit
+                    .append_warn(
                         "peer_query_sent",
                         None,
                         requester,

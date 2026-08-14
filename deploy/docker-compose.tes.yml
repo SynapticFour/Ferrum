@@ -15,6 +15,9 @@ services:
         FERRUM_BUILD_PROFILE: tes
     environment:
       FERRUM_TES_BACKEND: docker
+      FERRUM_TES_HELIXTEST_STUB: "false"
+      FERRUM_WES_HELIXTEST_STUBS: "false"
+      FERRUM_TES_ALLOWED_BIND_PREFIXES: "${FERRUM_WES_TES_WORK_HOST_PREFIX:-.wes-runs}"
       FERRUM_WES_WORK_DIR: /wes-runs
       # Host path for Docker volume binds. Default: deploy/.wes-runs (relative to this compose file).
       FERRUM_WES_TES_WORK_HOST_PREFIX: ${FERRUM_WES_TES_WORK_HOST_PREFIX:-.wes-runs}

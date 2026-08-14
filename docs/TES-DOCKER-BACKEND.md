@@ -59,7 +59,7 @@ Details and nested-mount pitfalls: [Nested container execution / Host path contr
 | TES **entrypoint** optional (`executors[].entrypoint`) for Docker / Podman / Slurm-wrapped Podman | **Implemented** (see [Entrypoint vs command](#entrypoint-vs-command-docker-api-semantics)) |
 | Docs on nested mounts / `docker.sock` | **Documented** (this file) |
 | **Symmetric host-path** bind for WES → TES | **Opt-in** — set **`FERRUM_WES_TES_WORK_HOST_PREFIX`** on the **gateway** (see below). No effect unless set. |
-| **TES `volumes[]` → Docker `HostConfig.Binds`** | **Implemented** for the **Docker** TES backend (strings `host:container[:opts]` or objects `{ "host", "container", "mode?" }`). |
+| **TES `volumes[]` → Docker `HostConfig.Binds`** | **Allowlisted** — request volumes must match `FERRUM_TES_ALLOWED_BIND_PREFIXES` or `FERRUM_WES_TES_WORK_HOST_PREFIX`. |
 | **Optional socket / CLI / network / platform** | **Opt-in** env on the **TES** process (see below). |
 
 ---
@@ -78,7 +78,7 @@ Docker image:
 docker build -f deploy/Dockerfile.gateway --build-arg FERRUM_GATEWAY_FEATURES=tes-docker -t ferrum-gateway:tes-docker ..
 ```
 
-Without this feature, choosing the `docker` TES backend falls back to **Podman** (existing behaviour).
+Without this feature, `FERRUM_TES_BACKEND=docker` **fails closed** (no silent Podman fallback).
 
 ---
 
@@ -88,13 +88,15 @@ All variables are **ignored unless set**. They apply only when the TES backend i
 
 | Variable | Effect |
 |----------|--------|
+| **`FERRUM_TES_ALLOWED_BIND_PREFIXES`** | Comma-separated host path prefixes. TES **request** `volumes` are refused unless the host path is under one of these (or under `FERRUM_WES_TES_WORK_HOST_PREFIX`). Paths containing `..` are rejected. Unset + empty WES prefix → client volumes disabled. |
+| **`FERRUM_TES_EXTRA_BINDS`** | Operator-controlled extra binds (not from the TES JSON body). |
 | **`FERRUM_TES_DOCKER_MOUNT_SOCKET`** | If truthy (`1`, `true`, `yes`, `on`), add bind `/var/run/docker.sock:/var/run/docker.sock`. |
 | **`FERRUM_TES_DOCKER_CLI_HOST_PATH`** | Host path to a static **`docker`** binary; bind-mount read-only into the task. Target path: **`FERRUM_TES_DOCKER_CLI_CONTAINER_PATH`** (default `/usr/local/bin/docker-host`). |
 | **`FERRUM_TES_DOCKER_NETWORK_MODE`** | Docker `NetworkMode` (e.g. `host`, `bridge`, or a custom network name). |
 | **`FERRUM_TES_DOCKER_EXTRA_HOSTS`** | Comma-separated `hostname:ip` entries (e.g. `host.docker.internal:host-gateway`). |
 | **`FERRUM_TES_DOCKER_PLATFORM`** | Container create **platform** (API ≥ 1.41), e.g. `linux/amd64` for arm64 hosts pulling amd64-only images. |
 
-**Security:** socket and host binds increase privilege; keep defaults off for untrusted tenants.
+**Security:** socket and host binds increase privilege; keep defaults off for untrusted tenants. Client TES `volumes` are never arbitrary host mounts — see [OPERATOR-TRUST.md](OPERATOR-TRUST.md).
 
 ---
 

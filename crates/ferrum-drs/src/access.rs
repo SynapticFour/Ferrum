@@ -89,6 +89,14 @@ async fn enforce_ads_dataset_access(
         .ok_or_else(|| DrsError::Forbidden("Bearer token required for ADS access check".into()))?;
     let resource = format!("drs:{object_id}");
     let active = if let Some(ads_base) = federated_ads_base {
+        let policy = ferrum_core::SsrfPolicy {
+            allow_private_networks: false,
+            allowed_schemes: vec!["https".into()],
+            ..Default::default()
+        };
+        ferrum_core::validate_url_ssrf_resolved(ads_base, &policy)
+            .await
+            .map_err(|e| DrsError::Forbidden(format!("ADS base URL rejected: {e}")))?;
         client
             .introspect_at_base(ads_base, token, &resource, dataset_id)
             .await

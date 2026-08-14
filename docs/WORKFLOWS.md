@@ -1,6 +1,6 @@
 # Workflow execution guide
 
-This guide covers submitting workflows (Nextflow, CWL, WDL, Snakemake) via the WES API and Ferrum UI, using DRS objects as inputs, HPC execution (SLURM/LSF), and live log streaming.
+This guide covers submitting workflows (Nextflow, CWL, WDL, Snakemake) via the WES API and Ferrum UI, using DRS objects as inputs, **Slurm** HPC execution, and live log streaming. **LSF is not implemented.**
 
 **Engine matrix (`workflow_type`, TES images):** [WES-WORKFLOW-ENGINES.md](WES-WORKFLOW-ENGINES.md).
 
@@ -142,13 +142,13 @@ curl -X POST "https://ferrum.example.com/ga4gh/wes/v1/runs" \
 |-------|-------------|
 | `cores` | Max cores per run |
 | `jobs` | Max parallel jobs |
-| SLURM/LSF | Same as Nextflow (project, queue, etc.) when using HPC backend |
+| Slurm | Same as Nextflow (project, queue, etc.) when using the Slurm backend |
 
 ---
 
 ## HPC execution
 
-Ferrum WES/TES submit jobs to **SLURM** or **LSF** via `workflow_engine_params` and executor configuration in Ferrum config.
+Ferrum WES/TES submit jobs to **Slurm** via `workflow_engine_params` (`ferrum_backend=slurm`) and executor configuration. LSF is not implemented and returns a validation error.
 
 - **Resource specification:** Use engine params such as `queue`, `project`, `memory`, `cpus`, `walltime` (names may vary by executor).
 - **Monitoring:** Use WES `GET /runs/{id}` and `/runs/{id}/logs` or the Ferrum UI. For SLURM, jobs appear in `squeue`; Ferrum tracks run_id ↔ job id internally.

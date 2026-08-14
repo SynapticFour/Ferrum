@@ -88,9 +88,9 @@ Ferrum is a **customer-operated GA4GH gateway** (DRS, WES, TES, TRS, Beacon, hts
 | Spoofing | Fake JWT / Passport | Algorithm pinning; JWKS; optional issuer checks | Weak IdP config |
 | Tampering | Modify objects in store | Object-store IAM; optional integrity; Crypt4GH AEAD | Store admin compromise |
 | Repudiation | Deny access | Security event log; optional persistence | Log retention operator-owned |
-| Info disclosure | Plaintext stream endpoint; logs | Crypt4GH; authz before re-wrap; SSRF controls | `/stream` plaintext over TLS by design when used |
+| Info disclosure | Plaintext stream; htsget whole-object; logs | Crypt4GH; authz before re-wrap; **htsget region params return 400** (no silent whole-file for a slice request) | `/stream` plaintext over TLS when used |
 | DoS | Flood WES/TES | Operator rate limits / capacity | No global anti-DDoS in product |
-| Elevation | Path traversal; workspace escape | `safe_join`; workspace checks | Bugs → IR + patch |
+| Elevation | Path traversal; TES host binds; visa substring | `safe_join`; **TES volume allowlist**; exact visa match | Bugs → IR + patch |
 
 Detail for Crypt4GH invariants: [CRYPT4GH.md](CRYPT4GH.md).
 
@@ -120,11 +120,13 @@ Detail for Crypt4GH invariants: [CRYPT4GH.md](CRYPT4GH.md).
 
 A pilot security review should at least verify:
 
-1. Auth required on data/compute APIs (no open anonymous DRS/WES in production profile).
-2. Crypt4GH key files permissions and backup.
-3. TLS termination and network exposure.
-4. Backup/restore of metadata + object store.
-5. Incident contact path ([INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md)).
+1. Auth required on data/compute APIs (no open anonymous DRS/WES in production profile). See [OPERATOR-TRUST.md](OPERATOR-TRUST.md).
+2. HelixTest stub env vars unset; TES not noop if compute is in scope.
+3. Crypt4GH key files permissions and backup.
+4. TLS termination and network exposure.
+5. TES bind-prefix allowlist if Docker TES is enabled.
+6. Backup/restore of metadata + object store.
+7. Incident contact path ([INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md)).
 
 ---
 

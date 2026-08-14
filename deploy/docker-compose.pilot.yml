@@ -24,6 +24,8 @@ services:
       FERRUM_DISCOVERY__SERVICE_REGISTRY_URL: http://service-registry:8083
       FERRUM_DISCOVERY__REGISTRATION_BASE_URL: http://localhost:${GATEWAY_PORT:-8080}
       FERRUM_AUTH__ADS_URL: http://access-decision-service:8090/ads/v1
+      FERRUM_TES_HELIXTEST_STUB: "false"
+      FERRUM_WES_HELIXTEST_STUBS: "false"
       SERVICE_REGISTRY_REGISTRATION_KEY: dev-service-registry-key
       ADS_DAC_API_KEY: dev-ads-api-key
     depends_on:

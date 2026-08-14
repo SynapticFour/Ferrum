@@ -24,13 +24,15 @@ We follow a respectful, inclusive code of conduct. Be kind and professional in i
 
 ## Development setup
 
-1. **Rust 1.75+**
+1. **Rust 1.91** (see `rust-toolchain.toml`; CI uses 1.91.1)
 
    ```bash
-   rustup update stable
+   rustup show
    ```
 
 2. **Clone and build**
+
+   Default `cargo build` / `cargo test` is self-contained (GA4GH Service Info types are vendored in `ferrum-discovery`). The optional `clearinghouse` / gateway `external-auth` feature pulls `ga4gh-clearinghouse` from GitHub (`ga4gh-infra-v0.1.0`). Docker images still clone `ga4gh-infra` for historical path-layout; you do not need a sibling checkout for a normal compile.
 
    ```bash
    git clone https://github.com/SynapticFour/Ferrum
@@ -53,7 +55,7 @@ We follow a respectful, inclusive code of conduct. Be kind and professional in i
 - **Unit tests:** `cargo test --all`
 - **Integration tests:** Same; integration tests live under `*/tests/` or within crates.
 - **CI (Rust):** GitHub Actions runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace --all-targets` on push and PRs.
-- **GA4GH conformance (HelixTest):** The [Conformance (HelixTest)](.github/workflows/conformance.yml) workflow builds the demo stack and runs [HelixTest](https://github.com/SynapticFour/HelixTest) in Ferrum mode. **What is covered in CI** (WES, TES, DRS, TRS, Beacon, htsget, E2E, etc.) is documented in [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
+- **GA4GH demo lifecycle (HelixTest):** The [Demo lifecycle (HelixTest)](.github/workflows/conformance.yml) workflow builds the **demo** stack (noop TES, `HELIXTEST_SKIP_AUTH`, HelixTest stubs). It is **not** institute or certification evidence. Coverage notes: [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md). Docker TES: `make up-tes` / CI job `test-tes`.
 - **MII Connect:** `cargo test -p ferrum-mii-connect` (includes golden manifest snapshot). Regenerating `profiles/mii/manifest.json` via `ferrum mii sync-manifest` is optional and may hit the public package registry; see [docs/MII-CONNECT.md](docs/MII-CONNECT.md).
 
 ---

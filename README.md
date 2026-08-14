@@ -3,14 +3,14 @@
 <p align="center"><strong>Ferrum</strong></p>
 
 [![CI](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml)
-[![Conformance](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
+[![Demo lifecycle](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
-[![Rust 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+[![Rust 1.91](https://img.shields.io/badge/rust-1.91-orange.svg)](https://www.rust-lang.org/)
 
 **A complete GA4GH stack. On-premises. In Rust.**
 
 DRS · WES · TES · TRS · Beacon v2 · htsget · Passports · Crypt4GH —
-one gateway, your hardware, verifiable conformance.
+one gateway, your hardware. HelixTest demo-lifecycle CI is not GA4GH certification.
 
 > **Legal notice:** This README describes technical capabilities, not legal advice.
 > Compliance with GDPR, NIS2, EHDS, HIPAA, or other frameworks depends on the
@@ -53,12 +53,21 @@ adopt it wholesale. But new deployments, research consortia building GA4GH-nativ
 infrastructure, and institutions preparing for EHDS obligations now have a starting
 point that didn't exist before.
 
-Ferrum is tested continuously — HelixTest runs in CI, the demo stack is reproducible, and
-conformance profiles cover standard and Field Edge deployments. Default demo compute is
+Ferrum is tested continuously — unit/integration tests and clippy in CI, a **demo-stack HelixTest** job (noop TES, auth skipped, stubs labeled NON-PILOT), and a Docker TES + pilot smoke on `main`. Default demo compute is
 **TES noop** (API lifecycle only); use `make up-tes` for real local containers. Demo auth
-defaults are open (`require_auth=false`) — pilots should use `deploy/configs/pilot.toml`.
-For production rollout at clinical scale, plan a staged pilot with your data volumes and
-[customer runbook](docs/customer-runbook.md).
+defaults are open (`require_auth=false`) — pilots must use `deploy/configs/pilot.toml`.
+
+## Operator trust model
+
+Ferrum is intended for on-premises research and clinical-adjacent deployments. Defaults and CI are designed so a national institute can audit what is **guaranteed** versus what is **demo-only**:
+
+| Mode | Auth | Compute | HelixTest stubs |
+|------|------|---------|-----------------|
+| Demo compose / `local.toml` | `require_auth=false` (explicit NON-PILOT) | TES **noop** | On (`FERRUM_TES_HELIXTEST_STUB`, `FERRUM_WES_HELIXTEST_STUBS`) |
+| Pilot / production toml | `require_auth=true` | Operator TES/WES (Docker or Slurm) | Off |
+| `make up-tes` | inherits overlay | Docker TES | Off |
+
+Fail-closed behaviour (unless the demo flags above are set): JWT/Passport required when `require_auth` is on; admin APIs always require an admin visa; TES request bind-mounts require an operator prefix allowlist; htsget **rejects** genomic region queries rather than returning the whole object; WES `ferrum_backend=lsf` errors (LSF is not implemented). Full matrix: **[docs/OPERATOR-TRUST.md](docs/OPERATOR-TRUST.md)**.
 
 Questions, pilots, or commercial licensing: [contact@synapticfour.com](mailto:contact@synapticfour.com)
 
@@ -82,8 +91,9 @@ Questions, pilots, or commercial licensing: [contact@synapticfour.com](mailto:co
 | 🔐 | **Transparent Crypt4GH encryption** — Header re-wrapping; file bodies are designed to avoid re-encryption (O(1) per download). |
 | 📦 | **GA4GH stack** — DRS, TRS, WES, TES, Beacon v2, htsget, Passports. |
 | ⚡ | **Rust performance** — No GC, predictable latency, minimal footprint. TB-oriented options: [PERFORMANCE.md](PERFORMANCE.md), [docs/STORAGE-BACKENDS.md](docs/STORAGE-BACKENDS.md) (S3 multipart, bounded streaming, optional libdeflate / OpenDAL). |
-| 🔬 | **Workflow engines** — Nextflow, CWL, WDL, Snakemake. |
-| 🖥️ | **HPC scheduling** — SLURM and LSF job scheduling. |
+| 🔬 | **Workflow engines** — Nextflow (22.10 / 23.04 advertised; TES image may be 24.10), CWL, WDL, Snakemake. |
+| 🖥️ | **HPC scheduling** — Slurm. **LSF is not implemented.** |
+| 📐 | **htsget** — whole-object DRS stream tickets. Region slicing (`referenceName` / `start` / `end`) returns HTTP 400. |
 | 🚀 | **One-command demo** — `ferrum demo start`; Helm charts for production. |
 | 📊 | **Provenance & lineage** — DAG of DRS objects and WES runs; queryable upstream/downstream, visual graph, [RO-Crate](https://w3id.org/ro/crate/1.1) export for citation. |
 | 🧩 | **Ferrum MII Connect (default-17)** — offline-first technical checks of FHIR `meta.profile` against vendored MII-oriented profile metadata (default 17-module set), optional deterministic `mii sync-manifest` from pinned FHIR NPM packages, JSON/SARIF reports for ETL CI. Not a full FHIR validator or legal compliance claim. See [docs/MII-CONNECT.md](docs/MII-CONNECT.md). |
@@ -224,7 +234,7 @@ Every push and pull request runs the open-source [HelixTest](https://github.com/
 
 | CI job | What runs |
 |--------|-----------|
-| **HelixTest (full)** | `helixtest --all --mode ferrum` — suite against the demo stack (API contracts, workflows, cross-service E2E, Crypt4GH, **htsget**, etc.); JSON report uploaded as an artifact. Auth Level 4 is skipped via `HELIXTEST_SKIP_AUTH` (CI convenience, not pilot evidence). |
+| **HelixTest (demo lifecycle)** | `helixtest --all --mode ferrum` against the **demo** stack (noop TES, auth skipped, stubs on). **Not** GA4GH certification or institute evidence. Real Docker TES is `make up-tes` / the `test-tes` CI job. |
 | **HelixTest (core services)** | Same stack, then split steps: WES + TES + DRS + TRS + Beacon, then **htsget** alone — clearer pass/fail in the Actions UI. |
 
 Results are a **technical signal**, not official GA4GH certification (see HelixTest’s disclaimer). Default CI uses TES **noop** and skipped auth — see [customer-runbook.md](docs/customer-runbook.md). **Full matrix:** [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md).
@@ -321,14 +331,14 @@ helm install ferrum ./deploy/helm -n ferrum --create-namespace -f ./deploy/helm/
 
 ## Workflow engines
 
-| Engine | Language | Version | HPC backend |
-|--------|----------|---------|-------------|
-| Nextflow | Groovy/DSL2 | 24.x | SLURM, LSF |
-| cwltool | CWL | 3.x | SLURM, LSF |
-| Cromwell | WDL | 80+ | SLURM, LSF |
-| Snakemake | Python | 8.x | SLURM, LSF |
+| Engine | Language | Versions advertised in WES `service-info` | HPC backend |
+|--------|----------|-------------------------------------------|-------------|
+| Nextflow | Groovy/DSL2 | 22.10, 23.04 (TES default image 24.10.3) | Slurm |
+| cwltool | CWL | as compiled in `ferrum-wes` | Slurm |
+| Cromwell | WDL | as compiled in `ferrum-wes` | Slurm |
+| Snakemake | Python | as compiled in `ferrum-wes` | Slurm |
 
-See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for submission and DRS integration.
+LSF is **not** implemented: `ferrum_backend=lsf` returns a validation error. See [docs/WORKFLOWS.md](docs/WORKFLOWS.md).
 
 ---
 
@@ -345,17 +355,21 @@ Ferrum tracks which WES runs consumed which DRS objects (inputs) and produced wh
 
 ```
 crates/
-├── ferrum-core/       # Config, DB, auth, errors, types, health, provenance (no object storage impl.)
-├── ferrum-storage/    # ObjectStorage: LocalStorage, S3Storage; optional OpenDAL
-├── ferrum-drs/        # DRS 1.4 (objects, access, ingest)
-├── ferrum-trs/        # Tool Registry Service 2.0
-├── ferrum-wes/        # Workflow Execution Service 1.1
-├── ferrum-tes/        # Task Execution Service 1.1
-├── ferrum-beacon/     # Beacon v2
-├── ferrum-passports/  # GA4GH Passports & Visas
-├── ferrum-crypt4gh/   # Crypt4GH encryption layer
-├── ferrum-bench/      # Criterion benchmarks (optional compile)
-└── ferrum-gateway/    # API gateway composing all services
+├── ferrum-core/          # Config, DB, auth, errors, types, health, provenance
+├── ferrum-storage/       # ObjectStorage: LocalStorage, S3Storage; optional OpenDAL
+├── ferrum-drs/           # DRS 1.4 (objects, access, ingest)
+├── ferrum-trs/           # Tool Registry Service 2.0
+├── ferrum-wes/           # Workflow Execution Service 1.1
+├── ferrum-tes/           # Task Execution Service 1.1
+├── ferrum-beacon/        # Beacon v2
+├── ferrum-htsget/        # htsget tickets (whole-object DRS stream)
+├── ferrum-passports/     # GA4GH Passports & Visas
+├── ferrum-crypt4gh/      # Crypt4GH encryption layer
+├── ferrum-discovery/     # GA4GH Service Registry client
+├── ferrum-federation/    # Peer Beacon/DRS federation
+├── ferrum-security-tests/# SSRF / auth / validation tests
+├── ferrum-gateway/       # API gateway composing all services
+└── …                     # cohorts, workspaces, embed, ont, mii/meta-connect, reference, bench
 ```
 
 </details>
