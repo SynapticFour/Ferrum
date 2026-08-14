@@ -25,6 +25,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Tokio** — library crates pin workspace features (`macros`, `rt`, `rt-multi-thread`, `sync`, `time`, `fs`, `io-util`, `net`; WES/TES also `process`) instead of `features = ["full"]`. Gateway, CLI, and security-tests still use `full`.
 - **`FerrumError::Internal`** — no longer `#[from] anyhow`; typed errors must be mapped explicitly.
 - **Workspace** — `ferrum-discovery` is a workspace member.
+- **CI cargo-deny** — clone `ga4gh-infra` and run `cargo deny` on the runner (Docker action could not see sibling path deps).
 - **Public docs hygiene** — removed `docs/internal/` and `docs/portfolio/` from the public tree (ops/pilot/marketing drafts); Metadata Store roadmap lives at [METADATA-STORE-ROADMAP.md](docs/METADATA-STORE-ROADMAP.md).
 
 ### Removed

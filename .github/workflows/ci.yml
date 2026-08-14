@@ -218,11 +218,27 @@ jobs:
           chmod +x deploy/scripts/ci-tes-pilot-e2e.sh
           bash deploy/scripts/ci-tes-pilot-e2e.sh
 
-  # Supply-chain gate (org level-up C1–C2): licenses, sources, bans, advisories via deny.toml
+  # Supply-chain gate (org level-up C1–C2): licenses, sources, bans, advisories via deny.toml.
+  # Native cargo-deny (not the Docker action): path deps live at ../ga4gh-infra, which is
+  # outside the action's /github/workspace mount.
   supply-chain:
     if: github.actor != 'dependabot[bot]'
     name: cargo-deny
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: ./.github/actions/load-versions
+      - uses: ./.github/actions/clone-ga4gh-infra
+        with:
+          ref: ${{ env.GA4GH_INFRA_REF }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-deny
+        run: |
+          set -euo pipefail
+          ver=0.20.2
+          curl -sSL "https://github.com/EmbarkStudios/cargo-deny/releases/download/${ver}/cargo-deny-${ver}-x86_64-unknown-linux-musl.tar.gz" \
+            | tar -xz
+          mkdir -p "${CARGO_HOME:-$HOME/.cargo}/bin"
+          mv "cargo-deny-${ver}-x86_64-unknown-linux-musl/cargo-deny" "${CARGO_HOME:-$HOME/.cargo}/bin/"
+          cargo deny --version
+      - run: cargo deny check
