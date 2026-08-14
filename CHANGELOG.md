@@ -29,9 +29,7 @@ All notable changes to this project will be documented in this file. The format 
 - **`FerrumError::Internal`** — no longer `#[from] anyhow`; typed errors must be mapped explicitly.
 - **Workspace** — `ferrum-discovery` is a workspace member.
 - **CI cargo-deny** — clone `ga4gh-infra` and run `cargo deny` on the runner (Docker action could not see sibling path deps).
-- **HelixTest pin** — `HELIXTEST_REF` / `HELIXTEST_SHA` set to current HelixTest `main` (`bace1c9b…`); `v0.1.0` remains the last published tag.
-- **Africa HelixTest CI** — drop `--fail-level 1` (HelixTest now reports Africa as level 0 because that suite has no Level 0 tests); Fail still fails the job.
-- **HelixTest (full) CI** — drop `--fail-level 1` for the same reason on E2E (L3-only). Core services and htsget jobs still use `--fail-level 2`.
+- **HelixTest pin** — `HELIXTEST_REF` / `HELIXTEST_SHA` set to HelixTest `main` `3472d44…` (htsget POST format-only vs regions; Africa/E2E Level 0). `v0.1.0` remains the last published tag.
 - **Public docs hygiene** — removed `docs/internal/` and `docs/portfolio/` from the public tree (ops/pilot/marketing drafts); Metadata Store roadmap lives at [METADATA-STORE-ROADMAP.md](docs/METADATA-STORE-ROADMAP.md).
 
 ### Removed

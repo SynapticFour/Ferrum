@@ -1,8 +1,5 @@
 # Run HelixTest GA4GH conformance suite against the Ferrum demo stack.
-# - helixtest-full: one full run (--all); report uploaded as artifact.
-#   No --fail-level: HelixTest overall_level is min across modules, and E2E is
-#   L3-only (no L0), so --fail-level 1 exits 1 even when every test passed.
-#   Fail still fails the job. Core + htsget jobs keep --fail-level 2.
+# - helixtest-full: one full run (--all --fail-level 1); report uploaded as artifact.
 # - helixtest-services: per-service steps (WES, TES, DRS, TRS, Beacon) for clear pass/fail in the Actions UI.
 # Pin HelixTest / ga4gh-infra via VERSIONS.lock (see load-versions action).
 # See docs/HELIXTEST-INTEGRATION.md ("What is tested in Ferrum CI") for coverage matrix and URL mapping.
@@ -161,7 +158,7 @@ jobs:
           AUTH_URL: ${{ env.GATEWAY_BASE }}/passports/v1
         run: |
           cd helixtest-repo
-          cargo run --bin helixtest --release -- --all --mode ferrum --report json 2>&1 | tee ../helixtest-report.txt
+          cargo run --bin helixtest --release -- --all --mode ferrum --report json --fail-level 1 2>&1 | tee ../helixtest-report.txt
           exit_code=${PIPESTATUS[0]}
           if [ "$exit_code" -ne 0 ]; then
             echo "HelixTest exit code: $exit_code"
