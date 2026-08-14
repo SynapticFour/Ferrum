@@ -4,9 +4,47 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Security
+
+- **Auth fail-closed** — invalid/expired/unconfigured Bearer returns 401; empty-secret HS256 JWT fallback removed; Passport visas are verified (JWKS RS256/ES256 or HS256 `jwt_secret`) or dropped. When `require_auth` is on: Passport admin, TES mutating/list/get, federation mutating/proxy, TRS `/internal/register`, WES cost endpoints, and anonymous WES run reads are gated. Cohorts ignore spoofable `x-owner-sub`. Demo/`require_auth=false` is unchanged.
+- **Crypt4GH proxy** — object id from `/objects/{id}/stream`; pubkey present but cannot rewrap → 400/403/502 (no ciphertext passthrough); tokio mpsc instead of std mpsc busy-spin.
+- **Storage keys** — `validate_object_key` rejects `..` (slashes in `drs/{ulid}` still allowed). Encrypted DRS stream rejects HTTP Range.
+
+### Fixed
+
+- **VCF Beacon index** — stream-parse local VCF (plain or gzip, 50 MiB cap) and batch INSERT (256) instead of `read_to_end` + per-row writes.
+- **Residency audit queries** — time/requester filters run in SQL; full-table fetch remains only for chain verify.
+- **Edge `sync_push`** — multipart uses a file stream; chunked resume reads 256 KiB with seek (not the whole object in RAM).
+- **Service registry** — listing cached 60s process-wide; register invalidates. Avoids re-list on every ADS resolve.
+- **Provenance graph** — DRS/WES node details loaded with two `ANY($1)` queries instead of one query per node.
+- **S3 `put_file`**, SQLite pathogen SQL without `$1::text`, WES `nfl` kind map, in-memory zstd only ≤ 8 MiB, htsget rejects region slicing, chunk upload appends from spool `TempPath`.
+- **Revocation DB errors treat as revoked**; ADS `X-ADS-Base-URL` SSRF-checked; TES Slurm `--wrap` escaped; Passport key fail → unconfigured router; mutex poison `into_inner`; `/health` NTP/statvfs 15s cache; POSIX I/O pool default 2–8 threads; `/view` 2 MiB cap; bandwidth uses real elapsed ms.
+
 ### Changed
 
+- **Tokio** — library crates pin workspace features (`macros`, `rt`, `rt-multi-thread`, `sync`, `time`, `fs`, `io-util`, `net`; WES/TES also `process`) instead of `features = ["full"]`. Gateway, CLI, and security-tests still use `full`.
+- **`FerrumError::Internal`** — no longer `#[from] anyhow`; typed errors must be mapped explicitly.
+- **Workspace** — `ferrum-discovery` is a workspace member.
 - **Public docs hygiene** — removed `docs/internal/` and `docs/portfolio/` from the public tree (ops/pilot/marketing drafts); Metadata Store roadmap lives at [METADATA-STORE-ROADMAP.md](docs/METADATA-STORE-ROADMAP.md).
+
+### Removed
+
+- **`DatabaseKeyStore`** stub (always `Ok(None)` / not implemented).
+- **`ferrum-drs` `bam-lazy-ingest`** feature (compiled in CI, never called from ingest).
+
+### Known remaining (audit follow-ups)
+
+Not in this cut; still worth tracking:
+
+- **htsget `index_status=ready`** is metadata only — no `.bai`/`.tbi` is built.
+- **Clearinghouse Passport validation** still uses `block_in_place` / `block_on` on the request path.
+- **Residency/provenance `let _ =`** still swallows append/record errors (should `warn!`).
+- **Multipart ingest** can still buffer the whole file before `max_upload_bytes` (chunked spool exists).
+- **S3 `append_bytes`** is still get + rewrite (LocalStorage uses `O_APPEND`).
+- **Vendored `crypt4gh`** unwraps on decrypt of untrusted ciphertext (`[patch.crates-io]`).
+- **TES Docker socket** remains env-gated (`FERRUM_TES_DOCKER_MOUNT_SOCKET`); not mounted by default.
+- Hygiene: README crate tree drift; Postgres/SQLite query duplication; federation `PeerRateLimiter` never evicts; TES `get_task` N+1; MSRV documented as 1.75 but not in `Cargo.toml`; CLI i18n and WES `sanitize_work_dir` still `allow(dead_code)`.
+
 
 ### Added
 
@@ -109,7 +147,7 @@ All notable changes to this project will be documented in this file. The format 
 - **PostgreSQL pool tuning** — `database.min_connections`, `acquire_timeout_secs`, `idle_timeout_secs`, `max_lifetime_secs`; default `max_connections` scales with `available_parallelism` (clamped 10–100). SQLite pools get acquire timeout.
 - **DRS streaming backpressure** — Plaintext `GET …/stream` uses a **bounded channel** and read timeout; Crypt4GH path keeps bounded decrypt→HTTP channel with client send timeout.
 - **Graceful shutdown** (gateway) — `503` + `Retry-After` for new DRS stream requests during drain; in-flight stream tracking; `FERRUM_DRAIN_TIMEOUT_SECS` (default 300).
-- **Optional build features** — `ferrum-core/libdeflate` (re-exports `noodles_bgzf` for faster BGZF; needs system libdeflate); `ferrum-drs/bam-lazy-ingest` (`ingest::bam::scan_alignment_start_positions` via `lazy_records()`); `ferrum-beacon` feature to pull `libdeflate` through core.
+- **Optional build features** — `ferrum-core/libdeflate` (re-exports `noodles_bgzf` for faster BGZF; needs system libdeflate); `ferrum-beacon` feature to pull `libdeflate` through core.
 - **`ferrum-bench`** — Criterion benchmarks (compile with `cargo bench -p ferrum-bench --no-run`); CI job `bench-and-features` compiles benches and optional features.
 - **Docs** — [PERFORMANCE.md](PERFORMANCE.md), [docs/STORAGE-BACKENDS.md](docs/STORAGE-BACKENDS.md), [docs/TES-DOCKER-BACKEND.md](docs/TES-DOCKER-BACKEND.md) (TES Docker/Podman, nested `docker run`, DRS access vs stream).
 - TB-scale hardening (Lesson 3): dedicated Rayon pool for blocking POSIX filesystem I/O (`ferrum_core::io::posix`, tunable via `FERRUM_POSIX_IO_THREADS`); `LocalStorage` put/delete/exists/size and Crypt4GH `LocalKeyStore` key file reads use it instead of Tokio’s default blocking pool. TES SLURM backend logs a one-time warning when GNU libc &lt; 2.24 (slow `fork`-based process spawn on some clusters).

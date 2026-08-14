@@ -166,14 +166,6 @@ fn local_drs_base_url(config: &FerrumConfig) -> Option<String> {
         .map(|base| format!("{}/ga4gh/drs/v1", base.trim_end_matches('/')))
 }
 
-async fn read_local_storage_bytes(storage_key: &str) -> Option<Vec<u8>> {
-    let base = std::env::var("FERRUM_STORAGE__LOCAL_PATH")
-        .or_else(|_| std::env::var("FERRUM_OBJECTS_DIR"))
-        .unwrap_or_else(|_| "./data".to_string());
-    let path = std::path::Path::new(&base).join(storage_key);
-    tokio::fs::read(&path).await.ok()
-}
-
 pub async fn index_variants_for_publish(
     pool: &sqlx::PgPool,
     object_id: &str,
@@ -191,13 +183,14 @@ pub async fn index_variants_for_publish(
     {
         return 0;
     }
-    let Some(bytes) = read_local_storage_bytes(&storage_key).await else {
+    let path = ferrum_beacon::vcf_index::local_object_path(&storage_key);
+    if !path.is_file() {
         warn!(
             object_id,
-            storage_key, "VCF indexing skipped: local bytes not found"
+            storage_key, "VCF indexing skipped: local file not found"
         );
         return 0;
-    };
+    }
     let beacon = BeaconRepo::new(ferrum_pool.clone());
     if beacon
         .ensure_dataset(
@@ -211,7 +204,7 @@ pub async fn index_variants_for_publish(
     {
         return 0;
     }
-    match ferrum_beacon::vcf_index::index_vcf_bytes(&ferrum_pool, ads_dataset_id, &bytes).await {
+    match ferrum_beacon::vcf_index::index_vcf_path(&ferrum_pool, ads_dataset_id, &path).await {
         Ok(n) => {
             if n > 0 {
                 tracing::info!(

@@ -5,7 +5,6 @@ use crate::state::AppState;
 use ferrum_beacon::repo::BeaconRepo;
 use ferrum_core::{classify_htsget_file, is_htsget_supported, is_vcf_like, PipelineConfig};
 use std::sync::Arc;
-use tokio::io::AsyncReadExt;
 use tracing::warn;
 
 const HTSGET_INDEX_META_KEY: &str = "htsget_index_status";
@@ -102,7 +101,7 @@ async fn spawn_vcf_beacon_index(state: Arc<AppState>, object_id: String, dataset
 
 async fn index_vcf_object(
     repo: &DrsRepo,
-    storage: &Arc<dyn ferrum_storage::ObjectStorage>,
+    _storage: &Arc<dyn ferrum_storage::ObjectStorage>,
     object_id: &str,
     dataset_id: &str,
 ) -> Result<usize, String> {
@@ -116,19 +115,17 @@ async fn index_vcf_object(
     if backend != "local" {
         return Err("beacon auto-index only supports local storage on Edge".into());
     }
-    let mut reader = storage.get(&storage_key).await.map_err(|e| e.to_string())?;
-    let mut bytes = Vec::new();
-    reader
-        .read_to_end(&mut bytes)
-        .await
-        .map_err(|e| e.to_string())?;
+    let path = ferrum_beacon::vcf_index::local_object_path(&storage_key);
+    if !path.is_file() {
+        return Err(format!("local VCF not found at {}", path.display()));
+    }
     let pool = repo.pool().clone();
     let beacon = BeaconRepo::new(pool.clone());
     beacon
         .ensure_dataset(dataset_id, object_id, None, "GRCh38")
         .await
         .map_err(|e| e.to_string())?;
-    ferrum_beacon::vcf_index::index_vcf_bytes(&pool, dataset_id, &bytes)
+    ferrum_beacon::vcf_index::index_vcf_path(&pool, dataset_id, &path)
         .await
         .map_err(|e| e.to_string())
 }

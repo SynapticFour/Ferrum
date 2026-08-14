@@ -72,10 +72,6 @@ Without the feature, Rust/miniz-style paths remain available via other crates; t
 
 For many object-store backends behind one API, build `ferrum-storage` with `--features opendal` and use `OpenDalStorage`. See [docs/STORAGE-BACKENDS.md](docs/STORAGE-BACKENDS.md).
 
-## BAM lazy ingest (DRS)
-
-`ferrum-drs` feature `bam-lazy-ingest` exposes `ingest::bam::scan_alignment_start_positions` using noodles `lazy_records()`. Use when you only need coarse positions; use full `records()` for strict validation.
-
 ## Benchmarks
 
 Workspace crate `ferrum-bench` and `ferrum-crypt4gh` hold Criterion targets. Compile benchmarks without running full suites:

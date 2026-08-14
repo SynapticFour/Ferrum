@@ -13,7 +13,7 @@ thiserror = "1"
 tracing = "0.1"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
+tokio.workspace = true
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "sqlite", "migrate", "json"] }
 ferrum-drs = { path = "../ferrum-drs" }
 ferrum-beacon = { path = "../ferrum-beacon" }

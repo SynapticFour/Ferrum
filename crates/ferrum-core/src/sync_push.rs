@@ -9,8 +9,10 @@ use crate::sync_queue::{
     mark_failed, mark_in_progress, normalize_target_url, SyncQueueItem,
 };
 use reqwest::multipart::{Form, Part};
+use std::io::SeekFrom;
 use std::path::Path;
 use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 const CHUNK_SIZE: usize = 256 * 1024;
 
@@ -147,10 +149,10 @@ async fn push_full_multipart(
     metadata_ref: Option<&str>,
     opts: &PushOptions,
 ) -> Result<()> {
-    let bytes = tokio::fs::read(file_path)
+    let part = Part::file(file_path)
         .await
-        .map_err(|e| FerrumError::StorageError(e.into()))?;
-    let part = Part::bytes(bytes).file_name(file_name.to_string());
+        .map_err(|e| FerrumError::StorageError(e.into()))?
+        .file_name(file_name.to_string());
 
     let mut form = Form::new()
         .part("file", part)
@@ -180,17 +182,32 @@ async fn push_chunked(
     opts: &PushOptions,
 ) -> Result<()> {
     let url = format!("{target}/api/v1/ingest/upload/chunk");
-    let data = tokio::fs::read(file_path)
+    let mut file = tokio::fs::File::open(file_path)
         .await
         .map_err(|e| FerrumError::StorageError(e.into()))?;
-    let total = data.len() as i64;
-    let mut offset = item.bytes_sent.max(0) as usize;
+    let total = file
+        .metadata()
+        .await
+        .map_err(|e| FerrumError::StorageError(e.into()))?
+        .len() as i64;
+    let mut offset = item.bytes_sent.max(0) as u64;
+    if offset > 0 {
+        file.seek(SeekFrom::Start(offset))
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+    }
     let mut upload_token = item.resume_token.clone();
+    let mut buf = vec![0u8; CHUNK_SIZE];
 
-    while offset < data.len() {
-        let end = (offset + CHUNK_SIZE).min(data.len());
-        let chunk = data[offset..end].to_vec();
-        let part = Part::bytes(chunk);
+    while (offset as i64) < total {
+        let n = file
+            .read(&mut buf)
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        if n == 0 {
+            break;
+        }
+        let part = Part::bytes(buf[..n].to_vec());
         let mut form = Form::new()
             .part("file", part)
             .text("total_bytes", total.to_string())
@@ -207,6 +224,7 @@ async fn push_chunked(
             }
         }
         let body = send_multipart_raw(client, &url, form, opts).await?;
+        let sent_end = offset + n as u64;
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
             if upload_token.is_none() {
                 upload_token = json
@@ -217,12 +235,19 @@ async fn push_chunked(
             if json.get("complete").and_then(|v| v.as_bool()) == Some(true) {
                 break;
             }
-            offset = json
+            let new_offset = json
                 .get("completed_bytes")
                 .and_then(|v| v.as_i64())
-                .unwrap_or(end as i64) as usize;
+                .map(|v| v.max(0) as u64)
+                .unwrap_or(sent_end);
+            if new_offset != sent_end {
+                file.seek(SeekFrom::Start(new_offset))
+                    .await
+                    .map_err(|e| FerrumError::StorageError(e.into()))?;
+            }
+            offset = new_offset;
         } else {
-            offset = end;
+            offset = sent_end;
         }
     }
     Ok(())

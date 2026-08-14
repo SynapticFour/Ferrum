@@ -13,7 +13,7 @@ ferrum-meta-connect = { path = "../ferrum-meta-connect" }
 ferrum-storage = { path = "../ferrum-storage" }
 ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
 axum = { version = "0.7", features = ["json", "multipart"] }
-tokio = { version = "1", features = ["full"] }
+tokio.workspace = true
 sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "sqlite", "chrono", "json"] }
 chrono = "0.4"
 serde = { version = "1", features = ["derive"] }
@@ -38,15 +38,8 @@ base64 = "0.22.1"
 zstd = "0.13"
 tempfile = "3"
 
-[dependencies.noodles-bam]
-version = "0.88"
-optional = true
-default-features = false
-
 [features]
 default = []
-# BAM ingest helpers using noodles `Reader::records()` (lazy decode; faster when only positions/names are needed).
-bam-lazy-ingest = ["dep:noodles-bam"]
 standalone = ["tracing-subscriber"]
 s3_signed = ["dep:aws-config", "dep:aws-sdk-s3"]
 

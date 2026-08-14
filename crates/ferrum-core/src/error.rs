@@ -46,7 +46,7 @@ pub enum FerrumError {
     Config(#[from] config::ConfigError),
 
     #[error("internal error: {0}")]
-    Internal(#[from] anyhow::Error),
+    Internal(#[source] anyhow::Error),
 
     #[error("path traversal blocked")]
     PathTraversal,

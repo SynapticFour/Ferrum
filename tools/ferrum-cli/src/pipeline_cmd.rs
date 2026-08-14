@@ -171,14 +171,16 @@ pub async fn pipeline_index_beacon(
     }
 
     let objects_root = ferrum_core::resolve_objects_root(&cfg);
-    let path = objects_root.join(storage_key);
-    let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
+    let path = objects_root.join(&storage_key);
+    if !path.is_file() {
+        return Err(format!("local VCF not found at {}", path.display()));
+    }
     let beacon = BeaconRepo::new(pool.clone());
     beacon
         .ensure_dataset(&dataset, object_id, name.as_deref(), "GRCh38")
         .await
         .map_err(|e| e.to_string())?;
-    let n = ferrum_beacon::vcf_index::index_vcf_bytes(&pool, &dataset, &bytes)
+    let n = ferrum_beacon::vcf_index::index_vcf_path(&pool, &dataset, &path)
         .await
         .map_err(|e| e.to_string())?;
     println!("Indexed {n} variant(s) from {object_id} into Beacon dataset `{dataset}`");

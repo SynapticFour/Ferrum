@@ -10,7 +10,7 @@ default = []
 opendal = ["dep:opendal"]
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
+tokio.workspace = true
 
 [dependencies]
 anyhow = "1"
@@ -21,7 +21,7 @@ aws-credential-types = "1"
 aws-sdk-s3 = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "default-https-client"] }
 aws-smithy-types = "1"
 bytes = "1"
-tokio = { version = "1", features = ["full"] }
+tokio.workspace = true
 opendal = { version = "0.55", optional = true, default-features = false, features = [
     "services-s3",
     "services-fs",

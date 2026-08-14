@@ -3,9 +3,11 @@
 use ferrum_core::FerrumPool;
 use ferrum_core::Result;
 use std::io::{BufRead, BufReader, Cursor, Read};
+use std::path::{Path, PathBuf};
 
 const MAX_VARIANT_ROWS: usize = 10_000;
 const MAX_VCF_BYTES: usize = 50 * 1024 * 1024;
+const INSERT_BATCH: usize = 256;
 
 struct VcfSnv {
     chrom: String,
@@ -28,12 +30,26 @@ pub fn is_vcf_object(name: Option<&str>, mime: Option<&str>) -> bool {
     })
 }
 
-fn parse_vcf_snvs(bytes: &[u8]) -> Result<Vec<VcfSnv>> {
-    let reader: Box<dyn Read> = if bytes.len() >= 2 && bytes[0] == 0x1f && bytes[1] == 0x8b {
-        Box::new(flate2::read::GzDecoder::new(Cursor::new(bytes)))
+fn parse_vcf_snvs_from_reader(reader: impl Read) -> Result<Vec<VcfSnv>> {
+    let mut peek = reader.take(MAX_VCF_BYTES as u64);
+    let mut magic = [0u8; 2];
+    let n = peek
+        .read(&mut magic)
+        .map_err(|e| ferrum_core::FerrumError::Internal(anyhow::anyhow!(e)))?;
+    let chained = Cursor::new(magic[..n].to_vec()).chain(peek);
+    let decoded: Box<dyn Read> = if n == 2 && magic == [0x1f, 0x8b] {
+        Box::new(flate2::read::GzDecoder::new(chained))
     } else {
-        Box::new(Cursor::new(bytes))
+        Box::new(chained)
     };
+    parse_vcf_snv_lines(decoded)
+}
+
+fn parse_vcf_snvs(bytes: &[u8]) -> Result<Vec<VcfSnv>> {
+    parse_vcf_snvs_from_reader(Cursor::new(bytes))
+}
+
+fn parse_vcf_snv_lines(reader: impl Read) -> Result<Vec<VcfSnv>> {
     let mut rows = Vec::new();
     for line in BufReader::new(reader).lines() {
         let line = line.map_err(|e| ferrum_core::FerrumError::Internal(anyhow::anyhow!(e)))?;
@@ -65,6 +81,71 @@ fn parse_vcf_snvs(bytes: &[u8]) -> Result<Vec<VcfSnv>> {
     Ok(rows)
 }
 
+/// Resolve a local DRS object path from `storage_key` (ingest/publish Edge layout).
+pub fn local_object_path(storage_key: &str) -> PathBuf {
+    let base = std::env::var("FERRUM_STORAGE__LOCAL_PATH")
+        .or_else(|_| std::env::var("FERRUM_OBJECTS_DIR"))
+        .unwrap_or_else(|_| "./data".to_string());
+    Path::new(&base).join(storage_key)
+}
+
+async fn insert_snvs_batched(
+    pool: &FerrumPool,
+    dataset_id: &str,
+    rows: &[VcfSnv],
+) -> Result<usize> {
+    let mut inserted = 0usize;
+    for chunk in rows.chunks(INSERT_BATCH) {
+        match pool {
+            FerrumPool::Postgres(p) => {
+                let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+                    "INSERT INTO beacon_variants (dataset_id, chromosome, start, \"end\", reference, alternate, variant_type) ",
+                );
+                qb.push_values(chunk, |mut b, row| {
+                    b.push_bind(dataset_id)
+                        .push_bind(&row.chrom)
+                        .push_bind(row.pos)
+                        .push_bind(row.pos)
+                        .push_bind(&row.reference)
+                        .push_bind(&row.alternate)
+                        .push_bind("SNV");
+                });
+                qb.build().execute(p).await?;
+            }
+            FerrumPool::Sqlite(p) => {
+                let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(
+                    "INSERT INTO beacon_variants (dataset_id, chromosome, start, \"end\", reference, alternate, variant_type) ",
+                );
+                qb.push_values(chunk, |mut b, row| {
+                    b.push_bind(dataset_id)
+                        .push_bind(&row.chrom)
+                        .push_bind(row.pos)
+                        .push_bind(row.pos)
+                        .push_bind(&row.reference)
+                        .push_bind(&row.alternate)
+                        .push_bind("SNV");
+                });
+                qb.build().execute(p).await?;
+            }
+        }
+        inserted += chunk.len();
+    }
+    Ok(inserted)
+}
+
+/// Stream-parse a local VCF (plain or gzip) and insert SNV rows. Does not load the file into a `Vec`.
+pub async fn index_vcf_path(pool: &FerrumPool, dataset_id: &str, path: &Path) -> Result<usize> {
+    let path = path.to_path_buf();
+    let rows = tokio::task::spawn_blocking(move || {
+        let file = std::fs::File::open(&path)
+            .map_err(|e| ferrum_core::FerrumError::Internal(anyhow::anyhow!(e)))?;
+        parse_vcf_snvs_from_reader(std::io::BufReader::new(file))
+    })
+    .await
+    .map_err(|e| ferrum_core::FerrumError::Internal(anyhow::anyhow!(e)))??;
+    insert_snvs_batched(pool, dataset_id, &rows).await
+}
+
 /// Parse VCF bytes and insert SNV rows into `beacon_variants` (best-effort).
 pub async fn index_vcf_bytes(pool: &FerrumPool, dataset_id: &str, bytes: &[u8]) -> Result<usize> {
     if bytes.len() > MAX_VCF_BYTES {
@@ -74,43 +155,7 @@ pub async fn index_vcf_bytes(pool: &FerrumPool, dataset_id: &str, bytes: &[u8]) 
     let rows = tokio::task::spawn_blocking(move || parse_vcf_snvs(&owned))
         .await
         .map_err(|e| ferrum_core::FerrumError::Internal(anyhow::anyhow!(e)))??;
-
-    let mut inserted = 0usize;
-    for row in rows {
-        let end = row.pos;
-        match pool {
-            FerrumPool::Postgres(p) => {
-                sqlx::query(
-                    "INSERT INTO beacon_variants (dataset_id, chromosome, start, \"end\", reference, alternate, variant_type)
-                     VALUES ($1, $2, $3, $4, $5, $6, 'SNV')",
-                )
-                .bind(dataset_id)
-                .bind(&row.chrom)
-                .bind(row.pos)
-                .bind(end)
-                .bind(&row.reference)
-                .bind(&row.alternate)
-                .execute(p)
-                .await?;
-            }
-            FerrumPool::Sqlite(p) => {
-                sqlx::query(
-                    "INSERT INTO beacon_variants (dataset_id, chromosome, start, \"end\", reference, alternate, variant_type)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'SNV')",
-                )
-                .bind(dataset_id)
-                .bind(&row.chrom)
-                .bind(row.pos)
-                .bind(end)
-                .bind(&row.reference)
-                .bind(&row.alternate)
-                .execute(p)
-                .await?;
-            }
-        }
-        inserted += 1;
-    }
-    Ok(inserted)
+    insert_snvs_batched(pool, dataset_id, &rows).await
 }
 
 #[cfg(test)]

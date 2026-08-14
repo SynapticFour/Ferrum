@@ -8,7 +8,7 @@ license = "BUSL-1.1"
 [dependencies]
 ferrum-core = { path = "../ferrum-core" }
 axum = "0.7"
-tokio = { version = "1", features = ["full"] }
+tokio.workspace = true
 tower = "0.4"
 tower-service = "0.3"
 http-body-util = "0.1"

@@ -7,7 +7,6 @@ use crypt4gh::keys::{generate_keys as c4gh_generate_keys, get_private_key, get_p
 use crypt4gh::{decrypt, encrypt, reencrypt};
 use std::collections::HashSet;
 use std::path::Path;
-use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 /// Crypt4GH key (crate type re-export for convenience).
@@ -146,36 +145,6 @@ impl KeyStore for LocalKeyStore {
         // LocalKeyStore is read-only from API; keys are written via generate_keypair + copy
         Err(Crypt4GHError::KeyError(
             "LocalKeyStore is read-only".to_string(),
-        ))
-    }
-}
-
-/// Database key store: keys stored in a table (key_id -> private or public blob).
-pub struct DatabaseKeyStore<DB> {
-    _db: Arc<DB>,
-}
-
-impl<DB> DatabaseKeyStore<DB> {
-    pub fn new(db: Arc<DB>) -> Self {
-        Self { _db: db }
-    }
-}
-
-// Placeholder: when DB type is concrete (e.g. ferrum_core::DatabasePool), implement KeyStore
-// by querying a keys table. For now we leave it unimplemented so the crate compiles.
-#[async_trait]
-impl<DB: Send + Sync> KeyStore for DatabaseKeyStore<DB> {
-    async fn get_private_key(&self, _key_id: &str) -> Result<Option<Vec<C4ghKeys>>> {
-        Ok(None)
-    }
-
-    async fn get_public_key_bytes(&self, _key_id: &str) -> Result<Option<Vec<u8>>> {
-        Ok(None)
-    }
-
-    async fn store_key(&self, _key_id: &str, _keys: &[C4ghKeys]) -> Result<()> {
-        Err(Crypt4GHError::KeyError(
-            "DatabaseKeyStore not yet implemented".to_string(),
         ))
     }
 }

@@ -325,13 +325,20 @@ impl ProvenanceStore {
     ) -> Result<ProvenanceGraph> {
         use std::collections::HashSet;
 
-        type DrsObjectRow = Option<(Option<String>, i64, Option<String>, Option<DateTime<Utc>>)>;
-        type WesRunRow = Option<(
+        type DrsObjectRow = (
+            String,
+            Option<String>,
+            i64,
+            Option<String>,
+            Option<DateTime<Utc>>,
+        );
+        type WesRunRow = (
+            String,
             Option<String>,
             Option<String>,
             Option<String>,
             Option<DateTime<Utc>>,
-        )>;
+        );
 
         let mut node_ids = HashSet::new();
         for (ft, fid, tt, tid, _) in &edges {
@@ -339,15 +346,45 @@ impl ProvenanceStore {
             node_ids.insert((tt.as_str(), tid.as_str()));
         }
         let mut nodes = Vec::new();
+        let mut drs_ids = Vec::new();
+        let mut wes_ids = Vec::new();
         for (ty, id) in &node_ids {
             if *ty == "drs_object" {
-                let row: DrsObjectRow = sqlx::query_as(
-                    "SELECT name, size, mime_type, created_time FROM drs_objects WHERE id = $1",
-                )
-                .bind(id)
-                .fetch_optional(pool)
-                .await?;
-                if let Some((name, size, mime_type, created_at)) = row {
+                drs_ids.push((*id).to_string());
+            } else {
+                wes_ids.push((*id).to_string());
+            }
+        }
+
+        let mut drs_by_id = std::collections::HashMap::new();
+        if !drs_ids.is_empty() {
+            let rows: Vec<DrsObjectRow> = sqlx::query_as(
+                "SELECT id, name, size, mime_type, created_time FROM drs_objects WHERE id = ANY($1)",
+            )
+            .bind(&drs_ids)
+            .fetch_all(pool)
+            .await?;
+            for (id, name, size, mime_type, created_at) in rows {
+                drs_by_id.insert(id, (name, size, mime_type, created_at));
+            }
+        }
+
+        let mut wes_by_id = std::collections::HashMap::new();
+        if !wes_ids.is_empty() {
+            let rows: Vec<WesRunRow> = sqlx::query_as(
+                "SELECT run_id, workflow_type, workflow_url, state, created_at FROM wes_runs WHERE run_id = ANY($1)",
+            )
+            .bind(&wes_ids)
+            .fetch_all(pool)
+            .await?;
+            for (id, workflow_type, workflow_url, state, created_at) in rows {
+                wes_by_id.insert(id, (workflow_type, workflow_url, state, created_at));
+            }
+        }
+
+        for (ty, id) in &node_ids {
+            if *ty == "drs_object" {
+                if let Some((name, size, mime_type, created_at)) = drs_by_id.remove(*id) {
                     nodes.push(ProvenanceNode::DrsObject {
                         id: (*id).to_string(),
                         name,
@@ -364,30 +401,24 @@ impl ProvenanceStore {
                         created_at: None,
                     });
                 }
+            } else if let Some((workflow_type, workflow_url, state, created_at)) =
+                wes_by_id.remove(*id)
+            {
+                nodes.push(ProvenanceNode::WesRun {
+                    id: (*id).to_string(),
+                    workflow_type,
+                    workflow_url,
+                    state,
+                    created_at,
+                });
             } else {
-                let row: WesRunRow = sqlx::query_as(
-                        "SELECT workflow_type, workflow_url, state, created_at FROM wes_runs WHERE run_id = $1",
-                    )
-                    .bind(id)
-                    .fetch_optional(pool)
-                    .await?;
-                if let Some((workflow_type, workflow_url, state, created_at)) = row {
-                    nodes.push(ProvenanceNode::WesRun {
-                        id: (*id).to_string(),
-                        workflow_type,
-                        workflow_url,
-                        state,
-                        created_at,
-                    });
-                } else {
-                    nodes.push(ProvenanceNode::WesRun {
-                        id: (*id).to_string(),
-                        workflow_type: None,
-                        workflow_url: None,
-                        state: None,
-                        created_at: None,
-                    });
-                }
+                nodes.push(ProvenanceNode::WesRun {
+                    id: (*id).to_string(),
+                    workflow_type: None,
+                    workflow_url: None,
+                    state: None,
+                    created_at: None,
+                });
             }
         }
         let edge_list: Vec<ProvenanceEdge> = edges

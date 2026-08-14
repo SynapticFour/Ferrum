@@ -28,6 +28,16 @@ members = [
 
 [workspace.dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+tokio = { version = "1", default-features = false, features = [
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "sync",
+    "time",
+    "fs",
+    "io-util",
+    "net",
+] }
 
 [profile.release-edge]
 inherits = "release"

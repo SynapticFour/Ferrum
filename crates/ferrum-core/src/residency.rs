@@ -122,25 +122,10 @@ impl ResidencyAuditLog {
         requester: Option<&str>,
         is_admin: bool,
     ) -> Result<ResidencyAuditQueryResult> {
-        let entries = self.fetch_all_ordered().await?;
-        let filtered: Vec<_> = entries
-            .into_iter()
-            .filter(|e| from.map(|f| e.timestamp >= f).unwrap_or(true))
-            .filter(|e| to.map(|t| e.timestamp <= t).unwrap_or(true))
-            .filter(|e| {
-                if is_admin {
-                    return true;
-                }
-                match (requester, e.requester.as_deref()) {
-                    (Some(r), Some(entry_r)) => entry_r == r,
-                    (Some(_), None) => false,
-                    (None, _) => true,
-                }
-            })
-            .collect();
-        let chain_valid = verify_chain(&filtered);
+        let entries = self.fetch_filtered(from, to, requester, is_admin).await?;
+        let chain_valid = verify_chain(&entries);
         Ok(ResidencyAuditQueryResult {
-            entries: filtered,
+            entries,
             chain_valid,
         })
     }
@@ -167,23 +152,63 @@ impl ResidencyAuditLog {
     }
 
     async fn fetch_all_ordered(&self) -> Result<Vec<ResidencyAuditEntry>> {
-        let sql = "SELECT id, timestamp, event_type, drs_id, requester, destination, data_left_node, bytes_transferred, prev_hash, entry_hash
-                   FROM residency_audit ORDER BY id ASC";
-        let rows: Vec<ResidencyAuditEntry> = match &self.pool {
-            FerrumPool::Postgres(p) => sqlx::query_as::<_, ResidencyRow>(sql)
-                .fetch_all(p)
-                .await?
-                .into_iter()
-                .map(ResidencyAuditEntry::from)
-                .collect(),
-            FerrumPool::Sqlite(p) => sqlx::query_as::<_, ResidencyRowSqlite>(sql)
-                .fetch_all(p)
-                .await?
-                .into_iter()
-                .map(ResidencyAuditEntry::from)
-                .collect(),
-        };
-        Ok(rows)
+        self.fetch_filtered(None, None, None, true).await
+    }
+
+    async fn fetch_filtered(
+        &self,
+        from: Option<DateTime<Utc>>,
+        to: Option<DateTime<Utc>>,
+        requester: Option<&str>,
+        is_admin: bool,
+    ) -> Result<Vec<ResidencyAuditEntry>> {
+        const SELECT: &str = "SELECT id, timestamp, event_type, drs_id, requester, destination, data_left_node, bytes_transferred, prev_hash, entry_hash FROM residency_audit WHERE 1=1";
+        match &self.pool {
+            FerrumPool::Postgres(p) => {
+                let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(SELECT);
+                if let Some(f) = from {
+                    qb.push(" AND timestamp >= ").push_bind(f);
+                }
+                if let Some(t) = to {
+                    qb.push(" AND timestamp <= ").push_bind(t);
+                }
+                if !is_admin {
+                    if let Some(r) = requester {
+                        qb.push(" AND requester = ").push_bind(r);
+                    }
+                }
+                qb.push(" ORDER BY id ASC");
+                Ok(qb
+                    .build_query_as::<ResidencyRow>()
+                    .fetch_all(p)
+                    .await?
+                    .into_iter()
+                    .map(ResidencyAuditEntry::from)
+                    .collect())
+            }
+            FerrumPool::Sqlite(p) => {
+                let mut qb = sqlx::QueryBuilder::<sqlx::Sqlite>::new(SELECT);
+                if let Some(f) = from {
+                    qb.push(" AND timestamp >= ").push_bind(f.to_rfc3339());
+                }
+                if let Some(t) = to {
+                    qb.push(" AND timestamp <= ").push_bind(t.to_rfc3339());
+                }
+                if !is_admin {
+                    if let Some(r) = requester {
+                        qb.push(" AND requester = ").push_bind(r);
+                    }
+                }
+                qb.push(" ORDER BY id ASC");
+                Ok(qb
+                    .build_query_as::<ResidencyRowSqlite>()
+                    .fetch_all(p)
+                    .await?
+                    .into_iter()
+                    .map(ResidencyAuditEntry::from)
+                    .collect())
+            }
+        }
     }
 }
 

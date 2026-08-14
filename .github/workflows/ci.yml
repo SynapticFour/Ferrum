@@ -119,7 +119,6 @@ jobs:
       - run: cargo bench -p ferrum-crypt4gh --bench crypt_benchmark --no-run
       - run: cargo check -p ferrum-storage --features opendal
       - run: cargo check -p ferrum-core --features libdeflate
-      - run: cargo check -p ferrum-drs --features bam-lazy-ingest
       - run: cargo check -p ferrum-meta-connect
 
   # ARM + size budget: main / manual only (PR already covered by rust job on x86).

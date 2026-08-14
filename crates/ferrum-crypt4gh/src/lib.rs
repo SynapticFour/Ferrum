@@ -7,8 +7,8 @@ pub mod proxy;
 
 pub use encryption::{
     encrypt_bytes_for_pubkey, generate_keypair, load_recipient_keys, recipient_keys_from_pubkey,
-    reencrypt_bytes, stream_decrypt, stream_encrypt, stream_reencrypt, C4ghKeys, DatabaseKeyStore,
-    KeyStore, LocalKeyStore,
+    reencrypt_bytes, stream_decrypt, stream_encrypt, stream_reencrypt, C4ghKeys, KeyStore,
+    LocalKeyStore,
 };
 pub use error::{Crypt4GHError, Result};
 pub use policy::{DataAccessPolicy, PolicyEngine, VISA_TYPE_CONTROLLED_ACCESS_GRANTS};

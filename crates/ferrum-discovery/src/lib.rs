@@ -3,8 +3,8 @@
 //! GA4GH Service Registry client for Ferrum gateway integration.
 
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
 
 use ferrum_core::{AuthConfig, DiscoveryConfig, FerrumConfig};
 use ga4gh_types::{ServiceInfo, ServiceOrganization, ServiceType};
@@ -299,13 +299,45 @@ pub fn wes_url_for_ads_origin(
     select_service_url(&org_wes, ARTIFACT_WES, prefs)
 }
 
+const LIST_TTL: Duration = Duration::from_secs(60);
+
+struct CachedListing {
+    services: Vec<RegisteredService>,
+    fetched_at: Instant,
+}
+
+fn listing_cache() -> &'static RwLock<HashMap<String, CachedListing>> {
+    static CACHE: OnceLock<RwLock<HashMap<String, CachedListing>>> = OnceLock::new();
+    CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+async fn listing_from_cache(registry_url: &str) -> Option<Vec<RegisteredService>> {
+    let guard = listing_cache().read().await;
+    guard
+        .get(registry_url)
+        .and_then(|c| (c.fetched_at.elapsed() < LIST_TTL).then(|| c.services.clone()))
+}
+
+async fn store_listing(registry_url: &str, services: Vec<RegisteredService>) {
+    listing_cache().write().await.insert(
+        registry_url.to_string(),
+        CachedListing {
+            services,
+            fetched_at: Instant::now(),
+        },
+    );
+}
+
+async fn invalidate_listing(registry_url: &str) {
+    listing_cache().write().await.remove(registry_url);
+}
+
 /// Client for GA4GH Service Registry read/write APIs.
 #[derive(Clone)]
 pub struct ServiceRegistryClient {
     http: Client,
     registry_url: String,
     registration_key: Option<String>,
-    cache: Arc<RwLock<HashMap<String, String>>>,
     fallback: HashMap<String, String>,
     selection: ServiceSelectionPrefs,
 }
@@ -337,7 +369,6 @@ impl ServiceRegistryClient {
                 .map_err(DiscoveryError::Http)?,
             registry_url,
             registration_key,
-            cache: Arc::new(RwLock::new(HashMap::new())),
             fallback: config.fallback_urls.clone(),
             selection: ServiceSelectionPrefs::from_discovery_config(config),
         })
@@ -359,10 +390,7 @@ impl ServiceRegistryClient {
             .await?;
 
         if response.status().is_success() {
-            self.cache
-                .write()
-                .await
-                .insert(service.info.id.clone(), service.url.clone());
+            invalidate_listing(&self.registry_url).await;
             tracing::info!(
                 service_id = %service.info.id,
                 url = %service.url,
@@ -380,14 +408,8 @@ impl ServiceRegistryClient {
     /// Resolve a service URL by GA4GH artifact name (e.g. `drs`, `beacon`).
     pub async fn resolve_artifact(&self, artifact: &str) -> Option<String> {
         match self.list().await {
-            Ok(services) => {
-                let mut cache = self.cache.write().await;
-                for service in &services {
-                    cache.insert(service.info.id.clone(), service.url.clone());
-                }
-                select_service_url(&services, artifact, &self.selection)
-                    .or_else(|| self.fallback.get(artifact).cloned())
-            }
+            Ok(services) => select_service_url(&services, artifact, &self.selection)
+                .or_else(|| self.fallback.get(artifact).cloned()),
             Err(err) => {
                 tracing::warn!(
                     artifact,
@@ -413,16 +435,14 @@ impl ServiceRegistryClient {
 
     /// Preload the in-memory cache from the registry (best-effort).
     pub async fn warm_cache(&self) {
-        if let Ok(services) = self.list().await {
-            let mut cache = self.cache.write().await;
-            for service in services {
-                cache.insert(service.info.id.clone(), service.url);
-            }
-        }
+        let _ = self.list().await;
     }
 
-    /// List all registered services.
+    /// List all registered services (cached for `LIST_TTL`).
     pub async fn list(&self) -> Result<Vec<RegisteredService>, DiscoveryError> {
+        if let Some(services) = listing_from_cache(&self.registry_url).await {
+            return Ok(services);
+        }
         let response = self
             .http
             .get(format!("{}/services", self.registry_url))
@@ -436,10 +456,12 @@ impl ServiceRegistryClient {
             });
         }
 
-        response
+        let services = response
             .json::<Vec<RegisteredService>>()
             .await
-            .map_err(|err| DiscoveryError::InvalidResponse(err.to_string()))
+            .map_err(|err| DiscoveryError::InvalidResponse(err.to_string()))?;
+        store_listing(&self.registry_url, services.clone()).await;
+        Ok(services)
     }
 }
 
@@ -641,6 +663,59 @@ mod tests {
         let url = client.resolve_artifact("drsservice").await;
         assert_eq!(url.as_deref(), Some("https://example.org/ga4gh/drs/v1"));
         std::env::remove_var("TEST_REGISTRY_KEY");
+    }
+
+    #[tokio::test]
+    async fn resolve_artifact_reuses_cached_listing() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/services"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(vec![RegisteredService {
+                    info: ServiceInfo {
+                        id: "org.example.drs".to_string(),
+                        name: "Example DRS".to_string(),
+                        r#type: ServiceType {
+                            group: "org.ga4gh".to_string(),
+                            artifact: "drsservice".to_string(),
+                            version: "1.3.0".to_string(),
+                        },
+                        organization: ServiceOrganization {
+                            name: "Example".to_string(),
+                            url: "https://example.org".to_string(),
+                            contact_url: None,
+                        },
+                        version: "0.1.0".to_string(),
+                        description: None,
+                        documentation_url: None,
+                        created_at: None,
+                        updated_at: None,
+                        environment: Some("test".to_string()),
+                    },
+                    url: "https://example.org/ga4gh/drs/v1".to_string(),
+                }]),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let config = DiscoveryConfig {
+            enabled: true,
+            service_registry_url: Some(server.uri()),
+            registration_api_key_env: "UNUSED_REGISTRY_KEY".to_string(),
+            auto_register: false,
+            registration_base_url: None,
+            fallback_urls: HashMap::new(),
+            preferred_environment: None,
+            preferred_organization: None,
+            preferred_service_id: None,
+        };
+        let client = ServiceRegistryClient::from_config(&config).expect("client");
+        let url1 = client.resolve_artifact("drsservice").await;
+        let client2 = ServiceRegistryClient::from_config(&config).expect("client");
+        let url2 = client2.resolve_artifact("drsservice").await;
+        assert_eq!(url1.as_deref(), Some("https://example.org/ga4gh/drs/v1"));
+        assert_eq!(url2, url1);
     }
 
     #[test]
