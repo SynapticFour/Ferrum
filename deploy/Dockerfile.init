@@ -16,7 +16,7 @@ ARG GA4GH_INFRA_REF=55d44957a1ee91140f83b6598ce0f9c492148d15
 RUN chmod +x /tmp/clone-ga4gh-infra.sh && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
 RUN cargo build --release -p ferrum-crypt4gh --bin ferrum-node-keygen
 
-FROM alpine:3.19
+FROM alpine:3.24
 RUN apk add --no-cache postgresql16-client curl netcat-openbsd bash wget libsodium
 
 # MinIO client for bucket creation (multi-arch)
