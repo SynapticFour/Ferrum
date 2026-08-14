@@ -50,6 +50,10 @@ write_config() {
   cat >"$TMP/${name}.toml" <<EOF
 bind = "127.0.0.1:${port}"
 
+# NON-PILOT field E2E — production default is require_auth=true
+[auth]
+require_auth = false
+
 [africa]
 offline_first = true
 sqlite_path = "${TMP}/${db}"

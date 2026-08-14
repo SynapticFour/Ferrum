@@ -1125,6 +1125,13 @@ async fn demo_seed(base_url: &str) -> Result<(), String> {
 
 async fn start_edge_mode(lang: i18n::Lang) -> Result<(), String> {
     std::env::set_var("FERRUM_OFFLINE", "1");
+    std::env::set_var("FERRUM_DEMO", "1");
+    // NON-PILOT: CLI `demo start --edge` spawns ferrum-gateway without the gateway
+    // `demo start --edge` subcommand, so auth-open must be set here or ingest 403s.
+    if std::env::var("FERRUM_AUTH__REQUIRE_AUTH").is_err() {
+        std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
+        println!("[ferrum] Demo auth is off (FERRUM_AUTH__REQUIRE_AUTH=false). This is NON-PILOT.");
+    }
     println!("{}", i18n::edge_start(lang));
     if let Some(home) = ferrum_embed::default_ferrum_home() {
         println!("{}", i18n::edge_data_dir(lang, &home.display().to_string()));

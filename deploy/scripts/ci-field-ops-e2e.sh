@@ -37,6 +37,10 @@ mkdir -p "$TMP/objects"
 cat >"$TMP/config.toml" <<EOF
 bind = "127.0.0.1:${PORT}"
 
+# NON-PILOT field E2E — production default is require_auth=true
+[auth]
+require_auth = false
+
 [africa]
 offline_first = true
 sqlite_path = "${TMP}/ferrum.db"
@@ -56,6 +60,10 @@ EOF
 
 cat >"$TMP/power-config.toml" <<EOF
 bind = "127.0.0.1:${POWER_PORT}"
+
+# NON-PILOT field E2E — production default is require_auth=true
+[auth]
+require_auth = false
 
 [africa]
 offline_first = true

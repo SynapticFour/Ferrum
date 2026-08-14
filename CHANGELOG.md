@@ -27,7 +27,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
-- **CI / demo auth** — Africa Conformance and `ferrum demo start --edge` set `FERRUM_AUTH__REQUIRE_AUTH=false` explicitly (NON-PILOT). Ingest honors that env override. Linux clippy `unnecessary_cast` on `statvfs` fields allowed for portable libc types. HelixTest Ferrum modes expect HTTP 400 for htsget POST `regions`.
+- **CI / demo auth** — Africa Conformance and `ferrum demo start --edge` (CLI and gateway) set `FERRUM_AUTH__REQUIRE_AUTH=false` explicitly (NON-PILOT). Ingest honors that env override. Linux clippy `unnecessary_cast` on `statvfs` fields allowed for portable libc types. HelixTest Ferrum modes expect HTTP 400 for htsget POST `regions`.
 - **VCF Beacon index** — stream-parse local VCF (plain or gzip, 50 MiB cap) and batch INSERT (256) instead of `read_to_end` + per-row writes.
 - **Residency audit queries** — time/requester filters run in SQL; full-table fetch remains only for chain verify.
 - **Edge `sync_push`** — multipart uses a file stream; chunked resume reads 256 KiB with seek (not the whole object in RAM).
