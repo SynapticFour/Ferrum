@@ -20,13 +20,13 @@ FERRUM_VERSION=v0.3.0
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
 # Tagged on origin 2026-08-15: ga4gh-infra-v0.2.2 → e43bf08bce5132db697a28c7db898d5e18f87b3f
 # (Docker Release vendors docker/vendor). Do not install ga4gh-infra-v0.1.0.
-# Crate/image tags stay 0.1.0.
+# Stack/deploy image tags follow ga4gh-infra-v* (0.2.2). Crate Cargo.toml may stay 0.1.0.
 GA4GH_INFRA_REF=ga4gh-infra-v0.2.2
 GA4GH_INFRA_TAG=ga4gh-infra-v0.2.2
 GA4GH_INFRA_SHA=e43bf08bce5132db697a28c7db898d5e18f87b3f
 
 # Docker image pins for ga4gh-infra compose (see ga4gh-infra/docker/.env.example)
-GA4GH_INFRA_IMAGE_VERSION=0.1.0
+GA4GH_INFRA_IMAGE_VERSION=0.2.2
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
 # Tagged on origin 2026-08-15: v0.1.1 → a8aabf30fa8a8963ca95a4e8c1e6c04cddf34a12
@@ -34,3 +34,9 @@ GA4GH_INFRA_IMAGE_VERSION=0.1.0
 HELIXTEST_REF=v0.1.1
 HELIXTEST_TAG=v0.1.1
 HELIXTEST_SHA=a8aabf30fa8a8963ca95a4e8c1e6c04cddf34a12
+
+# ferrum-meta — LinkML schema plane. Vendored into profiles/meta/schema/ and
+# compiled into ferrum-meta-connect via include_str!. Refresh with
+# scripts/sync-ferrum-meta-schemas.sh. Not a Ferrum runtime dependency.
+FERRUM_META_REF=e34fce4920d249fa69109a6d0600123901832eba
+FERRUM_META_SHA=e34fce4920d249fa69109a6d0600123901832eba

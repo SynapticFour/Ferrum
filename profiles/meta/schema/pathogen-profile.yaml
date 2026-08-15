@@ -1,0 +1,285 @@
+# ferrum-meta pathogen profile — offline-first pathogen surveillance metadata.
+#
+# This profile enables offline-first pathogen surveillance.
+# A Ferrum node in a field lab ingests samples offline, validates locally,
+# queues submissions, and uploads when connectivity is available.
+# Africa CDC continental genomic surveillance use case.
+#
+# Target archives: ENA (public pathogen genomics), GISAID (SARS-CoV-2/influenza).
+# No individual patient data — PathogenSample replaces Individual.
+# Reference: Africa CDC pathogen genomics metadata requirements; ENA/SRA XSD schemas.
+
+id: https://w3id.org/ferrum-meta/profiles/pathogen
+name: ferrum-pathogen-profile
+title: Ferrum Meta — Pathogen Surveillance Profile
+description: >-
+  Offline-first pathogen genomics surveillance for Africa CDC, KEMRI, ACEGID and
+  field/mobile laboratory settings. Submits to ENA (public) and GISAID where
+  applicable. No individual-level patient metadata.
+version: 0.1.0
+license: https://www.apache.org/licenses/LICENSE-2.0
+
+imports:
+  - ../core/ferrum-core
+
+prefixes:
+  FERRUM: https://w3id.org/ferrum-meta/
+  GENEPIO: http://purl.obolibrary.org/obo/GENEPIO_
+  ENA: https://www.ebi.ac.uk/ena/
+  linkml: https://w3id.org/linkml/
+
+default_prefix: FERRUM
+
+classes:
+  PathogenProfileSubmission:
+    is_a: FerrumCoreSubmission
+    description: >-
+      Pathogen surveillance submission bundle. Uses PathogenSample instead of
+      Individual; supports offline queue-and-upload workflows for field labs.
+    slots:
+      - pathogen_samples
+      - surveillance_metadata
+      - target_archives
+    slot_usage:
+      studies:
+        required: true
+      individuals:
+        required: false
+        minimum_cardinality: 0
+      samples:
+        range: PathogenProfileSample
+      files:
+        range: PathogenFile
+      pathogen_samples:
+        required: true
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        minimum_cardinality: 1
+      surveillance_metadata:
+        required: false
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+
+  PathogenSample:
+    mixins:
+      - IdentifiedByAliasMixin
+    description: >-
+      Pathogen specimen metadata without individual patient identifiers. Replaces
+      Individual in pathogen surveillance workflows. Maps to ENA sample attributes
+      and GISAID submission fields.
+    slots:
+      - pathogen_name
+      - ncbi_taxon_id
+      - collection_date
+      - collection_country
+      - collection_region
+      - host_species
+      - passage_history
+      - sequencing_lab
+      - submitting_lab
+      - isolation_source
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      pathogen_name:
+        required: true
+      ncbi_taxon_id:
+        required: true
+        pattern: "^[0-9]+$"
+      collection_date:
+        required: true
+      collection_country:
+        required: true
+        pattern: "^[A-Z]{2}$"
+      host_species:
+        required: true
+        ifabsent: "Homo sapiens"
+      sequencing_lab:
+        required: true
+      submitting_lab:
+        required: true
+      isolation_source:
+        required: true
+
+  PathogenProfileSample:
+    is_a: Sample
+    description: >-
+      Laboratory sample linked to a PathogenSample rather than an Individual.
+      Omits individual_alias requirement from ferrum-core.
+    slots:
+      - pathogen_sample_alias
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      individual_alias:
+        required: false
+      pathogen_sample_alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+
+  SurveillanceMetadata:
+    description: >-
+      Optional outbreak and lineage enrichment for public health surveillance.
+      Links to PathogenSample and external archive accessions (GISAID, ENA).
+    slots:
+      - pathogen_sample_alias
+      - outbreak_name
+      - lineage
+      - lineage_tool
+      - gisaid_accession
+      - ena_accession
+    slot_usage:
+      pathogen_sample_alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      outbreak_name:
+        recommended: true
+
+  PathogenFile:
+    is_a: File
+    description: >-
+      Pathogen sequencing file. Public pathogen data defaults to unencrypted;
+      use CRYPT4GH only for sensitive strains per Africa CDC guidance.
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9._-]+$"
+      encryption:
+        required: true
+        ifabsent: "NONE"
+
+enums:
+  IsolationSource:
+    description: >-
+      Source material for pathogen isolation. Aligns with ENA sample isolation
+      source attributes and Africa CDC outbreak metadata.
+    permissible_values:
+      CLINICAL:
+        description: Clinical patient specimen (de-identified at sample level).
+      ENVIRONMENTAL:
+        description: Environmental sampling (wastewater, surface, etc.).
+      VECTOR:
+        description: Arthropod or other disease vector specimen.
+      ANIMAL:
+        description: Animal host specimen (zoonotic surveillance).
+      OTHER:
+        description: Isolation source not in controlled vocabulary.
+
+  PathogenTargetArchive:
+    description: >-
+      Target public archives for pathogen surveillance submissions.
+    permissible_values:
+      ENA:
+        description: >-
+          European Nucleotide Archive — default for public pathogen WGS (Webin-CLI).
+      GISAID:
+        description: >-
+          GISAID — SARS-CoV-2, influenza, and other registered pathogen initiatives.
+
+slots:
+  pathogen_samples:
+    description: Pathogen specimens in this submission (replaces individuals).
+    range: PathogenSample
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  surveillance_metadata:
+    description: Optional outbreak/lineage enrichment records.
+    range: SurveillanceMetadata
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  target_archives:
+    description: >-
+      Intended public archive destinations (ENA, GISAID, or both).
+    range: PathogenTargetArchive
+    multivalued: true
+
+  pathogen_sample_alias:
+    description: Foreign key to PathogenSample.alias.
+    range: string
+    pattern: "^[a-zA-Z0-9_-]+$"
+
+  pathogen_name:
+    description: >-
+      Pathogen species or strain name (e.g. SARS-CoV-2, Plasmodium falciparum).
+      ENA organism and GISAID virus name fields.
+    range: string
+
+  ncbi_taxon_id:
+    description: >-
+      NCBI Taxonomy ID (numeric). Required for ENA taxonomy validation and
+      Africa CDC pathogen reporting.
+    range: string
+
+  collection_date:
+    description: Date the specimen was collected. ENA collection_date attribute.
+    range: date
+
+  collection_country:
+    description: >-
+      Country of specimen collection (ISO 3166-1 alpha-2). Africa CDC continental
+      surveillance geographic reporting.
+    range: string
+
+  collection_region:
+    description: >-
+      Sub-national region, district, or province of collection. Africa CDC and
+      national surveillance programme geographic granularity.
+    range: string
+
+  host_species:
+    description: >-
+      Host organism species name. Defaults to Homo sapiens; use NCBI taxonomy
+      name for zoonotic samples. ENA host attribute.
+    range: string
+
+  passage_history:
+    description: >-
+      Laboratory passage history if applicable. ENA strain/passage metadata for
+      cultured isolates.
+    range: string
+
+  sequencing_lab:
+    description: >-
+      Laboratory that performed sequencing. Required ENA center/lab attribution.
+    range: string
+
+  submitting_lab:
+    description: >-
+      Laboratory submitting the data. Required ENA submitter lab metadata.
+    range: string
+
+  isolation_source:
+    description: Specimen isolation source category.
+    range: IsolationSource
+
+  outbreak_name:
+    description: >-
+      Outbreak or cluster identifier for epidemiological linkage. Africa CDC
+      outbreak response metadata.
+    range: string
+
+  lineage:
+    description: >-
+      Assigned pathogen lineage (e.g. PANGO, Nextclade). Africa CDC genomic
+      surveillance reporting.
+    range: string
+
+  lineage_tool:
+    description: Tool used to assign lineage (e.g. pangolin, nextclade).
+    range: string
+
+  gisaid_accession:
+    description: GISAID accession when submitted or pre-registered.
+    range: string
+
+  ena_accession:
+    description: ENA accession when submitted or pre-registered.
+    range: string

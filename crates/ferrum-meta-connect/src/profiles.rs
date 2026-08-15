@@ -41,7 +41,9 @@ pub fn detect_profile(root: &serde_json::Value) -> MetaProfile {
         .unwrap_or("")
         .to_ascii_uppercase();
     match study_type.as_str() {
-        "PATHOGEN_SURVEILLANCE" | "OUTBREAK_RESPONSE" => MetaProfile::Pathogen,
+        "PATHOGEN_SURVEILLANCE" | "OUTBREAK_RESPONSE" | "PATHOGEN_GENOMICS" => {
+            MetaProfile::Pathogen
+        }
         "H3AFRICA" => MetaProfile::H3Africa,
         _ => MetaProfile::Core,
     }
@@ -136,11 +138,14 @@ fn validate_pathogen_rules(root: &serde_json::Value, issues: &mut Vec<Validation
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_ascii_uppercase();
-            if study_type != "PATHOGEN_SURVEILLANCE" && study_type != "OUTBREAK_RESPONSE" {
+            if study_type != "PATHOGEN_SURVEILLANCE"
+                && study_type != "OUTBREAK_RESPONSE"
+                && study_type != "PATHOGEN_GENOMICS"
+            {
                 issues.push(issue(
                     IssueSeverity::Error,
                     format!("{path}.type"),
-                    "pathogen profile requires type PATHOGEN_SURVEILLANCE or OUTBREAK_RESPONSE",
+                    "pathogen profile requires type PATHOGEN_SURVEILLANCE, OUTBREAK_RESPONSE, or PATHOGEN_GENOMICS",
                 ));
             }
             validate_duo_codes(study, &path, issues);
@@ -151,7 +156,23 @@ fn validate_pathogen_rules(root: &serde_json::Value, issues: &mut Vec<Validation
         for (i, sample) in samples.iter().enumerate() {
             let path = format!("samples[{i}]");
             require_str(sample, &path, "collection_date", issues);
-            require_str(sample, &path, "collection_site", issues);
+            // LinkML PathogenSample requires collection_country (ISO-3166 alpha-2).
+            // Historical Ferrum fixtures used collection_site; accept either.
+            let has_country = sample
+                .get("collection_country")
+                .and_then(|v| v.as_str())
+                .is_some_and(|s| !s.trim().is_empty());
+            let has_site = sample
+                .get("collection_site")
+                .and_then(|v| v.as_str())
+                .is_some_and(|s| !s.trim().is_empty());
+            if !has_country && !has_site {
+                issues.push(issue(
+                    IssueSeverity::Error,
+                    format!("{path}.collection_country"),
+                    "pathogen profile requires collection_country (or legacy collection_site)",
+                ));
+            }
         }
     }
 
@@ -292,6 +313,23 @@ mod tests {
     fn detect_profile_from_study_type() {
         let root = serde_json::json!({"studies": [{"type": "H3AFRICA"}]});
         assert_eq!(detect_profile(&root), MetaProfile::H3Africa);
+        let pathogen = serde_json::json!({"studies": [{"type": "PATHOGEN_GENOMICS"}]});
+        assert_eq!(detect_profile(&pathogen), MetaProfile::Pathogen);
+    }
+
+    #[test]
+    fn pathogen_accepts_linkml_collection_country() {
+        let root = serde_json::json!({
+            "ferrum_meta_version": FERRUM_META_VERSION,
+            "studies": [{"alias": "s1", "title": "t", "description": "d", "type": "PATHOGEN_GENOMICS", "data_use_conditions": ["DUO:0000007"]}],
+            "individuals": [{"alias": "i1"}],
+            "samples": [{"alias": "sa1", "individual_alias": "i1", "collection_date": "2026-01-01", "collection_country": "LR"}],
+            "experiments": [{"alias": "e1", "sample_alias": "sa1"}],
+            "files": [{"alias": "f1"}],
+            "datasets": [{"alias": "d1", "title": "t", "file_aliases": ["f1"]}]
+        });
+        let report = validate_submission(&root, Some(MetaProfile::Pathogen));
+        assert!(report.valid, "{report}");
     }
 
     #[test]

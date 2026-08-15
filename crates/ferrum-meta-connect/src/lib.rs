@@ -1,12 +1,14 @@
 //! Offline validation for [ferrum-meta](https://github.com/SynapticFour/ferrum-meta) submissions.
 //!
-//! Phase 1: structural checks aligned with `ferrum-core` v0.1.0 (no LinkML runtime).
-//! Phase 2: pathogen + H3Africa profiles, init/import helpers.
-//! Full LinkML parity remains in the ferrum-meta Python toolchain.
+//! Structural subset of vendored LinkML YAML under `profiles/meta/schema/`
+//! (`include_str!` in `schema_contract.rs`). Not a LinkML runtime — full
+//! parity stays in the ferrum-meta Python toolchain. Refresh with
+//! `scripts/sync-ferrum-meta-schemas.sh`.
 
 mod import;
 mod init;
 pub mod profiles;
+mod schema_contract;
 
 pub use import::import_csv_to_submission;
 pub use init::{build_init_template, InitParams};
@@ -207,6 +209,12 @@ pub fn validate_core_submission(root: &serde_json::Value) -> MetaValidationRepor
     }
 
     let valid = !issues.iter().any(|i| i.severity == IssueSeverity::Error);
+    debug_assert!(
+        schema_contract::CORE_SCHEMA_YAML.contains(&format!("version: {FERRUM_META_VERSION}")),
+        "vendored ferrum-core.yaml version must match FERRUM_META_VERSION"
+    );
+    debug_assert!(schema_contract::PATHOGEN_SCHEMA_YAML.contains("name: ferrum-pathogen-profile"));
+    debug_assert!(schema_contract::H3AFRICA_SCHEMA_YAML.contains("name: ferrum-h3africa-profile"));
     MetaValidationReport {
         valid,
         ferrum_meta_version: version,

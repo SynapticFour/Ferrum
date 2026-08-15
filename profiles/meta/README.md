@@ -67,4 +67,14 @@ See [docs/METADATA-STORE.md](../../docs/METADATA-STORE.md) and ADR-025.
 
 ## Schema sync
 
-See `sync-spec.json` and `scripts/sync-ferrum-meta-schemas.sh` for cross-repo JSON Schema refresh (Phase 2.4).
+Vendored LinkML YAML lives in [`schema/`](schema/) and is a **compile-time input** of `ferrum-meta-connect` (`include_str!`). The Rust validator is a **structural subset** of that YAML, not a LinkML runtime. Full profile parity (e.g. `PathogenSample`, `consent_records`) stays in the ferrum-meta Python toolchain.
+
+```bash
+# Refresh from a sibling ferrum-meta checkout (or FERRUM_META_REPO)
+./scripts/sync-ferrum-meta-schemas.sh
+
+# CI / local: fail if vendored YAML drifted from the pin in sync-spec.json
+./scripts/sync-ferrum-meta-schemas.sh --check
+```
+
+Pin: `VERSIONS.lock` `FERRUM_META_SHA` and `profiles/meta/sync-spec.json`.

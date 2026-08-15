@@ -1,0 +1,5 @@
+Vendored from https://github.com/SynapticFour/ferrum-meta
+SHA: e34fce4920d249fa69109a6d0600123901832eba
+Do not edit these YAML files by hand.
+Refresh: scripts/sync-ferrum-meta-schemas.sh
+Check:   scripts/sync-ferrum-meta-schemas.sh --check

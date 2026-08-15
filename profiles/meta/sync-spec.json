@@ -1,22 +1,26 @@
 {
   "ferrum_meta_version": "0.1.0",
   "source_repo": "https://github.com/SynapticFour/ferrum-meta",
+  "ferrum_meta_sha": "e34fce4920d249fa69109a6d0600123901832eba",
   "profiles": [
     {
       "id": "core",
-      "schema_path": "schemas/ferrum-core.yaml",
+      "schema_path": "schema/core/ferrum-core.yaml",
+      "vendored": "profiles/meta/schema/ferrum-core.yaml",
       "fixture": "profiles/meta/fixtures/ferrum-core-minimal-submission.yaml"
     },
     {
       "id": "pathogen",
-      "schema_path": "schemas/pathogen-surveillance.yaml",
+      "schema_path": "schema/profiles/pathogen-profile.yaml",
+      "vendored": "profiles/meta/schema/pathogen-profile.yaml",
       "fixture": "profiles/meta/fixtures/ferrum-pathogen-minimal-submission.yaml"
     },
     {
       "id": "h3africa",
-      "schema_path": "schemas/h3africa.yaml",
+      "schema_path": "schema/profiles/h3africa-profile.yaml",
+      "vendored": "profiles/meta/schema/h3africa-profile.yaml",
       "fixture": "profiles/meta/fixtures/ferrum-h3africa-minimal-submission.yaml"
     }
   ],
-  "note": "Run scripts/sync-ferrum-meta-schemas.sh to refresh JSON Schema artifacts from ferrum-meta releases."
+  "note": "Vendored LinkML YAML is a compile-time input of ferrum-meta-connect (include_str!). Refresh with scripts/sync-ferrum-meta-schemas.sh. The Rust validator is a structural subset, not a LinkML runtime."
 }

@@ -1,0 +1,722 @@
+# ferrum-core: minimum consensus genomic metadata model
+# Derived from GHGA v2.2.0, EGA/SRA, FAIR Genomes, H3Africa.
+# COMMUNITY consent and PATHOGEN_GENOMICS are first-class fields.
+#
+# ferrum_meta_version: 0.1.0
+
+id: https://w3id.org/ferrum-meta/core
+name: ferrum-core
+title: Ferrum Meta — Core Schema
+description: >-
+  Minimum consensus metadata model for archive-agnostic genomics submissions.
+  Fields appear in at least two of GHGA, EGA/SRA, FAIR Genomes, and H3Africa.
+  Offline-first; designed for federated archive nodes including African field settings.
+version: 0.1.0
+license: https://www.apache.org/licenses/LICENSE-2.0
+
+imports:
+  - linkml:types
+
+prefixes:
+  FERRUM: https://w3id.org/ferrum-meta/
+  schema: https://w3id.org/ferrum-meta/schema/
+  linkml: https://w3id.org/linkml/
+  HP: http://purl.obolibrary.org/obo/HP_
+  DUO: http://purl.obolibrary.org/obo/DUO_
+  HANCESTRO: http://purl.obolibrary.org/obo/HANCESTRO_
+
+default_prefix: FERRUM
+default_range: string
+
+default_curi_maps:
+  - obo_context
+  - semweb_context
+
+# ---------------------------------------------------------------------------
+# Mixins
+# ---------------------------------------------------------------------------
+
+classes:
+  AliasMixin:
+    mixin: true
+    description: >-
+      Mixin for entities identified by a submission-local alias.
+      Required by GHGA (IdentifiedByAliasMixin), EGA (objectId.alias), FAIR Genomes
+      (identifier fields), and H3Africa archive submissions.
+    slots:
+      - alias
+    slot_usage:
+      alias:
+        required: true
+
+  IdentifiedByAliasMixin:
+    mixin: true
+    abstract: true
+    is_a: AliasMixin
+    slot_usage:
+      alias:
+        identifier: true
+
+  # ---------------------------------------------------------------------------
+  # Root container
+  # ---------------------------------------------------------------------------
+
+  FerrumCoreSubmission:
+    tree_root: true
+    description: >-
+      Root submission bundle for ferrum-meta. Aggregates all core entities in a
+      single offline-portable document. Mirrors GHGA Submission and EGA submission
+      object-set composition.
+    slots:
+      - ferrum_meta_version
+      - studies
+      - individuals
+      - samples
+      - experiments
+      - files
+      - datasets
+    slot_usage:
+      ferrum_meta_version:
+        required: true
+      studies:
+        required: true
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        minimum_cardinality: 1
+      individuals:
+        required: true
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        minimum_cardinality: 1
+      samples:
+        required: true
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        minimum_cardinality: 1
+      experiments:
+        required: true
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        minimum_cardinality: 1
+      files:
+        required: true
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        minimum_cardinality: 1
+      datasets:
+        required: true
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        minimum_cardinality: 1
+
+  # ---------------------------------------------------------------------------
+  # 1. Study
+  # ---------------------------------------------------------------------------
+
+  Study:
+    mixins:
+      - IdentifiedByAliasMixin
+    description: >-
+      An experimental investigation grouped under a common research goal.
+      GHGA Study; EGA study (EGA.study.json); FAIR Genomes study module;
+      H3Africa project/study metadata.
+    slots:
+      - title
+      - description
+      - type
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      title:
+        required: true
+      description:
+        required: true
+      type:
+        required: true
+
+  # ---------------------------------------------------------------------------
+  # 2. Individual
+  # ---------------------------------------------------------------------------
+
+  Individual:
+    mixins:
+      - IdentifiedByAliasMixin
+    aliases: ["subject", "patient", "donor"]
+    description: >-
+      A person participating in a study or from whom a sample was derived.
+      GHGA Individual; EGA individual (EGA.individual.json); FAIR Genomes person;
+      H3Africa subject/donor metadata.
+    slots:
+      - sex
+      - phenotype
+      - diagnosis
+      - ancestry
+      - consent_type
+      - consent_code
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      sex:
+        required: true
+      phenotype:
+        recommended: true
+      ancestry:
+        recommended: true
+      consent_type:
+        required: true
+
+  # ---------------------------------------------------------------------------
+  # 3. Sample
+  # ---------------------------------------------------------------------------
+
+  Sample:
+    mixins:
+      - IdentifiedByAliasMixin
+    description: >-
+      A physical specimen used in an experiment. GHGA Sample/Biospecimen;
+      EGA sample (EGA.sample.json); FAIR Genomes material/sample modules;
+      H3Africa biorepository specimen records.
+    slots:
+      - individual_alias
+      - tissue_type
+      - biospecimen_type
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      individual_alias:
+        required: true
+      tissue_type:
+        recommended: true
+      biospecimen_type:
+        recommended: true
+
+  # ---------------------------------------------------------------------------
+  # 4. Experiment
+  # ---------------------------------------------------------------------------
+
+  Experiment:
+    mixins:
+      - IdentifiedByAliasMixin
+    description: >-
+      A planned process that generates sequencing data from a sample.
+      GHGA Experiment + ExperimentMethod; EGA experiment (EGA.experiment.json);
+      FAIR Genomes Sequencing module; H3Africa assay metadata.
+    slots:
+      - sample_alias
+      - sequencing_platform
+      - library_strategy
+      - library_source
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      sample_alias:
+        required: true
+      sequencing_platform:
+        required: true
+      library_strategy:
+        required: true
+      library_source:
+        required: true
+
+  # ---------------------------------------------------------------------------
+  # 5. File
+  # ---------------------------------------------------------------------------
+
+  File:
+    mixins:
+      - IdentifiedByAliasMixin
+    description: >-
+      A data file produced by or submitted with an experiment.
+      GHGA ResearchDataFile/ProcessDataFile; EGA file objects (EGA.common-definitions);
+      FAIR Genomes raw/processed data files; H3Africa data file manifests.
+    slots:
+      - format
+      - checksum_md5
+      - checksum_sha256
+      - size_bytes
+      - encryption
+      - drs_uri
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9._-]+$"
+      format:
+        required: true
+      checksum_md5:
+        required: true
+        pattern: "^[0-9a-f]{32}$"
+      checksum_sha256:
+        pattern: "^[0-9a-f]{64}$"
+      encryption:
+        required: true
+        ifabsent: "CRYPT4GH"
+      drs_uri:
+        pattern: "^drs://.*"
+
+  # ---------------------------------------------------------------------------
+  # 6. Dataset
+  # ---------------------------------------------------------------------------
+
+  Dataset:
+    mixins:
+      - IdentifiedByAliasMixin
+    description: >-
+      A controlled-access collection of files tied to a data use policy.
+      GHGA Dataset + DataAccessPolicy; EGA dataset (EGA.dataset.json);
+      FAIR Genomes data release; H3Africa dataset access tiers.
+    slots:
+      - title
+      - description
+      - file_aliases
+      - data_use_conditions
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      title:
+        required: true
+      description:
+        required: true
+      file_aliases:
+        required: true
+        minimum_cardinality: 1
+      data_use_conditions:
+        recommended: true
+
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
+
+enums:
+  StudyType:
+    description: >-
+      High-level study classification. Aligns with GHGA StudyTypeEnum and EGA
+      studyTypes controlled vocabulary. PATHOGEN_GENOMICS is a ferrum-meta
+      extension for Africa CDC pathogen surveillance workflows.
+    permissible_values:
+      WHOLE_GENOME_SEQUENCING:
+        description: >-
+          Whole genome sequencing. GHGA StudyTypeEnum; EGA studyTypes
+          'whole genome sequencing'; FAIR Genomes WGS studies.
+      TRANSCRIPTOME_ANALYSIS:
+        description: >-
+          Transcriptome analysis / RNA-seq. GHGA TRANSCRIPTOME_ANALYSIS/RNASEQ;
+          EGA 'transcriptome analysis'; FAIR Genomes transcriptome module.
+      EPIGENETICS:
+        description: >-
+          Epigenetics study. GHGA EPIGENETICS; EGA studyTypes 'epigenetics';
+          FAIR Genomes epigenomics assays.
+      SYNTHETIC:
+        description: >-
+          Synthetic or modified genomes. GHGA SYNTHETIC_GENOMICS; EGA
+          'synthetic genomics'; FAIR Genomes synthetic data use cases.
+      POPULATION_GENOMICS:
+        description: >-
+          Population-scale genomics. GHGA POPULATION_GENOMICS; EGA
+          'population genomics'; H3Africa population cohort studies.
+      PATHOGEN_GENOMICS:
+        description: >-
+          Pathogen genomics and surveillance. ferrum-meta extension for Africa CDC
+          and public health workflows; partial overlap with EGA 'metagenomics' and
+          GHGA METAGENOMICS for pathogen WGS.
+      OTHER:
+        description: >-
+          Study type not captured by controlled vocabulary. GHGA OTHER; EGA custom
+          study type proposals; FAIR Genomes open lookup.
+
+  BiologicalSex:
+    description: >-
+      Biological sex of the individual. GHGA IndividualSexEnum (GSSO-backed);
+      EGA biologicalSex (EGA.common-definitions); FAIR Genomes Genotypic sex;
+      H3Africa minimal public attributes.
+    permissible_values:
+      MALE:
+        description: Male biological sex for clinical/genomic context.
+      FEMALE:
+        description: Female biological sex for clinical/genomic context.
+      UNKNOWN:
+        description: Sex unknown or not reported.
+
+  ConsentType:
+    description: >-
+      Consent framework governing data use. FAIR Genomes Individual consent;
+      H3Africa tiered/community consent models; EGA policy linkage. COMMUNITY is
+      a first-class ferrum-meta field with no direct EGA/GHGA equivalent — maps to
+      DUO HMB (health/medical/biomedical research) on export.
+    permissible_values:
+      INDIVIDUAL:
+        description: >-
+          Standard individual informed consent. FAIR Genomes Individual consent;
+          EGA individual consent records; Western clinical trial default.
+      COMMUNITY:
+        description: >-
+          Community consent governing collective data decisions. H3Africa community
+          engagement models; ferrum-meta first-class field. No direct EGA/GHGA
+          equivalent; export maps to DUO:0000006 (HMB).
+      BROAD:
+        description: >-
+          Broad consent for future research use. H3Africa standard broad consent;
+          EGA broad-access policy patterns; FAIR Genomes broad data use permission.
+      SPECIFIC:
+        description: >-
+          Consent limited to a specific study or purpose. EGA study-specific
+          policies; FAIR Genomes study-scoped permissions; H3Africa restricted tiers.
+
+  BiospecimenType:
+    description: >-
+      Type of biological material collected. GHGA biospecimen_type/SampleTypeEnum;
+      EGA sample material descriptors; FAIR Genomes material type; H3Africa
+      biorepository specimen classes. BUCCAL_SWAB added for African field collection.
+    permissible_values:
+      BLOOD:
+        description: Blood-derived specimen. GHGA; EGA; FAIR Genomes; H3Africa.
+      SALIVA:
+        description: Saliva specimen. GHGA; EGA; FAIR Genomes; H3Africa.
+      TISSUE:
+        description: Solid tissue biopsy or specimen. GHGA; EGA; FAIR Genomes; H3Africa.
+      CELL_LINE:
+        description: Established cell line. GHGA; EGA; FAIR Genomes.
+      BUCCAL_SWAB:
+        description: >-
+          Buccal swab specimen. ferrum-meta addition — common in African field
+          collection; EGA sample examples; FAIR Genomes swab materials.
+      OTHER:
+        description: Biospecimen type not in controlled vocabulary.
+
+  SequencingPlatform:
+    description: >-
+      Sequencing instrument manufacturer/platform. GHGA InstrumentModelEnum;
+      EGA assayTechnology; FAIR Genomes Sequencing platform lookup. BGI and MGI
+      explicitly included — common in African genomics laboratories.
+    permissible_values:
+      ILLUMINA:
+        description: Illumina sequencing platforms. GHGA; EGA; FAIR Genomes.
+      ONT:
+        description: Oxford Nanopore Technologies. GHGA; EGA; FAIR Genomes.
+      PACBIO:
+        description: Pacific Biosciences long-read platforms. GHGA; EGA; FAIR Genomes.
+      BGI:
+        description: >-
+          BGI/MGI DNBSEQ platforms. ferrum-meta explicit inclusion for African
+          genomics labs; EGA technology descriptors.
+      MGI:
+        description: >-
+          MGI (BGI Group) sequencing platforms. ferrum-meta explicit inclusion;
+          common in low- and middle-income country sequencing centres.
+      OTHER:
+        description: Sequencing platform not in controlled vocabulary.
+
+  LibraryStrategy:
+    description: >-
+      Sequencing library construction strategy. GHGA library_type/library_selection;
+      EGA experimentTypeSpecifications / SRA library_strategy; FAIR Genomes
+      Sequencing method; INSDC SRA metadata.
+    permissible_values:
+      WGS:
+        description: Whole genome sequencing. GHGA; EGA/SRA WGS; FAIR Genomes.
+      WES:
+        description: Whole exome sequencing. GHGA EXOME_SEQUENCING; EGA/SRA WES.
+      RNA_SEQ:
+        description: RNA sequencing. GHGA RNASEQ; EGA transcriptome; FAIR Genomes.
+      AMPLICON:
+        description: Targeted amplicon sequencing. EGA amplicon; SRA AMPLICON.
+      CHIP_SEQ:
+        description: Chromatin immunoprecipitation sequencing. EGA chip-Seq; SRA ChIP-Seq.
+      OTHER:
+        description: Library strategy not in controlled vocabulary.
+
+  LibrarySource:
+    description: >-
+      Molecular material source for the library. GHGA library_type; EGA
+      assayedBiologicalMacromolecule; SRA library_source; FAIR Genomes sample
+      preparation module.
+    permissible_values:
+      GENOMIC:
+        description: Genomic DNA. GHGA; EGA/SRA GENOMIC; FAIR Genomes.
+      TRANSCRIPTOMIC:
+        description: RNA / transcriptome. GHGA; EGA/SRA TRANSCRIPTOMIC; FAIR Genomes.
+      METAGENOMIC:
+        description: Mixed-community DNA (e.g. pathogen surveillance). GHGA METAGENOMICS; SRA METAGENOMIC.
+      OTHER:
+        description: Library source not in controlled vocabulary.
+
+  FileFormat:
+    description: >-
+      File format of the submitted data object. GHGA ResearchDataFileFormatEnum /
+      ProcessDataFileFormatEnum; EGA filetype enum; FAIR Genomes file format;
+      INSDC/SRA format standards.
+    permissible_values:
+      FASTQ:
+        description: FASTQ short/long read format. GHGA; EGA; SRA.
+      BAM:
+        description: Binary alignment map. GHGA ProcessDataFile; EGA; SRA.
+      SAM:
+        description: Sequence alignment map (text). EGA; SRA.
+      CRAM:
+        description: Compressed reference-based alignment. GHGA CRAM; EGA; SRA.
+      VCF:
+        description: Variant call format. EGA; EVA; GA4GH VCF.
+      BCF:
+        description: Binary variant call format. EGA; EVA.
+      OTHER:
+        description: File format not in controlled vocabulary.
+
+  EncryptionEnum:
+    description: >-
+      File encryption state. EGA encrypted/unencrypted checksum pairs; GA4GH
+      Crypt4GH standard for federated sensitive data exchange; Ferrum node default.
+    permissible_values:
+      NONE:
+        description: >-
+          File stored without Crypt4GH encryption. Validators SHOULD emit a warning
+          for human genomics data. EGA unencrypted checksum path.
+      CRYPT4GH:
+        description: >-
+          File encrypted with Crypt4GH (GA4GH). Default for ferrum-meta human
+          genomics submissions. EGA encrypted checksum path; FEGA node standard.
+
+# ---------------------------------------------------------------------------
+# Slots
+# ---------------------------------------------------------------------------
+
+slots:
+  ferrum_meta_version:
+    description: >-
+      ferrum-meta schema version for this submission document (currently 0.1.0).
+      Analogous to GHGA schema version and EGA schemaDescriptor.
+    range: string
+    required: true
+    pattern: "^0\\.1\\.0$"
+
+  studies:
+    description: Study entities in this submission.
+    range: Study
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  individuals:
+    description: Individual (donor/subject) entities in this submission.
+    range: Individual
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  samples:
+    description: Sample entities in this submission.
+    range: Sample
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  experiments:
+    description: Experiment entities in this submission.
+    range: Experiment
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  files:
+    description: File entities in this submission.
+    range: File
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  datasets:
+    description: Dataset entities in this submission.
+    range: Dataset
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  alias:
+    description: >-
+      Submission-local identifier referenced by foreign-key alias slots.
+      Required by GHGA (alias as identifier), EGA (objectId.alias), FAIR Genomes
+      (module identifiers), and H3Africa archive aliases.
+    range: string
+    required: true
+
+  title:
+    description: >-
+      Short human-readable title. Required by GHGA Study.title / Dataset.title;
+      EGA objectTitle (study, dataset); FAIR Genomes study/dataset titles;
+      H3Africa project titles. Maximum 500 characters.
+    range: string
+
+  description:
+    description: >-
+      Detailed textual description. Required by GHGA Study.description /
+      Dataset.description; EGA objectDescription; FAIR Genomes study descriptions;
+      H3Africa project summaries. Minimum 50 characters.
+    range: string
+
+  type:
+    description: >-
+      Study type classification. Required by GHGA Study.types (StudyTypeEnum);
+      EGA studyTypes array; FAIR Genomes study purpose; H3Africa study category.
+    range: StudyType
+
+  sex:
+    description: >-
+      Biological sex of the individual. Required by GHGA Individual.sex;
+      EGA minimalPublicAttributes.biologicalSex; FAIR Genomes Genotypic sex;
+      H3Africa donor sex field.
+    range: BiologicalSex
+
+  phenotype:
+    description: >-
+      Human Phenotype Ontology terms describing phenotypic features.
+      Recommended by GHGA phenotypic_features_ids (HP); EGA
+      minimalPublicAttributes.phenotypicAbnormalities (HP); FAIR Genomes
+      Phenotypes lookup; H3Africa clinical phenotype capture.
+    range: string
+    multivalued: true
+    pattern: "^HP:\\d{7}$"
+
+  diagnosis:
+    description: >-
+      ICD-10 diagnosis codes. Optional. GHGA diagnosis_ids (NCIT/OMIM mapped);
+      EGA minimalPublicAttributes.diseases (MONDO/NCIT); FAIR Genomes diagnosis
+      module; H3Africa disease registry fields.
+    range: string
+    multivalued: true
+
+  ancestry:
+    description: >-
+      Ancestry descriptor using HANCESTRO. Recommended by GHGA ancestry_ids
+      (HANCESTRO); FAIR Genomes Ancestry lookup (HANCESTRO); H3Africa population
+      descriptors and hancestro ontology; EGA population context (via study design).
+    range: string
+
+  consent_type:
+    description: >-
+      Consent framework type. Required ferrum-meta field synthesising FAIR Genomes
+      Individual consent, H3Africa community/broad consent tiers, and EGA policy
+      scope. COMMUNITY has no direct EGA/GHGA slot — export via DUO HMB mapping.
+    range: ConsentType
+
+  consent_code:
+    description: >-
+      External consent form or policy identifier (e.g. DOI, registry code).
+      Optional. FAIR Genomes Consent form identifier; H3Africa consent registry;
+      EGA policy cross-reference; GHGA DataAccessPolicy alias.
+    range: string
+
+  individual_alias:
+    description: >-
+      Foreign key to Individual.alias. Required by GHGA Sample.individual;
+      EGA sample-individual relationships; FAIR Genomes material→person link;
+      H3Africa specimen→donor linkage.
+    range: string
+    pattern: "^[a-zA-Z0-9_-]+$"
+
+  tissue_type:
+    description: >-
+      Anatomical tissue or body site of collection. Recommended by GHGA
+      biospecimen_tissue_term (BRENDA/UBERON); EGA sampleCollection.samplingSite;
+      FAIR Genomes tissue/source material; H3Africa specimen site metadata.
+    range: string
+
+  biospecimen_type:
+    description: >-
+      Biospecimen material class. Recommended by GHGA biospecimen_type /
+      SampleTypeEnum; EGA sample material type; FAIR Genomes material type;
+      H3Africa biorepository specimen classification.
+    range: BiospecimenType
+
+  sample_alias:
+    description: >-
+      Foreign key to Sample.alias. Required by GHGA Experiment.sample;
+      EGA experiment-sample relationships; FAIR Genomes sequencing→sample link;
+      H3Africa assay→specimen linkage.
+    range: string
+    pattern: "^[a-zA-Z0-9_-]+$"
+
+  sequencing_platform:
+    description: >-
+      Sequencing platform manufacturer/family. Required by GHGA
+      ExperimentMethod.instrument_model; EGA assayTechnology; FAIR Genomes
+      Sequencing platform; SRA platform field.
+    range: SequencingPlatform
+
+  library_strategy:
+    description: >-
+      Library construction strategy. Required by GHGA library_type /
+      library_selection_methods; EGA experimentTypeSpecifications; SRA
+      library_strategy; FAIR Genomes Sequencing method.
+    range: LibraryStrategy
+
+  library_source:
+    description: >-
+      Molecular source material for sequencing. Required by GHGA library_type;
+      EGA assayedBiologicalMacromolecule; SRA library_source; FAIR Genomes
+      nucleic acid source.
+    range: LibrarySource
+
+  format:
+    description: >-
+      File format. Required by GHGA ResearchDataFile.format; EGA filetype;
+      FAIR Genomes file format; SRA/INSDC format metadata.
+    range: FileFormat
+
+  checksum_md5:
+    description: >-
+      MD5 checksum of the file (hex, lowercase). Required for offline integrity
+      verification. EGA unencryptedChecksum (MD5); GHGA file validation;
+      FAIR Genomes file checksum; H3Africa data manifest checksums.
+    range: string
+
+  checksum_sha256:
+    description: >-
+      SHA-256 checksum of the file (hex, lowercase). Optional secondary checksum.
+      EGA unencryptedChecksum (SHA-256); GA4GH/Ferrum node integrity standards.
+    range: string
+
+  size_bytes:
+    description: >-
+      File size in bytes. Optional. EGA file size metadata; FAIR Genomes file
+      attributes; Ferrum offline transfer planning.
+    range: integer
+
+  encryption:
+    description: >-
+      File encryption method. Default CRYPT4GH per GA4GH federated archive
+      practice. EGA encrypted/unencrypted checksum pair; FEGA Crypt4GH standard.
+      NONE triggers a validator warning for human genomics data.
+    range: EncryptionEnum
+
+  drs_uri:
+    description: >-
+      GA4GH DRS URI locating the file in a federated object store. Optional.
+      GA4GH DRS; FEGA node file registration; Ferrum federation layer.
+    range: string
+
+  file_aliases:
+    description: >-
+      List of File.alias values comprising this dataset. Required by GHGA
+      Dataset→File linkage; EGA dataset→file relationships; FAIR Genomes data
+      release file sets; H3Africa dataset manifests.
+    range: string
+    multivalued: true
+    pattern: "^[a-zA-Z0-9._-]+$"
+
+  data_use_conditions:
+    description: >-
+      DUO data use terms governing access to this dataset. Recommended by GHGA
+      data_use_permission (DUO); EGA policy DUO terms; FAIR Genomes Data use
+      permission/modifiers (DUO); H3Africa data sharing conditions.
+    range: string
+    multivalued: true
+    pattern: "^DUO:\\d{7}$"

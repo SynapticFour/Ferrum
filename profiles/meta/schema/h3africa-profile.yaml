@@ -1,0 +1,226 @@
+# ferrum-meta H3Africa profile — extends ferrum-core for H3Africa / H3ABioNet → EGA submission.
+#
+# This profile is designed for the H3Africa ecosystem. Data is submitted
+# to EGA via H3ABioNet, not directly. The 9-month embargo is tracked via
+# h3africa_release_date. Ferrum nodes running in African institutions can
+# store data locally during the embargo and release automatically on the date.
+#
+# Reference: H3Africa Consortium Data Sharing, Access and Release Policy (April 2020).
+
+id: https://w3id.org/ferrum-meta/profiles/h3africa
+name: ferrum-h3africa-profile
+title: Ferrum Meta — H3Africa Profile
+description: >-
+  Extensions for H3Africa community consent, ethics governance, and EGA submission
+  via H3ABioNet. H3Africa submits to EGA, not GHGA.
+version: 0.1.0
+license: https://www.apache.org/licenses/LICENSE-2.0
+
+imports:
+  - ../core/ferrum-core
+
+prefixes:
+  FERRUM: https://w3id.org/ferrum-meta/
+  H3AFRICA: https://w3id.org/h3africa/
+  EGA: https://www.ebi.ac.uk/ega/
+  HANCESTRO: http://purl.obolibrary.org/obo/HANCESTRO_
+  linkml: https://w3id.org/linkml/
+
+default_prefix: FERRUM
+
+default_curi_maps:
+  - obo_context
+  - semweb_context
+
+classes:
+  H3AfricaProfileSubmission:
+    aliases: ["H3AfricaSubmission"]
+    is_a: FerrumCoreSubmission
+    description: >-
+      H3Africa submission bundle for EGA deposition via H3ABioNet. Tracks embargo
+      release dates, ethics approvals, and EGA submission workflow status.
+    slots:
+      - consent_records
+      - h3abionet_archive_id
+      - ega_submission_status
+      - target_archive
+    slot_usage:
+      individuals:
+        range: H3AfricaIndividual
+      consent_records:
+        required: true
+        multivalued: true
+        inlined: true
+        inlined_as_list: true
+        minimum_cardinality: 1
+      ega_submission_status:
+        required: true
+      target_archive:
+        required: true
+        ifabsent: "EGA"
+
+  ConsentRecord:
+    mixins:
+      - IdentifiedByAliasMixin
+    description: >-
+      H3Africa consent and ethics record. Documents broad or community consent,
+      ethics approval, benefit sharing, and the 9-month post-archival embargo
+      release date required by H3Africa policy.
+    slots:
+      - consent_type
+      - h3africa_release_date
+      - community_representatives
+      - ethics_committee
+      - ethics_approval_number
+      - ethics_country
+      - benefit_sharing_agreement
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      consent_type:
+        required: true
+        ifabsent: "BROAD"
+      h3africa_release_date:
+        required: true
+      ethics_committee:
+        required: true
+      ethics_approval_number:
+        required: true
+      ethics_country:
+        required: true
+        pattern: "^[A-Z]{2}$"
+      benefit_sharing_agreement:
+        required: true
+
+  H3AfricaIndividual:
+    is_a: Individual
+    description: >-
+      H3Africa study participant with recruitment geography and population
+      descriptors. Maps to EGA individual metadata submitted via H3ABioNet.
+    slots:
+      - country_of_recruitment
+      - language_of_consent
+      - population_group
+      - consent_record_alias
+    slot_usage:
+      alias:
+        required: true
+        pattern: "^[a-zA-Z0-9_-]+$"
+      country_of_recruitment:
+        required: true
+        pattern: "^[A-Z]{2}$"
+      population_group:
+        recommended: true
+      consent_type:
+        ifabsent: "BROAD"
+
+enums:
+  EgaSubmissionStatus:
+    description: >-
+      H3Africa → H3ABioNet → EGA submission workflow status tracked by Ferrum
+      nodes during local embargo storage and federated release.
+    permissible_values:
+      NOT_STARTED:
+        description: Submission preparation has not begun.
+      IN_PREPARATION:
+        description: Metadata and files are being prepared locally on the Ferrum node.
+      SUBMITTED_TO_H3ABIONET:
+        description: Submission package sent to H3ABioNet for EGA deposition review.
+      ACCESSIONED_AT_EGA:
+        description: Data accessioned at EGA; embargo countdown active until release date.
+
+  H3AfricaTargetArchive:
+    description: >-
+      Target public archive for H3Africa submissions. Always EGA — H3Africa does
+      not submit to GHGA.
+    permissible_values:
+      EGA:
+        description: >-
+          European Genome-phenome Archive via H3ABioNet. The sole H3Africa
+          designated international archive.
+
+slots:
+  consent_records:
+    description: Consent and ethics records governing this H3Africa submission.
+    range: ConsentRecord
+    multivalued: true
+    inlined: true
+    inlined_as_list: true
+
+  h3abionet_archive_id:
+    description: >-
+      H3ABioNet archive or project identifier when assigned. Optional until
+      H3ABioNet intake completes.
+    range: string
+
+  ega_submission_status:
+    description: >-
+      Current status of the H3Africa → H3ABioNet → EGA submission pipeline.
+    range: EgaSubmissionStatus
+
+  target_archive:
+    description: >-
+      Target archive for release. Always EGA for H3Africa submissions.
+    range: H3AfricaTargetArchive
+
+  h3africa_release_date:
+    description: >-
+      Date when data may be released from embargo (ingestion/archival date + 9 months
+      per H3Africa policy). Ferrum nodes enforce automatic release on this date.
+    range: date
+
+  community_representatives:
+    description: >-
+      Named community representatives when consent_type is COMMUNITY. Required for
+      COMMUNITY consent — validators should reject COMMUNITY records without at
+      least one representative.
+    range: string
+    multivalued: true
+
+  ethics_committee:
+    description: >-
+      Name of the institutional or national ethics review committee. Required by
+      H3Africa data sharing policy for all submissions.
+    range: string
+
+  ethics_approval_number:
+    description: >-
+      Ethics committee approval reference number. Required by H3Africa policy and
+      EGA submission metadata.
+    range: string
+
+  ethics_country:
+    description: >-
+      Country where ethics approval was granted (ISO 3166-1 alpha-2, e.g. KE, ZA).
+    range: string
+
+  benefit_sharing_agreement:
+    description: >-
+      Whether a documented benefit sharing agreement exists. H3Africa policy
+      requires benefit sharing arrangements to be documented before data release.
+    range: boolean
+
+  country_of_recruitment:
+    description: >-
+      Country where the participant was recruited (ISO 3166-1 alpha-2). Required
+      for H3Africa population genomics metadata and EGA individual provenance.
+    range: string
+
+  language_of_consent:
+    description: >-
+      Language in which informed consent was administered (ISO 639-1, e.g. en, sw).
+      Recommended for multilingual African study contexts.
+    range: string
+
+  population_group:
+    description: >-
+      Population descriptor using HANCESTRO. Recommended by H3Africa and EGA for
+      ancestry/population reporting without European-centric defaults.
+    range: string
+
+  consent_record_alias:
+    description: >-
+      Foreign key to ConsentRecord.alias governing this individual's data use.
+    range: string
+    pattern: "^[a-zA-Z0-9_-]+$"

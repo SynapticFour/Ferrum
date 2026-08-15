@@ -61,6 +61,24 @@ jobs:
           name: mii-conformance-report
           path: mii-conformance-report.json
 
+  ferrum-meta-schema:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/load-versions
+      - name: Clone ferrum-meta at pin
+        run: |
+          set -euo pipefail
+          DEST="$GITHUB_WORKSPACE/_ferrum-meta"
+          REPO="https://github.com/${GITHUB_REPOSITORY_OWNER}/ferrum-meta.git"
+          git clone --depth 1 "$REPO" "$DEST"
+          git -C "$DEST" fetch --depth 1 origin "$FERRUM_META_SHA"
+          git -C "$DEST" checkout --detach FETCH_HEAD
+          echo "ferrum-meta @ $(git -C "$DEST" rev-parse --short HEAD)"
+      - name: Vendored LinkML must match pin
+        run: FERRUM_META_REPO="$GITHUB_WORKSPACE/_ferrum-meta" ./scripts/sync-ferrum-meta-schemas.sh --check
+
   test-edge-mode:
     if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest

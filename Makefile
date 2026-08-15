@@ -107,8 +107,9 @@ up-pilot: up-pilot-cloud
 # Full offline ga4gh stack (mock-idp). Use for CI or when Fly is unavailable.
 up-pilot-local:
 	@test -d "$(GA4GH_INFRA_SRC)" || (echo "GA4GH_INFRA_SRC not found: $(GA4GH_INFRA_SRC)" && exit 1)
+	@$(MAKE) -C "$(GA4GH_INFRA_SRC)" prepare-secrets
 	@$(MAKE) -C "$(GA4GH_INFRA_SRC)" prepare-vendor
-	@echo "Building ga4gh-infra from $(GA4GH_INFRA_SRC) (GHCR :0.1.0 tags are optional; local build is the default)."
+	@echo "Building ga4gh-infra from $(GA4GH_INFRA_SRC) (local --build; GHCR :0.2.2 is optional)."
 	$(COMPOSE_PILOT) up -d --build --pull never
 	@echo "Waiting for AAI broker (max 90s)..."
 	@for i in $$(seq 1 45); do \
