@@ -15,7 +15,7 @@
 #   - synapticfour-business pilot-deploy (sources this file from sibling Ferrum/)
 
 # Ferrum release tag (customer bundles, pilot FERRUM_REF)
-FERRUM_VERSION=v0.2.0
+FERRUM_VERSION=v0.3.0
 
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
 # Tagged on origin 2026-08-15: ga4gh-infra-v0.2.2 → e43bf08bce5132db697a28c7db898d5e18f87b3f

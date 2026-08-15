@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-15
+
+Institute-trust / fail-closed cut. Sibling pins: HelixTest `v0.1.1`, `ga4gh-infra-v0.2.2`. This is **not** a retag of `[0.2.0]` (Africa resilience, 2026-06-11, already on origin).
+
 ### Added
 
 - **Gateway image variants** — GHCR publishes `full` (`:<sha>`), `edge` (`:<sha>-edge`), and `edge-infra` (`:<sha>-edge-infra`). `deploy/Dockerfile` accepts `FERRUM_VARIANT` / `TARGETARCH` (amd64 + arm64 musl). Local builds: `./scripts/build-variant-image.sh`. See [IMAGE-VARIANTS.md](docs/IMAGE-VARIANTS.md).
@@ -14,10 +18,6 @@ All notable changes to this project will be documented in this file. The format 
 - **Release Intel Mac** — `release.yml` runs `rustup target add` for the matrix target so `x86_64-apple-darwin` builds on `macos-latest` (arm64).
 - **Release SBOM** — `cargo cyclonedx` 0.5.9 uses `--override-filename` (no `--workspace` / `--output-file`).
 - **Release Helm artifact** — `package_release_bundle.sh` copies `ferrum-helm-*.tgz` to the repo root so `SHA256SUMS.txt` can include it.
-
-## [0.3.0] - 2026-08-15
-
-Institute-trust / fail-closed cut. Sibling pins: HelixTest `v0.1.1`, `ga4gh-infra-v0.2.2`. This is **not** a retag of `[0.2.0]` (Africa resilience, 2026-06-11, already on origin).
 
 ### Security
 
