@@ -9,7 +9,8 @@ ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim
 ARG FERRUM_GIT_SHA=unknown
 ARG FERRUM_BUILD_PROFILE=demo
 FROM ${RUST_BUILDER_IMAGE} AS builder
-# Optional: e.g. `tes-docker` for Docker-backed TES (re-declare after FROM so RUN sees it).
+# Named variant (full|edge|edge-infra) or additive cargo features (e.g. tes-docker).
+ARG FERRUM_VARIANT=full
 ARG FERRUM_GATEWAY_FEATURES=
 WORKDIR /app
 
@@ -18,19 +19,24 @@ COPY crates ./crates
 COPY tools ./tools
 COPY third_party ./third_party
 COPY deploy/scripts/clone-ga4gh-infra.sh /tmp/clone-ga4gh-infra.sh
+COPY deploy/scripts/gateway-build-flags.sh /tmp/gateway-build-flags.sh
 ARG GA4GH_INFRA_REF=ga4gh-infra-v0.2.2
-RUN chmod +x /tmp/clone-ga4gh-infra.sh && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
+RUN chmod +x /tmp/clone-ga4gh-infra.sh /tmp/gateway-build-flags.sh \
+    && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
 
-RUN if [ -n "$FERRUM_GATEWAY_FEATURES" ]; then \
+# Additive --features (tes-docker) when VARIANT is full; otherwise named edge variants.
+RUN if [ -n "$FERRUM_GATEWAY_FEATURES" ] && [ "$FERRUM_VARIANT" = "full" ]; then \
       cargo build --release -p ferrum-gateway --features "$FERRUM_GATEWAY_FEATURES"; \
     else \
-      cargo build --release -p ferrum-gateway; \
+      EXTRA="$(FERRUM_VARIANT="${FERRUM_VARIANT}" FERRUM_GATEWAY_FEATURES="" /tmp/gateway-build-flags.sh)"; \
+      cargo build --release -p ferrum-gateway ${EXTRA}; \
     fi
 
 # Runtime image (keep in sync with builder OS family)
 FROM ${DEBIAN_RUNTIME_IMAGE}
 ARG FERRUM_GIT_SHA=unknown
 ARG FERRUM_BUILD_PROFILE=demo
+ARG FERRUM_VARIANT=full
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
@@ -39,7 +45,8 @@ RUN mkdir -p /app/data
 
 ENV FERRUM_BIND=0.0.0.0:8080 \
     FERRUM_BUILD__GIT_SHA=${FERRUM_GIT_SHA} \
-    FERRUM_BUILD__PROFILE=${FERRUM_BUILD_PROFILE}
+    FERRUM_BUILD__PROFILE=${FERRUM_BUILD_PROFILE} \
+    FERRUM_BUILD__VARIANT=${FERRUM_VARIANT}
 EXPOSE 8080
 
 CMD ["/app/ferrum-gateway"]

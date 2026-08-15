@@ -119,6 +119,20 @@ On **Apple M4 (aarch64)**:
 cargo build --release --target aarch64-apple-darwin
 ```
 
+### Container images (GHCR variants)
+
+Published tags on `ghcr.io/synapticfour/ferrum` (see [IMAGE-VARIANTS.md](IMAGE-VARIANTS.md)):
+
+| Tag | Binary |
+|-----|--------|
+| `:<git-sha>` / `:latest` | **full** stack |
+| `:<git-sha>-edge` / `:edge` | DRS + Beacon + htsget (SQLite) |
+| `:<git-sha>-edge-infra` / `:edge-infra` | edge + ga4gh-infra hooks |
+
+```bash
+./scripts/build-variant-image.sh --variant edge --platform linux/arm64 --tag ferrum:edge-local
+```
+
 ---
 
 ## Single-node production install

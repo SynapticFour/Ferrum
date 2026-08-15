@@ -1,0 +1,4 @@
+# Keep `docker build` contexts small (especially `lab-kit build image` from a Ferrum checkout).
+target
+.git
+.github

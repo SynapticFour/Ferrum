@@ -12,6 +12,7 @@ path = "src/main.rs"
 [features]
 default = ["full"]
 # Slim embedded / Edge mode binary: DRS + Beacon + htsget + Crypt4GH on SQLite only.
+# Published as ghcr.io/synapticfour/ferrum:<sha>-edge (see docs/IMAGE-VARIANTS.md).
 edge = []
 # Deprecated alias for `edge` (ADR-018).
 laptop = ["edge"]

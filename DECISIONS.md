@@ -12,6 +12,14 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-08-15 - Named gateway image variants (full / edge / edge-infra)
+
+- **Context:** Lab Kit selects GA4GH surfaces with runtime `FERRUM_SERVICES__ENABLE_*` on the full monolith image. Field/Pi operators still pull WES/TES/TRS code. Arbitrary per-lab compile matrices in Lab Kit would duplicate Ferrum CI (SBOM, signing, features).
+- **Decision:** Ferrum publishes **three** GHCR variants from `deploy/Dockerfile`: **full** (unsuffixed `:<sha>`), **edge** (`--features edge`), **edge-infra** (`edge,external-auth`). Lab Kit maps profiles onto those tags and may wrap `scripts/build-variant-image.sh` for a local/custom architecture. No combinatorial image factory.
+- **Consequences:** Beacon+DRS stacks use a smaller binary; htsget remains compiled into `edge` (disable at runtime). Custom cargo feature lists are an escape hatch (`FERRUM_GATEWAY_FEATURES`), not a product surface. GHCR default remains linux/amd64; arm64 is `docker build --platform` / Lab Kit `build image`.
+
+---
+
 ### 2026-08-10 - ADR-025: Optional Metadata Store API in Ferrum
 
 - **Status:** Accepted (M0/M1 shipped; M2+ phased)

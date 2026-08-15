@@ -29,6 +29,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [GA4GH-INFRA-INTEGRATION.md](GA4GH-INFRA-INTEGRATION.md) | External auth: broker, Passports, clearinghouse, service registry |
 | [deployment/README.md](deployment/README.md) | Deployment paths matrix, update/bugfix delivery strategy, preflight checks. |
 | [deployment/OFFLINE-AIRGAP.md](deployment/OFFLINE-AIRGAP.md) | Air-gapped deployment flow (export/import bundles). |
+| [IMAGE-VARIANTS.md](IMAGE-VARIANTS.md) | GHCR `full` / `edge` / `edge-infra` tags, Docker build args, Lab Kit mapping. |
 
 ---
 

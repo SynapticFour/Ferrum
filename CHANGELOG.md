@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **Gateway image variants** — GHCR publishes `full` (`:<sha>`), `edge` (`:<sha>-edge`), and `edge-infra` (`:<sha>-edge-infra`). `deploy/Dockerfile` accepts `FERRUM_VARIANT` / `TARGETARCH` (amd64 + arm64 musl). Local builds: `./scripts/build-variant-image.sh`. See [IMAGE-VARIANTS.md](docs/IMAGE-VARIANTS.md).
 - **Nightly HelixTest auth-on** — [`.github/workflows/helixtest-pilot-auth.yml`](.github/workflows/helixtest-pilot-auth.yml) runs on a schedule (and `workflow_dispatch`) against `deploy/configs/pilot.toml` (`require_auth=true`), HelixTest stubs off, `HELIXTEST_SKIP_AUTH` unset. Evidence is TES/WES token-protected 401/2xx, not HMAC-on-public-DRS.
 
 ### Fixed
