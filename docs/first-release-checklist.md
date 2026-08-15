@@ -3,18 +3,18 @@
 Operator checklist before the **first real customer-facing tag** (`v0.2.0`).
 Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gaps.md`](./portfolio/gaps.md), [`../RELEASING.md`](../RELEASING.md).
 
-> **Phase B note (2026-08-01):** Guided-pilot pack landed — `deploy/configs/pilot.toml` (`require_auth=true`), auth/compute honesty in [`customer-runbook.md`](./customer-runbook.md). Sibling tags `ga4gh-infra-v0.1.0` and HelixTest `v0.1.0` are on `origin`; `VERSIONS.lock` pins `GA4GH_INFRA_REF` / `HELIXTEST_REF` to those tags. Do **not** treat customer install as signed off until the remaining Pre-tag boxes below are checked.
+> **Phase B note (2026-08-15):** Guided-pilot pack landed — `deploy/configs/pilot.toml` (`require_auth=true`), auth/compute honesty in [`customer-runbook.md`](./customer-runbook.md). Sibling tags on origin: `ga4gh-infra-v0.1.0` (`55d44957…`) and HelixTest `v0.1.1` (`a8aabf30…`). `VERSIONS.lock` pins `GA4GH_INFRA_REF` / `HELIXTEST_REF` to those tags. Do **not** treat customer install as signed off until the remaining Pre-tag boxes below are checked.
 
 ---
 
 ## Pre-tag
 
 - [x] **`VERSIONS.lock`:** intended tags named and SHA pins documented (`GA4GH_INFRA_TAG` / `HELIXTEST_TAG` / `*_SHA`)
-- [x] **`VERSIONS.lock`:** `GA4GH_INFRA_REF` / `HELIXTEST_REF` set to **real tags** on origin (no bare commit SHAs)
-- [ ] **ga4gh-infra:** first tag `ga4gh-infra-v0.1.0` **pushed** to origin (`git push origin ga4gh-infra-v0.1.0`)
-- [ ] **HelixTest:** first tag `v0.1.0` **pushed** to origin (`git push origin v0.1.0`)
+- [x] **`VERSIONS.lock`:** `GA4GH_INFRA_REF` / `HELIXTEST_REF` set to **real tags** on origin (`ga4gh-infra-v0.1.0`, HelixTest `v0.1.1`)
+- [x] **ga4gh-infra:** tag `ga4gh-infra-v0.1.0` on origin (annotated tag → `55d44957a1ee91140f83b6598ce0f9c492148d15`)
+- [x] **HelixTest:** `v0.1.0` on origin; current Ferrum pin is **`v0.1.1`** (htsget region POST → 400 in Ferrum modes)
 - [ ] **`CHANGELOG.md`** updated for v0.2.0 cut (Ferrum + ga4gh-infra if applicable) — Unreleased hygiene done; release notes still pending
-- [ ] CI green on `main` (Ferrum, ga4gh-infra, pinned clones in CI)
+- [x] CI green on Ferrum `main` (commit `a3c98a17`, 2026-08-15). Re-check after this pin lands (clone uses tag `v0.1.1`).
 
 ## Guided pilot honesty (Phase B)
 
