@@ -147,10 +147,26 @@ jobs:
           chmod +x scripts/package_release_bundle.sh scripts/export_offline_bundle.sh import.sh
           ./scripts/package_release_bundle.sh
 
+      - uses: dtolnay/rust-toolchain@stable
+
       - name: Generate SBOM (CycloneDX)
         run: |
-          cargo install cargo-cyclonedx --locked
-          cargo cyclonedx --workspace --format json --output-file ferrum-sbom.cdx.json
+          cargo install cargo-cyclonedx --locked --version 0.5.9
+          # 0.5.x dropped --workspace / --output-file. One JSON for the shipped gateway crate.
+          cargo cyclonedx \
+            --manifest-path crates/ferrum-gateway/Cargo.toml \
+            --format json \
+            --override-filename ferrum-sbom.cdx
+          if [ -f ferrum-sbom.cdx.json ]; then
+            :
+          elif [ -f ferrum-sbom.cdx ]; then
+            mv ferrum-sbom.cdx ferrum-sbom.cdx.json
+          else
+            echo "expected ferrum-sbom.cdx.json"
+            ls -la ./*.cdx* ./*.json 2>/dev/null || true
+            exit 1
+          fi
+          test -s ferrum-sbom.cdx.json
 
       - name: Generate SHA256SUMS for all release artifacts
         run: |
