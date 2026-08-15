@@ -1,3 +1,5 @@
+//! SPDX-License-Identifier: BUSL-1.1
+//!
 //! GA4GH Task Execution Service (TES) as a WES execution backend.
 //! Submits each WES run as a single TES task (container running the workflow engine).
 //!
@@ -5,6 +7,8 @@
 //! CI/HelixTest and simple demos. **Optional** env-driven modes add bind mounts, shell launchers,
 //! and sidecar files under the WES work dir — see **`docs/TES-DOCKER-BACKEND.md`** and
 //! **`docs/WES-WORKFLOW-ENGINES.md`**.
+//!
+//! Poll status is the TES task state — no synthetic QUEUED/RUNNING delay for HelixTest.
 
 use crate::error::{Result, WesError};
 use crate::executor::{ProcessHandle, WesRun, WorkflowExecutor};
@@ -15,7 +19,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::time::{Duration, Instant};
 
 /// JSON body for POST /tasks (aligned with `ferrum_tes::types` where applicable).
 #[derive(Debug, Serialize)]
@@ -66,17 +69,6 @@ pub struct TesExecutorBackend {
     run_to_task: RwLock<HashMap<String, String>>,
     /// run_id -> WES work dir (for TES log files)
     run_to_work_dir: RwLock<HashMap<String, PathBuf>>,
-    /// HelixTest WES: first polls return QUEUED/RUNNING before reflecting TES terminal state.
-    lifecycle_phase: RwLock<HashMap<String, u32>>,
-    lifecycle_start: RwLock<HashMap<String, Instant>>,
-}
-
-fn min_terminal_delay() -> Duration {
-    let ms: u64 = std::env::var("FERRUM_WES_TES_MIN_TERMINAL_MS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(1200);
-    Duration::from_millis(ms.max(200))
 }
 
 fn env_truthy(name: &str) -> bool {
@@ -474,8 +466,6 @@ impl TesExecutorBackend {
             client: reqwest::Client::new(),
             run_to_task: RwLock::new(HashMap::new()),
             run_to_work_dir: RwLock::new(HashMap::new()),
-            lifecycle_phase: RwLock::new(HashMap::new()),
-            lifecycle_start: RwLock::new(HashMap::new()),
         }
     }
 
@@ -622,28 +612,6 @@ impl WorkflowExecutor for TesExecutorBackend {
 
     async fn poll_status(&self, handle: &ProcessHandle) -> Result<(RunState, Option<i32>)> {
         let run_id = &handle.run_id;
-        {
-            let mut phases = self
-                .lifecycle_phase
-                .write()
-                .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?;
-            let phase = phases.entry(run_id.clone()).or_insert(0);
-            if *phase == 0 {
-                *phase = 1;
-                drop(phases);
-                let mut starts = self
-                    .lifecycle_start
-                    .write()
-                    .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?;
-                starts.insert(run_id.clone(), Instant::now());
-                return Ok((RunState::Queued, None));
-            }
-            if *phase == 1 {
-                *phase = 2;
-                return Ok((RunState::Running, None));
-            }
-        }
-
         let task_id = self
             .run_to_task
             .read()
@@ -672,7 +640,7 @@ impl WorkflowExecutor for TesExecutorBackend {
             state: Some("UNKNOWN".to_string()),
             logs: None,
         });
-        let mut state = match task.state.as_deref().unwrap_or("UNKNOWN") {
+        let state = match task.state.as_deref().unwrap_or("UNKNOWN") {
             "QUEUED" => RunState::Queued,
             "INITIALIZING" => RunState::Initializing,
             "RUNNING" => RunState::Running,
@@ -683,20 +651,6 @@ impl WorkflowExecutor for TesExecutorBackend {
             "CANCELED" | "CANCELING" => RunState::Canceled,
             _ => RunState::Unknown,
         };
-
-        if state == RunState::Complete {
-            let t0 = self
-                .lifecycle_start
-                .read()
-                .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
-                .get(run_id)
-                .copied();
-            if let Some(t0) = t0 {
-                if t0.elapsed() < min_terminal_delay() {
-                    state = RunState::Running;
-                }
-            }
-        }
 
         if state != RunState::Running
             && state != RunState::Queued
@@ -718,16 +672,6 @@ impl WorkflowExecutor for TesExecutorBackend {
                 .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
                 .remove(run_id);
             self.run_to_work_dir
-                .write()
-                .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
-                .remove(run_id);
-            let _ = self
-                .lifecycle_phase
-                .write()
-                .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
-                .remove(run_id);
-            let _ = self
-                .lifecycle_start
                 .write()
                 .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
                 .remove(run_id);

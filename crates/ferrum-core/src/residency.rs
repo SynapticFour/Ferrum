@@ -1,8 +1,10 @@
 //! Append-only cryptographically chained data residency audit log.
+//! Timestamps in the hash are microsecond Zulu so Postgres timestamptz round-trips
+//! match (`to_rfc3339()` nanos / `+00:00` vs `Z` used to break `chain_valid`).
 
 use crate::error::{FerrumError, Result};
 use crate::pool::FerrumPool;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -56,7 +58,7 @@ impl ResidencyAuditLog {
         bytes_transferred: Option<i64>,
     ) -> Result<i64> {
         let prev_hash = self.last_entry_hash().await?;
-        let timestamp = Utc::now();
+        let timestamp = timestamp_for_hash(Utc::now());
         let canonical = canonical_json(&CanonicalAuditFields {
             timestamp: &timestamp,
             event_type,
@@ -90,7 +92,7 @@ impl ResidencyAuditLog {
             }
             FerrumPool::Sqlite(p) => {
                 sqlx::query_scalar(sql)
-                    .bind(timestamp.to_rfc3339())
+                    .bind(canonical_timestamp(&timestamp))
                     .bind(event_type)
                     .bind(drs_id)
                     .bind(requester)
@@ -317,9 +319,17 @@ struct CanonicalAuditFields<'a> {
     prev_hash: &'a str,
 }
 
+fn canonical_timestamp(ts: &DateTime<Utc>) -> String {
+    timestamp_for_hash(*ts).to_rfc3339_opts(SecondsFormat::Micros, true)
+}
+
+fn timestamp_for_hash(ts: DateTime<Utc>) -> DateTime<Utc> {
+    DateTime::<Utc>::from_timestamp_micros(ts.timestamp_micros()).unwrap_or(ts)
+}
+
 fn canonical_json(fields: &CanonicalAuditFields<'_>) -> String {
     serde_json::json!({
-        "timestamp": fields.timestamp.to_rfc3339(),
+        "timestamp": canonical_timestamp(fields.timestamp),
         "event_type": fields.event_type,
         "drs_id": fields.drs_id,
         "requester": fields.requester,
@@ -344,7 +354,7 @@ pub fn verify_chain(entries: &[ResidencyAuditEntry]) -> bool {
             return false;
         }
         let canonical = canonical_json(&CanonicalAuditFields {
-            timestamp: &entry.timestamp,
+            timestamp: &timestamp_for_hash(entry.timestamp),
             event_type: &entry.event_type,
             drs_id: entry.drs_id.as_deref(),
             requester: entry.requester.as_deref(),
