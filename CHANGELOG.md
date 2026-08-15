@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- **ga4gh-infra pin** — `GA4GH_INFRA_REF=ga4gh-infra-v0.2.3` (`613bd14`); GHCR stack images `:0.2.3`. Optional `clearinghouse` git tag matches. Release train: [COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
 ## [0.3.0] - 2026-08-15
 
 Institute-trust / fail-closed cut. Sibling pins: HelixTest `v0.1.1`, `ga4gh-infra-v0.2.2`. This is **not** a retag of `[0.2.0]` (Africa resilience, 2026-06-11, already on origin).

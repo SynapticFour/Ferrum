@@ -3,18 +3,18 @@
 Operator checklist before the **next customer-facing tag** (`v0.3.0`). `v0.2.0` (Africa resilience) is already on origin (2026-06-11).
 Reference: [`../RELEASING.md`](../RELEASING.md).
 
-> **Phase B note (2026-08-15):** Guided-pilot pack landed — `deploy/configs/pilot.toml` (`require_auth=true`), auth/compute honesty in [`customer-runbook.md`](./customer-runbook.md). Sibling tags on origin: `ga4gh-infra-v0.2.2` (`e43bf08…`) and HelixTest `v0.1.1`. `VERSIONS.lock` pins `GA4GH_INFRA_REF` / `HELIXTEST_REF` to those tags. Do **not** treat customer install as signed off until the remaining Pre-tag boxes below are checked.
+> **Phase B note (2026-08-15):** Guided-pilot pack landed — `deploy/configs/pilot.toml` (`require_auth=true`), auth/compute honesty in [`customer-runbook.md`](./customer-runbook.md). Sibling tags on origin: `ga4gh-infra-v0.2.3` (`613bd14…`) and HelixTest `v0.1.1`. `VERSIONS.lock` pins `GA4GH_INFRA_REF` / `HELIXTEST_REF` to those tags. Do **not** treat customer install as signed off until the remaining Pre-tag boxes below are checked.
 
 ---
 
 ## Pre-tag
 
 - [x] **`VERSIONS.lock`:** intended tags named and SHA pins documented (`GA4GH_INFRA_TAG` / `HELIXTEST_TAG` / `*_SHA`)
-- [x] **`VERSIONS.lock`:** `GA4GH_INFRA_REF` / `HELIXTEST_REF` set to **real tags** on origin (`ga4gh-infra-v0.2.2`, HelixTest `v0.1.1`)
-- [x] **ga4gh-infra:** current pin **`ga4gh-infra-v0.2.2`** on origin (annotated tag → `e43bf08bce5132db697a28c7db898d5e18f87b3f`). Do not install `ga4gh-infra-v0.1.0`.
+- [x] **`VERSIONS.lock`:** `GA4GH_INFRA_REF` / `HELIXTEST_REF` set to **real tags** on origin (`ga4gh-infra-v0.2.3`, HelixTest `v0.1.1`)
+- [x] **ga4gh-infra:** current pin **`ga4gh-infra-v0.2.3`** on origin (annotated tag → `613bd14932b57e30cfdca7b413841fe5b07a80fd`). GHCR stack images `:0.2.3`. Do not install `ga4gh-infra-v0.1.0`.
 - [x] **HelixTest:** `v0.1.0` on origin; current Ferrum pin is **`v0.1.1`** (htsget region POST → 400 in Ferrum modes)
 - [x] **`CHANGELOG.md`** frozen as **`[0.3.0] - 2026-08-15`**. GitHub release notes still pending at tag time (step 5).
-- [x] CI green on Ferrum `main` after sibling pins (`ga4gh-infra-v0.2.2`, HelixTest `v0.1.1`).
+- [x] CI green on Ferrum `main` after sibling pins (`ga4gh-infra-v0.2.3`, HelixTest `v0.1.1`).
 
 ## Guided pilot honesty (Phase B)
 

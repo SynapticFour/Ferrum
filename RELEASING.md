@@ -7,7 +7,7 @@ This repository follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 See **[docs/first-release-checklist.md](docs/first-release-checklist.md)** before the next customer tag (`v0.3.0`; `v0.2.0` is already on origin).
 
 1. Ensure all required CI workflows are green on `main` (build, lint, tests, conformance).
-2. Update `VERSIONS.lock` — pin `FERRUM_VERSION`, `GA4GH_INFRA_REF`, and `HELIXTEST_REF` to compatible refs.
+2. Update `VERSIONS.lock` — pin `FERRUM_VERSION`, `GA4GH_INFRA_REF`, and `HELIXTEST_REF` to compatible refs. Satellites (Lab-Kit, Showcase, demos) follow **one repo at a time**; see [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md). Do not cut a Ferrum tag and ten sibling tags on the same day.
 3. Update `CHANGELOG.md` with user-visible changes.
 4. Create an annotated tag:
    - `git tag -a vX.Y.Z -m "vX.Y.Z"` (e.g. `v0.3.0` — institute-trust / fail-closed)
