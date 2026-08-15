@@ -26,7 +26,7 @@ Reference: [`../RELEASING.md`](../RELEASING.md).
 
 ## Release workflow
 
-- [ ] **`release.yml`** run once manually (`workflow_dispatch`) on a release candidate branch or dry-run tag — verify artifacts before `v0.3.0`
+- [x] **`release.yml`** dry-run (`workflow_dispatch` `v0.3.0-rc1`, draft): [run 31873012274](https://github.com/SynapticFour/Ferrum/actions/runs/31873012274) — four gateway tarballs, offline bundle, Helm, SBOM, `SHA256SUMS.txt`. Leave the draft unpublished.
 - [ ] Tag: `git tag -a v0.3.0 -m "v0.3.0"` && `git push origin v0.3.0`
 - [ ] **`SHA256SUMS.txt`** downloaded from GitHub Release — verify locally:
   ```bash
