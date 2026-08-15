@@ -27,11 +27,12 @@ Reference: [`../RELEASING.md`](../RELEASING.md).
 ## Release workflow
 
 - [x] **`release.yml`** dry-run after image-variant work (`workflow_dispatch` `v0.3.0-rc2`, draft): [run 31875550916](https://github.com/SynapticFour/Ferrum/actions/runs/31875550916). Earlier `v0.3.0-rc1` dry-run also succeeded. Leave drafts unpublished.
-- [ ] Tag: `git tag -a v0.3.0 -m "v0.3.0"` && `git push origin v0.3.0`
-- [ ] **`SHA256SUMS.txt`** downloaded from GitHub Release — verify locally:
+- [x] Tag: `git tag -a v0.3.0 -m "v0.3.0"` && `git push origin v0.3.0` (`6444469a`; [release](https://github.com/SynapticFour/Ferrum/releases/tag/v0.3.0); [run 31876455488](https://github.com/SynapticFour/Ferrum/actions/runs/31876455488))
+- [x] **`SHA256SUMS.txt`** downloaded from GitHub Release — verify locally:
   ```bash
   shasum -a 256 -c SHA256SUMS.txt
   ```
+  All 10 listed files OK (2026-08-15).
 
 ## Install verification (fresh environment)
 
@@ -55,7 +56,7 @@ Reference: [`../RELEASING.md`](../RELEASING.md).
 ## Sign-off
 
 - [ ] Release notes on GitHub reviewed
-- [ ] Known limitations / hotfix path documented ([`hotfix-process.md`](./hotfix-process.md))
+- [x] Known limitations / hotfix path documented ([`hotfix-process.md`](./hotfix-process.md))
 - [ ] Operator name + date: _______________
 
 ---
