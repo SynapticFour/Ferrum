@@ -13,7 +13,7 @@ COPY crates ./crates
 COPY tools ./tools
 COPY third_party ./third_party
 COPY deploy/scripts/clone-ga4gh-infra.sh /tmp/clone-ga4gh-infra.sh
-ARG GA4GH_INFRA_REF=55d44957a1ee91140f83b6598ce0f9c492148d15
+ARG GA4GH_INFRA_REF=e43bf08bce5132db697a28c7db898d5e18f87b3f
 RUN chmod +x /tmp/clone-ga4gh-infra.sh && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
 RUN cargo chef prepare --recipe-path recipe.json
 
@@ -29,7 +29,7 @@ COPY --from=chef /usr/local/cargo/bin/cargo-chef /usr/local/cargo/bin/cargo-chef
 COPY --from=chef /app/recipe.json recipe.json
 COPY --from=chef /app/third_party ./third_party
 COPY deploy/scripts/clone-ga4gh-infra.sh /tmp/clone-ga4gh-infra.sh
-ARG GA4GH_INFRA_REF=55d44957a1ee91140f83b6598ce0f9c492148d15
+ARG GA4GH_INFRA_REF=e43bf08bce5132db697a28c7db898d5e18f87b3f
 RUN chmod +x /tmp/clone-ga4gh-infra.sh && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
 RUN cargo chef cook --release --recipe-path recipe.json -p ferrum-gateway --target x86_64-unknown-linux-musl
 

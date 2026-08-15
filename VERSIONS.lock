@@ -18,10 +18,12 @@
 FERRUM_VERSION=v0.2.0
 
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
-# Tagged on origin 2026-08-01: ga4gh-infra-v0.1.0 → 55d44957a1ee91140f83b6598ce0f9c492148d15
-GA4GH_INFRA_REF=ga4gh-infra-v0.1.0
-GA4GH_INFRA_TAG=ga4gh-infra-v0.1.0
-GA4GH_INFRA_SHA=55d44957a1ee91140f83b6598ce0f9c492148d15
+# Newest origin/main 2026-08-15: e43bf08… (Docker Release vendors docker/vendor).
+# Tag ga4gh-infra-v0.2.2 is the intended name once pushed. Do not install ga4gh-infra-v0.1.0.
+# Crate/image tags stay 0.1.0.
+GA4GH_INFRA_REF=e43bf08bce5132db697a28c7db898d5e18f87b3f
+GA4GH_INFRA_TAG=ga4gh-infra-v0.2.2
+GA4GH_INFRA_SHA=e43bf08bce5132db697a28c7db898d5e18f87b3f
 
 # Docker image pins for ga4gh-infra compose (see ga4gh-infra/docker/.env.example)
 GA4GH_INFRA_IMAGE_VERSION=0.1.0

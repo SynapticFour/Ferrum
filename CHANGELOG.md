@@ -16,8 +16,8 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 
 - **Docs / CI** — README, COMPLIANCE, [OPERATOR-TRUST.md](docs/OPERATOR-TRUST.md), and HelixTest workflow describe demo vs pilot honestly (no AES-256-GCM / TLS-enforced claims; Crypt4GH is ChaCha20-Poly1305; TLS is operator proxy). Workflow renamed to Demo lifecycle. CodeQL on PRs; dependency-review fails the job; Dependabot **disabled**; Helm chart 0.2.0; MinIO image pinned; `rust-toolchain.toml` 1.91.1.
-- **Build** — `ferrum-discovery` vendors GA4GH Service Info types (Apache-2.0). Optional `ga4gh-clearinghouse` is a git pin (`ga4gh-infra-v0.1.0`) so default `cargo build` does not need a sibling checkout.
-- **HelixTest pin** — `HELIXTEST_REF=v0.1.1` (`HELIXTEST_SHA=a8aabf30…`). Ferrum modes expect HTTP 400 for htsget POST `regions`. `ga4gh-infra-v0.1.0` is on origin.
+- **Build** — `ferrum-discovery` vendors GA4GH Service Info types (Apache-2.0). Optional `ga4gh-clearinghouse` is a git pin (`ga4gh-infra` `e43bf08…`) so default `cargo build` does not need a sibling checkout.
+- **HelixTest pin** — `HELIXTEST_REF=v0.1.1`. **ga4gh-infra pin** — `GA4GH_INFRA_SHA=e43bf08…` (Docker Release vendors `docker/vendor`; intended tag `ga4gh-infra-v0.2.2`).
 - **Audit** — residency append failures are logged (`append_warn`); provenance `record_derived_from` errors are warned, not dropped.
 
 ### Security

@@ -32,7 +32,7 @@ We follow a respectful, inclusive code of conduct. Be kind and professional in i
 
 2. **Clone and build**
 
-   Default `cargo build` / `cargo test` is self-contained (GA4GH Service Info types are vendored in `ferrum-discovery`). The optional `clearinghouse` / gateway `external-auth` feature pulls `ga4gh-clearinghouse` from GitHub (`ga4gh-infra-v0.1.0`). Docker images still clone `ga4gh-infra` for historical path-layout; you do not need a sibling checkout for a normal compile.
+   Default `cargo build` / `cargo test` is self-contained (GA4GH Service Info types are vendored in `ferrum-discovery`). The optional `clearinghouse` / gateway `external-auth` feature pulls `ga4gh-clearinghouse` from GitHub (`ga4gh-infra` pin in `VERSIONS.lock`). Docker images still clone `ga4gh-infra` for historical path-layout; you do not need a sibling checkout for a normal compile.
 
    ```bash
    git clone https://github.com/SynapticFour/Ferrum
