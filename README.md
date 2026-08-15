@@ -53,7 +53,7 @@ adopt it wholesale. But new deployments, research consortia building GA4GH-nativ
 infrastructure, and institutions preparing for EHDS obligations now have a starting
 point that didn't exist before.
 
-Ferrum is tested continuously — unit/integration tests and clippy in CI, a **demo-stack HelixTest** job (noop TES, auth skipped, stubs labeled NON-PILOT), and a Docker TES + pilot smoke on `main`. Default demo compute is
+Ferrum is tested continuously — unit/integration tests and clippy in CI, a **demo-stack HelixTest** job (noop TES, auth skipped, stubs labeled NON-PILOT), a **nightly HelixTest auth-on** job (`pilot.toml`, stubs off), and a Docker TES + pilot smoke on `main`. Default demo compute is
 **TES noop** (API lifecycle only); use `make up-tes` for real local containers. Demo auth
 defaults are open (`require_auth=false`) — pilots must use `deploy/configs/pilot.toml`.
 

@@ -4,6 +4,7 @@
 # - TES is noop; HelixTest stubs are on (FERRUM_TES_HELIXTEST_STUB / FERRUM_WES_HELIXTEST_STUBS)
 # - HELIXTEST_SKIP_AUTH skips Auth Level 4
 # For real compute: make up-tes / ci-tes-pilot-e2e.sh (Docker TES, stubs off).
+# For auth-on HelixTest evidence: .github/workflows/helixtest-pilot-auth.yml (nightly).
 # Pin HelixTest / ga4gh-infra via VERSIONS.lock (see load-versions action).
 # See docs/HELIXTEST-INTEGRATION.md.
 

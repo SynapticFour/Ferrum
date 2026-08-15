@@ -32,6 +32,12 @@ This section is the **single place** in the Ferrum repo that maps **GitHub Actio
 
 HelixTest is cloned from GitHub on each run; the ref is **`HELIXTEST_REF`** / **`HELIXTEST_SHA`** in `VERSIONS.lock` (tag **`v0.1.1`**). Auth-heavy Level‑4 behaviour is skipped in demo CI as documented below. CI does **not** rewrite HelixTest expected checksums.
 
+### Workflow: [`.github/workflows/helixtest-pilot-auth.yml`](../.github/workflows/helixtest-pilot-auth.yml)
+
+**Pilot-auth evidence (scheduled 02:30 UTC + `workflow_dispatch`). Not required on every PR. Not GA4GH certification.** Stack: `deploy/docker-compose.yml` + `deploy/docker-compose.pilot-auth-ci.yml` with `deploy/configs/pilot.toml` (`require_auth=true`), HelixTest stubs **off**, **`HELIXTEST_SKIP_AUTH` unset**. HelixTest config: [`deploy/helixtest/pilot-auth.toml`](../deploy/helixtest/pilot-auth.toml) (`token-protected-endpoints` on WES `/runs` and TES `/tasks`). HMAC secret is minted per run (`FERRUM_AUTH__JWT_SECRET` / `TEST_BEARER`). This is **not** ga4gh-infra JWKS (`make up-pilot-local`).
+
+Public DRS objects stay readable without a visa; the default HelixTest HMAC-on-DRS fixture is therefore **not** used here.
+
 Ferrum **htsget** rejects genomic region params (`referenceName` / `start` / `end` / POST `regions`) with HTTP 400. HelixTest Ferrum modes expect that 400 (a silent whole-file ticket is not a pass).
 
 ### Areas typically included under `--all --mode ferrum`
@@ -114,9 +120,9 @@ HelixTest’s auth tests call DRS **without** attaching the JWT to every request
 
 To keep CI stable, Ferrum’s conformance workflow sets `HELIXTEST_SKIP_AUTH=true`, which makes HelixTest skip the Auth (Level 4) suite in `--mode ferrum`. This avoids false failures while still running the other (non-auth) conformance suites.
 
-**This skip is a CI convenience only — not customer or pilot evidence.** Demo stacks with `require_auth=false` are **NON-PILOT**. For pilot auth verification, use `deploy/configs/pilot.toml` (`require_auth=true`), unset `HELIXTEST_SKIP_AUTH`, and prefer a scheduled/nightly auth-on job over enabling Auth Level 4 on every PR. See [customer-runbook.md](./customer-runbook.md) and [OPERATOR-TRUST.md](OPERATOR-TRUST.md).
+**This skip is a CI convenience only — not customer or pilot evidence.** Demo stacks with `require_auth=false` are **NON-PILOT**.
 
-If you want to validate strict Auth Level 4 end-to-end, unset `HELIXTEST_SKIP_AUTH` and ensure all relevant requests include `Authorization: Bearer ...` (or implement path-specific gateway auth gating).
+**Nightly auth-on job:** [`.github/workflows/helixtest-pilot-auth.yml`](../.github/workflows/helixtest-pilot-auth.yml) starts the stack with `pilot.toml` (`require_auth=true`), stubs off, `HELIXTEST_SKIP_AUTH` unset, and runs HelixTest `--only auth --fail-level 4` against TES/WES token-protected endpoints. See [customer-runbook.md](./customer-runbook.md) and [OPERATOR-TRUST.md](OPERATOR-TRUST.md).
 
 ---
 
@@ -132,7 +138,7 @@ Ferrum exposes all GA4GH services behind one **gateway** (default `http://localh
 | `TRS_URL`              | `{base}/ga4gh/trs/v2`             |
 | `BEACON_URL`           | `{base}/ga4gh/beacon/v2`          |
 | `HTSGET_URL`           | `{base}/ga4gh/htsget/v1`         |
-| `AUTH_URL`             | `{base}/passports/v1` (or Keycloak if testing OIDC) |
+| `AUTH_URL`             | `{base}/passports/v1` (or Keycloak if testing OIDC). Nightly auth-on uses WES `{base}/ga4gh/wes/v1` because Passports have OIDC discovery, not GA4GH `/service-info`. |
 
 **htsget defaults (HelixTest [ferrum.md](https://github.com/SynapticFour/HelixTest/blob/main/helixtest/docs/ferrum.md)):** With gateway-style `WES_URL` / `DRS_URL` (path `/ga4gh/…`), the suite resolves htsget automatically — **`HTSGET_URL` is optional**. Explicit override: `HTSGET_URL` or `GATEWAY_BASE`.
 

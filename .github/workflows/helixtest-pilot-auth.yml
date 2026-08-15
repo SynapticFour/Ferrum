@@ -1,0 +1,138 @@
+# Nightly HelixTest Auth Level 4 against guided-pilot auth.
+# Institute evidence path — not PR CI, not GA4GH certification:
+# - deploy/configs/pilot.toml (require_auth=true)
+# - HelixTest stubs off
+# - HELIXTEST_SKIP_AUTH must stay unset
+# HMAC JWT (FERRUM_AUTH__JWT_SECRET / TEST_BEARER), not ga4gh-infra JWKS.
+# See docs/HELIXTEST-INTEGRATION.md and docs/OPERATOR-TRUST.md.
+
+name: Pilot auth (HelixTest nightly)
+
+on:
+  schedule:
+    - cron: "30 2 * * *" # after E2E (Real Workflows) at 02:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GATEWAY_BASE: http://localhost:8080
+  FERRUM_PUBLIC_BASE_URL: http://localhost:8080
+  RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1.91.1-bookworm
+  DEBIAN_RUNTIME_IMAGE: public.ecr.aws/docker/library/debian:bookworm-slim
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  helixtest-pilot-auth:
+    if: github.actor != 'dependabot[bot]'
+    name: HelixTest (pilot auth)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Ferrum
+        uses: actions/checkout@v7
+      - uses: ./.github/actions/load-versions
+      - uses: ./.github/actions/clone-ga4gh-infra
+        with:
+          ref: ${{ env.GA4GH_INFRA_REF }}
+      - uses: ./.github/actions/clone-helixtest
+        with:
+          ref: ${{ env.HELIXTEST_REF }}
+
+      - name: Refuse HELIXTEST_SKIP_AUTH
+        run: |
+          if [ -n "${HELIXTEST_SKIP_AUTH:-}" ]; then
+            echo "HELIXTEST_SKIP_AUTH is set; this job is auth-on evidence and must not skip Level 4."
+            exit 1
+          fi
+          echo "HELIXTEST_SKIP_AUTH is unset."
+
+      - name: Mint HS256 secret and TEST_BEARER
+        run: |
+          set -euo pipefail
+          SECRET="$(openssl rand -hex 32)"
+          {
+            echo "FERRUM_AUTH__JWT_SECRET=$SECRET"
+            echo "HELIXTEST_SHARED_SECRET=$SECRET"
+          } >> "$GITHUB_ENV"
+          TOKEN="$(FERRUM_AUTH__JWT_SECRET="$SECRET" python3 deploy/scripts/mint-hs256-jwt.py)"
+          echo "::add-mask::$TOKEN"
+          echo "TEST_BEARER=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Start Ferrum stack (pilot auth, stubs off)
+        env:
+          RUST_BUILDER_IMAGE: ${{ env.RUST_BUILDER_IMAGE }}
+          DEBIAN_RUNTIME_IMAGE: ${{ env.DEBIAN_RUNTIME_IMAGE }}
+        run: |
+          set -euo pipefail
+          COMPOSE=(docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-auth-ci.yml)
+          chmod +x deploy/scripts/docker-compose-build-retry.sh
+          deploy/scripts/docker-compose-build-retry.sh -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-auth-ci.yml build --no-cache ferrum-init ferrum-gateway
+          if ! "${COMPOSE[@]}" up -d --build; then
+            echo "docker compose up failed; gateway logs:"
+            "${COMPOSE[@]}" logs ferrum-gateway 2>&1 | tail -120 || true
+            exit 1
+          fi
+          echo "Waiting for gateway /health (up to 120s)..."
+          for i in $(seq 1 24); do
+            if curl -sf "${{ env.GATEWAY_BASE }}/health" >/dev/null; then
+              echo "Gateway ready."
+              break
+            fi
+            if [ "$i" -eq 24 ]; then
+              echo "Gateway did not become healthy."
+              "${COMPOSE[@]}" logs ferrum-gateway 2>&1 | tail -80
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Assert TES/WES fail closed without Bearer
+        run: |
+          set -euo pipefail
+          wes=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.GATEWAY_BASE }}/ga4gh/wes/v1/runs" || echo "000")
+          tes=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.GATEWAY_BASE }}/ga4gh/tes/v1/tasks" || echo "000")
+          echo "GET /ga4gh/wes/v1/runs -> $wes (expect 401)"
+          echo "GET /ga4gh/tes/v1/tasks -> $tes (expect 401)"
+          if [ "$wes" != "401" ] || [ "$tes" != "401" ]; then
+            echo "Pilot auth stack is not fail-closed on TES/WES list."
+            docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-auth-ci.yml logs ferrum-gateway 2>&1 | tail -80 || true
+            exit 1
+          fi
+
+      - name: Run HelixTest Auth Level 4 (token-protected TES/WES)
+        env:
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          TES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/tes/v1
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          TRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          AUTH_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          HELIXTEST_CONFIG: ${{ github.workspace }}/deploy/helixtest/pilot-auth.toml
+        run: |
+          set -euo pipefail
+          test -z "${HELIXTEST_SKIP_AUTH:-}"
+          test -n "${TEST_BEARER:-}"
+          cd helixtest-repo
+          cargo run --bin helixtest --release -- --all --mode ferrum --only auth --report json --fail-level 4 2>&1 | tee ../helixtest-pilot-auth-report.txt
+          exit_code=${PIPESTATUS[0]}
+          if [ "$exit_code" -ne 0 ]; then
+            echo "HelixTest exit code: $exit_code"
+            exit "$exit_code"
+          fi
+
+      - name: Upload auth report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: helixtest-pilot-auth-report
+          path: helixtest-pilot-auth-report.txt
+
+      - name: Stop Ferrum stack
+        if: always()
+        run: docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-auth-ci.yml down -v --remove-orphans || true

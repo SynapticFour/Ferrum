@@ -34,7 +34,7 @@ Kurzanleitung für IT-Betrieb und Forschungs-IT. Technische Details: [GitHub Rel
 
 **HelixTest / demo lifecycle CI:** the Demo lifecycle workflow sets `HELIXTEST_SKIP_AUTH=true` and enables HelixTest stubs on the **demo** stack. That is a **CI convenience**, not customer or compliance evidence. For pilot verification, run HelixTest (or your own checks) against a stack using `deploy/configs/pilot.toml` (or equivalent) with `require_auth=true` and a real JWKS, and **do not** set `HELIXTEST_SKIP_AUTH` or the HelixTest stub env vars. Details: [HELIXTEST-INTEGRATION.md](./HELIXTEST-INTEGRATION.md), [OPERATOR-TRUST.md](./OPERATOR-TRUST.md).
 
-**Nightly / scheduled auth-on path (recommended, not required on every PR):** run a separate job or cron that starts the stack with `FERRUM_AUTH__REQUIRE_AUTH=true` (or `FERRUM_CONFIG=deploy/configs/pilot.toml`), unset `HELIXTEST_SKIP_AUTH`, and execute HelixTest Auth Level 4. Prefer this over enabling auth on every PR conformance job.
+**Nightly / scheduled auth-on path:** GitHub Actions [`.github/workflows/helixtest-pilot-auth.yml`](../.github/workflows/helixtest-pilot-auth.yml) (02:30 UTC + `workflow_dispatch`) starts `pilot.toml` with stubs off, leaves `HELIXTEST_SKIP_AUTH` unset, and runs HelixTest Auth Level 4 against TES/WES token-protected endpoints. Not required on every PR. Not ga4gh-infra JWKS.
 
 ---
 

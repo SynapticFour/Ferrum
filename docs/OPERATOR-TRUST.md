@@ -47,6 +47,8 @@ Unless a demo flag above is set:
 
 The GitHub Actions workflow [`.github/workflows/conformance.yml`](../.github/workflows/conformance.yml) is named **Demo lifecycle (HelixTest)**. It is **not** GA4GH certification and **not** institute evidence. CI does **not** rewrite HelixTest expected checksums. Real compute evidence is `make up-tes` / CI job `test-tes`.
 
+Auth-on HelixTest evidence is the scheduled workflow [`.github/workflows/helixtest-pilot-auth.yml`](../.github/workflows/helixtest-pilot-auth.yml) (`pilot.toml`, stubs off, no `HELIXTEST_SKIP_AUTH`). It checks TES/WES fail-closed with a per-run HS256 JWT. It does **not** run the HMAC-on-DRS fixture (public DRS objects stay readable) and does **not** start ga4gh-infra JWKS.
+
 ---
 
 ## Cryptography (honest claims)

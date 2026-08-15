@@ -1,0 +1,34 @@
+# HelixTest config for Ferrum nightly auth-on evidence.
+# Token-protected TES/WES endpoints (fail-closed when require_auth=true).
+# Not the HMAC-on-DRS fixture: public DRS objects are readable without a visa.
+#
+# AUTH_URL is WES service-info (public). Ferrum Passports expose OIDC discovery,
+# not GA4GH /passports/v1/service-info.
+
+wes = "http://localhost:8080/ga4gh/wes/v1"
+tes = "http://localhost:8080/ga4gh/tes/v1"
+drs = "http://localhost:8080/ga4gh/drs/v1"
+trs = "http://localhost:8080/ga4gh/trs/v2"
+beacon = "http://localhost:8080/ga4gh/beacon/v2"
+auth = "http://localhost:8080/ga4gh/wes/v1"
+
+[subset]
+enabled_services = ["auth"]
+disabled_services = ["wes", "tes", "drs", "trs", "beacon", "htsget", "age", "crypt4gh", "e2e"]
+
+[auth_checks]
+mode = "token-protected-endpoints"
+valid_token_env = "TEST_BEARER"
+invalid_token = "helixtest-invalid-token"
+
+[[auth_checks.protected_endpoints]]
+name = "WES list runs"
+url = "http://localhost:8080/ga4gh/wes/v1/runs"
+method = "GET"
+check_invalid_token = true
+
+[[auth_checks.protected_endpoints]]
+name = "TES list tasks"
+url = "http://localhost:8080/ga4gh/tes/v1/tasks"
+method = "GET"
+check_invalid_token = true

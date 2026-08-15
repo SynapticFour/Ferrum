@@ -55,7 +55,7 @@ We follow a respectful, inclusive code of conduct. Be kind and professional in i
 - **Unit tests:** `cargo test --all`
 - **Integration tests:** Same; integration tests live under `*/tests/` or within crates.
 - **CI (Rust):** GitHub Actions runs `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace --all-targets` on push and PRs.
-- **GA4GH demo lifecycle (HelixTest):** The [Demo lifecycle (HelixTest)](.github/workflows/conformance.yml) workflow builds the **demo** stack (noop TES, `HELIXTEST_SKIP_AUTH`, HelixTest stubs). It is **not** institute or certification evidence. Coverage notes: [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md). Docker TES: `make up-tes` / CI job `test-tes`.
+- **GA4GH demo lifecycle (HelixTest):** The [Demo lifecycle (HelixTest)](.github/workflows/conformance.yml) workflow builds the **demo** stack (noop TES, `HELIXTEST_SKIP_AUTH`, HelixTest stubs). It is **not** institute or certification evidence. **Pilot auth evidence** is the scheduled [Pilot auth (HelixTest nightly)](.github/workflows/helixtest-pilot-auth.yml) workflow (`pilot.toml`, stubs off, no skip-auth). Coverage notes: [docs/HELIXTEST-INTEGRATION.md](docs/HELIXTEST-INTEGRATION.md). Docker TES: `make up-tes` / CI job `test-tes`.
 - **MII Connect:** `cargo test -p ferrum-mii-connect` (includes golden manifest snapshot). Regenerating `profiles/mii/manifest.json` via `ferrum mii sync-manifest` is optional and may hit the public package registry; see [docs/MII-CONNECT.md](docs/MII-CONNECT.md).
 
 ---

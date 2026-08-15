@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Added
+
+- **Nightly HelixTest auth-on** — [`.github/workflows/helixtest-pilot-auth.yml`](.github/workflows/helixtest-pilot-auth.yml) runs on a schedule (and `workflow_dispatch`) against `deploy/configs/pilot.toml` (`require_auth=true`), HelixTest stubs off, `HELIXTEST_SKIP_AUTH` unset. Evidence is TES/WES token-protected 401/2xx, not HMAC-on-public-DRS.
+
 ## [0.3.0] - 2026-08-15
 
 Institute-trust / fail-closed cut. Sibling pins: HelixTest `v0.1.1`, `ga4gh-infra-v0.2.2`. This is **not** a retag of `[0.2.0]` (Africa resilience, 2026-06-11, already on origin).

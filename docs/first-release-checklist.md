@@ -22,7 +22,7 @@ Reference: [`../RELEASING.md`](../RELEASING.md).
 - [x] Runbook documents demo `require_auth=false` as **NON-PILOT**; `HELIXTEST_SKIP_AUTH` as CI convenience only
 - [x] Runbook documents TES/WES **noop** default, `make up-tes` / `make test-tes`, and pilot compute assumptions
 - [x] README softens unsupervised production-compute implication for default demo
-- [ ] Optional: scheduled/nightly HelixTest job with auth on (documented; not required on every PR)
+- [x] Scheduled/nightly HelixTest job with auth on ([`.github/workflows/helixtest-pilot-auth.yml`](../.github/workflows/helixtest-pilot-auth.yml): `pilot.toml`, stubs off, no `HELIXTEST_SKIP_AUTH`; TES/WES token-protected endpoints). Not required on every PR.
 
 ## Release workflow
 
