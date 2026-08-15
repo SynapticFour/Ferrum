@@ -189,6 +189,7 @@ Open **http://localhost:8082** for the UI. The gateway API is available at **htt
 From a clone (without the `ferrum` CLI installer), the same stack is available via **Make**:
 
 ```bash
+make prove   # cargo test --workspace --all-targets (no Docker)
 make up      # start demo (alias: make demo) — TES noop; auth off (NON-PILOT)
 make up-tes  # demo + Docker-backed TES (real containers locally; not default)
 make seed-pilot   # optional: real BAM+VCF on MinIO (after stack is up)

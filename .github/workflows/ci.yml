@@ -42,8 +42,8 @@ jobs:
           max_attempts: 3
           retry_wait_seconds: 30
           command: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Run workspace tests
-        run: cargo test --workspace --all-targets
+      - name: Prove (offline)
+        run: make prove
       - name: Federated access smoke (ADS proxy + DRS/WES gates)
         run: bash deploy/scripts/ci-federated-e2e.sh
       - name: Run MII Connect validation (optional)

@@ -14,6 +14,7 @@ Genomics core facilities, archive nodes, field labs that need DRS / WES / TES / 
 
 ```bash
 git clone https://github.com/SynapticFour/Ferrum.git && cd Ferrum
+make prove       # workspace tests, no Docker
 make up          # local demo stack
 ```
 

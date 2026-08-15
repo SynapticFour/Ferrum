@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- **`make prove`** — workspace tests without Docker (same command as CI). Live stack remains `make up`.
 - **ga4gh-infra pin** — `GA4GH_INFRA_REF=ga4gh-infra-v0.2.3` (`613bd14`); GHCR stack images `:0.2.3`. Optional `clearinghouse` git tag matches. Release train: [COMPATIBILITY.md](docs/COMPATIBILITY.md).
 
 ## [0.3.0] - 2026-08-15

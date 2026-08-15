@@ -14,13 +14,14 @@ export FERRUM_WES_TES_WORK_HOST_PREFIX
 DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
 export DOCKER_BIN
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated
+.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated test prove
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
 	@echo "Ferrum — local lifecycle (Synaptic Four GA4GH stack)"
 	@echo ""
 	@echo "  make up        Start demo stack (alias: make demo)"
+	@echo "  make prove     Zero-risk proof: cargo test (no Docker)"
 	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
 	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF+ref bundle to MinIO (stack must be running)"
 	@echo "  make smoke-pilot Local smoke after up-tes (health, Crypt4GH, lineage, cohort, CWL + optional germline WES)"
@@ -45,6 +46,13 @@ help:
 	@echo "  Keep volumes with make down; make destroy wipes keys and MinIO data."
 
 up: demo
+
+# Zero-risk product proof (CI workspace tests). Live stack: make up.
+test:
+	cargo test --workspace --all-targets
+
+prove: test
+	@echo "Ferrum prove OK. Live demo: make up"
 
 # Demo + Docker TES: workflow engine images (pinned tags; amd64 on Apple Silicon).
 TES_PLATFORM ?= linux/amd64
