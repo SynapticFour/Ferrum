@@ -52,5 +52,6 @@ cp "${STAGING}/ferrum-helm-${VERSION}.tgz" "${BUNDLE_DIR}/helm/"
 cp docs/kubernetes-deployment.md "${BUNDLE_DIR}/docs-kubernetes-deployment.md"
 
 tar -czf "ferrum-offline-${VERSION}.tar.gz" -C "$STAGING" "ferrum-offline-${VERSION}"
+cp "${STAGING}/ferrum-helm-${VERSION}.tgz" "$ROOT/"
 log "Created ferrum-offline-${VERSION}.tar.gz"
 log "Created ferrum-helm-${VERSION}.tgz"

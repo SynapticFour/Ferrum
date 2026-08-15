@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. The format 
 
 - **Release Intel Mac** — `release.yml` runs `rustup target add` for the matrix target so `x86_64-apple-darwin` builds on `macos-latest` (arm64).
 - **Release SBOM** — `cargo cyclonedx` 0.5.9 uses `--override-filename` (no `--workspace` / `--output-file`).
+- **Release Helm artifact** — `package_release_bundle.sh` copies `ferrum-helm-*.tgz` to the repo root so `SHA256SUMS.txt` can include it.
 
 ## [0.3.0] - 2026-08-15
 
