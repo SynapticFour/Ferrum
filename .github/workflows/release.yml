@@ -55,6 +55,12 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      # rust-toolchain.toml (1.91.1) is the compiler cargo uses; dtolnay@stable may
+      # attach extra targets to a different toolchain. macos-latest is arm64, so
+      # x86_64-apple-darwin must be installed on 1.91.1 explicitly.
+      - name: Ensure matrix target is installed
+        run: rustup target add ${{ matrix.target }}
+
       - uses: actions/cache@v6
         with:
           path: |
