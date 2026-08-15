@@ -55,7 +55,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.init
       args:
-        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-e43bf08bce5132db697a28c7db898d5e18f87b3f}
+        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.2}
     image: ferrum-init:${FERRUM_VERSION:-latest}
     environment:
       POSTGRES_HOST: postgres
@@ -93,7 +93,7 @@ services:
         DEBIAN_RUNTIME_IMAGE: ${DEBIAN_RUNTIME_IMAGE:-debian:bookworm-slim}
         FERRUM_GIT_SHA: ${FERRUM_GIT_SHA:-unknown}
         FERRUM_BUILD_PROFILE: ${FERRUM_BUILD_PROFILE:-demo}
-        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-e43bf08bce5132db697a28c7db898d5e18f87b3f}
+        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.2}
     image: ferrum-gateway:${FERRUM_VERSION:-latest}
     pull_policy: build
     environment:

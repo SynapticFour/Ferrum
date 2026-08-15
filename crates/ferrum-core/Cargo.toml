@@ -45,7 +45,7 @@ tempfile = "3"
 libc = "0.2"
 # Git pin (not a sibling path) so `cargo metadata` / default builds work without cloning ga4gh-infra.
 # Enable with `--features clearinghouse` (gateway: `external-auth`).
-ga4gh-clearinghouse = { git = "https://github.com/SynapticFour/ga4gh-infra", rev = "e43bf08bce5132db697a28c7db898d5e18f87b3f", optional = true }
+ga4gh-clearinghouse = { git = "https://github.com/SynapticFour/ga4gh-infra", tag = "ga4gh-infra-v0.2.2", optional = true }
 noodles-bgzf = { version = "0.46", optional = true, default-features = false, features = [
     "libdeflate",
 ] }
