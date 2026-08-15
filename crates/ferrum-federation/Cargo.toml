@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-federation"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "P2P federated Beacon queries for Ferrum"
 license = "BUSL-1.1"

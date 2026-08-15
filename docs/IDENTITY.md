@@ -28,6 +28,8 @@ Proof that the APIs behave: clone [HelixTest](https://github.com/SynapticFour/He
 | Solum | Consent-gated DRS/WES | Ferrum `[solum]` HTTP client, fail-closed |
 | HelixTest | Independent conformance | Separate repo, Apache-2.0 |
 | HELIOS | Signed pipeline/audit evidence | File ingest, not an API fabric |
-| BRA | Researcher UI | BRA talks to Solum/its own WES; it does not embed Ferrum |
+| BRA | Researcher workbench | Optional. Standalone BRA has its own DRS/WES. Intended join: BRA as GA4GH client of this Ferrum (`FERRUM_DRS_URL` / `FERRUM_WES_URL`) — **not wired yet**. |
 
-See [ECOSYSTEM.md](ECOSYSTEM.md) for ports and lifecycle verbs.
+See [ECOSYSTEM.md](ECOSYSTEM.md) for ports and lifecycle verbs. Portfolio map: [PORTFOLIO.md](PORTFOLIO.md).
+
+Ferrum Lab Kit **comes with Ferrum** (subset install). It is not a fifth product.

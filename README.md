@@ -19,7 +19,7 @@ one gateway, your hardware. HelixTest demo-lifecycle CI is not GA4GH certificati
 
 ## SynapticFour GA4GH stack
 
-Ferrum is the **data/compute plane**. Who it is for, what it is not, and optional joins: **[docs/IDENTITY.md](docs/IDENTITY.md)**. Stack map: **[docs/ECOSYSTEM.md](docs/ECOSYSTEM.md)**.
+Ferrum is the **data/compute product** (BUSL). Who it is for: **[docs/IDENTITY.md](docs/IDENTITY.md)**. Portfolio (four products, not a bundle SKU): **[docs/PORTFOLIO.md](docs/PORTFOLIO.md)**. Stack map: **[docs/ECOSYSTEM.md](docs/ECOSYSTEM.md)**.
 
 ---
 

@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-storage"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Object storage backends (local POSIX, S3) for Ferrum"
 license = "BUSL-1.1"

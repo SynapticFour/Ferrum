@@ -83,7 +83,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [FIELD-SYNC-HUB.md](FIELD-SYNC-HUB.md) | Hub-side sync ingestion |
 | [FIELD-ONT-BASECALLING.md](FIELD-ONT-BASECALLING.md) | ONT basecalling integration |
 | [FIELD-BEACON-INDEX.md](FIELD-BEACON-INDEX.md) | VCF → Beacon indexing on Edge |
-| [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md) | Field Edge in the five-repo stack |
+| [FIELD-ECOSYSTEM.md](FIELD-ECOSYSTEM.md) | Field Edge vs the four products / Lab Kit companion |
 | [FIELD-REGULATORY.md](FIELD-REGULATORY.md) | Regulatory context (orientation only) |
 | [FIELD-GA4GH-DEMO-PI.md](FIELD-GA4GH-DEMO-PI.md) | Demo/benchmark scenarios for Field Edge |
 
