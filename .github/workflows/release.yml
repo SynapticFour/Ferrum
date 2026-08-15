@@ -152,21 +152,20 @@ jobs:
       - name: Generate SBOM (CycloneDX)
         run: |
           cargo install cargo-cyclonedx --locked --version 0.5.9
-          # 0.5.x dropped --workspace / --output-file. One JSON for the shipped gateway crate.
+          # 0.5.x dropped --workspace / --output-file. Writes beside the manifest.
           cargo cyclonedx \
             --manifest-path crates/ferrum-gateway/Cargo.toml \
             --format json \
             --override-filename ferrum-sbom.cdx
-          if [ -f ferrum-sbom.cdx.json ]; then
-            :
-          elif [ -f ferrum-sbom.cdx ]; then
-            mv ferrum-sbom.cdx ferrum-sbom.cdx.json
-          else
-            echo "expected ferrum-sbom.cdx.json"
-            ls -la ./*.cdx* ./*.json 2>/dev/null || true
+          src="$(find crates/ferrum-gateway . -maxdepth 2 \( -name 'ferrum-sbom.cdx.json' -o -name 'ferrum-sbom.cdx' \) 2>/dev/null | head -1 || true)"
+          if [ -z "$src" ]; then
+            echo "SBOM file not found"
+            find . -name '*.cdx.json' -o -name '*.cdx' | head -50
             exit 1
           fi
+          cp "$src" ferrum-sbom.cdx.json
           test -s ferrum-sbom.cdx.json
+          echo "SBOM: ferrum-sbom.cdx.json ($(wc -c < ferrum-sbom.cdx.json) bytes) from $src"
 
       - name: Generate SHA256SUMS for all release artifacts
         run: |
