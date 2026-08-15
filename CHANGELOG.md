@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-15
+
+Institute-trust / fail-closed cut. Sibling pins: HelixTest `v0.1.1`, `ga4gh-infra-v0.2.2`. This is **not** a retag of `[0.2.0]` (Africa resilience, 2026-06-11, already on origin).
+
 ### Security
 
 - **Fail-closed defaults** — `auth.require_auth` defaults to true; Passport admin and federation admin routes stay gated when auth is off; visa roles use exact match (not `str::contains`); JWT `aud` is honored when configured; CORS does not treat empty origins as `*`.
@@ -46,7 +50,6 @@ All notable changes to this project will be documented in this file. The format 
 - **`FerrumError::Internal`** — no longer `#[from] anyhow`; typed errors must be mapped explicitly.
 - **Workspace** — `ferrum-discovery` is a workspace member.
 - **CI cargo-deny** — clone `ga4gh-infra` and run `cargo deny` on the runner (Docker action could not see sibling path deps).
-- **HelixTest pin** — `HELIXTEST_REF` / `HELIXTEST_SHA` set to HelixTest `main` `3472d44…` (htsget POST format-only vs regions; Africa/E2E Level 0). `v0.1.0` remains the last published tag.
 - **Public docs hygiene** — removed `docs/internal/` and `docs/portfolio/` from the public tree (ops/pilot/marketing drafts); Metadata Store roadmap lives at [METADATA-STORE-ROADMAP.md](docs/METADATA-STORE-ROADMAP.md).
 
 ### Removed

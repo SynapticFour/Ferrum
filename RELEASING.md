@@ -4,13 +4,13 @@ This repository follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## Release process
 
-See **[docs/first-release-checklist.md](docs/first-release-checklist.md)** before the first customer tag (`v0.2.0`).
+See **[docs/first-release-checklist.md](docs/first-release-checklist.md)** before the next customer tag (`v0.3.0`; `v0.2.0` is already on origin).
 
 1. Ensure all required CI workflows are green on `main` (build, lint, tests, conformance).
 2. Update `VERSIONS.lock` — pin `FERRUM_VERSION`, `GA4GH_INFRA_REF`, and `HELIXTEST_REF` to compatible refs.
 3. Update `CHANGELOG.md` with user-visible changes.
 4. Create an annotated tag:
-   - `git tag -a vX.Y.Z -m "vX.Y.Z"` (e.g. `v0.2.0` — Africa resilience release)
+   - `git tag -a vX.Y.Z -m "vX.Y.Z"` (e.g. `v0.3.0` — institute-trust / fail-closed)
 5. Push the tag:
    - `git push origin vX.Y.Z`
 6. Verify GitHub Release assets are present:

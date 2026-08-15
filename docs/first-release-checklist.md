@@ -1,7 +1,7 @@
-# First Release Checklist — Ferrum v0.2.0
+# First Release Checklist — Ferrum v0.3.0
 
-Operator checklist before the **first real customer-facing tag** (`v0.2.0`).
-Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gaps.md`](./portfolio/gaps.md), [`../RELEASING.md`](../RELEASING.md).
+Operator checklist before the **next customer-facing tag** (`v0.3.0`). `v0.2.0` (Africa resilience) is already on origin (2026-06-11).
+Reference: [`../RELEASING.md`](../RELEASING.md).
 
 > **Phase B note (2026-08-15):** Guided-pilot pack landed — `deploy/configs/pilot.toml` (`require_auth=true`), auth/compute honesty in [`customer-runbook.md`](./customer-runbook.md). Sibling tags on origin: `ga4gh-infra-v0.2.2` (`e43bf08…`) and HelixTest `v0.1.1`. `VERSIONS.lock` pins `GA4GH_INFRA_REF` / `HELIXTEST_REF` to those tags. Do **not** treat customer install as signed off until the remaining Pre-tag boxes below are checked.
 
@@ -13,8 +13,8 @@ Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gap
 - [x] **`VERSIONS.lock`:** `GA4GH_INFRA_REF` / `HELIXTEST_REF` set to **real tags** on origin (`ga4gh-infra-v0.2.2`, HelixTest `v0.1.1`)
 - [x] **ga4gh-infra:** current pin **`ga4gh-infra-v0.2.2`** on origin (annotated tag → `e43bf08bce5132db697a28c7db898d5e18f87b3f`). Do not install `ga4gh-infra-v0.1.0`.
 - [x] **HelixTest:** `v0.1.0` on origin; current Ferrum pin is **`v0.1.1`** (htsget region POST → 400 in Ferrum modes)
-- [ ] **`CHANGELOG.md`** updated for v0.2.0 cut (Ferrum + ga4gh-infra if applicable) — Unreleased hygiene done; release notes still pending
-- [x] CI green on Ferrum `main` (commit `a3c98a17`, 2026-08-15). Re-check after this pin lands (clone uses tag `v0.1.1`).
+- [x] **`CHANGELOG.md`** frozen as **`[0.3.0] - 2026-08-15`**. GitHub release notes still pending at tag time (step 5).
+- [x] CI green on Ferrum `main` after sibling pins (`ga4gh-infra-v0.2.2`, HelixTest `v0.1.1`).
 
 ## Guided pilot honesty (Phase B)
 
@@ -26,8 +26,8 @@ Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gap
 
 ## Release workflow
 
-- [ ] **`release.yml`** run once manually (`workflow_dispatch`) on a release candidate branch or dry-run tag — verify artifacts before `v0.2.0`
-- [ ] Tag: `git tag -a v0.2.0 -m "v0.2.0"` && `git push origin v0.2.0`
+- [ ] **`release.yml`** run once manually (`workflow_dispatch`) on a release candidate branch or dry-run tag — verify artifacts before `v0.3.0`
+- [ ] Tag: `git tag -a v0.3.0 -m "v0.3.0"` && `git push origin v0.3.0`
 - [ ] **`SHA256SUMS.txt`** downloaded from GitHub Release — verify locally:
   ```bash
   shasum -a 256 -c SHA256SUMS.txt
@@ -36,7 +36,7 @@ Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gap
 ## Install verification (fresh environment)
 
 - [ ] **`install.sh`** tested on a **fresh system** (VM or cloud instance — not your daily dev machine)
-- [ ] Copy `.env.example` → `.env`, set `FERRUM_VERSION=v0.2.0`, run `./install.sh`
+- [ ] Copy `.env.example` → `.env`, set `FERRUM_VERSION=v0.3.0`, run `./install.sh`
 - [ ] Health checks pass (gateway, DRS, or documented endpoints in runbook)
 - [ ] **ga4gh-infra** add-on: separate download + install per `VERSIONS.lock` (3-step runbook section)
 
@@ -60,4 +60,4 @@ Reference: [`portfolio/decisions.md`](./portfolio/decisions.md), [`portfolio/gap
 
 ---
 
-*After Ferrum v0.2.0: repeat a shortened checklist per product (`RELEASING.md` in each repo).*
+*After Ferrum v0.3.0: repeat a shortened checklist per product (`RELEASING.md` in each repo).*
