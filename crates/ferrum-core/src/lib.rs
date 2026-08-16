@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Ferrum core: config, database, errors, auth, GA4GH types, provenance.
 
 pub mod ads;

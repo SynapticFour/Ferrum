@@ -389,7 +389,4 @@ Licensed under the **Business Source License 1.1 (BUSL-1.1)**. See [LICENSE](LIC
 
 ---
 
-<div align="center">
-Implementing GA4GH open standards for sovereign bioinformatics infrastructure.
-© 2026 Synaptic Four · Licensed under BUSL-1.1 · Free for non-commercial research
-</div>
+**Synaptic Four** · [contact@synapticfour.com](mailto:contact@synapticfour.com) · [synapticfour.com](https://synapticfour.com) · BUSL-1.1 (paid; free for non-commercial research)

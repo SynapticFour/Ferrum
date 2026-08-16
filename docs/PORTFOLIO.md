@@ -9,7 +9,7 @@ Canonical copy — keep [ECOSYSTEM.md](ECOSYSTEM.md) in each public repo aligned
 | Product | What you buy | License | Stands alone |
 |---------|----------------|---------|--------------|
 | [Ferrum](https://github.com/SynapticFour/Ferrum) | GA4GH data/compute plane (DRS, WES, TES, TRS, Beacon, htsget, Crypt4GH) | BUSL-1.1 | Yes — built-in passports |
-| [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra) | Identity plane (OIDC broker, Passports/visas, DUO, ADS, service registry) | Apache-2.0 | Yes — Compose stack |
+| [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra) (**GA4GH Infra**) | Identity plane (OIDC broker, Passports/visas, DUO, ADS, service registry) | Apache-2.0 | Yes — Compose stack |
 | [Solum](https://github.com/SynapticFour/Solum) | Clinical compliance overlay (consent, audit chain, FHIR IPS, field crypto) | BUSL-1.1 | Yes — Ferrum pin is optional crypto/types |
 | [BioResearch Assistant](https://github.com/SynapticFour/bioresearch-assistant) | Researcher workbench (phenopackets, literature, jobs) | BUSL-1.1 | Yes — own DRS/WES if no Ferrum |
 
@@ -43,13 +43,19 @@ Local walkthroughs so a curious operator can see real behaviour. Not evaluation 
 
 Tests live **in each product** (`make prove`). There is no Solum-Test repo. HelixTest is the **external** GA4GH proof.
 
+**Toolchain:** Ferrum, Lab Kit, ga4gh-infra, Solum, and HelixTest checkouts use **Rust 1.91.1** (`rust-toolchain.toml`). HelixTest **MSRV** remains **1.88**. BRA and HELIOS require **Python 3.11+**.
+
+**Maintainer:** public git history on these products is one human (Synaptic Four). A second committer is a hiring/process item, not a README claim.
+
+**Support SKUs** (not a suite discount): [Showcase support tiers](https://github.com/SynapticFour/SynapticFour-Showcase/blob/main/docs/for-customers/support-tiers.md) — Ferrum / Solum / BRA licenses plus optional support; ga4gh-infra is Apache (support optional); Lab Kit included with Ferrum; ambassadors 0 €.
+
 ## Optional joins (standards, not a monorepo)
 
 | From → to | Glue |
 |-----------|------|
 | Ferrum → ga4gh-infra | Passports / clearinghouse (`[auth] mode = "external"`) |
 | Ferrum → Solum | Consent-gated DRS/WES (HTTP, fail-closed) |
-| BRA → Ferrum | Intended: GA4GH DRS/WES client when Ferrum is present (not yet the default) |
+| BRA → Ferrum | GA4GH DRS/WES client when `FERRUM_DRS_URL` / `FERRUM_WES_URL` are set |
 | BRA → Solum | Optional subject-link HTTP |
 | HELIOS → Solum | JSON export file on disk |
 | Lab Kit → Ferrum | SHA-pinned image + `FERRUM_SERVICES__ENABLE_*` |
