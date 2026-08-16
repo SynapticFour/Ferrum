@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 - **DRS JSON vs official OpenAPI** — omit unset optional fields (`version`, `contents`, `AccessMethod.region`, …) instead of `null`; `created_time` / `updated_time` are RFC3339 (`…Z`), not chrono `Display`. HelixTest v0.1.2 fail-level 2 was a schema miss, not a WES-QUEUED flake.
-- **ferrum+infra Passport-on-DRS** — `test-object-1` is workspace-private (`demo-workspace-01`). Broker Passport for `researcher@uni-heidelberg.de` was valid (login 200, visa_count 0); DRS returned 403 because that subject was not a workspace member. Seed the mock-idp subject as viewer. Not a visa miss.
+- **ferrum+infra fail-level** — five infra tests passed on `a89a01b3` including Passport-on-DRS; HelixTest still exited 1 because overall level is 0 without a Level 0 test. Pin `4a10e12`. Workflow still parses the JSON if HelixTest exits non-zero.
 - **ferrum+infra aai-broker** — pass `REGISTRY_BOOTSTRAP_API_KEY` (same value as visa-registry). Tagged broker defaults visa sources to `required=true` and reads that env at startup; missing it exits before `/service-info`. PEM 644 was a different, earlier crash.
 - **Africa ont cleanup** — `ingest watch` ignored SIGTERM; `wait` after `kill` hung the job after HelixTest already printed OK. SIGKILL after 2s.
 - **ferrum+infra report** — HelixTest stderr is not mixed into the JSON artifact; Python finds the last `{` if stdout is still dirty. Dump-step runs after HelixTest (`if: failure()`), not only after `make up-pilot-local`.
@@ -32,7 +32,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
 
-- **HelixTest pin** — `HELIXTEST_SHA=9a078e4` (authorize without following IdP redirects). Last tag remains `v0.1.2`.
+- **HelixTest pin** — `HELIXTEST_SHA=4a10e12` (infra broker service-info is Level 0 so `--fail-level 2` is reachable). Last tag remains `v0.1.2`.
 
 ## [0.3.1] - 2026-08-16
 

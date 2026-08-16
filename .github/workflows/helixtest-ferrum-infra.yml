@@ -105,11 +105,14 @@ jobs:
           GA4GH_SERVICE_REGISTRY_URL: ${{ env.GA4GH_SERVICE_REGISTRY_URL }}
         run: |
           set -euo pipefail
+          set +e
           ./helixtest-repo/target/release/helixtest \
             --all --mode ferrum+infra --profile ferrum-infra \
             --report json --fail-level 2 \
             > helixtest-ferrum-infra-report.json \
             2> helixtest-ferrum-infra.log
+          ht=$?
+          set -e
           python3 - <<'PY'
           import json, sys
           raw = open("helixtest-ferrum-infra-report.json").read()
@@ -138,6 +141,11 @@ jobs:
               print("expected at least 4 infra checks", file=sys.stderr)
               sys.exit(1)
           PY
+          if [ "$ht" -ne 0 ]; then
+            echo "helixtest exit $ht" >&2
+            tail -40 helixtest-ferrum-infra.log >&2 || true
+            exit "$ht"
+          fi
 
       - name: Dump ga4gh-infra logs on failure
         if: failure()
