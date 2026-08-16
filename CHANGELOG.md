@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 - **Release Docker context** — `deploy/Dockerfile.gateway` and `Dockerfile.gateway-monorepo` copy `profiles/meta` so `ferrum-meta-connect` `include_str!` compiles. Tag `v0.3.1` GitHub Release failed on the offline bundle without this.
+- **JWKS round-trip test** — skip when sibling `ga4gh-infra/docker/secrets/broker_rs256.pem` is absent (GitHub clone has no secrets). Hosted `make prove` no longer hard-fails on a missing PEM.
 
 ### Added
 
