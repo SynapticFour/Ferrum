@@ -46,14 +46,19 @@ GW_PID=""
 WATCH_PID=""
 
 cleanup() {
-  if [ -n "${WATCH_PID:-}" ]; then
-    kill "$WATCH_PID" 2>/dev/null || true
-    wait "$WATCH_PID" 2>/dev/null || true
-  fi
-  if [ -n "${GW_PID:-}" ]; then
-    kill "$GW_PID" 2>/dev/null || true
-    wait "$GW_PID" 2>/dev/null || true
-  fi
+  stop_pid() {
+    local pid="$1"
+    [ -n "$pid" ] || return 0
+    kill "$pid" 2>/dev/null || true
+    for _ in $(seq 1 10); do
+      kill -0 "$pid" 2>/dev/null || return 0
+      sleep 0.2
+    done
+    kill -9 "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+  }
+  stop_pid "${WATCH_PID:-}"
+  stop_pid "${GW_PID:-}"
   rm -rf "$TMP"
 }
 trap cleanup EXIT INT TERM

@@ -7,7 +7,9 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 - **DRS JSON vs official OpenAPI** — omit unset optional fields (`version`, `contents`, `AccessMethod.region`, …) instead of `null`; `created_time` / `updated_time` are RFC3339 (`…Z`), not chrono `Display`. HelixTest v0.1.2 fail-level 2 was a schema miss, not a WES-QUEUED flake.
+- **ferrum+infra Passport-on-DRS** — `test-object-1` is workspace-private (`demo-workspace-01`). Broker Passport for `researcher@uni-heidelberg.de` was valid (login 200, visa_count 0); DRS returned 403 because that subject was not a workspace member. Seed the mock-idp subject as viewer. Not a visa miss.
 - **ferrum+infra aai-broker** — pass `REGISTRY_BOOTSTRAP_API_KEY` (same value as visa-registry). Tagged broker defaults visa sources to `required=true` and reads that env at startup; missing it exits before `/service-info`. PEM 644 was a different, earlier crash.
+- **Africa ont cleanup** — `ingest watch` ignored SIGTERM; `wait` after `kill` hung the job after HelixTest already printed OK. SIGKILL after 2s.
 - **ferrum+infra report** — HelixTest stderr is not mixed into the JSON artifact; Python finds the last `{` if stdout is still dirty. Dump-step runs after HelixTest (`if: failure()`), not only after `make up-pilot-local`.
 - **Africa ont job** — rust-cache + `timeout-minutes: 45`. `ad024d54` hit that ceiling compiling two LTO release binaries in one step (GitHub `cancelled`, no MinION evidence). Split compile steps; gateway is `--release --features edge`; `ferrum-cli` is the debug ingest client. Skip compile only when CI passes an explicit binary path — a rust-cache default-features gateway must not be treated as ready.
 - **ferrum+infra** — `make up-pilot-local` chmod 644 on ga4gh-infra PEMs after `prepare-secrets`. Tagged `ga4gh-infra-v0.2.3` leaves them mode 600; visa-registry (uid 1000) then exits (1).

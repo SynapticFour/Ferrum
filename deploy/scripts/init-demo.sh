@@ -299,7 +299,10 @@ VALUES ('demo-workspace-01', 'Demo Workspace', 'Pre-populated workspace for test
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO workspace_members (workspace_id, sub, role, invited_by)
-VALUES ('demo-workspace-01', 'demo-user', 'owner', 'demo-user')
+VALUES
+  ('demo-workspace-01', 'demo-user', 'owner', 'demo-user'),
+  -- mock-idp default subject (ferrum+infra Passport-on-DRS). test-object-1 is workspace-private.
+  ('demo-workspace-01', 'researcher@uni-heidelberg.de', 'viewer', 'demo-user')
 ON CONFLICT (workspace_id, sub) DO NOTHING;
 
 -- Demo cohort in workspace
