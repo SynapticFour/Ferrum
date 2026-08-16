@@ -16,7 +16,7 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
-use ferrum_meta_connect::{submission_alias, MetaProfile};
+use ferrum_meta_connect::{submission_alias, validate_submission, MetaProfile};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -43,6 +43,15 @@ impl ApiError {
             code: "validation_error",
             message: msg.into(),
             details: None,
+        }
+    }
+
+    fn validation_with_issues(msg: impl Into<String>, issues: Value) -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            code: "validation_error",
+            message: msg.into(),
+            details: Some(json!({ "issues": issues })),
         }
     }
 
@@ -107,6 +116,25 @@ impl ApiError {
             },
             crate::error::DrsError::Database(se) => Self::internal(se.to_string()),
             crate::error::DrsError::Other(o) => Self::internal(o.to_string()),
+        }
+    }
+
+    fn from_store(
+        e: crate::error::DrsError,
+        document: &Value,
+        profile: Option<MetaProfile>,
+    ) -> Self {
+        match e {
+            crate::error::DrsError::Validation(m)
+                if m.contains("ferrum-meta validation failed") =>
+            {
+                let report = validate_submission(document, profile);
+                Self::validation_with_issues(
+                    m,
+                    serde_json::to_value(&report.issues).unwrap_or(json!([])),
+                )
+            }
+            other => Self::from_drs(other),
         }
     }
 }
@@ -316,7 +344,7 @@ async fn put_submission(
     let expected = parse_expected_version(&headers, q.expected_version);
     let stored = store_ferrum_meta_bundle_versioned(&state.repo, &document, profile, expected)
         .await
-        .map_err(ApiError::from_drs)?;
+        .map_err(|e| ApiError::from_store(e, &document, profile))?;
 
     Ok(with_etag(
         StatusCode::OK,
@@ -346,7 +374,7 @@ async fn post_submission(
     let expected = parse_expected_version(&headers, q.expected_version);
     let stored = store_ferrum_meta_bundle_versioned(&state.repo, &document, profile, expected)
         .await
-        .map_err(ApiError::from_drs)?;
+        .map_err(|e| ApiError::from_store(e, &document, profile))?;
 
     let status = if stored.unchanged {
         StatusCode::OK

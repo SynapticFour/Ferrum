@@ -40,6 +40,14 @@ const WorkspaceDetailPage = lazyPage(
 const InsightsPage = lazyPage(() => import('@/pages/InsightsPage'), 'InsightsPage');
 const StudySetupPage = lazyPage(() => import('@/pages/StudySetupPage'), 'StudySetupPage');
 const NewWorkspacePage = lazyPage(() => import('@/pages/NewWorkspacePage'), 'NewWorkspacePage');
+const MetadataSubmissionsPage = lazyPage(
+  () => import('@/pages/MetadataSubmissionsPage'),
+  'MetadataSubmissionsPage',
+);
+const MetadataSubmissionDetailPage = lazyPage(
+  () => import('@/pages/MetadataSubmissionDetailPage'),
+  'MetadataSubmissionDetailPage',
+);
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -100,6 +108,16 @@ const workspaceDetailRoute = createRoute({
 const insightsRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/insights', component: InsightsPage });
 const studySetupRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/study/setup', component: StudySetupPage });
 const newWorkspaceRoute = createRoute({ getParentRoute: () => layoutRoute, path: '/workspaces/new', component: NewWorkspacePage });
+const metadataRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: '/metadata',
+  component: MetadataSubmissionsPage,
+});
+const metadataDetailRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: '/metadata/submissions/$alias',
+  component: MetadataSubmissionDetailPage,
+});
 
 layoutRoute.addChildren([
   indexRoute,
@@ -119,6 +137,8 @@ layoutRoute.addChildren([
   insightsRoute,
   studySetupRoute,
   newWorkspaceRoute,
+  metadataRoute,
+  metadataDetailRoute,
 ]);
 
 rootRoute.addChildren([authCallbackRoute, layoutRoute]);

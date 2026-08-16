@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
+- **Metadata Store UI** — Ferrum-Web `/metadata`: submission list, version diff, edit with inline `details.issues`, DRS `metadata_ref` attach on object detail. Enable `[metadata_store]` (on in `deploy/configs/local.toml` / `pilot.toml`). Not a second schema store; GHGA/EGA remain exports.
 - **SPDX on first-party `.rs`** — `// SPDX-License-Identifier: BUSL-1.1`; CI workflow `spdx.yml`. Not a full REUSE.toml BOM.
 - **Committed OpenAPI dump** — `docs/openapi/ferrum.openapi.json` from utoipa (`make openapi`). Implementation map of this gateway. **Source of truth for GA4GH products remains each standard’s published OpenAPI** ([docs/GA4GH.md](docs/GA4GH.md)). Not a replacement spec; not certification.
 - **Beacon v2 boolean body** — `/query` includes official `responseSummary.exists` and required `meta` fields (`beaconId`, `returnedGranularity`, `receivedRequestSummary`). `response.exists` remains for older clients.

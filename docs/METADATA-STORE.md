@@ -62,3 +62,5 @@ Enable with `[metadata_store] enabled = true` or `FERRUM_METADATA_STORE__ENABLED
 **M2:** version history, `If-Match` / `expected_version`, DRS attach/detach via `PUT /objects/{id}/metadata_ref`.
 
 Disabled → HTTP 501. Not archive certification; not clinical SoR.
+
+Ferrum-Web: **Metadata** nav (`/metadata`) lists submissions, diffs versions, and shows validation `details.issues` on save. Object detail can attach/detach `metadata_ref`.

@@ -20,6 +20,8 @@ export interface DrsObject {
   workspace_id?: string;
   /** Ferrum extension: async checksum job (`pending`, `computed`, `failed:…`). */
   checksum_status?: string;
+  /** Ferrum extension: ferrum-meta submission alias. */
+  metadata_ref?: string | null;
 }
 
 /** WES run state */

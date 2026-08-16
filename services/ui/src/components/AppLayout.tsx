@@ -4,7 +4,7 @@ import { useThemeStore } from '@/stores/theme';
 import { useAuthStore } from '@/stores/auth';
 import { useAuthConfig } from '@/hooks/useAuthConfig';
 import { buildBrokerLoginUrl, isPassportExpired, loadStoredPassport, passportExpiresAt } from '@/lib/auth';
-import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users, FolderOpen, LogIn, LogOut, BarChart3, Compass } from 'lucide-react';
+import { LayoutDashboard, Database, Workflow, Wrench, Dna, Shield, Settings, Moon, Sun, Users, FolderOpen, LogIn, LogOut, BarChart3, Compass, FileJson } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Footer } from '@/components/Footer';
@@ -17,6 +17,7 @@ const navItems = [
   { path: '/study/setup', labelKey: 'nav.studySetup', icon: Compass },
   { path: '/workspaces', labelKey: 'nav.workspaces', icon: FolderOpen },
   { path: '/data', labelKey: 'nav.data', icon: Database },
+  { path: '/metadata', labelKey: 'nav.metadata', icon: FileJson },
   { path: '/cohorts', labelKey: 'nav.cohorts', icon: Users },
   { path: '/workflows', labelKey: 'nav.workflows', icon: Workflow },
   { path: '/tools', labelKey: 'nav.tools', icon: Wrench },

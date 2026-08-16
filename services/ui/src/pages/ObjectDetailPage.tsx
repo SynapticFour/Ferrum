@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '@/api/client';
 import type { DrsObject } from '@/api/types';
+import { attachMetadataRef } from '@/api/metadata';
 import { ObjectLineageTab } from '@/components/ObjectLineageTab';
 import { DataTypeIcon } from '@/components/DataTypeIcon';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ export function ObjectDetailPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [linkWorkspaceId, setLinkWorkspaceId] = useState('');
   const [linkNotice, setLinkNotice] = useState<string | null>(null);
+  const [metaAlias, setMetaAlias] = useState('');
   const qc = useQueryClient();
 
   const { data: obj, isLoading, error } = useQuery({
@@ -83,6 +85,14 @@ export function ObjectDetailPage() {
       void qc.invalidateQueries({ queryKey: ['drs', 'object', id] });
       const name = workspaces?.find((w) => w.id === workspaceId)?.name ?? workspaceId;
       setLinkNotice(t('object.linkWorkspaceSuccess', { name }));
+    },
+  });
+
+  const attachMeta = useMutation({
+    mutationFn: (alias: string | null) => attachMetadataRef(id, alias),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['drs', 'object', id] });
+      setMetaAlias('');
     },
   });
 
@@ -222,6 +232,55 @@ export function ObjectDetailPage() {
           {linkNotice && <CardContent className="pt-0 text-sm text-emerald-700 dark:text-emerald-400">{linkNotice}</CardContent>}
         </Card>
       )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{t('object.metaRef')}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-end gap-3">
+          <div className="text-sm">
+            {obj.metadata_ref ? (
+              <Link
+                to={'/metadata/submissions/$alias' as any}
+                params={{ alias: obj.metadata_ref } as any}
+                className="font-mono text-primary hover:underline"
+              >
+                {obj.metadata_ref}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">{t('object.metaRefNone')}</span>
+            )}
+          </div>
+          <label className="text-sm">
+            <span className="sr-only">{t('object.metaRefAlias')}</span>
+            <input
+              className="border rounded px-2 py-1 bg-background font-mono text-sm"
+              value={metaAlias}
+              onChange={(e) => setMetaAlias(e.target.value)}
+              placeholder={t('object.metaRefAlias')}
+            />
+          </label>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!metaAlias.trim() || attachMeta.isPending}
+            onClick={() => attachMeta.mutate(metaAlias.trim())}
+          >
+            {t('object.metaRefAttach')}
+          </Button>
+          {obj.metadata_ref && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={attachMeta.isPending}
+              onClick={() => attachMeta.mutate(null)}
+            >
+              {t('object.metaRefDetach')}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       {showPreview && streamPreviewable && (
         <Card>

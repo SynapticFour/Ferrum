@@ -275,3 +275,35 @@ async fn metadata_store_post_creates() {
     let res = app.oneshot(post).await.unwrap();
     assert_eq!(res.status(), StatusCode::CREATED);
 }
+
+#[tokio::test]
+async fn metadata_store_invalid_put_returns_issue_details() {
+    let pool = sqlite_pool().await;
+    let state = enabled_state(pool);
+    let app = metadata_api_router(Arc::new(state));
+    let bad = json!({
+        "ferrum_meta_version": "0.1.0",
+        "studies": [{"alias": "s1"}],
+        "datasets": [{"alias": "dataset_path001"}]
+    });
+    let put = Request::builder()
+        .method("PUT")
+        .uri("/submissions/dataset_path001?profile=pathogen")
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_vec(&bad).unwrap()))
+        .unwrap();
+    let res = app.oneshot(put).await.unwrap();
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let body: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(body["code"], "validation_error");
+    assert!(
+        body["details"]["issues"]
+            .as_array()
+            .map(|a| !a.is_empty())
+            .unwrap_or(false),
+        "expected details.issues, got {body}"
+    );
+}

@@ -30,3 +30,6 @@ enable_tes = true
 enable_passports = true
 enable_crypt4gh = true
 enable_beacon = true
+
+[metadata_store]
+enabled = true

@@ -9,6 +9,7 @@ export class ApiAuthError extends Error {
     message: string,
     readonly status: number,
     readonly sessionExpired = false,
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = 'ApiAuthError';
@@ -21,16 +22,18 @@ function getAuthHeader(): Record<string, string> {
   return {};
 }
 
-function parseErrorMessage(text: string, status: number): { msg: string; sessionExpired: boolean } {
+function parseErrorMessage(text: string, status: number): { msg: string; sessionExpired: boolean; details?: unknown } {
   let msg = text || `HTTP ${status}`;
   let sessionExpired = status === 401;
+  let details: unknown;
   try {
-    const j = JSON.parse(text) as { code?: string; message?: string; error?: string };
+    const j = JSON.parse(text) as { code?: string; message?: string; error?: string; details?: unknown };
     if (typeof j.message === 'string') {
       msg = j.code ? `${j.code}: ${j.message}` : j.message;
     } else if (typeof j.error === 'string') {
       msg = j.error;
     }
+    details = j.details;
     if (/unauthorized|sign in|session may have expired|authentication required/i.test(msg)) {
       sessionExpired = true;
     }
@@ -45,7 +48,7 @@ function parseErrorMessage(text: string, status: number): { msg: string; session
     msg =
       'The server is still starting up or temporarily unavailable — wait a moment and try again.';
   }
-  return { msg, sessionExpired };
+  return { msg, sessionExpired, details };
 }
 
 function handleAuthFailure(sessionExpired: boolean) {
@@ -80,9 +83,9 @@ export async function apiFetch<T>(
   });
   if (!res.ok) {
     const text = await res.text();
-    const { msg, sessionExpired } = parseErrorMessage(text, res.status);
+    const { msg, sessionExpired, details } = parseErrorMessage(text, res.status);
     handleAuthFailure(sessionExpired);
-    throw new ApiAuthError(msg, res.status, sessionExpired);
+    throw new ApiAuthError(msg, res.status, sessionExpired, details);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -112,9 +115,9 @@ export async function apiGetText(path: string): Promise<string> {
   });
   if (!res.ok) {
     const text = await res.text();
-    const { msg, sessionExpired } = parseErrorMessage(text, res.status);
+    const { msg, sessionExpired, details } = parseErrorMessage(text, res.status);
     handleAuthFailure(sessionExpired);
-    throw new ApiAuthError(msg, res.status, sessionExpired);
+    throw new ApiAuthError(msg, res.status, sessionExpired, details);
   }
   return res.text();
 }
@@ -152,9 +155,9 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
   });
   const text = await res.text();
   if (!res.ok) {
-    const { msg, sessionExpired } = parseErrorMessage(text, res.status);
+    const { msg, sessionExpired, details } = parseErrorMessage(text, res.status);
     handleAuthFailure(sessionExpired);
-    throw new ApiAuthError(msg, res.status, sessionExpired);
+    throw new ApiAuthError(msg, res.status, sessionExpired, details);
   }
   if (!text) return undefined as T;
   return JSON.parse(text) as T;
