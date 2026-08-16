@@ -1,0 +1,73 @@
+ferrum_meta_version: "0.1.0"
+
+studies:
+  - alias: ega_study001
+    title: "EGA profile fixture — case-control WGS study"
+    description: >-
+      Valid EGA profile submission fixture mapping to EGA.study.json and Webin
+      XML study metadata. Includes DAC, policy, and EGA dataset type vocabulary.
+    type: WHOLE_GENOME_SEQUENCING
+    ega_study_types:
+      - WHOLE_GENOME_SEQUENCING
+      - POPULATION_GENOMICS
+
+individuals:
+  - alias: ega_ind001
+    sex: MALE
+    consent_type: BROAD
+    consent_code: "EGA-CONSENT-2026-001"
+
+samples:
+  - alias: ega_sample001
+    individual_alias: ega_ind001
+    biospecimen_type: BLOOD
+
+experiments:
+  - alias: ega_exp001
+    sample_alias: ega_sample001
+    sequencing_platform: ILLUMINA
+    library_strategy: WGS
+    library_source: GENOMIC
+
+files:
+  - alias: ega_file001.cram
+    format: CRAM
+    checksum_md5: "098f6bcd4621d373cade4e832627b4f6"
+    encryption: CRYPT4GH
+
+datasets:
+  - alias: ega_dataset001
+    title: "EGA controlled-access WGS dataset"
+    description: >-
+      EGA dataset fixture with policy and study linkage for Webin-CLI XML export
+      testing.
+    file_aliases:
+      - ega_file001.cram
+    data_use_conditions:
+      - "DUO:0000006"
+    ega_dataset_types:
+      - WHOLE_GENOME_SEQUENCING
+    policy_alias: ega_policy001
+    study_alias: ega_study001
+
+ega_dacs:
+  - alias: ega_dac001
+    title: "Example Consortium Data Access Committee"
+    description: >-
+      DAC governing case-control WGS data submitted via Webin-CLI to EGA.
+    webin_id: "EXAMPLE_CENTER"
+    main_contact_email: "dac@consortium.example.org"
+    main_contact_name: "EGA DAC Secretariat"
+    institutional_affiliation: "Example Genomics Consortium"
+
+ega_policies:
+  - alias: ega_policy001
+    title: "Example WGS controlled access policy"
+    description: >-
+      Standard EGA data access agreement for controlled WGS data release.
+    policy_text: >-
+      Access is granted upon DAC approval for approved research projects. Users
+      must not attempt re-identification. Data use is limited to the approved
+      project scope described in the access request.
+    dac_alias: ega_dac001
+    data_use_permission: "DUO:0000006"

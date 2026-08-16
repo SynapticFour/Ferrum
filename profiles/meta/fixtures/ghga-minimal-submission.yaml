@@ -1,0 +1,92 @@
+ferrum_meta_version: "0.1.0"
+
+studies:
+  - alias: ghga_study001
+    title: "GHGA profile fixture — population WGS with community consent"
+    description: >-
+      Valid GHGA profile submission fixture for ferrum-meta validation. Covers DAC,
+      DAP, GhgaDataset linkage, and Crypt4GH-encrypted FASTQ files for export to
+      GHGA metadata schema v2.2.0.
+    type: POPULATION_GENOMICS
+
+individuals:
+  - alias: ghga_ind001
+    sex: FEMALE
+    phenotype:
+      - "HP:0000001"
+    ancestry: "HANCESTRO:0005"
+    consent_type: COMMUNITY
+    consent_code: "H3A-CONSENT-2026-GHGA-001"
+    geographical_region: "HANCESTRO:0410"
+
+samples:
+  - alias: ghga_sample001
+    individual_alias: ghga_ind001
+    tissue_type: "buccal mucosa"
+    biospecimen_type: BUCCAL_SWAB
+
+experiments:
+  - alias: ghga_exp001
+    sample_alias: ghga_sample001
+    sequencing_platform: ILLUMINA
+    library_strategy: WGS
+    library_source: GENOMIC
+
+files:
+  - alias: ghga_file001_R1.fastq.gz
+    format: FASTQ
+    checksum_md5: "d41d8cd98f00b204e9800998ecf8427e"
+    encryption: CRYPT4GH
+  - alias: ghga_file001.cram
+    format: CRAM
+    checksum_md5: "098f6bcd4621d373cade4e832627b4f6"
+    encryption: CRYPT4GH
+
+datasets:
+  - alias: ghga_dataset001
+    title: "GHGA WGS dataset — community consent cohort"
+    description: >-
+      Controlled-access GHGA dataset with linked DAP and study aliases for export
+      transpilation testing.
+    file_aliases:
+      - ghga_file001_R1.fastq.gz
+      - ghga_file001.cram
+    data_use_conditions:
+      - "DUO:0000006"
+    dap_alias: ghga_dap001
+    study_alias: ghga_study001
+
+data_access_committees:
+  - alias: ghga_dac001
+    name: "Institute Genomics Data Access Committee"
+    main_contact: "dac-contact@university-hospital.example.org"
+    members:
+      - "Prof. Ada Lovelace"
+      - "Dr. Charles Babbage"
+    institutional_affiliation: "University Hospital Example"
+
+data_access_policies:
+  - alias: ghga_dap001
+    name: "Community consent HMB policy"
+    description: >-
+      Data access policy for community-consented population genomics data under
+      health/medical/biomedical research restrictions.
+    data_use_permission: "DUO:0000006"
+    data_use_modifiers:
+      - "DUO:0000027"
+    policy_text: >-
+      Access is granted for health/medical/biomedical research purposes following
+      DAC review. Data must not be used for re-identification. Community consent
+      governs secondary use beyond the originating study.
+    dac_alias: ghga_dac001
+
+analyses:
+  - alias: ghga_analysis001
+    title: "CRAM alignment from FASTQ"
+    type: SEQUENCE_ALIGNMENT
+    workflow_name: "bwa-mem2"
+    workflow_version: "2.2.1"
+    input_file_aliases:
+      - ghga_file001_R1.fastq.gz
+    output_file_aliases:
+      - ghga_file001.cram

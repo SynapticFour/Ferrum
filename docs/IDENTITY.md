@@ -25,10 +25,10 @@ Proof that the APIs behave: clone [HelixTest](https://github.com/SynapticFour/He
 | Join | What you gain | Contract |
 |------|----------------|----------|
 | ga4gh-infra | External AAI, visas, ADS | Ferrum `[auth] mode = "external"`; pin in `VERSIONS.lock` |
-| Solum | Consent-gated DRS/WES | Ferrum `[solum]` HTTP client, fail-closed |
+| Solum | Consent-gated DRS/WES | Ferrum `[solum]` HTTP client, **fail-closed**. Pin in `VERSIONS.lock` (`SOLUM_TAG`). Clinical extension of GA4GH Purpose/Consent on DRS/WES — not a second clinic product inside Ferrum |
 | HelixTest | Independent conformance | Separate repo, Apache-2.0 |
 | HELIOS | Signed pipeline/audit evidence | File ingest, not an API fabric |
-| BRA | Researcher workbench | Optional. Standalone BRA has its own DRS/WES. Intended join: BRA as GA4GH client of this Ferrum (`FERRUM_DRS_URL` / `FERRUM_WES_URL`) — **not wired yet**. |
+| BRA | Researcher workbench | Optional. Standalone BRA has its own DRS/WES. Join: BRA as GA4GH client (`FERRUM_DRS_URL` / `FERRUM_WES_URL`) |
 
 See [ECOSYSTEM.md](ECOSYSTEM.md) for ports and lifecycle verbs. Portfolio map: [PORTFOLIO.md](PORTFOLIO.md).
 

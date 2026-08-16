@@ -5,7 +5,8 @@
 #     1. Bump FERRUM_VERSION to the new v*.*.* tag.
 #     2. Set GA4GH_INFRA_REF to a compatible ga4gh-infra git tag (ga4gh-infra-v*).
 #     3. Set HELIXTEST_REF to a HelixTest tag (vX.Y.Z) or commit SHA.
-#     4. Run CI on main, then tag and push Ferrum.
+#     4. Set SOLUM_REF / SOLUM_TAG / SOLUM_SHA to a Solum git tag when [solum] is in the cut.
+#     5. Run CI on main, then tag and push Ferrum.
 #   Also sync synapticfour-business pilot Dockerfiles / build-pilot-image.sh checks.
 #
 # WHO READS THIS FILE
@@ -34,6 +35,12 @@ GA4GH_INFRA_IMAGE_VERSION=0.2.3
 HELIXTEST_REF=v0.1.1
 HELIXTEST_TAG=v0.1.1
 HELIXTEST_SHA=a8aabf30fa8a8963ca95a4e8c1e6c04cddf34a12
+
+# Solum — optional consent teeth on DRS/WES ([solum] / FERRUM_SOLUM__*). Fail-closed.
+# First SemVer tag v0.1.0. Unset BASE_URL leaves Ferrum behaviour unchanged.
+SOLUM_REF=v0.1.0
+SOLUM_TAG=v0.1.0
+SOLUM_SHA=b68a941ff1cc9a2406f25b27fed8f12368ebbf1b
 
 # ferrum-meta — LinkML schema plane. Vendored into profiles/meta/schema/ and
 # compiled into ferrum-meta-connect via include_str!. Refresh with

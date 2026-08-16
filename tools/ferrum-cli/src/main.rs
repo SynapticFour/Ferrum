@@ -206,6 +206,14 @@ enum MetaAction {
         #[arg(long)]
         output: PathBuf,
     },
+    /// Write a GHGA or EGA starter bundle (validate with ferrum-meta afterwards)
+    Export {
+        /// Profile: ghga or ega
+        #[arg(long)]
+        profile: String,
+        #[arg(long)]
+        output: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -580,6 +588,32 @@ async fn run_cli() -> Result<(), CliExit> {
                     })?;
                 meta_import::run_meta_import(parsed, &csv, &output)
                     .map_err(CliExit::RuntimeFailed)?;
+            }
+            MetaAction::Export { profile, output } => {
+                let body = match profile.to_ascii_lowercase().as_str() {
+                    "ghga" => {
+                        include_str!("../../../profiles/meta/fixtures/ghga-minimal-submission.yaml")
+                    }
+                    "ega" => {
+                        include_str!("../../../profiles/meta/fixtures/ega-minimal-submission.yaml")
+                    }
+                    other => {
+                        return Err(CliExit::RuntimeFailed(format!(
+                            "unknown export profile `{other}` (use ghga or ega). core/pathogen/h3africa: ferrum meta init"
+                        )));
+                    }
+                };
+                if let Some(parent) = output.parent() {
+                    if !parent.as_os_str().is_empty() {
+                        std::fs::create_dir_all(parent)
+                            .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+                    }
+                }
+                std::fs::write(&output, body).map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
+                eprintln!(
+                    "wrote {output} — replace aliases/checksums, then: ferrum-meta/scripts/validate-fixture.sh {output}",
+                    output = output.display()
+                );
             }
         },
         Commands::Sync { action } => match action {
