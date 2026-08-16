@@ -4,8 +4,24 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-16
+
+Patch so Ferrum-GA4GH-Demo can pin **stock** Ferrum (no `vendor/ferrum-overlay`). Crate versions match tag `v0.3.1`.
+
+### Fixed
+
+- **WES/TES honesty** — no synthetic QUEUED/RUNNING poll delay; TES state is reported as-is.
+- **Residency hash** — audit timestamps hashed at microsecond Zulu so Postgres `chain_valid` matches stored `timestamptz`.
+
+### Added
+
+- **`ferrum meta export --profile ghga|ega`** — starter LinkML bundles (validate with ferrum-meta).
+- **Solum pin** — `SOLUM_TAG=v0.1.0` in `VERSIONS.lock` for fail-closed `[solum]`.
 - **`make prove`** — workspace tests without Docker (same command as CI). Live stack remains `make up`.
-- **ga4gh-infra pin** — `GA4GH_INFRA_REF=ga4gh-infra-v0.2.3` (`613bd14`); GHCR stack images `:0.2.3`. Optional `clearinghouse` git tag matches. Release train: [COMPATIBILITY.md](docs/COMPATIBILITY.md).
+
+### Changed
+
+- **ga4gh-infra pin** — `GA4GH_INFRA_REF=ga4gh-infra-v0.2.3` (`613bd14`).
 
 ## [0.3.0] - 2026-08-15
 
