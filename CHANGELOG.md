@@ -6,8 +6,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
+- **ferrum+infra** — `make up-pilot-local` chmod 644 on ga4gh-infra PEMs after `prepare-secrets`. Tagged `ga4gh-infra-v0.2.3` leaves them mode 600; visa-registry (uid 1000) then exits (1).
+- **Demo HelixTest WES stubs** — `trs://` echo/scatter stay `QUEUED` until a second `/status` *and* 1.5s hold, so `GET /runs` list cannot make HelixTest's first poll already `COMPLETE`. Not institute evidence.
 - **ferrum+infra** — `make up-pilot-local` pulls postgres/MinIO/Keycloak/nginx before `up --pull never`, so GitHub-hosted runners no longer die on missing third-party images.
-- **Demo HelixTest WES stubs** — `trs://test-tool/echo` and `scatter-gather` reach `COMPLETE` after one `QUEUED` poll (same first-poll rule as fail stubs). Not institute evidence.
 - **TES smoke job name** — CWL `COMPLETE` is the CI bar. TinyGermlineHC Cromwell on nested Docker is a warning unless `SMOKE_REQUIRE_GERMLINE_COMPLETE=1`.
 - **Release Docker context** — `deploy/Dockerfile.gateway` and `Dockerfile.gateway-monorepo` copy `profiles/meta` so `ferrum-meta-connect` `include_str!` compiles. Tag `v0.3.1` GitHub Release failed on the offline bundle without this.
 - **JWKS round-trip test** — skip when sibling `ga4gh-infra/docker/secrets/broker_rs256.pem` is absent (GitHub clone has no secrets). Hosted `make prove` no longer hard-fails on a missing PEM.

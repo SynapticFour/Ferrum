@@ -40,6 +40,8 @@ Local:
 
 ```bash
 make up-pilot-local   # needs sibling ../ga4gh-infra
+# Ferrum chmod 644 on cloned PEMs: tagged ga4gh-infra-v0.2.3 leaves them 600,
+# which visa-registry (uid 1000) cannot read.
 helixtest --all --mode ferrum+infra --profile ferrum-infra-pilot
 ```
 
@@ -127,7 +129,7 @@ Not `.../descriptor/CWL` — that order is a non-standard alias Ferrum also supp
 - **WES** uses synthetic `trs://test-tool/...` URLs only when **`FERRUM_WES_HELIXTEST_STUBS`** is set (demo compose default). Without that flag, Ferrum does not invent run states or output JSON.
 - **TES checksum stub**: `GET /ga4gh/tes/v1/demo/echo-output` (`hello-tes` + newline) and noop output URLs exist only when **`FERRUM_TES_HELIXTEST_STUB`** is set. CI **does not** rewrite HelixTest expected hashes.
 - **E2E** `result_drs_id` stubbing is likewise gated on `FERRUM_WES_HELIXTEST_STUBS`.
-- **WES** stub `trs://` runs (echo, scatter-gather, fail) report `QUEUED` on the first `/status` poll, then the terminal state (`RunManager::synthetic_helixtest_phases`). Demo-only; not institute evidence.
+- **WES** stub `trs://` runs (echo, scatter-gather, fail) stay `QUEUED` until a second `/status` *and* 1.5s (`RunManager::synthetic_helixtest_phases`), so a concurrent `GET /runs` list cannot make HelixTest's first poll already `COMPLETE`. Demo-only; not institute evidence.
 
 ### Auth (Level 4)
 

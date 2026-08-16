@@ -58,6 +58,11 @@ jobs:
           test -d "$GA4GH_INFRA_SRC"
           make up-pilot-local
 
+      - name: Dump ga4gh-infra logs on failure
+        if: failure()
+        run: |
+          docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml logs visa-registry aai-broker mock-idp 2>&1 | tail -200 || true
+
       - name: Wait for DRS seed and registry DRS entry
         run: |
           set -euo pipefail

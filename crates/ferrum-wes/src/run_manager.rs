@@ -16,6 +16,7 @@ use chrono::Utc;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 pub struct RunManager {
@@ -27,12 +28,27 @@ pub struct RunManager {
     tes: Option<Arc<TesExecutorBackend>>,
     log_registry: Arc<LogStreamRegistry>,
     run_to_executor: RwLock<HashMap<String, ExecutorKind>>,
-    /// HelixTest `trs://` stub runs: first `/status` is QUEUED; second poll is the registered terminal.
-    synthetic_helixtest_phases: RwLock<HashMap<String, (u8, RunState)>>,
+    /// HelixTest `trs://` stubs: stay QUEUED until a second poll *and* a short hold
+    /// so `GET /runs` (list) cannot consume the only non-terminal observation.
+    synthetic_helixtest_phases: RwLock<HashMap<String, SyntheticHelixPhase>>,
     work_dir_base: PathBuf,
     metrics: Option<Arc<MetricsCollector>>,
     slurm: SlurmExecutor,
     multiqc_runner: Option<Arc<MultiQCRunner>>,
+}
+
+struct SyntheticHelixPhase {
+    polls: u8,
+    terminal: RunState,
+    started: Instant,
+}
+
+/// Keep stub runs non-terminal long enough that a concurrent `GET /runs` list
+/// cannot make HelixTest's first `/status` already COMPLETE.
+const SYNTHETIC_QUEUED_HOLD: Duration = Duration::from_millis(1500);
+
+fn synthetic_hold_queued(polls: u8, elapsed: Duration) -> bool {
+    polls < 2 || elapsed < SYNTHETIC_QUEUED_HOLD
 }
 
 #[derive(Clone, Copy)]
@@ -252,14 +268,22 @@ impl RunManager {
         Ok(reconciled)
     }
 
-    /// Register a stub run: first `GET .../status` is `QUEUED`, second poll is `terminal`.
+    /// Register a stub run. `/status` stays `QUEUED` until the second poll *and*
+    /// [`SYNTHETIC_QUEUED_HOLD`] has elapsed, then `terminal`.
     pub async fn register_synthetic_helixtest_terminal(
         &self,
         run_id: impl Into<String>,
         terminal: RunState,
     ) {
         let mut m = self.synthetic_helixtest_phases.write().await;
-        m.insert(run_id.into(), (0, terminal));
+        m.insert(
+            run_id.into(),
+            SyntheticHelixPhase {
+                polls: 0,
+                terminal,
+                started: Instant::now(),
+            },
+        );
     }
 
     pub async fn cancel(&self, run_id: &str) -> Result<()> {
@@ -293,12 +317,12 @@ impl RunManager {
 
         let synthetic_terminal = {
             let mut syn = self.synthetic_helixtest_phases.write().await;
-            if let Some((phase, terminal)) = syn.get_mut(run_id) {
-                if *phase == 0 {
-                    *phase = 1;
+            if let Some(ph) = syn.get_mut(run_id) {
+                ph.polls = ph.polls.saturating_add(1);
+                if synthetic_hold_queued(ph.polls, ph.started.elapsed()) {
                     return Ok(RunState::Queued);
                 }
-                let terminal = *terminal;
+                let terminal = ph.terminal;
                 syn.remove(run_id);
                 Some(terminal)
             } else {
@@ -481,5 +505,19 @@ impl RunManager {
 
     pub fn log_registry(&self) -> &LogStreamRegistry {
         &self.log_registry
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn synthetic_hold_survives_a_list_runs_poll() {
+        // GET /runs list calls poll_status once; HelixTest's first /status must still be QUEUED.
+        assert!(synthetic_hold_queued(1, Duration::from_millis(10)));
+        assert!(synthetic_hold_queued(5, Duration::from_millis(10)));
+        assert!(synthetic_hold_queued(1, Duration::from_secs(5)));
+        assert!(!synthetic_hold_queued(2, SYNTHETIC_QUEUED_HOLD));
     }
 }

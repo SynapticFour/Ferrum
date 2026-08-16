@@ -148,10 +148,13 @@ pull-pilot-base-images:
 up-pilot-local:
 	@test -d "$(GA4GH_INFRA_SRC)" || (echo "GA4GH_INFRA_SRC not found: $(GA4GH_INFRA_SRC)" && exit 1)
 	@$(MAKE) -C "$(GA4GH_INFRA_SRC)" prepare-secrets
+	# Tagged ga4gh-infra-v0.2.3 chmod 600 on PEMs; visa-registry runs as uid 1000
+	# and exits immediately if it cannot read /secrets/registry_rs256.pem.
+	@chmod 644 "$(GA4GH_INFRA_SRC)/docker/secrets/"*.pem 2>/dev/null || true
 	@$(MAKE) -C "$(GA4GH_INFRA_SRC)" prepare-vendor
 	@echo "Building ga4gh-infra from $(GA4GH_INFRA_SRC) (local --build; GHCR :0.2.2 is optional)."
 	@$(MAKE) pull-pilot-base-images
-	$(COMPOSE_PILOT) up -d --build --pull never
+	$(COMPOSE_PILOT) up -d --build --pull never || (echo "up-pilot-local failed; visa-registry logs:"; $(COMPOSE_PILOT) logs visa-registry; exit 1)
 	@echo "Waiting for AAI broker (max 90s)..."
 	@for i in $$(seq 1 45); do \
 		curl -sf http://localhost:8180/service-info >/dev/null && echo "Broker OK" && break; \
