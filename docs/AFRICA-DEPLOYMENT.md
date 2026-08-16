@@ -255,6 +255,8 @@ ferrum meta init --profile pathogen --output ~/collection.yaml
 ferrum ingest watch ~/minion_runs --meta-bundle ~/collection.yaml --collector "Dr. A"
 ```
 
+CI proves the same watch-folder path with **simulated** POD5 stubs (`make minion-chain`). Hardware MinION and MinKNOW stay operator-owned.
+
 See [profiles/meta/README.md](../profiles/meta/README.md) and [METADATA-STORE.md](METADATA-STORE.md).
 
 Basecalling runs **externally** (Dorado/Guppy). Ferrum stores the canonical DRS object plus optional `ont_metrics` JSON on `drs_objects.ont_metrics`. Pathogen organism tags are written to `pathogen_annotations` for Beacon queries. ferrum-meta bundles are validated offline and linked via `metadata_ref`.

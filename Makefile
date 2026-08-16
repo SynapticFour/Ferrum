@@ -216,6 +216,10 @@ laptop:
 	@echo "make laptop is deprecated; use make edge" >&2
 	$(MAKE) edge
 
+# Pi-class MinION chain: edge + watch-folder stubs + optional HelixTest ont (no USB/MinKNOW).
+minion-chain:
+	bash deploy/scripts/ci-minion-field-chain-e2e.sh
+
 # Pull images, build, start stack. Wait for gateway and UI to be reachable; fail with hint if not.
 # Init seeds demo data (workspace, DRS, TRS, Keycloak). Use demo-user when auth is disabled.
 demo:

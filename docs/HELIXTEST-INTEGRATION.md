@@ -97,6 +97,8 @@ helixtest --all --mode ferrum-africa --africa-profile all
 |---------|-------------------|
 | **offline** | Gateway health, DRS/Beacon service-info, reference registry seeds |
 | **ont** | `POST /api/v1/ingest/ont`, `ont_metrics`, pathogen Beacon query |
+
+Ferrum CI also runs a **Pi-class watch-folder chain** (`deploy/scripts/ci-minion-field-chain-e2e.sh`, `make minion-chain`): edge gateway with `max_memory_mb=3072`, three simulated POD5 stubs dropped over ~30s, `ferrum ingest watch`, then the same `--africa-profile ont`. That is not a USB MinION, not MinKNOW, and not a real Raspberry Pi (`lab-kit generate pi` remains the hardware path).
 | **outbreak** | Outbreak activate/deactivate, residency audit chain verify |
 | **federation** | `federate=true` Beacon query (peer URL via `FERRUM_AFRICA_PEER_URL`) |
 | **all** | All profiles in sequence |

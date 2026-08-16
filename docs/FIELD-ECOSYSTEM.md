@@ -56,6 +56,7 @@ helixtest --all --mode ferrum-africa --africa-profile all
 
 | Gap | Ferrum test / script |
 |-----|----------------------|
+| Pi-class MinION watch-folder chain | `ci-minion-field-chain-e2e.sh` / `make minion-chain` (simulated POD5; HelixTest `--africa-profile ont`) |
 | WES `REFERENCE_MISMATCH` | `cargo test -p ferrum-reference --test wes_mismatch` |
 | Bandwidth classes | `cargo test -p ferrum-storage --test bandwidth` |
 | Power / emergency 503 | `cargo test -p ferrum-gateway --test power_limit`, `ci-field-ops-e2e.sh` |
