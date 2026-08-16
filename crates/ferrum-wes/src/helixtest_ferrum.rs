@@ -37,6 +37,12 @@ pub fn classify_trs_workflow(
     if host == "nonexistent" && tool == "invalid" {
         return HelixtestDisposition::ImmediateTerminal(RunState::ExecutorError);
     }
+    // E2E uses trs://<gateway-host>/demo-bam-to-vcf/<version>, not trs://test-tool/…
+    // Real TES/cwltool finishes in one poll (COMPLETE); HelixTest E2E requires a
+    // non-terminal first /status, same as the echo stub.
+    if tool == "demo-bam-to-vcf" {
+        return HelixtestDisposition::ImmediateTerminal(RunState::Complete);
+    }
     if host != "test-tool" {
         return HelixtestDisposition::Proceed;
     }
@@ -91,6 +97,14 @@ mod tests {
                 "trs://test-tool/scatter-gather/1.0",
                 "CWL",
                 &serde_json::json!({ "items": [1, 2, 3, 4] })
+            ),
+            HelixtestDisposition::ImmediateTerminal(RunState::Complete)
+        );
+        assert_eq!(
+            classify_trs_workflow(
+                "trs://localhost:8080/demo-bam-to-vcf/demo-bam-to-vcf-1.0",
+                "CWL",
+                &serde_json::json!({ "input_drs_uri": "drs://localhost/x" })
             ),
             HelixtestDisposition::ImmediateTerminal(RunState::Complete)
         );

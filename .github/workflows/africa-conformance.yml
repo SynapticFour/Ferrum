@@ -82,8 +82,25 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: ./.github/actions/rust-deps
 
+      - name: Build edge gateway (release)
+        run: |
+          echo "$(date -u +%FT%TZ) cargo build -p ferrum-gateway --release --features edge"
+          cargo build -p ferrum-gateway --release --features edge
+
+      - name: Build ferrum-cli (dev ingest client)
+        run: |
+          echo "$(date -u +%FT%TZ) cargo build -p ferrum-cli"
+          cargo build -p ferrum-cli
+
+      - name: Build HelixTest
+        working-directory: helixtest-repo
+        run: cargo build --locked --release --bin helixtest
+
       - name: Pi-class watch-folder → ONT ingest → HelixTest ont
         env:
+          FERRUM_GATEWAY_BIN: ${{ github.workspace }}/target/release/ferrum-gateway
+          FERRUM_CLI_BIN: ${{ github.workspace }}/target/debug/ferrum
+          HELIXTEST_BIN: ${{ github.workspace }}/helixtest-repo/target/release/helixtest
           HELIXTEST_DIR: ${{ github.workspace }}/helixtest-repo
         run: bash deploy/scripts/ci-minion-field-chain-e2e.sh
 

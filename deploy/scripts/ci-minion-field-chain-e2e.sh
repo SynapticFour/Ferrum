@@ -10,24 +10,32 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
 PROFILE="${CARGO_PROFILE:-release}"
-GW="${FERRUM_GATEWAY_BIN:-$ROOT/target/${PROFILE}/ferrum-gateway}"
-CLI="${FERRUM_CLI_BIN:-$ROOT/target/${PROFILE}/ferrum}"
 PORT="${GATEWAY_PORT:-8080}"
 BASE="${GATEWAY_BASE:-http://127.0.0.1:${PORT}}"
 POLL_SECS="${WATCH_POLL_SECS:-2}"
 DROP_PAUSE_SECS="${DROP_PAUSE_SECS:-10}"
 MAX_MEMORY_MB="${FERRUM_AFRICA_MAX_MEMORY_MB:-3072}"
 
-if [ ! -x "$GW" ]; then
-  echo "ci-minion-field-chain: building ferrum-gateway --features edge ($PROFILE)..." >&2
-  cargo build -p ferrum-gateway --"$PROFILE" --features edge
+# Do not treat a rust-cache default-features ferrum-gateway as ready: that binary
+# misses africa/ont_metrics. Skip compile only when CI passes an explicit path.
+if [ -n "${FERRUM_GATEWAY_BIN:-}" ]; then
+  GW="$FERRUM_GATEWAY_BIN"
+  test -x "$GW"
+else
+  echo "ci-minion-field-chain: $(date -u +%FT%TZ) building ferrum-gateway --features edge --profile ${PROFILE}" >&2
+  cargo build -p ferrum-gateway --profile "$PROFILE" --features edge
   GW="$ROOT/target/${PROFILE}/ferrum-gateway"
 fi
-if [ ! -x "$CLI" ]; then
-  echo "ci-minion-field-chain: building ferrum-cli..." >&2
-  cargo build -p ferrum-cli --"$PROFILE"
-  CLI="$ROOT/target/${PROFILE}/ferrum"
+if [ -n "${FERRUM_CLI_BIN:-}" ]; then
+  CLI="$FERRUM_CLI_BIN"
+  test -x "$CLI"
+else
+  # Debug ingest client. LTO release of ferrum-cli + gateway is what burned the 45m job.
+  echo "ci-minion-field-chain: $(date -u +%FT%TZ) building ferrum-cli (dev)" >&2
+  cargo build -p ferrum-cli
+  CLI="$ROOT/target/debug/ferrum"
 fi
+echo "ci-minion-field-chain: $(date -u +%FT%TZ) binaries ready gw=$GW cli=$CLI" >&2
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/ferrum-minion-chain.XXXXXX")"
 WATCH="$TMP/minion_run"
@@ -167,17 +175,25 @@ print(f"ci-minion-field-chain: {len(with_metrics)} object(s) with ont_metrics")
 
 echo "ci-minion-field-chain: watch-folder ingest OK"
 
-if [ -n "${HELIXTEST_DIR:-}" ]; then
-  echo "ci-minion-field-chain: HelixTest ferrum-africa --africa-profile ont"
-  (
-    cd "$HELIXTEST_DIR"
-    GATEWAY_BASE="$BASE" \
-    DRS_URL="${BASE}/ga4gh/drs/v1" \
-    BEACON_URL="${BASE}/ga4gh/beacon/v2" \
-    WES_URL="${BASE}/ga4gh/wes/v1" \
-    cargo run --bin helixtest --release -- \
-      --all --mode ferrum-africa --africa-profile ont --fail-level 1
-  )
+if [ -n "${HELIXTEST_BIN:-}" ] || [ -n "${HELIXTEST_DIR:-}" ]; then
+  if [ -n "${HELIXTEST_BIN:-}" ]; then
+    HT="$HELIXTEST_BIN"
+    test -x "$HT"
+  else
+    echo "ci-minion-field-chain: $(date -u +%FT%TZ) building HelixTest release..." >&2
+    (
+      cd "$HELIXTEST_DIR"
+      cargo build --locked --release --bin helixtest
+    )
+    HT="$HELIXTEST_DIR/target/release/helixtest"
+  fi
+  echo "ci-minion-field-chain: $(date -u +%FT%TZ) HelixTest ferrum-africa --africa-profile ont" >&2
+  GATEWAY_BASE="$BASE" \
+  DRS_URL="${BASE}/ga4gh/drs/v1" \
+  BEACON_URL="${BASE}/ga4gh/beacon/v2" \
+  WES_URL="${BASE}/ga4gh/wes/v1" \
+  "$HT" \
+    --all --mode ferrum-africa --africa-profile ont --fail-level 1
 fi
 
 echo "ci-minion-field-chain: OK (Pi-class, simulated reads, no USB/MinKNOW)"

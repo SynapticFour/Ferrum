@@ -30,12 +30,12 @@ GA4GH_INFRA_SHA=613bd14932b57e30cfdca7b413841fe5b07a80fd
 GA4GH_INFRA_IMAGE_VERSION=0.2.3
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
-# Tagged on origin 2026-08-16: v0.1.2 → 2c121187da00aebc57d7fcdcb8525507fcad9223
-# (official DRS 1.4.0 DrsObject + Beacon boolean schema; ferrum+infra fail-not-skip).
-# v0.1.1 remains the previous cut (htsget region POST → 400).
-HELIXTEST_REF=v0.1.2
+# Last tag v0.1.2 → 2c121187da00aebc57d7fcdcb8525507fcad9223 (DRS/Beacon schemas).
+# Pin SHA (not a new tag): 9a078e4 — mock-idp authorize without following redirects
+# (default reqwest followed 302 to broker /callback without RP cookie → 401).
+HELIXTEST_REF=9a078e4e7fc08e70331c5166a9899451226c5251
 HELIXTEST_TAG=v0.1.2
-HELIXTEST_SHA=2c121187da00aebc57d7fcdcb8525507fcad9223
+HELIXTEST_SHA=9a078e4e7fc08e70331c5166a9899451226c5251
 
 # Solum — optional consent teeth on DRS/WES ([solum] / FERRUM_SOLUM__*). Fail-closed.
 # First SemVer tag v0.1.0. Unset BASE_URL leaves Ferrum behaviour unchanged.

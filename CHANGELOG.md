@@ -8,9 +8,10 @@ All notable changes to this project will be documented in this file. The format 
 
 - **DRS JSON vs official OpenAPI** — omit unset optional fields (`version`, `contents`, `AccessMethod.region`, …) instead of `null`; `created_time` / `updated_time` are RFC3339 (`…Z`), not chrono `Display`. HelixTest v0.1.2 fail-level 2 was a schema miss, not a WES-QUEUED flake.
 - **ferrum+infra aai-broker** — pass `REGISTRY_BOOTSTRAP_API_KEY` (same value as visa-registry). Tagged broker defaults visa sources to `required=true` and reads that env at startup; missing it exits before `/service-info`. PEM 644 was a different, earlier crash.
-- **Africa ont job** — rust-cache (`rust-deps`) and `timeout-minutes: 45`. Cold `ferrum-gateway` + `ferrum-cli` + HelixTest release on a job without cache ran past an hour with no logs; that is not MinION evidence.
+- **ferrum+infra report** — HelixTest stderr is not mixed into the JSON artifact; Python finds the last `{` if stdout is still dirty. Dump-step runs after HelixTest (`if: failure()`), not only after `make up-pilot-local`.
+- **Africa ont job** — rust-cache + `timeout-minutes: 45`. `ad024d54` hit that ceiling compiling two LTO release binaries in one step (GitHub `cancelled`, no MinION evidence). Split compile steps; gateway is `--release --features edge`; `ferrum-cli` is the debug ingest client. Skip compile only when CI passes an explicit binary path — a rust-cache default-features gateway must not be treated as ready.
 - **ferrum+infra** — `make up-pilot-local` chmod 644 on ga4gh-infra PEMs after `prepare-secrets`. Tagged `ga4gh-infra-v0.2.3` leaves them mode 600; visa-registry (uid 1000) then exits (1).
-- **Demo HelixTest WES stubs** — `trs://` echo/scatter stay `QUEUED` until a second `/status` *and* 1.5s hold, so `GET /runs` list cannot make HelixTest's first poll already `COMPLETE`. Not institute evidence.
+- **Demo HelixTest E2E** — `trs://…/demo-bam-to-vcf/…` is the same ImmediateTerminal + QUEUED-hold path as echo stubs. TES/cwltool finished in one poll (`COMPLETE`); HelixTest E2E fail-level 1 requires a non-terminal first `/status`. Not institute evidence.
 - **ferrum+infra** — `make up-pilot-local` pulls postgres/MinIO/Keycloak/nginx before `up --pull never`, so GitHub-hosted runners no longer die on missing third-party images.
 - **TES smoke job name** — CWL `COMPLETE` is the CI bar. TinyGermlineHC Cromwell on nested Docker is a warning unless `SMOKE_REQUIRE_GERMLINE_COMPLETE=1`.
 - **Release Docker context** — `deploy/Dockerfile.gateway` and `Dockerfile.gateway-monorepo` copy `profiles/meta` so `ferrum-meta-connect` `include_str!` compiles. Tag `v0.3.1` GitHub Release failed on the offline bundle without this.
@@ -29,7 +30,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
 
-- **HelixTest pin** — `HELIXTEST_REF=v0.1.2` (official DRS/Beacon schemas; ferrum+infra fail-not-skip).
+- **HelixTest pin** — `HELIXTEST_SHA=9a078e4` (authorize without following IdP redirects). Last tag remains `v0.1.2`.
 
 ## [0.3.1] - 2026-08-16
 

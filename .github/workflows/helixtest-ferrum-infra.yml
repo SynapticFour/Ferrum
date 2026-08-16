@@ -58,15 +58,6 @@ jobs:
           test -d "$GA4GH_INFRA_SRC"
           make up-pilot-local
 
-      - name: Dump ga4gh-infra logs on failure
-        if: failure()
-        env:
-          GA4GH_INFRA_SRC: ${{ github.workspace }}/../ga4gh-infra
-        run: |
-          docker logs deploy-aai-broker-1 2>&1 | tail -120 || true
-          docker logs deploy-visa-registry-1 2>&1 | tail -80 || true
-          docker logs deploy-mock-idp-1 2>&1 | tail -40 || true
-
       - name: Wait for DRS seed and registry DRS entry
         run: |
           set -euo pipefail
@@ -117,10 +108,20 @@ jobs:
           ./helixtest-repo/target/release/helixtest \
             --all --mode ferrum+infra --profile ferrum-infra \
             --report json --fail-level 2 \
-            > helixtest-ferrum-infra-report.json
+            > helixtest-ferrum-infra-report.json \
+            2> helixtest-ferrum-infra.log
           python3 - <<'PY'
           import json, sys
-          doc = json.load(open("helixtest-ferrum-infra-report.json"))
+          raw = open("helixtest-ferrum-infra-report.json").read()
+          start = raw.rfind("\n{")
+          if start >= 0:
+              start += 1
+          else:
+              start = raw.find("{")
+          if start < 0:
+              print("no JSON object in report", file=sys.stderr)
+              sys.exit(1)
+          doc = json.loads(raw[start:])
           tests = []
           for svc in doc.get("services") or []:
               tests.extend(svc.get("tests") or [])
@@ -138,6 +139,19 @@ jobs:
               sys.exit(1)
           PY
 
+      - name: Dump ga4gh-infra logs on failure
+        if: failure()
+        env:
+          GA4GH_INFRA_SRC: ${{ github.workspace }}/../ga4gh-infra
+        run: |
+          echo "===== helixtest stderr ====="
+          tail -80 helixtest-ferrum-infra.log || true
+          echo "===== aai-broker ====="
+          docker logs deploy-aai-broker-1 2>&1 | tail -120 || true
+          echo "===== visa-registry ====="
+          docker logs deploy-visa-registry-1 2>&1 | tail -80 || true
+          echo "===== mock-idp ====="
+          docker logs deploy-mock-idp-1 2>&1 | tail -40 || true
 
       - name: Upload ferrum+infra report
         if: always()
