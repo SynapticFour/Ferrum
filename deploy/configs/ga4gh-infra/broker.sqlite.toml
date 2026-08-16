@@ -27,6 +27,8 @@ email = "email"
 [[visa_sources]]
 name = "local-registry"
 url = "http://visa-registry:8081"
+api_key_env = "REGISTRY_BOOTSTRAP_API_KEY"
+required = true
 
 [ads]
 url = "http://access-decision-service:8090"

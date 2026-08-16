@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
+- **DRS JSON vs official OpenAPI** — omit unset optional fields (`version`, `contents`, `AccessMethod.region`, …) instead of `null`; `created_time` / `updated_time` are RFC3339 (`…Z`), not chrono `Display`. HelixTest v0.1.2 fail-level 2 was a schema miss, not a WES-QUEUED flake.
+- **ferrum+infra aai-broker** — pass `REGISTRY_BOOTSTRAP_API_KEY` (same value as visa-registry). Tagged broker defaults visa sources to `required=true` and reads that env at startup; missing it exits before `/service-info`. PEM 644 was a different, earlier crash.
+- **Africa ont job** — rust-cache (`rust-deps`) and `timeout-minutes: 45`. Cold `ferrum-gateway` + `ferrum-cli` + HelixTest release on a job without cache ran past an hour with no logs; that is not MinION evidence.
 - **ferrum+infra** — `make up-pilot-local` chmod 644 on ga4gh-infra PEMs after `prepare-secrets`. Tagged `ga4gh-infra-v0.2.3` leaves them mode 600; visa-registry (uid 1000) then exits (1).
 - **Demo HelixTest WES stubs** — `trs://` echo/scatter stay `QUEUED` until a second `/status` *and* 1.5s hold, so `GET /runs` list cannot make HelixTest's first poll already `COMPLETE`. Not institute evidence.
 - **ferrum+infra** — `make up-pilot-local` pulls postgres/MinIO/Keycloak/nginx before `up --pull never`, so GitHub-hosted runners no longer die on missing third-party images.

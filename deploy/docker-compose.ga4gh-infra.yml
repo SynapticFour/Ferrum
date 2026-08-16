@@ -128,6 +128,7 @@ services:
       BROKER_COOKIE_SECRET: dev-broker-cookie-secret
       MOCK_IDP_CLIENT_SECRET: mock-client-secret
       ADS_DAC_API_KEY: dev-ads-api-key
+      REGISTRY_BOOTSTRAP_API_KEY: dev-visa-api-key
       RUST_LOG: info
     ports:
       - "8180:8080"

@@ -154,7 +154,7 @@ up-pilot-local:
 	@$(MAKE) -C "$(GA4GH_INFRA_SRC)" prepare-vendor
 	@echo "Building ga4gh-infra from $(GA4GH_INFRA_SRC) (local --build; GHCR :0.2.2 is optional)."
 	@$(MAKE) pull-pilot-base-images
-	$(COMPOSE_PILOT) up -d --build --pull never || (echo "up-pilot-local failed; visa-registry logs:"; $(COMPOSE_PILOT) logs visa-registry; exit 1)
+	$(COMPOSE_PILOT) up -d --build --pull never || (echo "up-pilot-local failed; visa-registry + aai-broker logs:"; $(COMPOSE_PILOT) logs visa-registry aai-broker mock-idp; docker logs deploy-aai-broker-1 2>/dev/null | tail -80; exit 1)
 	@echo "Waiting for AAI broker (max 90s)..."
 	@for i in $$(seq 1 45); do \
 		curl -sf http://localhost:8180/service-info >/dev/null && echo "Broker OK" && break; \

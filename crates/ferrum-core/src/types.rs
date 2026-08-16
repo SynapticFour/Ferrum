@@ -48,8 +48,11 @@ impl std::fmt::Display for AccessType {
 pub struct AccessMethod {
     #[serde(rename = "type")]
     pub access_type: AccessType,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub access_url: Option<AccessUrl>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub access_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
 }
 
@@ -67,12 +70,19 @@ pub enum AccessUrl {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct DrsObject {
     pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub checksums: Option<Vec<Checksum>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub access_methods: Option<Vec<AccessMethod>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 

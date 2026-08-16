@@ -237,10 +237,14 @@ impl DrsRepo {
             id: row.id.clone(),
             self_uri: self.self_uri(&row.id),
             size: row.size,
-            created_time: row.created_time.to_string(),
+            created_time: row
+                .created_time
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
             checksums,
             name: row.name,
-            updated_time: row.updated_time.map(|t| t.to_string()),
+            updated_time: row
+                .updated_time
+                .map(|t| t.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
             version: row.version,
             mime_type: row.mime_type,
             access_methods: if access_methods.is_empty() {

@@ -13,13 +13,21 @@ pub struct DrsObject {
     pub size: i64,
     pub created_time: String,
     pub checksums: Vec<Checksum>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mime_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub access_methods: Option<Vec<AccessMethod>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub contents: Option<Vec<ContentsObject>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub aliases: Option<Vec<String>>,
     /// ONT QC metrics (Ferrum extension; stored on `drs_objects.ont_metrics`).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,8 +67,11 @@ impl DrsObject {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct ContentsObject {
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub drs_uri: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub contents: Option<Vec<ContentsObject>>,
 }
 
@@ -68,9 +79,11 @@ pub struct ContentsObject {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AccessUrl {
     pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<Vec<String>>,
     /// Optional expiry timestamp (ISO 8601) for signed URLs.
     /// Not part of the base GA4GH schema, but useful for clients.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
     /// Resume token for chunked / bandwidth-adaptive transfers.
     #[serde(skip_serializing_if = "Option::is_none")]

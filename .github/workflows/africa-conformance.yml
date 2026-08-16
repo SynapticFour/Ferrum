@@ -38,6 +38,7 @@ jobs:
           ref: ${{ env.HELIXTEST_REF }}
 
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
 
       - name: Start Ferrum offline (Edge mode)
         run: |
@@ -66,6 +67,7 @@ jobs:
     if: github.actor != 'dependabot[bot]'
     name: HelixTest Africa (ont / MinION chain)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/load-versions
@@ -78,6 +80,7 @@ jobs:
           ref: ${{ env.HELIXTEST_REF }}
 
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
 
       - name: Pi-class watch-folder → ONT ingest → HelixTest ont
         env:
@@ -95,5 +98,6 @@ jobs:
         with:
           ref: ${{ env.GA4GH_INFRA_REF }}
       - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/rust-deps
       - name: WES reference mismatch + bandwidth + power
         run: bash deploy/scripts/ci-field-ecosystem-e2e.sh
