@@ -8,13 +8,16 @@ export GA4GH_INFRA_SRC
 export FERRUM_GIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 COMPOSE_PILOT := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml
 COMPOSE_PILOT_CLOUD := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-cloud.yml
+# Third-party images used by deploy/docker-compose.yml. `up --pull never` keeps Ferrum/ga4gh-infra
+# local --build; these still have to exist in the daemon (CI runners start empty).
+PILOT_BASE_IMAGES := postgres:16-alpine minio/minio:RELEASE.2024-12-18T13-15-44Z keycloak/keycloak:26.0 nginx:alpine
 COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tes.yml
 FERRUM_WES_TES_WORK_HOST_PREFIX ?= $(CURDIR)/deploy/.wes-runs
 export FERRUM_WES_TES_WORK_HOST_PREFIX
 DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
 export DOCKER_BIN
 
-.PHONY: help up eval down-eval down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated test prove openapi openapi-check spdx-check
+.PHONY: help up eval down-eval down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local pull-pilot-base-images down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated test prove openapi openapi-check spdx-check
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -134,12 +137,20 @@ ui-parity-pilot-cloud:
 # Default pilot: local Ferrum data plane + Fly AAI (Pasteur Keycloak flow on laptop).
 up-pilot: up-pilot-cloud
 
+# Pull postgres/minio/keycloak/nginx so `up --pull never` does not die on an empty daemon.
+pull-pilot-base-images:
+	@for img in $(PILOT_BASE_IMAGES); do \
+		echo "Pulling $$img"; \
+		docker pull "$$img"; \
+	done
+
 # Full offline ga4gh stack (mock-idp). Use for CI or when Fly is unavailable.
 up-pilot-local:
 	@test -d "$(GA4GH_INFRA_SRC)" || (echo "GA4GH_INFRA_SRC not found: $(GA4GH_INFRA_SRC)" && exit 1)
 	@$(MAKE) -C "$(GA4GH_INFRA_SRC)" prepare-secrets
 	@$(MAKE) -C "$(GA4GH_INFRA_SRC)" prepare-vendor
 	@echo "Building ga4gh-infra from $(GA4GH_INFRA_SRC) (local --build; GHCR :0.2.2 is optional)."
+	@$(MAKE) pull-pilot-base-images
 	$(COMPOSE_PILOT) up -d --build --pull never
 	@echo "Waiting for AAI broker (max 90s)..."
 	@for i in $$(seq 1 45); do \

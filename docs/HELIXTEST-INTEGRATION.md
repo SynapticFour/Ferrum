@@ -125,7 +125,7 @@ Not `.../descriptor/CWL` — that order is a non-standard alias Ferrum also supp
 - **WES** uses synthetic `trs://test-tool/...` URLs only when **`FERRUM_WES_HELIXTEST_STUBS`** is set (demo compose default). Without that flag, Ferrum does not invent run states or output JSON.
 - **TES checksum stub**: `GET /ga4gh/tes/v1/demo/echo-output` (`hello-tes` + newline) and noop output URLs exist only when **`FERRUM_TES_HELIXTEST_STUB`** is set. CI **does not** rewrite HelixTest expected hashes.
 - **E2E** `result_drs_id` stubbing is likewise gated on `FERRUM_WES_HELIXTEST_STUBS`.
-- **WES** negative `trs://` first-poll non-terminal behaviour is part of the same stub flag (`RunManager::synthetic_helixtest_error_phases`).
+- **WES** stub `trs://` runs (echo, scatter-gather, fail) report `QUEUED` on the first `/status` poll, then the terminal state (`RunManager::synthetic_helixtest_phases`). Demo-only; not institute evidence.
 
 ### Auth (Level 4)
 

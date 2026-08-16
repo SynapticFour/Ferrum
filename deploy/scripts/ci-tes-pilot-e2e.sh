@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# CI: start TES stack, assert WES COMPLETE via test-tes + smoke-pilot.
+# CI: start TES stack, assert CWL WES COMPLETE via test-tes + smoke-pilot.
+# TinyGermlineHC (Cromwell) is not required COMPLETE on GitHub-hosted runners (nested Docker).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

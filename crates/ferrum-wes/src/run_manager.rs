@@ -27,9 +27,8 @@ pub struct RunManager {
     tes: Option<Arc<TesExecutorBackend>>,
     log_registry: Arc<LogStreamRegistry>,
     run_to_executor: RwLock<HashMap<String, ExecutorKind>>,
-    /// HelixTest `trs://test-tool/fail/...` runs: first `/status` must not be terminal (suite records sequence).
-    /// 0 = first poll → QUEUED; second poll → EXECUTOR_ERROR and map entry removed.
-    synthetic_helixtest_error_phases: RwLock<HashMap<String, u8>>,
+    /// HelixTest `trs://` stub runs: first `/status` is QUEUED; second poll is the registered terminal.
+    synthetic_helixtest_phases: RwLock<HashMap<String, (u8, RunState)>>,
     work_dir_base: PathBuf,
     metrics: Option<Arc<MetricsCollector>>,
     slurm: SlurmExecutor,
@@ -61,7 +60,7 @@ impl RunManager {
             tes: None,
             log_registry,
             run_to_executor: RwLock::new(HashMap::new()),
-            synthetic_helixtest_error_phases: RwLock::new(HashMap::new()),
+            synthetic_helixtest_phases: RwLock::new(HashMap::new()),
             work_dir_base,
             metrics: None,
             slurm: SlurmExecutor::new(),
@@ -253,10 +252,14 @@ impl RunManager {
         Ok(reconciled)
     }
 
-    /// Register a run that must report a non-terminal state on the first `GET .../status` before `EXECUTOR_ERROR`.
-    pub async fn register_synthetic_helixtest_error(&self, run_id: impl Into<String>) {
-        let mut m = self.synthetic_helixtest_error_phases.write().await;
-        m.insert(run_id.into(), 0);
+    /// Register a stub run: first `GET .../status` is `QUEUED`, second poll is `terminal`.
+    pub async fn register_synthetic_helixtest_terminal(
+        &self,
+        run_id: impl Into<String>,
+        terminal: RunState,
+    ) {
+        let mut m = self.synthetic_helixtest_phases.write().await;
+        m.insert(run_id.into(), (0, terminal));
     }
 
     pub async fn cancel(&self, run_id: &str) -> Result<()> {
@@ -279,10 +282,7 @@ impl RunManager {
             self.log_registry.remove(run_id).await;
             self.repo.update_state(run_id, RunState::Canceled).await?;
         }
-        self.synthetic_helixtest_error_phases
-            .write()
-            .await
-            .remove(run_id);
+        self.synthetic_helixtest_phases.write().await.remove(run_id);
         Ok(())
     }
 
@@ -292,24 +292,26 @@ impl RunManager {
         };
 
         let synthetic_terminal = {
-            let mut syn = self.synthetic_helixtest_error_phases.write().await;
-            if let Some(phase) = syn.get_mut(run_id) {
+            let mut syn = self.synthetic_helixtest_phases.write().await;
+            if let Some((phase, terminal)) = syn.get_mut(run_id) {
                 if *phase == 0 {
                     *phase = 1;
                     return Ok(RunState::Queued);
                 }
+                let terminal = *terminal;
                 syn.remove(run_id);
-                true
+                Some(terminal)
             } else {
-                false
+                None
             }
         };
-        if synthetic_terminal {
+        if let Some(terminal) = synthetic_terminal {
             self.log_registry.remove(run_id).await;
-            self.repo
-                .update_state(run_id, RunState::ExecutorError)
-                .await?;
-            return Ok(RunState::ExecutorError);
+            self.repo.update_state(run_id, terminal).await?;
+            if terminal == RunState::Complete {
+                let _ = self.merge_helixtest_outputs_if_needed(run_id).await;
+            }
+            return Ok(terminal);
         }
 
         let kind = self.run_to_executor.read().await.get(run_id).copied();

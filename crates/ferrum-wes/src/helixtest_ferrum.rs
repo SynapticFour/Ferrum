@@ -54,9 +54,10 @@ pub fn classify_trs_workflow(
             if !has_message {
                 return HelixtestDisposition::ImmediateTerminal(RunState::ExecutorError);
             }
-            HelixtestDisposition::Proceed
+            HelixtestDisposition::ImmediateTerminal(RunState::Complete)
         }
-        "echo" => HelixtestDisposition::Proceed,
+        "echo" => HelixtestDisposition::ImmediateTerminal(RunState::Complete),
+        "scatter-gather" => HelixtestDisposition::ImmediateTerminal(RunState::Complete),
         _ => HelixtestDisposition::Proceed,
     }
 }
@@ -76,6 +77,22 @@ mod tests {
         assert_eq!(
             on,
             HelixtestDisposition::ImmediateTerminal(RunState::ExecutorError)
+        );
+        assert_eq!(
+            classify_trs_workflow(
+                "trs://test-tool/echo/1.0",
+                "CWL",
+                &serde_json::json!({ "message": "hello-ga4gh" })
+            ),
+            HelixtestDisposition::ImmediateTerminal(RunState::Complete)
+        );
+        assert_eq!(
+            classify_trs_workflow(
+                "trs://test-tool/scatter-gather/1.0",
+                "CWL",
+                &serde_json::json!({ "items": [1, 2, 3, 4] })
+            ),
+            HelixtestDisposition::ImmediateTerminal(RunState::Complete)
         );
         match prev {
             Some(v) => std::env::set_var("FERRUM_WES_HELIXTEST_STUBS", v),

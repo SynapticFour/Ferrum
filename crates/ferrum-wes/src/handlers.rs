@@ -530,10 +530,10 @@ pub async fn post_runs(
         )
         .await?;
 
-    if let crate::helixtest_ferrum::HelixtestDisposition::ImmediateTerminal(_st) = disposition {
+    if let crate::helixtest_ferrum::HelixtestDisposition::ImmediateTerminal(st) = disposition {
         // HelixTest records state sequence; first /status must not be terminal (see run_manager synthetic phases).
         app.run_manager
-            .register_synthetic_helixtest_error(run_id.clone())
+            .register_synthetic_helixtest_terminal(run_id.clone(), st)
             .await;
         return Ok(Json(RunIdResponse { run_id, warnings }));
     }

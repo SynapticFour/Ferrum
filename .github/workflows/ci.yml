@@ -224,7 +224,7 @@ jobs:
       github.actor != 'dependabot[bot]' &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event_name == 'push' && github.ref == 'refs/heads/main'))
-    name: Docker TES + pilot smoke (WES COMPLETE)
+    name: Docker TES + pilot smoke (CWL COMPLETE)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
