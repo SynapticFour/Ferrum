@@ -15,7 +15,8 @@ Genomics core facilities, archive nodes, field labs that need DRS / WES / TES / 
 ```bash
 git clone https://github.com/SynapticFour/Ferrum.git && cd Ferrum
 make prove       # workspace tests, no Docker
-make up          # local demo stack
+make eval        # auth-on local stack (HS256). Not a Passport/AAI pilot.
+make up          # NON-PILOT demo (require_auth=false, TES noop)
 ```
 
 Proof that the APIs behave: clone [HelixTest](https://github.com/SynapticFour/HelixTest) and run `helixtest --all --mode ferrum` against that stack. HelixTest is not GA4GH certification.
@@ -30,6 +31,6 @@ Proof that the APIs behave: clone [HelixTest](https://github.com/SynapticFour/He
 | HELIOS | Signed pipeline/audit evidence | File ingest, not an API fabric |
 | BRA | Researcher workbench | Optional. Standalone BRA has its own DRS/WES. Join: BRA as GA4GH client (`FERRUM_DRS_URL` / `FERRUM_WES_URL`) |
 
-See [ECOSYSTEM.md](ECOSYSTEM.md) for ports and lifecycle verbs. Portfolio map: [PORTFOLIO.md](PORTFOLIO.md).
+See [ECOSYSTEM.md](ECOSYSTEM.md) for ports and lifecycle verbs. Portfolio map: [PORTFOLIO.md](PORTFOLIO.md). Continuity (one maintainer, no escrow): [GOVERNANCE.md](GOVERNANCE.md).
 
 Ferrum Lab Kit **comes with Ferrum** (subset install). It is not a fifth product.

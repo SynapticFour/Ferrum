@@ -20,6 +20,7 @@ COPY Ferrum/Cargo.toml Ferrum/Cargo.lock* ./
 COPY Ferrum/crates ./crates
 COPY Ferrum/tools ./tools
 COPY Ferrum/third_party ./third_party
+COPY Ferrum/profiles ./profiles
 
 # Path deps: ../../../ga4gh-infra from crates/ferrum-core → /ga4gh-infra
 COPY ga4gh-infra /ga4gh-infra

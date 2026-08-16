@@ -18,6 +18,7 @@ COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
 COPY tools ./tools
 COPY third_party ./third_party
+COPY profiles ./profiles
 COPY deploy/scripts/clone-ga4gh-infra.sh /tmp/clone-ga4gh-infra.sh
 COPY deploy/scripts/gateway-build-flags.sh /tmp/gateway-build-flags.sh
 ARG GA4GH_INFRA_REF=ga4gh-infra-v0.2.2

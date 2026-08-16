@@ -45,7 +45,7 @@ Tests live **in each product** (`make prove`). There is no Solum-Test repo. Heli
 
 **Toolchain:** Ferrum, Lab Kit, ga4gh-infra, Solum, and HelixTest checkouts use **Rust 1.91.1** (`rust-toolchain.toml`). HelixTest **MSRV** remains **1.88**. BRA and HELIOS require **Python 3.11+**.
 
-**Maintainer:** public git history on these products is one human (Synaptic Four). A second committer is a hiring/process item, not a README claim.
+**Maintainer:** public git history on these products is one human (Synaptic Four). A second committer is a hiring/process item, not a README claim. Details: [GOVERNANCE.md](GOVERNANCE.md).
 
 **Support SKUs** (not a suite discount): [Showcase support tiers](https://github.com/SynapticFour/SynapticFour-Showcase/blob/main/docs/for-customers/support-tiers.md) — Ferrum / Solum / BRA licenses plus optional support; ga4gh-infra is Apache (support optional); Lab Kit included with Ferrum; ambassadors 0 €.
 

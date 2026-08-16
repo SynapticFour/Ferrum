@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release Docker context** — `deploy/Dockerfile.gateway` and `Dockerfile.gateway-monorepo` copy `profiles/meta` so `ferrum-meta-connect` `include_str!` compiles. Tag `v0.3.1` GitHub Release failed on the offline bundle without this.
+
+### Added
+
+- **`make eval`** — auth-on clone path (compose overlay + minted HS256). `make up` stays NON-PILOT.
+- **[docs/GOVERNANCE.md](docs/GOVERNANCE.md)** — one maintainer, no escrow.
+
 ## [0.3.1] - 2026-08-16
 
 Patch so Ferrum-GA4GH-Demo can pin **stock** Ferrum (no `vendor/ferrum-overlay`). Crate versions match tag `v0.3.1`.

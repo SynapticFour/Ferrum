@@ -31,6 +31,7 @@ Thumbs.db
 
 # Env
 .env
+.eval.env
 deploy/.wes-runs/
 .env.local
 *.pem

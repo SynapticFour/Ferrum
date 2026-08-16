@@ -55,7 +55,7 @@ point that didn't exist before.
 
 Ferrum is tested continuously — unit/integration tests and clippy in CI, a **demo-stack HelixTest** job (noop TES, auth skipped, stubs labeled NON-PILOT), a **nightly HelixTest auth-on** job (`pilot.toml`, stubs off), and a Docker TES + pilot smoke on `main`. Default demo compute is
 **TES noop** (API lifecycle only); use `make up-tes` for real local containers. Demo auth
-defaults are open (`require_auth=false`) — pilots must use `deploy/configs/pilot.toml`.
+defaults are open (`require_auth=false`) — the clone path with auth on is `make eval` (HS256). Full AAI is `make up-pilot-local`. Do not treat `make up` as a pilot.
 
 ## Operator trust model
 
@@ -63,6 +63,7 @@ Ferrum is intended for on-premises research and clinical-adjacent deployments. D
 
 | Mode | Auth | Compute | HelixTest stubs |
 |------|------|---------|-----------------|
+| `make eval` | `require_auth=true` (HS256) | TES **noop** unless overlay | Off |
 | Demo compose / `local.toml` | `require_auth=false` (explicit NON-PILOT) | TES **noop** | On (`FERRUM_TES_HELIXTEST_STUB`, `FERRUM_WES_HELIXTEST_STUBS`) |
 | Pilot / production toml | `require_auth=true` | Operator TES/WES (Docker or Slurm) | Off |
 | `make up-tes` | inherits overlay | Docker TES | Off |

@@ -14,13 +14,14 @@ export FERRUM_WES_TES_WORK_HOST_PREFIX
 DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
 export DOCKER_BIN
 
-.PHONY: help up down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated test prove
+.PHONY: help up eval down-eval down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated test prove
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
 	@echo "Ferrum — local lifecycle (Synaptic Four GA4GH stack)"
 	@echo ""
-	@echo "  make up        Start demo stack (alias: make demo)"
+	@echo "  make eval      Auth-on clone path (HS256; no sibling infra)"
+	@echo "  make up        Start demo stack (NON-PILOT, auth off; alias: make demo)"
 	@echo "  make prove     Zero-risk proof: cargo test (no Docker)"
 	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
 	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF+ref bundle to MinIO (stack must be running)"
@@ -47,12 +48,20 @@ help:
 
 up: demo
 
+# Auth-on clone path (pilot.toml via compose overlay). Not make up.
+eval:
+	@chmod +x scripts/eval-up.sh
+	@./scripts/eval-up.sh
+
+down-eval:
+	docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-auth-ci.yml down
+
 # Zero-risk product proof (CI workspace tests). Live stack: make up.
 test:
 	cargo test --workspace --all-targets
 
 prove: test
-	@echo "Ferrum prove OK. Live demo: make up"
+	@echo "Ferrum prove OK. Auth-on: make eval. NON-PILOT demo: make up"
 
 # Demo + Docker TES: workflow engine images (pinned tags; amd64 on Apple Silicon).
 TES_PLATFORM ?= linux/amd64
