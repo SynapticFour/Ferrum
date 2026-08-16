@@ -1,0 +1,4095 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Ferrum",
+    "description": "Implementation map of the Ferrum gateway (utoipa dump). Source of truth for GA4GH DRS/WES/TES/TRS/Beacon/htsget is each standard’s published OpenAPI — see docs/GA4GH.md. This file records what this process exposes, including Ferrum-only paths. Not a replacement spec. Not official GA4GH certification. Auth is a deployment choice. Behavioral proof against the published specs is HelixTest.",
+    "contact": {
+      "name": "Synaptic Four",
+      "email": "contact@synapticfour.com"
+    },
+    "license": {
+      "name": "BUSL-1.1",
+      "url": "https://github.com/SynapticFour/Ferrum/blob/main/LICENSE"
+    },
+    "version": "0.3.1"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Paths are absolute from the Ferrum gateway origin (default http://127.0.0.1:8080)."
+    }
+  ],
+  "paths": {
+    "/ga4gh/beacon/v2/biosamples/query": {
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "query_biosamples",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/beacon/v2/g_variants/query": {
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "query_variants",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariantQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VariantQueryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/beacon/v2/individuals/query": {
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "query_individuals",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/beacon/v2/info": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_info",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BeaconInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/beacon/v2/map": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_map",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/beacon/v2/service-info": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_service_info",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/crypt4gh/v1/service-info": {
+      "get": {
+        "tags": [
+          "crate"
+        ],
+        "operationId": "get_service_info",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Crypt4GhServiceInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/ingest/batch": {
+      "post": {
+        "tags": [
+          "ingest"
+        ],
+        "summary": "Bulk register URLs (and optionally paths) as DRS objects.",
+        "operationId": "ingest_batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestBatchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/ingest/file": {
+      "post": {
+        "tags": [
+          "ingest"
+        ],
+        "summary": "Multipart file upload; computes checksums, stores file, creates DRS object. Optional encrypt=true.",
+        "operationId": "ingest_file",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestFileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/ingest/url": {
+      "post": {
+        "tags": [
+          "ingest"
+        ],
+        "summary": "Register external URL as DRS object (no local copy).",
+        "operationId": "ingest_url",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestUrlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestUrlResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/objects": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "List objects (admin) with pagination and filters.",
+        "operationId": "list_objects",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DrsObject"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "Create object (admin).",
+        "operationId": "post_object",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateObjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/objects/{object_id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "OPTIONS /objects/{object_id}: authorization discovery (DRS 1.4). Returns 204 when not supported.",
+        "operationId": "options_object",
+        "responses": {
+          "204": {
+            "description": "Authorizations not supported"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "Update object (admin).",
+        "operationId": "put_object",
+        "parameters": [
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateObjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatedResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "Delete object (admin).",
+        "operationId": "delete_object",
+        "parameters": [
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/objects/{object_id}/access/{access_id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "Get access URL for an access_id (e.g. presigned URL).",
+        "description": "Returns **`application/json`** body [`AccessUrl`]: a **URL string** (`url`), optional `headers`,\noptional `expires_at` — **not** the object bytes. For raw octets use **`GET .../objects/{id}/stream`**\n(binary stream, see that operation).\n\n**Storage:** `access_url` in the database may be a JSON string or `{\"url\":\"…\"}`; both are accepted.\n\n**S3 / MinIO:** When a presigner is configured, `url` is replaced with a **presigned** HTTPS URL.\nIf presigning fails, the request returns an error (fail-closed).",
+        "operationId": "get_access",
+        "parameters": [
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "access_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON AccessUrl (url, optional headers, optional expires_at); not object bytes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessUrl"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/objects/{object_id}/contents": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /objects/{object_id}/contents — list direct bundle contents with cursor pagination.",
+        "operationId": "list_bundle_contents",
+        "parameters": [
+          {
+            "name": "page_token",
+            "in": "query",
+            "description": "Opaque cursor (base64) for pagination.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Max items per page.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bundle contents page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleContentsPage"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/objects/{object_id}/provenance": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /objects/{object_id}/provenance — lineage graph (upstream/downstream/both).",
+        "operationId": "get_object_provenance",
+        "parameters": [
+          {
+            "name": "direction",
+            "in": "query",
+            "description": "upstream | downstream | both",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provenance graph"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "503": {
+            "description": "Provenance not configured"
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/objects/{object_id}/stream": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /objects/{object_id}/stream — stream object bytes. Unencrypted objects pass through from",
+        "description": "storage; Crypt4GH at-rest objects are decrypted server-side when `crypt4gh_decrypt_stream` is\nenabled and `crypt4gh_key_dir` contains the node key (`{crypt4gh_master_key_id}.sec`).\n\nResponse is a **binary octet stream** (`Content-Type` from object `mime_type` or\n`application/octet-stream`), **not** JSON. Contrast with **`GET .../access/{access_id}`**, which\nreturns JSON with a **URL** to fetch bytes (and may use presigned URLs for S3/MinIO).\n\n**Ferrum extension header:** `X-Ferrum-DRS-Stream-Path: plaintext | crypt4gh_decrypt` identifies\nthe server path for benchmarks (not a GA4GH standard field). Structured logs: target\n`ferrum_drs::stream`, events `drs.stream.started` / `drs.stream.finished`.",
+        "operationId": "get_object_stream",
+        "parameters": [
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Binary body: object bytes (plaintext after Crypt4GH decrypt when applicable); not JSON. Response may include X-Ferrum-DRS-Stream-Path."
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "501": {
+            "description": "Stream not supported for this storage backend"
+          }
+        }
+      }
+    },
+    "/ga4gh/drs/v1/service-info": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GA4GH service-info (DRS).",
+        "operationId": "get_service_info",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ferrum_core.ServiceInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/htsget/v1/reads/service-info": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "reads_service_info",
+        "responses": {
+          "200": {
+            "description": "htsget reads service-info (region slicing not implemented)"
+          }
+        }
+      }
+    },
+    "/ga4gh/htsget/v1/reads/{id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_reads_ticket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "DRS object id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "class",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "referenceName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "notags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "htsget ticket; urls point at DRS /stream"
+          },
+          "400": {
+            "description": "InvalidInput or UnsupportedFormat (including genomic region params)"
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "post_reads_ticket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "DRS object id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "htsget ticket; urls point at DRS /stream"
+          },
+          "400": {
+            "description": "InvalidInput — including POST regions (Ferrum does not slice)"
+          }
+        }
+      }
+    },
+    "/ga4gh/htsget/v1/variants/service-info": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "variants_service_info",
+        "responses": {
+          "200": {
+            "description": "htsget variants service-info (region slicing not implemented)"
+          }
+        }
+      }
+    },
+    "/ga4gh/htsget/v1/variants/{id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_variants_ticket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "DRS object id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "class",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "referenceName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "notags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "htsget ticket; urls point at DRS /stream"
+          },
+          "400": {
+            "description": "InvalidInput or UnsupportedFormat (including genomic region params)"
+          },
+          "404": {
+            "description": "NotFound"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "post_variants_ticket",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "DRS object id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "htsget ticket; urls point at DRS /stream"
+          },
+          "400": {
+            "description": "InvalidInput — including POST regions (Ferrum does not slice)"
+          }
+        }
+      }
+    },
+    "/ga4gh/tes/v1/service-info": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_service_info",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TesServiceInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/tes/v1/tasks": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "list_tasks",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "create_task",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTaskResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/tes/v1/tasks/{id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_task",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Task ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/tes/v1/tasks/{id}:cancel": {
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "cancel_task",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Task ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTaskResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/trs/v2/internal/register": {
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "Internal: register a tool (e.g. from WES when a workflow is submitted).",
+        "operationId": "register_tool",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterToolRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tool"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/trs/v2/service-info": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_service_info",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrsServiceInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/trs/v2/tools": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /tools returns a root-level JSON array for GA4GH/HelixTest compatibility (\"TRS /tools must return array\").",
+        "operationId": "list_tools",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Tool"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/trs/v2/tools/{id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_tool",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tool"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/trs/v2/tools/{id}/versions": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_tool_versions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ToolVersion"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/trs/v2/tools/{id}/versions/{version_id}/descriptor/{descriptor_type}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_descriptor",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "descriptor_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/wes/v1/provenance/graph": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /provenance/graph — subgraph by root_id and root_type (drs_object | wes_run).",
+        "operationId": "get_provenance_graph",
+        "parameters": [
+          {
+            "name": "root_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "root_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provenance graph"
+          },
+          "503": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/wes/v1/runs": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /runs — lists runs for the authenticated user (or all if no auth / admin). If workspace_id set, filter to that workspace (caller must be member).",
+        "operationId": "list_runs",
+        "parameters": [
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "page_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "POST /runs (multipart or application/json: workflow_type, workflow_type_version, workflow_url, etc.)",
+        "operationId": "post_runs",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunIdResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ga4gh/wes/v1/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /runs/{run_id} (full RunLog)",
+        "operationId": "get_run_log",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunLog"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/wes/v1/runs/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "POST /runs/{run_id}/cancel",
+        "operationId": "cancel_run",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunIdResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/wes/v1/runs/{run_id}/provenance": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /runs/{run_id}/provenance — lineage subgraph for this run (inputs + outputs).",
+        "operationId": "get_run_provenance",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provenance graph"
+          },
+          "404": {
+            "description": ""
+          },
+          "503": {
+            "description": "Provenance not configured"
+          }
+        }
+      }
+    },
+    "/ga4gh/wes/v1/runs/{run_id}/status": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /runs/{run_id}/status",
+        "operationId": "get_run_status",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/wes/v1/runs/{run_id}/tasks": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /runs/{run_id}/tasks (paginated task logs)",
+        "operationId": "list_tasks",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/ga4gh/wes/v1/service-info": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /service-info with supported workflow types and engines.",
+        "operationId": "get_service_info",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WesServiceInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/passports/v1/.well-known/openid-configuration": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "operationId": "get_oidc_configuration",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcConfiguration"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/passports/v1/admin/visa_grants": {
+      "get": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "GET /admin/visa_grants - list visa grants (optional ?user_sub= &dataset_id=)",
+        "operationId": "admin_list_visa_grants",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "handlers"
+        ],
+        "summary": "POST /admin/visa_grants - create a visa grant",
+        "operationId": "admin_create_visa_grant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVisaGrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccessMethod": {
+        "type": "object",
+        "description": "GA4GH AccessMethod.",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "access_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "access_url": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccessUrl"
+              }
+            ],
+            "nullable": true
+          },
+          "region": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "$ref": "#/components/schemas/AccessType"
+          }
+        }
+      },
+      "AccessUrl": {
+        "type": "object",
+        "description": "Access URL response (GET /objects/{id}/access/{access_id}).",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "bytes_completed": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes already transferred when resuming.",
+            "nullable": true
+          },
+          "expires_at": {
+            "type": "string",
+            "description": "Optional expiry timestamp (ISO 8601) for signed URLs.\nNot part of the base GA4GH schema, but useful for clients.",
+            "nullable": true
+          },
+          "headers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "resume_token": {
+            "type": "string",
+            "description": "Resume token for chunked / bandwidth-adaptive transfers.",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "AddSampleRequest": {
+        "type": "object",
+        "required": [
+          "sample_id"
+        ],
+        "properties": {
+          "drs_object_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "phenotype": {},
+          "sample_id": {
+            "type": "string"
+          }
+        }
+      },
+      "AddSamplesBatchRequest": {
+        "type": "object",
+        "required": [
+          "samples"
+        ],
+        "properties": {
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AddSampleRequest"
+            }
+          }
+        }
+      },
+      "BeaconBooleanSummary": {
+        "type": "object",
+        "required": [
+          "exists"
+        ],
+        "properties": {
+          "exists": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BeaconInfoResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "api_version"
+        ],
+        "properties": {
+          "api_version": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "BundleContentsPage": {
+        "type": "object",
+        "description": "Paginated list of direct bundle members.",
+        "required": [
+          "contents"
+        ],
+        "properties": {
+          "contents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentsObject"
+            }
+          },
+          "next_page_token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "BundleContentsQuery": {
+        "type": "object",
+        "description": "Query params for GET /objects/{object_id}/contents.\nReturns direct bundle members with cursor pagination.",
+        "properties": {
+          "page_size": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Max items per page.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "page_token": {
+            "type": "string",
+            "description": "Opaque cursor (base64) for pagination.",
+            "nullable": true
+          }
+        }
+      },
+      "Checksum": {
+        "type": "object",
+        "description": "GA4GH Checksum.",
+        "required": [
+          "checksum",
+          "type"
+        ],
+        "properties": {
+          "checksum": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      },
+      "CohortDetail": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "owner_sub",
+          "version",
+          "is_frozen",
+          "sample_count",
+          "tags",
+          "filter_criteria",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/DateTime"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "filter_criteria": {},
+          "id": {
+            "type": "string"
+          },
+          "is_frozen": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner_sub": {
+            "type": "string"
+          },
+          "sample_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/DateTime"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "workspace_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CohortQuery": {
+        "type": "object",
+        "properties": {
+          "filters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          },
+          "logic": {
+            "$ref": "#/components/schemas/QueryLogic"
+          }
+        }
+      },
+      "CohortSample": {
+        "type": "object",
+        "required": [
+          "id",
+          "cohort_id",
+          "sample_id",
+          "drs_object_ids",
+          "phenotype",
+          "added_at",
+          "added_by"
+        ],
+        "properties": {
+          "added_at": {
+            "$ref": "#/components/schemas/DateTime"
+          },
+          "added_by": {
+            "type": "string"
+          },
+          "cohort_id": {
+            "type": "string"
+          },
+          "drs_object_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "phenotype": {},
+          "sample_id": {
+            "type": "string"
+          }
+        }
+      },
+      "CohortStats": {
+        "type": "object",
+        "required": [
+          "cohort_id",
+          "sample_count",
+          "total_data_size_bytes",
+          "data_type_breakdown",
+          "phenotype_completeness",
+          "sex_distribution"
+        ],
+        "properties": {
+          "cohort_id": {
+            "type": "string"
+          },
+          "data_type_breakdown": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DataTypeStat"
+            }
+          },
+          "phenotype_completeness": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "sample_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sex_distribution": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "total_data_size_bytes": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CohortSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "owner_sub",
+          "version",
+          "is_frozen",
+          "sample_count",
+          "tags",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "$ref": "#/components/schemas/DateTime"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_frozen": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner_sub": {
+            "type": "string"
+          },
+          "sample_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updated_at": {
+            "$ref": "#/components/schemas/DateTime"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "workspace_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CohortVersionInfo": {
+        "type": "object",
+        "required": [
+          "id",
+          "cohort_id",
+          "version",
+          "created_at",
+          "created_by"
+        ],
+        "properties": {
+          "cohort_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/DateTime"
+          },
+          "created_by": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ContentsObject": {
+        "type": "object",
+        "description": "Contents of a bundle (nested or top-level).",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "contents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentsObject"
+            },
+            "nullable": true
+          },
+          "drs_uri": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateCohortRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "filter_criteria": {},
+          "name": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "workspace_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CreateObjectRequest": {
+        "type": "object",
+        "description": "Create object request (admin POST /objects).",
+        "required": [
+          "size",
+          "checksums",
+          "storage_backend",
+          "storage_key"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "checksums": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChecksumInput"
+            }
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "gisaid_metadata": {
+            "description": "GISAID submission metadata (JSON) captured at ingest.",
+            "nullable": true
+          },
+          "is_encrypted": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "metadata_ref": {
+            "type": "string",
+            "description": "ferrum-meta submission alias bound at ingest.",
+            "nullable": true
+          },
+          "mime_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "ont_metrics": {
+            "description": "ONT quality metrics (JSON) for Nanopore ingest.",
+            "nullable": true
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "storage_backend": {
+            "type": "string"
+          },
+          "storage_key": {
+            "type": "string"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Optional workspace ID (caller must be workspace editor/owner).",
+            "nullable": true
+          }
+        }
+      },
+      "CreateTaskRequest": {
+        "type": "object",
+        "description": "Create task request (POST /tasks body).",
+        "required": [
+          "executors"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "executors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TesExecutor"
+            }
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TesInput"
+            },
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TesOutput"
+            },
+            "nullable": true
+          },
+          "resources": {
+            "nullable": true
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "volumes": {
+            "type": "array",
+            "items": {},
+            "nullable": true
+          }
+        }
+      },
+      "CreateTaskResponse": {
+        "type": "object",
+        "description": "Create task response (task id).",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateVisaGrantRequest": {
+        "type": "object",
+        "required": [
+          "user_sub",
+          "user_iss",
+          "dataset_id",
+          "visa_type",
+          "value",
+          "source"
+        ],
+        "properties": {
+          "conditions": {
+            "nullable": true
+          },
+          "dataset_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "description": "ISO8601/RFC3339 datetime string, e.g. \"2025-12-31T23:59:59Z\"",
+            "nullable": true
+          },
+          "source": {
+            "type": "string"
+          },
+          "user_iss": {
+            "type": "string"
+          },
+          "user_sub": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "visa_type": {
+            "type": "string"
+          }
+        }
+      },
+      "CreatedResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "Crypt4GhServiceInfo": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "DefaultWorkflowEngineParameter": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "default_value": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "DeletedResponse": {
+        "type": "object",
+        "required": [
+          "deleted"
+        ],
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DrsObject": {
+        "type": "object",
+        "description": "DRS Object (GA4GH DRS 1.4). Required: id, self_uri, size, created_time, checksums.",
+        "required": [
+          "id",
+          "self_uri",
+          "size",
+          "created_time",
+          "checksums"
+        ],
+        "properties": {
+          "access_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessMethod"
+            },
+            "nullable": true
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "checksum_status": {
+            "type": "string",
+            "description": "Ferrum extension: async checksum job status (`pending`, `computed`, `failed:…`, `deferred_low_power`).",
+            "nullable": true
+          },
+          "checksums": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Checksum"
+            }
+          },
+          "contents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContentsObject"
+            },
+            "nullable": true
+          },
+          "created_time": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "gisaid_metadata": {
+            "description": "GISAID submission metadata (Ferrum extension; stored on `drs_objects.gisaid_metadata`).",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_encrypted": {
+            "type": "boolean",
+            "description": "Ferrum extension: Crypt4GH at-rest encryption (`storage_references.is_encrypted`).",
+            "nullable": true
+          },
+          "metadata_ref": {
+            "type": "string",
+            "description": "ferrum-meta submission alias (stored on `drs_objects.metadata_ref`).",
+            "nullable": true
+          },
+          "mime_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "ont_metrics": {
+            "description": "ONT QC metrics (Ferrum extension; stored on `drs_objects.ont_metrics`).",
+            "nullable": true
+          },
+          "self_uri": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "storage_backend": {
+            "type": "string",
+            "description": "Ferrum extension: `storage_references.storage_backend` (`s3`, `local`, `url`, …).",
+            "nullable": true
+          },
+          "updated_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "version": {
+            "type": "string",
+            "nullable": true
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Ferrum extension: workspace scope when object is linked to a study workspace.",
+            "nullable": true
+          }
+        }
+      },
+      "ExpandQuery": {
+        "type": "object",
+        "description": "Query params for GET /objects/{object_id}. expand=true returns bundle contents recursively.",
+        "properties": {
+          "expand": {
+            "type": "boolean",
+            "description": "If true, expand bundle contents (and nested bundles).",
+            "nullable": true
+          }
+        }
+      },
+      "Filter": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "field",
+              "operator",
+              "value",
+              "type"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Phenotype"
+                ]
+              },
+              "value": {}
+            }
+          },
+          {
+            "allOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "SampleIdIn"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "IngestBatchItem": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "url",
+              "type"
+            ],
+            "properties": {
+              "derived_from": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              },
+              "mime_type": {
+                "type": "string",
+                "nullable": true
+              },
+              "name": {
+                "type": "string",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "url"
+                ]
+              },
+              "url": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "path",
+              "type"
+            ],
+            "properties": {
+              "derived_from": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "nullable": true
+              },
+              "name": {
+                "type": "string",
+                "nullable": true
+              },
+              "path": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "path"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "IngestBatchRequest": {
+        "type": "object",
+        "description": "Ingest batch request (POST /ingest/batch).",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IngestBatchItem"
+            }
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Optional workspace ID for all items (caller must be workspace editor/owner).",
+            "nullable": true
+          }
+        }
+      },
+      "IngestBatchResponse": {
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "IngestFileResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "size",
+          "checksums"
+        ],
+        "properties": {
+          "checksums": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ferrum_core.Checksum"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "IngestUrlRequest": {
+        "type": "object",
+        "description": "Ingest URL request (POST /ingest/url).",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "derived_from": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional DRS URIs (drs://host/id) this object was derived from; records provenance edges.",
+            "nullable": true
+          },
+          "mime_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Optional workspace ID (caller must be workspace editor/owner).",
+            "nullable": true
+          }
+        }
+      },
+      "IngestUrlResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
+      "ListCohortsResponse": {
+        "type": "object",
+        "required": [
+          "cohorts"
+        ],
+        "properties": {
+          "cohorts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CohortSummary"
+            }
+          },
+          "next_offset": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "ListObjectsQuery": {
+        "type": "object",
+        "description": "List objects query (admin).",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "max_size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "mime_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "min_size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "workspace_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ListRunsQuery": {
+        "type": "object",
+        "properties": {
+          "page_size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "page_token": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "nullable": true
+          },
+          "workspace_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ListSamplesResponse": {
+        "type": "object",
+        "required": [
+          "samples"
+        ],
+        "properties": {
+          "next_offset": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CohortSample"
+            }
+          }
+        }
+      },
+      "ListTasksQuery": {
+        "type": "object",
+        "properties": {
+          "page_size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "page_token": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ListToolsQuery": {
+        "type": "object",
+        "properties": {
+          "page_size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "page_token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Log": {
+        "type": "object",
+        "description": "Log entry (main run or task).",
+        "properties": {
+          "cmd": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "end_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "exit_code": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "stderr": {
+            "type": "string",
+            "nullable": true
+          },
+          "stdout": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "OidcConfiguration": {
+        "type": "object",
+        "required": [
+          "issuer",
+          "authorization_endpoint",
+          "token_endpoint",
+          "userinfo_endpoint",
+          "jwks_uri",
+          "scopes_supported",
+          "response_types_supported",
+          "subject_types_supported",
+          "id_token_signing_alg_values_supported"
+        ],
+        "properties": {
+          "authorization_endpoint": {
+            "type": "string"
+          },
+          "id_token_signing_alg_values_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "jwks_uri": {
+            "type": "string"
+          },
+          "response_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scopes_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subject_types_supported": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_endpoint": {
+            "type": "string"
+          },
+          "userinfo_endpoint": {
+            "type": "string"
+          }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PhenotypeSchemaField": {
+        "type": "object",
+        "required": [
+          "id",
+          "field_name",
+          "display_name",
+          "field_type",
+          "required"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "field_name": {
+            "type": "string"
+          },
+          "field_type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ontology": {
+            "type": "string",
+            "nullable": true
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProvenanceGraphQuery": {
+        "type": "object",
+        "description": "Query params for GET /provenance/graph",
+        "required": [
+          "root_id"
+        ],
+        "properties": {
+          "depth": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "direction": {
+            "type": "string"
+          },
+          "root_id": {
+            "type": "string"
+          },
+          "root_type": {
+            "type": "string"
+          }
+        }
+      },
+      "ProvenanceGraphResponse": {
+        "type": "object",
+        "required": [
+          "nodes",
+          "edges",
+          "mermaid"
+        ],
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ferrum_core.ProvenanceEdge"
+            }
+          },
+          "mermaid": {
+            "type": "string"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ferrum_core.ProvenanceNode"
+            }
+          }
+        }
+      },
+      "ProvenanceQuery": {
+        "type": "object",
+        "description": "Query params for GET /objects/{object_id}/provenance",
+        "properties": {
+          "depth": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true,
+            "minimum": 0
+          },
+          "direction": {
+            "type": "string",
+            "description": "upstream | downstream | both"
+          }
+        }
+      },
+      "ProvenanceResponse": {
+        "type": "object",
+        "required": [
+          "object_id",
+          "direction",
+          "graph"
+        ],
+        "properties": {
+          "direction": {
+            "type": "string"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/ProvenanceGraphResponse"
+          },
+          "object_id": {
+            "type": "string"
+          }
+        }
+      },
+      "QueryFacets": {
+        "type": "object",
+        "properties": {
+          "by_data_type": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "by_diagnosis": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "by_sequencing_type": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "by_sex": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "QueryLogic": {
+        "type": "string",
+        "enum": [
+          "AND",
+          "OR"
+        ]
+      },
+      "QueryResult": {
+        "type": "object",
+        "required": [
+          "matched_sample_ids",
+          "total_count",
+          "facets"
+        ],
+        "properties": {
+          "facets": {
+            "$ref": "#/components/schemas/QueryFacets"
+          },
+          "matched_sample_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "RegisterToolRequest": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization": {
+            "type": "string",
+            "nullable": true
+          },
+          "toolclass": {
+            "type": "string",
+            "nullable": true
+          },
+          "workflow_content": {
+            "type": "string",
+            "description": "Inline workflow file body (alternative to `workflow_url`).",
+            "nullable": true
+          },
+          "workflow_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "workflow_type_version": {
+            "type": "string",
+            "nullable": true
+          },
+          "workflow_url": {
+            "type": "string",
+            "description": "Remote descriptor URL (WDL/CWL/NFL/SMK). Required unless `workflow_content` is set.",
+            "nullable": true
+          }
+        }
+      },
+      "RunIdResponse": {
+        "type": "object",
+        "description": "POST /runs response.",
+        "required": [
+          "run_id"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ferrum_reference.WesReferenceWarning"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "RunListResponse": {
+        "type": "object",
+        "description": "GET /runs response.",
+        "required": [
+          "runs"
+        ],
+        "properties": {
+          "next_page_token": {
+            "type": "string",
+            "nullable": true
+          },
+          "orphan_queued_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Orphan QUEUED runs (no executor, not yet past stale threshold) — UI may offer cleanup.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            }
+          }
+        }
+      },
+      "RunLog": {
+        "type": "object",
+        "description": "GET /runs/{run_id} full log response.",
+        "required": [
+          "run_id",
+          "request",
+          "state",
+          "run_log"
+        ],
+        "properties": {
+          "extensions": {
+            "type": "object",
+            "description": "GA4GH extension: implementation-specific fields (e.g. ferrum:multiqc_status, ferrum:multiqc_report_drs_id).",
+            "additionalProperties": {},
+            "nullable": true
+          },
+          "outputs": {
+            "nullable": true
+          },
+          "request": {
+            "$ref": "#/components/schemas/RunRequestRef"
+          },
+          "resumed_from_run_id": {
+            "type": "string",
+            "description": "When this run was created by resuming from another run.",
+            "nullable": true
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "run_log": {
+            "$ref": "#/components/schemas/Log"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "tags": {
+            "type": "object",
+            "description": "Submit-time tags (e.g. cohort_id, sample_id from Run on cohort).",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "task_logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskLog"
+            },
+            "nullable": true
+          },
+          "task_logs_url": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RunProvenanceGraphResponse": {
+        "type": "object",
+        "required": [
+          "nodes",
+          "edges",
+          "mermaid",
+          "cytoscape"
+        ],
+        "properties": {
+          "cytoscape": {},
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ferrum_core.ProvenanceEdge"
+            }
+          },
+          "mermaid": {
+            "type": "string"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ferrum_core.ProvenanceNode"
+            }
+          }
+        }
+      },
+      "RunProvenanceResponse": {
+        "type": "object",
+        "required": [
+          "run_id",
+          "graph"
+        ],
+        "properties": {
+          "graph": {
+            "$ref": "#/components/schemas/RunProvenanceGraphResponse"
+          },
+          "run_id": {
+            "type": "string"
+          }
+        }
+      },
+      "RunRequestRef": {
+        "type": "object",
+        "description": "Minimal request reference in RunLog.",
+        "required": [
+          "workflow_type",
+          "workflow_type_version",
+          "workflow_url"
+        ],
+        "properties": {
+          "workflow_type": {
+            "type": "string"
+          },
+          "workflow_type_version": {
+            "type": "string"
+          },
+          "workflow_url": {
+            "type": "string"
+          }
+        }
+      },
+      "RunState": {
+        "type": "string",
+        "description": "Run state (GA4GH WES 1.1).",
+        "enum": [
+          "UNKNOWN",
+          "QUEUED",
+          "INITIALIZING",
+          "RUNNING",
+          "PAUSED",
+          "COMPLETE",
+          "EXECUTOR_ERROR",
+          "SYSTEM_ERROR",
+          "CANCELED",
+          "CANCELING",
+          "PREEMPTED"
+        ]
+      },
+      "RunStatus": {
+        "type": "object",
+        "description": "GET /runs/{run_id}/status response.",
+        "required": [
+          "run_id",
+          "state"
+        ],
+        "properties": {
+          "run_id": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          }
+        }
+      },
+      "RunSummary": {
+        "type": "object",
+        "description": "Run summary in list (includes timing and tags).",
+        "required": [
+          "run_id",
+          "state",
+          "tags"
+        ],
+        "properties": {
+          "end_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "resumed_from_run_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "workflow_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "workflow_url": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ServiceInfo": {
+        "type": "object",
+        "description": "GA4GH Service info.",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "version"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organization": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Organization"
+              }
+            ],
+            "nullable": true
+          },
+          "type": {
+            "$ref": "#/components/schemas/ServiceType"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "ServiceType": {
+        "type": "object",
+        "required": [
+          "group",
+          "artifact",
+          "version"
+        ],
+        "properties": {
+          "artifact": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "description": "Full task (response).",
+        "required": [
+          "id",
+          "state"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "executors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TesExecutor"
+            },
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TesInput"
+            },
+            "nullable": true
+          },
+          "logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskLog"
+            },
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TesOutput"
+            },
+            "nullable": true
+          },
+          "resources": {
+            "nullable": true
+          },
+          "state": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "volumes": {
+            "type": "array",
+            "items": {},
+            "nullable": true
+          }
+        }
+      },
+      "TaskListResponse": {
+        "type": "object",
+        "required": [
+          "task_logs"
+        ],
+        "properties": {
+          "next_page_token": {
+            "type": "string",
+            "nullable": true
+          },
+          "task_logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskLog"
+            }
+          }
+        }
+      },
+      "TaskLog": {
+        "type": "object",
+        "description": "Task log (with id).",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "cmd": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "end_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "exit_code": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string",
+            "nullable": true
+          },
+          "stderr": {
+            "type": "string",
+            "nullable": true
+          },
+          "stdout": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TaskSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "TesExecutor": {
+        "type": "object",
+        "description": "Executor: image + command (TES 1.1).\n\n**Docker / Podman:** If the image defines an `ENTRYPOINT`, your `command` is passed as\nadditional arguments to that entrypoint. To run a shell wrapper (e.g. `bash -lc '…'`) instead,\nset [`Self::entrypoint`] explicitly (e.g. `[\"/bin/bash\", \"-lc\"]`) and put the script line in\n`command`, or clear the image entrypoint via `[\"/bin/sh\", \"-c\"]` plus a single joined command\nstring — see **`docs/TES-DOCKER-BACKEND.md`** in the Ferrum repository.",
+        "required": [
+          "image",
+          "command"
+        ],
+        "properties": {
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "entrypoint": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Overrides the container image entrypoint (Docker `Entrypoint`). When set, `command` follows\nas argv after the entrypoint vector (Docker API semantics).",
+            "nullable": true
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "image": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "stdin": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "stdout": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "workdir": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TesInput": {
+        "type": "object",
+        "description": "Input file (url -> path in container).",
+        "required": [
+          "url",
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "TesOutput": {
+        "type": "object",
+        "description": "Output path to capture (TES 1.1: `url` is the downloadable location).",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TesServiceInfo": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "issued_token_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "refresh_token": {
+            "type": "string",
+            "nullable": true
+          },
+          "scope": {
+            "type": "string",
+            "nullable": true
+          },
+          "token_type": {
+            "type": "string"
+          }
+        }
+      },
+      "Tool": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "meta_version": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "organization": {
+            "type": "string",
+            "nullable": true
+          },
+          "toolclass": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ToolClass"
+              }
+            ],
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "description": "GA4GH TRS: URL to fetch this tool (e.g. /ga4gh/trs/v2/tools/{id}).",
+            "nullable": true
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolVersion"
+            },
+            "description": "GA4GH TRS: versions list (populated in list response for schema compliance).",
+            "nullable": true
+          }
+        }
+      },
+      "ToolClass": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ToolListResponse": {
+        "type": "object",
+        "required": [
+          "tools"
+        ],
+        "properties": {
+          "next_page_token": {
+            "type": "string",
+            "nullable": true
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tool"
+            }
+          }
+        }
+      },
+      "ToolVersion": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "tool_id",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tool_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "GA4GH TRS: URL to fetch this tool version (e.g. /ga4gh/trs/v2/tools/{id}/versions)."
+          }
+        }
+      },
+      "ToolVersionsResponse": {
+        "type": "object",
+        "required": [
+          "versions"
+        ],
+        "properties": {
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolVersion"
+            }
+          }
+        }
+      },
+      "TrsServiceInfo": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateCohortRequest": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "filter_criteria": {
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "UpdateObjectRequest": {
+        "type": "object",
+        "description": "Update object request (admin PUT /objects/{id}).",
+        "properties": {
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "checksums": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChecksumInput"
+            },
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "mime_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "UpdatedResponse": {
+        "type": "object",
+        "required": [
+          "updated"
+        ],
+        "properties": {
+          "updated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VariantQueryRequest": {
+        "type": "object",
+        "properties": {
+          "alternate_bases": {
+            "type": "string",
+            "description": "Beacon v2 query: alternateBases for exact match (HelixTest uses it).",
+            "nullable": true
+          },
+          "assembly_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "end": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "granularity": {
+            "type": "string",
+            "description": "Beacon v2 granularity selector.\nSupported here: `boolean` and `count`.\n`record` is rejected (Ferrum Beacon currently does not serve records).",
+            "nullable": true
+          },
+          "reference_bases": {
+            "type": "string",
+            "description": "Beacon v2 query: referenceBases for exact match (HelixTest uses it).",
+            "nullable": true
+          },
+          "reference_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
+      "VariantQueryResponse": {
+        "type": "object",
+        "required": [
+          "meta",
+          "responseSummary",
+          "response"
+        ],
+        "properties": {
+          "meta": {},
+          "response": {
+            "$ref": "#/components/schemas/VariantQueryResult"
+          },
+          "responseSummary": {
+            "$ref": "#/components/schemas/BeaconBooleanSummary"
+          }
+        }
+      },
+      "VariantQueryResult": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "exists": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "WesServiceInfo": {
+        "type": "object",
+        "description": "ServiceInfo (GA4GH) with workflow types and engines.",
+        "required": [
+          "id",
+          "name",
+          "type",
+          "organization",
+          "version",
+          "workflow_type_versions",
+          "supported_wes_versions",
+          "supported_filesystem_protocols",
+          "workflow_engine_versions",
+          "default_workflow_engine_parameters",
+          "system_state_counts",
+          "auth_instructions_url",
+          "tags"
+        ],
+        "properties": {
+          "auth_instructions_url": {
+            "type": "string"
+          },
+          "default_workflow_engine_parameters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DefaultWorkflowEngineParameter"
+            }
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/Organization"
+          },
+          "supported_filesystem_protocols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supported_wes_versions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "system_state_counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "type": {
+            "$ref": "#/components/schemas/ServiceType"
+          },
+          "version": {
+            "type": "string"
+          },
+          "workflow_engine_versions": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WorkflowEngineVersion"
+            }
+          },
+          "workflow_type_versions": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WorkflowTypeVersion"
+            }
+          }
+        }
+      },
+      "WorkflowEngineVersion": {
+        "type": "object",
+        "description": "Workflow engine version.",
+        "required": [
+          "workflow_engine_version"
+        ],
+        "properties": {
+          "workflow_engine_version": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WorkflowTypeVersion": {
+        "type": "object",
+        "description": "Workflow type version (supported versions for a type).",
+        "required": [
+          "workflow_type_version"
+        ],
+        "properties": {
+          "workflow_type_version": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

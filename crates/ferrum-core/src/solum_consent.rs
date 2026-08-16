@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Solum sidecar consent status client (H2.1 Teeth).
 //!
 //! When configured, Ferrum polls `GET /v1/consent/status` before bound DRS byte

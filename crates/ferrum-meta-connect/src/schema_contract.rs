@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Compile-time bind to vendored [ferrum-meta](https://github.com/SynapticFour/ferrum-meta)
 //! LinkML YAML. This crate is still a structural subset (not a LinkML runtime);
 //! missing these files must fail `cargo check`, not only a docs note.

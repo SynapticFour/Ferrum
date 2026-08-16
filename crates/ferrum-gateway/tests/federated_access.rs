@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Federated ADS introspect gate + DRS/WES proxy smoke tests.
 
 use axum::{

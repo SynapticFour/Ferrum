@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Database access for visa grants and auth codes.
 
 use crate::error::Result;

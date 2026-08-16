@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Resident-set memory cap for laptop deployments (protect SQLite from OOM).
 
 use std::sync::atomic::{AtomicBool, Ordering};

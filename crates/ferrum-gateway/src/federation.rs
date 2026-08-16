@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Admin federation helpers: GA4GH service-registry list + register-this-node.
 //! Used by the Ferrum UI Settings → Federation panel (Phase 1).
 

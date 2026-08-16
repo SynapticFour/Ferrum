@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Interactive and non-interactive `ferrum meta init`.
 
 use ferrum_meta_connect::{

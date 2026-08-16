@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! HTTP API for field sync queue (`/api/v1/sync/*`).
 
 use crate::state::AppState;

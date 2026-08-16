@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Database layer: sqlx pool (SQLite/PostgreSQL auto-detect) and embedded migrations.
 
 use crate::config::DatabaseConfig;

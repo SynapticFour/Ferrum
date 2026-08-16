@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Offline update bundle install for Edge deployments.
 
 use sha2::{Digest, Sha256};

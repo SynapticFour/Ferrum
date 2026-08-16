@@ -10,7 +10,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
-- **`make eval`** — auth-on clone path (compose overlay + minted HS256). `make up` stays NON-PILOT.
+- **SPDX on first-party `.rs`** — `// SPDX-License-Identifier: BUSL-1.1`; CI workflow `spdx.yml`. Not a full REUSE.toml BOM.
+- **Committed OpenAPI dump** — `docs/openapi/ferrum.openapi.json` from utoipa (`make openapi`). Implementation map of this gateway. **Source of truth for GA4GH products remains each standard’s published OpenAPI** ([docs/GA4GH.md](docs/GA4GH.md)). Not a replacement spec; not certification.
+- **Beacon v2 boolean body** — `/query` includes official `responseSummary.exists` and required `meta` fields (`beaconId`, `returnedGranularity`, `receivedRequestSummary`). `response.exists` remains for older clients.
+- **ferrum+infra HelixTest** — scheduled/dispatch workflow `.github/workflows/helixtest-ferrum-infra.yml` (`make up-pilot-local`, no skip-as-green).
+- **`ferrum meta export`** — default lists live DRS objects (`drs_id` / checksums). `--starter` writes the canned GHGA/EGA fixture. Empty node → `files: []`, not a fake submission.
 - **[docs/GOVERNANCE.md](docs/GOVERNANCE.md)** — one maintainer, no escrow.
 
 ## [0.3.1] - 2026-08-16

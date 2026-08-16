@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Filesystem free-space probes for Edge / field health checks.
 
 use serde::Serialize;

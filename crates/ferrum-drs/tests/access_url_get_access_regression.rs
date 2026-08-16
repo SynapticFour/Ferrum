@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Regression: `GET /ga4gh/drs/v1/objects/{id}/access/{access_id}` reads `drs_access_methods.access_url`
 //! from PostgreSQL as JSONB. Ingest/create often store `{"url": "https://..."}`; the handler must
 //! resolve the same string [`ferrum_drs::access_url::parse_stored_access_url`] uses (before optional S3 presign).

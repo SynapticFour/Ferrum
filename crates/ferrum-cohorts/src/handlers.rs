@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! HTTP handlers for Cohort API.
 
 use crate::error::{CohortError, Result};

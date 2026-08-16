@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Beacon POST query residency audit wiring.
 
 use axum::http::{Method, Request, StatusCode};

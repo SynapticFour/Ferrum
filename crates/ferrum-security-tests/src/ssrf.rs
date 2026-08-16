@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! A10: SSRF is_private_ip and SafeHttpClient behavior.
 
 #[cfg(test)]

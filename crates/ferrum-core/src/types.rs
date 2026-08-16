@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GA4GH common types: Checksum, AccessMethod, AccessType.
 
 use serde::{Deserialize, Serialize};

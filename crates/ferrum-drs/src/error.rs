@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! DRS-specific errors.
 
 use axum::response::IntoResponse;

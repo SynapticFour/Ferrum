@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GA4GH Passport and Visa claim structures (passport_v1).
 
 use serde::{Deserialize, Serialize};

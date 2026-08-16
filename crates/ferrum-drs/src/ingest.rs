@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Ingest API: file upload, URL registration, batch.
 
 use crate::error::{DrsError, Result};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Shared DRS access checks (workspace-private, published dataset grants, outbreak approval).
 
 use crate::error::{DrsError, Result};

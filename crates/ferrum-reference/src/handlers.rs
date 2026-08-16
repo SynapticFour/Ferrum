@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! HTTP API for the reference genome registry (`/api/v1/references`).
 
 use crate::registry::ReferenceRegistry;

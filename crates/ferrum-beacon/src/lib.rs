@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GA4GH Beacon v2 API.
 
 pub mod error;
@@ -32,6 +33,8 @@ use crate::repo::BeaconRepo;
         handlers::BeaconInfoResponse,
         handlers::VariantQueryRequest,
         handlers::VariantQueryResponse,
+        handlers::BeaconBooleanSummary,
+        handlers::VariantQueryResult,
     ))
 )]
 pub struct BeaconApiDoc;

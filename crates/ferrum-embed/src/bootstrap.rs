@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Startup bootstrap: paths, migrations, backend selection.
 
 use crate::mode::EmbedMode;

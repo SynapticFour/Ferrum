@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Reference genome types.
 
 use serde::{Deserialize, Serialize};

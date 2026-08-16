@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GA4GH Data Repository Service (DRS) 1.4.
 
 pub mod access;

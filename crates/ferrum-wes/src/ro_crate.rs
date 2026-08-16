@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! RO-Crate enrichment helpers (ONT metrics, pathogen annotations, reference genome).
 
 use serde_json::{json, Value};

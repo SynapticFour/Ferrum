@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Ticket building: DRS object classification, URL to `GET .../drs/v1/objects/{id}/stream`.
 
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};

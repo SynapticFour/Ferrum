@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GISAID metadata validation and required-field checks for outbreak packaging.
 
 use crate::error::{FerrumError, Result};

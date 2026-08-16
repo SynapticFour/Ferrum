@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Hub upload adapter for Edge sync push (multipart + chunked resume).
 #![allow(clippy::too_many_arguments)]
 

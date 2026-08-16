@@ -32,6 +32,19 @@ This section is the **single place** in the Ferrum repo that maps **GitHub Actio
 
 HelixTest is cloned from GitHub on each run; the ref is **`HELIXTEST_REF`** / **`HELIXTEST_SHA`** in `VERSIONS.lock` (tag **`v0.1.1`**). Auth-heavy Level‑4 behaviour is skipped in demo CI as documented below. CI does **not** rewrite HelixTest expected checksums.
 
+### Workflow: [`.github/workflows/helixtest-ferrum-infra.yml`](../.github/workflows/helixtest-ferrum-infra.yml)
+
+**Passport co-deploy evidence (scheduled 03:45 UTC + `workflow_dispatch`). Not required on every PR. Not GA4GH certification.** Stack: `make up-pilot-local` (Ferrum `[auth] mode = "external"` + ga4gh-infra mock-idp). HelixTest `--mode ferrum+infra --profile ferrum-infra` with `GATEWAY_BASE=http://localhost:8080`. The job **fails** if any infra check skips or fails (broker, registry, DRS registration, broker Passport, Passport-on-DRS). This is the public identity-plane proof — complementary to HMAC `helixtest-pilot-auth.yml`.
+
+Local:
+
+```bash
+make up-pilot-local   # needs sibling ../ga4gh-infra
+helixtest --all --mode ferrum+infra --profile ferrum-infra-pilot
+```
+
+(`ferrum-infra.toml` is the Demo on port 18080; `ferrum-infra-pilot.toml` matches this Ferrum path on 8080.)
+
 ### Workflow: [`.github/workflows/helixtest-pilot-auth.yml`](../.github/workflows/helixtest-pilot-auth.yml)
 
 **Pilot-auth evidence (scheduled 02:30 UTC + `workflow_dispatch`). Not required on every PR. Not GA4GH certification.** Stack: `deploy/docker-compose.yml` + `deploy/docker-compose.pilot-auth-ci.yml` with `deploy/configs/pilot.toml` (`require_auth=true`), HelixTest stubs **off**, **`HELIXTEST_SKIP_AUTH` unset**. HelixTest config: [`deploy/helixtest/pilot-auth.toml`](../deploy/helixtest/pilot-auth.toml) (`token-protected-endpoints` on WES `/runs` and TES `/tasks`). HMAC secret is minted per run (`FERRUM_AUTH__JWT_SECRET` / `TEST_BEARER`). This is **not** ga4gh-infra JWKS (`make up-pilot-local`).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Request/response types for Cohort API.
 
 use chrono::{DateTime, Utc};

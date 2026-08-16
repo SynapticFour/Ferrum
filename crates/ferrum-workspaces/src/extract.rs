@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Request extractors for workspace handlers.
 
 use crate::error::WorkspaceError;

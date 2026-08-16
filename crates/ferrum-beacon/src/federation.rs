@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Federated Beacon query helpers.
 
-use crate::handlers::{
-    AppState, VariantQueryResponse, VariantQueryResult, BEACON_RESPONSE_META_SCHEMA,
-};
+use crate::handlers::{AppState, VariantQueryResponse, BEACON_RESPONSE_META_SCHEMA};
 use ferrum_federation::{query_envelope_from_params, BeaconQueryParams};
 use serde_json::{json, Value};
 
@@ -16,35 +15,26 @@ pub async fn maybe_federate_get(
 ) -> VariantQueryResponse {
     let mut meta = json!({
         "$schema": BEACON_RESPONSE_META_SCHEMA,
+        "beaconId": "org.ga4gh.ferrum.beacon",
         "apiVersion": "v2.0.0",
         "requestedSchemas": [],
+        "returnedGranularity": if local_count.is_some() { "count" } else { "boolean" },
+        "returnedSchemas": [],
+        "receivedRequestSummary": {
+            "apiVersion": "v2.0.0",
+            "requestedSchemas": [],
+            "pagination": { "skip": 0, "limit": 0 },
+            "requestedGranularity": if local_count.is_some() { "count" } else { "boolean" }
+        }
     });
     if !federate {
-        return VariantQueryResponse {
-            meta,
-            response: VariantQueryResult {
-                exists: local_exists,
-                count: local_count,
-            },
-        };
+        return VariantQueryResponse::from_parts(meta, local_exists, local_count);
     }
     let Some(ref federation) = state.federation else {
-        return VariantQueryResponse {
-            meta,
-            response: VariantQueryResult {
-                exists: local_exists,
-                count: local_count,
-            },
-        };
+        return VariantQueryResponse::from_parts(meta, local_exists, local_count);
     };
     if !federation.is_enabled() {
-        return VariantQueryResponse {
-            meta,
-            response: VariantQueryResult {
-                exists: local_exists,
-                count: local_count,
-            },
-        };
+        return VariantQueryResponse::from_parts(meta, local_exists, local_count);
     }
 
     let envelope = query_envelope_from_params(&params);
@@ -87,8 +77,5 @@ pub async fn maybe_federate_get(
         meta["peerResults"] = json!(peer_payload);
     }
 
-    VariantQueryResponse {
-        meta,
-        response: VariantQueryResult { exists, count },
-    }
+    VariantQueryResponse::from_parts(meta, exists, count)
 }

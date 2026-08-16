@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! OIDC discovery, token, userinfo, JWKS, and admin handlers.
 
 use crate::config::PassportConfig;

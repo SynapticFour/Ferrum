@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use ferrum_mii_connect::{load_manifest, validate_payload, MiiValidationConfig};
 use serde_json::Value;
 use std::fs;

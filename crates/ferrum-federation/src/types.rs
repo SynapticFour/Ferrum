@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Federation configuration types.
 
 use ferrum_core::config::{AggregateStrategy, FederationConfig, FerrumPeerConfig};

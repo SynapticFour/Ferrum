@@ -77,11 +77,13 @@ Vendored LinkML YAML lives in [`schema/`](schema/) and is a **compile-time input
 ./scripts/sync-ferrum-meta-schemas.sh --check
 ```
 
-GHGA / EGA starter bundles (full LinkML check stays in ferrum-meta):
+GHGA / EGA bundles from a **running gateway** (live DRS ids, not the fixture):
 
 ```bash
 ferrum meta export --profile ghga --output ./ghga-bundle.yaml
 ferrum meta export --profile ega --output ./ega-bundle.yaml
+# auth-on: --bearer "$TEST_BEARER"   (or TEST_BEARER / FERRUM_BEARER)
+# canned tutorial YAML: --starter
 ../ferrum-meta/scripts/validate-fixture.sh ./ghga-bundle.yaml
 ```
 

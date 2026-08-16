@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Post-ingest pipeline hooks: htsget metadata + optional Beacon VCF indexing.
 
 use crate::repo::DrsRepo;

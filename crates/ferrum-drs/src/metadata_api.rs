@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Optional Metadata Store HTTP API (`/api/v1/metadata/*`).
 //!
 //! Opt-in via `[metadata_store] enabled = true` / `FERRUM_METADATA_STORE__ENABLED=true`.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Cohort query engine: filter samples by phenotype and return facets.
 
 use crate::error::Result;

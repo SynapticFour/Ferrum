@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Beacon v2 handlers.
 
 use crate::error::Result;
@@ -18,9 +19,29 @@ pub const BEACON_RESPONSE_META_SCHEMA: &str =
 fn beacon_meta_base() -> serde_json::Value {
     serde_json::json!({
         "$schema": BEACON_RESPONSE_META_SCHEMA,
+        "beaconId": "org.ga4gh.ferrum.beacon",
         "requestedSchemas": [],
-        "apiVersion": "v2.0"
+        "apiVersion": "v2.0.0",
+        "returnedGranularity": "boolean",
+        "returnedSchemas": [],
+        "receivedRequestSummary": {
+            "apiVersion": "v2.0.0",
+            "requestedSchemas": [],
+            "pagination": { "skip": 0, "limit": 0 },
+            "requestedGranularity": "boolean"
+        }
     })
+}
+
+fn beacon_meta_for_granularity(granularity: VariantGranularity) -> serde_json::Value {
+    let g = match granularity {
+        VariantGranularity::Boolean => "boolean",
+        VariantGranularity::Count => "count",
+    };
+    let mut meta = beacon_meta_base();
+    meta["returnedGranularity"] = serde_json::json!(g);
+    meta["receivedRequestSummary"]["requestedGranularity"] = serde_json::json!(g);
+    meta
 }
 
 fn pathogen_filtering_terms() -> serde_json::Value {
@@ -119,7 +140,28 @@ pub struct VariantQueryRequest {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct VariantQueryResponse {
     pub meta: serde_json::Value,
+    /// Official Beacon v2 boolean/count summary (`responseSummary.exists`).
+    #[serde(rename = "responseSummary")]
+    pub response_summary: BeaconBooleanSummary,
+    /// Ferrum also emits `response.exists` so older clients keep working.
     pub response: VariantQueryResult,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct BeaconBooleanSummary {
+    pub exists: bool,
+}
+
+impl VariantQueryResponse {
+    pub fn from_parts(meta: serde_json::Value, exists: Option<bool>, count: Option<i64>) -> Self {
+        Self {
+            meta,
+            response_summary: BeaconBooleanSummary {
+                exists: exists.unwrap_or(count.unwrap_or(0) > 0),
+            },
+            response: VariantQueryResult { exists, count },
+        }
+    }
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -469,13 +511,11 @@ pub async fn query_variants(
 
                 current.map(|s| !s.is_empty()).unwrap_or(false)
             };
-            Ok(Json(VariantQueryResponse {
-                meta: beacon_meta_base(),
-                response: VariantQueryResult {
-                    exists: Some(exists),
-                    count: None,
-                },
-            }))
+            Ok(Json(VariantQueryResponse::from_parts(
+                beacon_meta_for_granularity(VariantGranularity::Boolean),
+                Some(exists),
+                None,
+            )))
         }
         VariantGranularity::Count => {
             let count = if filters_exprs.is_empty() {
@@ -603,13 +643,11 @@ pub async fn query_variants(
 
                 current.map(|s| s.len() as i64).unwrap_or(0)
             };
-            Ok(Json(VariantQueryResponse {
-                meta: beacon_meta_base(),
-                response: VariantQueryResult {
-                    exists: None,
-                    count: Some(count),
-                },
-            }))
+            Ok(Json(VariantQueryResponse::from_parts(
+                beacon_meta_for_granularity(VariantGranularity::Count),
+                None,
+                Some(count),
+            )))
         }
     }
 }
@@ -622,33 +660,29 @@ async fn run_pathogen_query(
     min_qscore: Option<f32>,
     granularity: Option<&str>,
 ) -> Result<VariantQueryResponse> {
-    let meta = beacon_meta_with_reference(state, None, organism).await;
-    match parse_granularity(granularity)? {
+    let gran = parse_granularity(granularity)?;
+    let mut meta = beacon_meta_with_reference(state, None, organism).await;
+    match gran {
+        VariantGranularity::Boolean => {}
+        VariantGranularity::Count => {
+            meta["returnedGranularity"] = serde_json::json!("count");
+            meta["receivedRequestSummary"]["requestedGranularity"] = serde_json::json!("count");
+        }
+    }
+    match gran {
         VariantGranularity::Boolean => {
             let exists = state
                 .repo
                 .pathogen_exists(organism, amr_gene, serotype, min_qscore)
                 .await?;
-            Ok(VariantQueryResponse {
-                meta,
-                response: VariantQueryResult {
-                    exists: Some(exists),
-                    count: None,
-                },
-            })
+            Ok(VariantQueryResponse::from_parts(meta, Some(exists), None))
         }
         VariantGranularity::Count => {
             let count = state
                 .repo
                 .pathogen_count(organism, amr_gene, serotype, min_qscore)
                 .await?;
-            Ok(VariantQueryResponse {
-                meta,
-                response: VariantQueryResult {
-                    exists: None,
-                    count: Some(count),
-                },
-            })
+            Ok(VariantQueryResponse::from_parts(meta, None, Some(count)))
         }
     }
 }

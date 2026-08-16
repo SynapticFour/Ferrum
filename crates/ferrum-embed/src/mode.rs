@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Backend selection: full production stack vs embedded Edge mode.
 
 use ferrum_core::FerrumConfig;

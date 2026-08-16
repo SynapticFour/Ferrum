@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Health check handler for readiness/liveness.
 
 use crate::clock::{clock_status, DEFAULT_MAX_SKEW_SECS, DEFAULT_NTP_HOST};

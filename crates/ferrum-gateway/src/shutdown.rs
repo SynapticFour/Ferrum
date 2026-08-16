@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Graceful shutdown coordinator for long-running streaming transfers.
 //!
 //! Lesson 9: in production (Kubernetes pod eviction, SLURM preemption) Ferrum must:

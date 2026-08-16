@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! DRS 1.4 API types (GA4GH schema).
 
 use ferrum_core::{AccessMethod, Checksum};

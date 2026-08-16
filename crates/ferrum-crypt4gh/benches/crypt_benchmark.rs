@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Crypt4GH encrypt throughput (64 KiB chunks — typical genomic segment size).
 //! Run on Pi 5: `cargo bench -p ferrum-crypt4gh --bench crypt_benchmark`
 //! With ARM flags from `.cargo/config.toml`, expect >500 MB/s when NEON is active.

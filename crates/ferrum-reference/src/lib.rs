@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Pluggable reference genome registry for Ferrum.
 
 pub mod handlers;

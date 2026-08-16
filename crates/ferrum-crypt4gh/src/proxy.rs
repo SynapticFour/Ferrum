@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Layer 2: Transparent DRS proxy — stream re-encrypt for requester, Tower middleware.
 
 use crate::encryption::{recipient_keys_from_pubkey, ChannelReader, ChannelWriter, KeyStore};

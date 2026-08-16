@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Local operator accounts for shared Edge devices (PIN + field role).
 
 use crate::error::{FerrumError, Result};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! DRS HTTP handlers.
 
 use crate::access::{check_object_byte_access, check_object_metadata_access};

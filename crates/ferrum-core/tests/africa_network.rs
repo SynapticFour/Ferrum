@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Solar/battery mode and residency audit chain tests.
 
 use ferrum_core::{

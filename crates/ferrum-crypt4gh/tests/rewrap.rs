@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use ferrum_crypt4gh::{
     recipient_keys_from_pubkey, stream_decrypt, stream_encrypt, stream_reencrypt, C4ghKeys,
 };

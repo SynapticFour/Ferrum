@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! JWT signing and JWKS export for Passport Broker / Visa Issuer.
 
 use crate::config::PassportConfig;

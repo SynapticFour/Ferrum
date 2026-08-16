@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use crate::error::{Result, WorkspaceError};
 use crate::types::{Workspace, WorkspaceActivityItem, WorkspaceInvite, WorkspaceMember};
 use chrono::Utc;

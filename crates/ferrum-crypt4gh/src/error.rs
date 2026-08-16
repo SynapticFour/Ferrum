@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Errors for ferrum-crypt4gh.
 
 use ferrum_core::FerrumError;

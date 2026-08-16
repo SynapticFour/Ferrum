@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Object storage backends: [`ObjectStorage`], [`LocalStorage`], [`S3Storage`].
 
 mod bandwidth;

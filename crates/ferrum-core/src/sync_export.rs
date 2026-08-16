@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Sneakernet export bundle: objects + ferrum-meta + audit slice for physical transfer.
 
 use crate::error::{FerrumError, Result};

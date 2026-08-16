@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Dedicated Rayon pool for blocking POSIX-style I/O.
 //!
 //! Lesson: `spawn_blocking` for POSIX file I/O — use a separate pool from Tokio's default.

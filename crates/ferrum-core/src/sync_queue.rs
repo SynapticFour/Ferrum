@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Edge sync queue: enqueue DRS objects for upstream hub upload (ADR-019).
 #![allow(clippy::type_complexity, clippy::too_many_arguments)]
 

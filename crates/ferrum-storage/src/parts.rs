@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Byte-range splitting for multipart uploads (pure logic, no AWS).
 
 /// Half-open byte ranges `[start, end)` covering `[0, total_len)`.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Database repository for WES runs.
 
 use crate::error::Result;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Power source detection and Ferrum operating modes for solar/battery deployments.
 
 use crate::config::PowerConfig;

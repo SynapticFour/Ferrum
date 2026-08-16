@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Workflow executor trait and process handle.
 
 use crate::error::Result;

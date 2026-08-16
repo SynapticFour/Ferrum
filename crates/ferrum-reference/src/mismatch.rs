@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! WES reference mismatch warnings for African population data.
 
 use crate::registry::ReferenceRegistry;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Part-planning for S3 multipart (no AWS I/O) — catches regressions in range splitting.
 
 use criterion::{criterion_group, criterion_main, Criterion};

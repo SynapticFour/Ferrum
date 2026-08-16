@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Integration tests for embedded / edge mode.
 
 use ferrum_core::{FerrumConfig, FerrumPool, IngestConfig};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! System clock integrity probe for field Edge nodes (NTP skew warning).
 
 use chrono::{DateTime, Utc};

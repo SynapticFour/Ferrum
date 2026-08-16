@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Minimal workspace helpers for DRS/WES integration: membership check only.
 
 use crate::error::Result;

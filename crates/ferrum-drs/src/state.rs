@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! App state for DRS (repo, optional storage for ingest, optional S3 presigner, optional provenance).
 //!
 //! **Crypt4GH integration:** When `storage_references.is_encrypted = true`, bytes are stored in

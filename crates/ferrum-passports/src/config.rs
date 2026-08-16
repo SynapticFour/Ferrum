@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Passport broker configuration from environment.
 
 pub struct PassportConfig {

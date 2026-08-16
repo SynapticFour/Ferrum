@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Outbreak Mode HTTP API (`/api/v1/outbreak/*`).
 
 use axum::extract::{Extension, Path, State};

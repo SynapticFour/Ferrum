@@ -1,0 +1,142 @@
+# Ferrum + ga4gh-infra co-deploy (Passport-on-DRS).
+# Not PR CI, not GA4GH certification. Same stack as `make up-pilot-local`.
+# HelixTest --mode ferrum+infra must pass (no skip-as-green).
+#
+# Local: make up-pilot-local && helixtest --all --mode ferrum+infra --profile ferrum-infra-pilot
+# See docs/HELIXTEST-INTEGRATION.md.
+
+name: ferrum+infra (HelixTest)
+
+on:
+  schedule:
+    - cron: "45 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: helixtest-ferrum-infra
+  cancel-in-progress: true
+
+env:
+  GATEWAY_BASE: http://localhost:8080
+  FERRUM_PUBLIC_BASE_URL: http://localhost:8080
+  GA4GH_BROKER_URL: http://127.0.0.1:8180
+  GA4GH_SERVICE_REGISTRY_URL: http://127.0.0.1:8183
+  RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1.91.1-bookworm
+  DEBIAN_RUNTIME_IMAGE: public.ecr.aws/docker/library/debian:bookworm-slim
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  helixtest-ferrum-infra:
+    if: github.actor != 'dependabot[bot]'
+    name: HelixTest (ferrum+infra)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Ferrum
+        uses: actions/checkout@v7
+      - uses: ./.github/actions/load-versions
+      - uses: ./.github/actions/clone-ga4gh-infra
+        with:
+          ref: ${{ env.GA4GH_INFRA_REF }}
+      - uses: ./.github/actions/clone-helixtest
+        with:
+          ref: ${{ env.HELIXTEST_REF }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install libsodium (HelixTest)
+        run: sudo apt-get update && sudo apt-get install -y libsodium-dev pkg-config jq
+
+      - name: Start Ferrum + ga4gh-infra (make up-pilot-local)
+        env:
+          RUST_BUILDER_IMAGE: ${{ env.RUST_BUILDER_IMAGE }}
+          DEBIAN_RUNTIME_IMAGE: ${{ env.DEBIAN_RUNTIME_IMAGE }}
+          GA4GH_INFRA_SRC: ${{ github.workspace }}/../ga4gh-infra
+        run: |
+          set -euo pipefail
+          test -d "$GA4GH_INFRA_SRC"
+          make up-pilot-local
+
+      - name: Wait for DRS seed and registry DRS entry
+        run: |
+          set -euo pipefail
+          echo "Waiting for DRS object test-object-1 (may need Bearer)…"
+          for i in $(seq 1 24); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.GATEWAY_BASE }}/ga4gh/drs/v1/objects/test-object-1" || echo "000")
+            if [ "$code" = "200" ] || [ "$code" = "401" ] || [ "$code" = "403" ]; then
+              echo "DRS endpoint responding HTTP $code"
+              break
+            fi
+            if [ "$i" -eq 24 ]; then
+              echo "DRS never responded (last HTTP $code)"
+              docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml logs ferrum-gateway 2>&1 | tail -80 || true
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "Waiting for service registry to list a DRS artifact…"
+          for i in $(seq 1 24); do
+            body=$(curl -sf "${{ env.GA4GH_SERVICE_REGISTRY_URL }}/services" || echo "[]")
+            if echo "$body" | jq -e '[.[] | .info.type.artifact // .type.artifact // empty | ascii_downcase] | any(. == "drs" or . == "drsservice")' >/dev/null; then
+              echo "Registry has DRS"
+              break
+            fi
+            if [ "$i" -eq 24 ]; then
+              echo "No DRS in registry after wait: $body"
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Build HelixTest
+        working-directory: helixtest-repo
+        run: cargo build --locked --release --bin helixtest
+
+      - name: Run HelixTest ferrum+infra
+        env:
+          WES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/wes/v1
+          TES_URL: ${{ env.GATEWAY_BASE }}/ga4gh/tes/v1
+          DRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/drs/v1
+          TRS_URL: ${{ env.GATEWAY_BASE }}/ga4gh/trs/v2
+          BEACON_URL: ${{ env.GATEWAY_BASE }}/ga4gh/beacon/v2
+          GATEWAY_BASE: ${{ env.GATEWAY_BASE }}
+          GA4GH_BROKER_URL: ${{ env.GA4GH_BROKER_URL }}
+          GA4GH_SERVICE_REGISTRY_URL: ${{ env.GA4GH_SERVICE_REGISTRY_URL }}
+        run: |
+          set -euo pipefail
+          ./helixtest-repo/target/release/helixtest \
+            --all --mode ferrum+infra --profile ferrum-infra \
+            --report json --fail-level 2 \
+            > helixtest-ferrum-infra-report.json
+          python3 - <<'PY'
+          import json, sys
+          doc = json.load(open("helixtest-ferrum-infra-report.json"))
+          tests = []
+          for svc in doc.get("services") or []:
+              tests.extend(svc.get("tests") or [])
+          statuses = {t.get("status") for t in tests}
+          names = [t.get("name") for t in tests]
+          print("tests:", names, "statuses:", statuses)
+          if not tests:
+              print("no infra tests in report", file=sys.stderr)
+              sys.exit(1)
+          if statuses != {"pass"}:
+              print("expected every infra test to pass (no skip/fail)", file=sys.stderr)
+              sys.exit(1)
+          if len(tests) < 4:
+              print("expected at least 4 infra checks", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+
+      - name: Upload ferrum+infra report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: helixtest-ferrum-infra-report
+          path: helixtest-ferrum-infra-report.json
+
+      - name: Stop stack
+        if: always()
+        run: make down-pilot-local || true

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! ONT ingest round-trip and Beacon pathogen filter integration tests.
 
 use ferrum_beacon::router;

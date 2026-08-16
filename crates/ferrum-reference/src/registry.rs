@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Reference genome registry database access.
 
 use crate::types::{

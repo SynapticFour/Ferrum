@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Solar/battery power mode middleware and emergency shutdown watcher.
 
 use axum::response::IntoResponse;

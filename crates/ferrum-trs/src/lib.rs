@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GA4GH Tool Registry Service (TRS) 2.0.1.
 
 pub mod error;

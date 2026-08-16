@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Live log streaming: broadcast channel per run and SSE.
 
 use serde::Serialize;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use crate::error::{OntError, Result};
 use crate::types::{OntFormat, OntIngestRequest, OntQualityMetrics};
 use serde_json::Value;

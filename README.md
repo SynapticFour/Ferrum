@@ -4,6 +4,7 @@
 
 [![CI](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml)
 [![Demo lifecycle](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
+[![ferrum+infra](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
 [![Rust 1.91](https://img.shields.io/badge/rust-1.91-orange.svg)](https://www.rust-lang.org/)
 
@@ -19,7 +20,7 @@ one gateway, your hardware. HelixTest demo-lifecycle CI is not GA4GH certificati
 
 ## SynapticFour GA4GH stack
 
-Ferrum is the **data/compute product** (BUSL). Who it is for: **[docs/IDENTITY.md](docs/IDENTITY.md)**. Portfolio (four products, not a bundle SKU): **[docs/PORTFOLIO.md](docs/PORTFOLIO.md)**. Stack map: **[docs/ECOSYSTEM.md](docs/ECOSYSTEM.md)**.
+Ferrum is the **data/compute product** (BUSL). Who it is for: **[docs/IDENTITY.md](docs/IDENTITY.md)**. Portfolio (four products, not a bundle SKU): **[docs/PORTFOLIO.md](docs/PORTFOLIO.md)**. GA4GH specs: **[docs/GA4GH.md](docs/GA4GH.md)** (published OpenAPI per standard). Ferrum utoipa dump (implementation map, not a replacement spec): **[docs/openapi/](docs/openapi/README.md)**. Stack map: **[docs/ECOSYSTEM.md](docs/ECOSYSTEM.md)**.
 
 ---
 
@@ -53,7 +54,7 @@ adopt it wholesale. But new deployments, research consortia building GA4GH-nativ
 infrastructure, and institutions preparing for EHDS obligations now have a starting
 point that didn't exist before.
 
-Ferrum is tested continuously — unit/integration tests and clippy in CI, a **demo-stack HelixTest** job (noop TES, auth skipped, stubs labeled NON-PILOT), a **nightly HelixTest auth-on** job (`pilot.toml`, stubs off), and a Docker TES + pilot smoke on `main`. Default demo compute is
+Ferrum is tested continuously — unit/integration tests and clippy in CI, a **demo-stack HelixTest** job (noop TES, auth skipped, stubs labeled NON-PILOT), a **nightly HelixTest auth-on** job (`pilot.toml`, stubs off), a **scheduled HelixTest ferrum+infra** job (`make up-pilot-local`, Passport-on-DRS), and a Docker TES + pilot smoke on `main`. Default demo compute is
 **TES noop** (API lifecycle only); use `make up-tes` for real local containers. Demo auth
 defaults are open (`require_auth=false`) — the clone path with auth on is `make eval` (HS256). Full AAI is `make up-pilot-local`. Do not treat `make up` as a pilot.
 

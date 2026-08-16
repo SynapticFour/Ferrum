@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GA4GH Passports & Visas (AAI) API: Passport Broker, Visa Issuer, JWKS, admin for visa grants.
 
 pub mod config;

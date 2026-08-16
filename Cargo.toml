@@ -23,6 +23,7 @@ members = [
     "crates/ferrum-reference",
     "crates/ferrum-discovery",
     "tools/ferrum-cli",
+    "tools/ferrum-openapi",
     "crates/ferrum-bench",
 ]
 

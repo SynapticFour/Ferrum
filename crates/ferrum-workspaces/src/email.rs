@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Email sending for workspace invites. Optional SMTP implementation via feature "email".
 
 use crate::error::Result;

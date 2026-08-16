@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GISAID metadata ingest storage tests.
 
 use ferrum_core::FerrumPool;

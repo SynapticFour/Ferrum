@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! HelixTest `--mode ferrum` uses synthetic `trs://` workflow URLs (see SynapticFour/HelixTest `framework/src/wes.rs`).
 //! Map those to expected WES outcomes without hitting real workflow engines.
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! ferrum-meta ↔ DRS binding tests.
 
 use ferrum_core::FerrumPool;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Outbreak download enforcement on DRS stream/access.
 
 use ferrum_core::{

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! htsget HTTP handlers (GA4GH htsget 1.3.0-style tickets over DRS stream).
 
 use crate::error::{htsget_error_response, HTSGET_JSON};
@@ -18,8 +19,9 @@ use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashSet;
 use std::sync::Arc;
+use utoipa::IntoParams;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct HtsgetGetQuery {
     pub format: Option<String>,
     pub class: Option<String>,
@@ -395,6 +397,11 @@ fn map_drs_err(e: ferrum_drs::error::DrsError) -> Response {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/reads/service-info",
+    responses((status = 200, description = "htsget reads service-info (region slicing not implemented)"))
+)]
 pub async fn reads_service_info() -> impl IntoResponse {
     let doc = json!({
         "id": "ferrum-htsget-reads",
@@ -417,6 +424,11 @@ pub async fn reads_service_info() -> impl IntoResponse {
     Json(doc)
 }
 
+#[utoipa::path(
+    get,
+    path = "/variants/service-info",
+    responses((status = 200, description = "htsget variants service-info (region slicing not implemented)"))
+)]
 pub async fn variants_service_info() -> impl IntoResponse {
     let doc = json!({
         "id": "ferrum-htsget-variants",
@@ -439,6 +451,16 @@ pub async fn variants_service_info() -> impl IntoResponse {
     Json(doc)
 }
 
+#[utoipa::path(
+    get,
+    path = "/reads/{id}",
+    params(("id" = String, Path, description = "DRS object id"), HtsgetGetQuery),
+    responses(
+        (status = 200, description = "htsget ticket; urls point at DRS /stream"),
+        (status = 400, description = "InvalidInput or UnsupportedFormat (including genomic region params)"),
+        (status = 404, description = "NotFound")
+    )
+)]
 pub async fn get_reads_ticket(
     State(state): State<Arc<HtsgetState>>,
     Path(id): Path<String>,
@@ -456,6 +478,16 @@ pub async fn get_reads_ticket(
     .await
 }
 
+#[utoipa::path(
+    get,
+    path = "/variants/{id}",
+    params(("id" = String, Path, description = "DRS object id"), HtsgetGetQuery),
+    responses(
+        (status = 200, description = "htsget ticket; urls point at DRS /stream"),
+        (status = 400, description = "InvalidInput or UnsupportedFormat (including genomic region params)"),
+        (status = 404, description = "NotFound")
+    )
+)]
 pub async fn get_variants_ticket(
     State(state): State<Arc<HtsgetState>>,
     Path(id): Path<String>,
@@ -515,6 +547,15 @@ async fn parse_post_ticket_body(
     Ok((body, auth))
 }
 
+#[utoipa::path(
+    post,
+    path = "/reads/{id}",
+    params(("id" = String, Path, description = "DRS object id")),
+    responses(
+        (status = 200, description = "htsget ticket; urls point at DRS /stream"),
+        (status = 400, description = "InvalidInput — including POST regions (Ferrum does not slice)")
+    )
+)]
 pub async fn post_reads_ticket(
     State(state): State<Arc<HtsgetState>>,
     Path(id): Path<String>,
@@ -525,6 +566,15 @@ pub async fn post_reads_ticket(
     ticket_for_object(&state, EndpointKind::Reads, &id, params, auth.as_ref()).await
 }
 
+#[utoipa::path(
+    post,
+    path = "/variants/{id}",
+    params(("id" = String, Path, description = "DRS object id")),
+    responses(
+        (status = 200, description = "htsget ticket; urls point at DRS /stream"),
+        (status = 400, description = "InvalidInput — including POST regions (Ferrum does not slice)")
+    )
+)]
 pub async fn post_variants_ticket(
     State(state): State<Arc<HtsgetState>>,
     Path(id): Path<String>,

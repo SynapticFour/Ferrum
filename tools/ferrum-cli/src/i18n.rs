@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! CLI localisation via `FERRUM_LANG` (`en`, `fr`, `de`).
 
 #![allow(dead_code)]

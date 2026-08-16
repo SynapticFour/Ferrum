@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, OntError>;

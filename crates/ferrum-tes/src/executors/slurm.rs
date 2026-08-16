@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Slurm executor: generate job script and submit via sbatch.
 
 use super::slurm_compat;

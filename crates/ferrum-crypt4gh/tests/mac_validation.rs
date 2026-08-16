@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use ferrum_crypt4gh::{recipient_keys_from_pubkey, stream_decrypt, stream_encrypt, C4ghKeys};
 use std::collections::HashSet;
 use std::path::PathBuf;

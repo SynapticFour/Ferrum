@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Data residency audit HTTP API (`/api/v1/audit/residency`).
 
 use axum::extract::{Extension, Query, State};

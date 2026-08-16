@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! No-op executor for demo/CI: marks tasks as complete immediately.
 
 use crate::error::Result;

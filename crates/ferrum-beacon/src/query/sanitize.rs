@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use crate::error::BeaconError;
 
 /// Sanitized / normalized query params for Beacon `variant_exists`.

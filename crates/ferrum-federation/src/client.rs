@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Federated Beacon query fan-out.
 
 use crate::rate_limit::PeerRateLimiter;

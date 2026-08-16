@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Slurm executor: submit via sbatch, poll via squeue, metrics via sacct after completion.
 //! When a job completes, sacct is run and results are inserted into task_metrics.
 

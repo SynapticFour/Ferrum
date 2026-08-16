@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Resumable chunked upload ingest (`POST /api/v1/ingest/upload/chunk`).
 
 use crate::checkpoint::{

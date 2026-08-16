@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Lab Kit–oriented versioned ingest API (`/api/v1/ingest/*`).
 //! Structured JSON errors: `code`, `message`, optional `details`.
 

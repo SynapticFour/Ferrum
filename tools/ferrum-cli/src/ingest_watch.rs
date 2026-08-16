@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Watch a MinKNOW output directory and register new reads with a running Ferrum gateway.
 
 use std::collections::HashSet;

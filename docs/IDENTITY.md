@@ -19,7 +19,7 @@ make eval        # auth-on local stack (HS256). Not a Passport/AAI pilot.
 make up          # NON-PILOT demo (require_auth=false, TES noop)
 ```
 
-Proof that the APIs behave: clone [HelixTest](https://github.com/SynapticFour/HelixTest) and run `helixtest --all --mode ferrum` against that stack. HelixTest is not GA4GH certification.
+Proof that the APIs behave: clone [HelixTest](https://github.com/SynapticFour/HelixTest) and run `helixtest --all --mode ferrum` against that stack. HelixTest is not GA4GH certification. It validates against the **published GA4GH OpenAPI** for each standard (vendored WES/TES/TRS/htsget). Ferrum’s own dump ([docs/openapi/ferrum.openapi.json](openapi/ferrum.openapi.json), `make openapi`) is an implementation map — gateway paths and Ferrum-only additions — not a replacement spec.
 
 ## Optional composition (more than the sum)
 
@@ -29,7 +29,7 @@ Proof that the APIs behave: clone [HelixTest](https://github.com/SynapticFour/He
 | Solum | Consent-gated DRS/WES | Ferrum `[solum]` HTTP client, **fail-closed**. Pin in `VERSIONS.lock` (`SOLUM_TAG`). Clinical extension of GA4GH Purpose/Consent on DRS/WES — not a second clinic product inside Ferrum |
 | HelixTest | Independent conformance | Separate repo, Apache-2.0 |
 | HELIOS | Signed pipeline/audit evidence | File ingest, not an API fabric |
-| BRA | Researcher workbench | Optional. Standalone BRA has its own DRS/WES. Join: BRA as GA4GH client (`FERRUM_DRS_URL` / `FERRUM_WES_URL`) |
+| BRA | Researcher workbench | Optional. Standalone BRA has its own DRS/WES. Join: BRA as GA4GH client (`FERRUM_DRS_URL` / `FERRUM_WES_URL`) against the published DRS/WES OpenAPI. Ferrum dump ([docs/openapi](openapi/ferrum.openapi.json)) only for Ferrum-only paths. Lab Kit profile `bra-companion` only sets those URLs. |
 
 See [ECOSYSTEM.md](ECOSYSTEM.md) for ports and lifecycle verbs. Portfolio map: [PORTFOLIO.md](PORTFOLIO.md). Continuity (one maintainer, no escrow): [GOVERNANCE.md](GOVERNANCE.md).
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! [`Database`] trait and embedded / production storage backends.
 
 use async_trait::async_trait;

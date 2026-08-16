@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! ADS token introspection client (ga4gh-infra integration).
 
 use serde::{Deserialize, Serialize};

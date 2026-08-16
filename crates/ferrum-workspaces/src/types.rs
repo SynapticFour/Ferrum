@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 

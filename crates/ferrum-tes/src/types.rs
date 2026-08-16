@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GA4GH TES 1.1 types.
 
 use serde::{Deserialize, Serialize};

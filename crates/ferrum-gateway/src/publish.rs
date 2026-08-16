@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Publish workspace-private DRS objects to the ADS catalog (institute/public).
 
 use axum::http::StatusCode;

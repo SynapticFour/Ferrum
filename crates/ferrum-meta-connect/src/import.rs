@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! CSV import for paper → digital metadata (Phase 2.7).
 
 use crate::init::InitParams;

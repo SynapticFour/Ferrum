@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Standalone Beacon binary. Build with: cargo run -p ferrum-beacon --features standalone
 //! Requires DATABASE_URL (PostgreSQL). Optional: BIND.
 

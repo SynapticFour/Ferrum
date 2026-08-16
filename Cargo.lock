@@ -2165,6 +2165,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ferrum-openapi"
+version = "0.3.1"
+dependencies = [
+ "ferrum-beacon",
+ "ferrum-cohorts",
+ "ferrum-crypt4gh",
+ "ferrum-drs",
+ "ferrum-htsget",
+ "ferrum-passports",
+ "ferrum-tes",
+ "ferrum-trs",
+ "ferrum-wes",
+ "utoipa",
+]
+
+[[package]]
 name = "ferrum-passports"
 version = "0.3.1"
 dependencies = [

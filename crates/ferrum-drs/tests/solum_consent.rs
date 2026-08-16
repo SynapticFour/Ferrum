@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! H2.1 Teeth: Solum consent gates DRS byte access when binding resolves.
 
 use ferrum_core::{auth::AuthClaims, FerrumPool, SolumConfig, SolumConsentClient};

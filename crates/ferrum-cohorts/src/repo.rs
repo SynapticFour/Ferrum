@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Database repository for cohorts and samples.
 
 use crate::error::Result;

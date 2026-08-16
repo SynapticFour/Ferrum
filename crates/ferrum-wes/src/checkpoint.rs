@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Workflow resume and checkpointing: task hash, cache lookup, and DRS-backed checkpoint storage.
 
 use crate::error::Result;

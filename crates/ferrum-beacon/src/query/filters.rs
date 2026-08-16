@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Beacon v2 filter evaluation helpers.
 //!
 //! Learned from EGA `beacon2-pi-api`: when an OR-filter spans different "collections"

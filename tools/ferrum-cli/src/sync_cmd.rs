@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Field sync queue CLI (ADR-019 / Phase 4).
 
 use ferrum_core::{

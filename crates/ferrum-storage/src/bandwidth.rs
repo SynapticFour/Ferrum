@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Rolling bandwidth estimation from recent DRS transfers.
 
 use ferrum_core::BandwidthConfig;

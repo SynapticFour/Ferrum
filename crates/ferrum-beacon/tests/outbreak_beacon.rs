@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use ferrum_beacon::{repo::BeaconRepo, router_with_outbreak};
 use ferrum_core::FerrumPool;
 use ferrum_core::{

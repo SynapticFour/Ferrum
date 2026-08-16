@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Nextflow executor (nextflow run). A03: workflow_params via --params-file only (no env/CLI injection).
 
 use crate::error::Result;

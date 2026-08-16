@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use axum::response::IntoResponse;
 use thiserror::Error;
 

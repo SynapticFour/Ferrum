@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! P2P federated Beacon queries without a central coordinator.
 
 pub mod client;

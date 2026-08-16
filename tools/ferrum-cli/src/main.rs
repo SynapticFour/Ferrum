@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Ferrum CLI for management and operations.
 
 mod auth_cmd;
@@ -5,6 +6,7 @@ mod backup_cmd;
 mod edge_update;
 mod i18n;
 mod ingest_watch;
+mod meta_export;
 mod meta_import;
 mod meta_init;
 mod pipeline_cmd;
@@ -206,13 +208,21 @@ enum MetaAction {
         #[arg(long)]
         output: PathBuf,
     },
-    /// Write a GHGA or EGA starter bundle (validate with ferrum-meta afterwards)
+    /// Export a GHGA or EGA bundle from live Ferrum DRS (or --starter fixtures)
     Export {
         /// Profile: ghga or ega
         #[arg(long)]
         profile: String,
         #[arg(long)]
         output: PathBuf,
+        /// Write the canned fixture instead of listing DRS on a running gateway
+        #[arg(long)]
+        starter: bool,
+        #[arg(long, default_value = "http://127.0.0.1:8080")]
+        base_url: String,
+        /// Bearer for auth-on gateways (else TEST_BEARER / FERRUM_BEARER)
+        #[arg(long)]
+        bearer: Option<String>,
     },
 }
 
@@ -589,31 +599,27 @@ async fn run_cli() -> Result<(), CliExit> {
                 meta_import::run_meta_import(parsed, &csv, &output)
                     .map_err(CliExit::RuntimeFailed)?;
             }
-            MetaAction::Export { profile, output } => {
-                let body = match profile.to_ascii_lowercase().as_str() {
-                    "ghga" => {
-                        include_str!("../../../profiles/meta/fixtures/ghga-minimal-submission.yaml")
-                    }
-                    "ega" => {
-                        include_str!("../../../profiles/meta/fixtures/ega-minimal-submission.yaml")
-                    }
-                    other => {
-                        return Err(CliExit::RuntimeFailed(format!(
-                            "unknown export profile `{other}` (use ghga or ega). core/pathogen/h3africa: ferrum meta init"
-                        )));
-                    }
-                };
-                if let Some(parent) = output.parent() {
-                    if !parent.as_os_str().is_empty() {
-                        std::fs::create_dir_all(parent)
-                            .map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
-                    }
-                }
-                std::fs::write(&output, body).map_err(|e| CliExit::RuntimeFailed(e.to_string()))?;
-                eprintln!(
-                    "wrote {output} — replace aliases/checksums, then: ferrum-meta/scripts/validate-fixture.sh {output}",
-                    output = output.display()
-                );
+            MetaAction::Export {
+                profile,
+                output,
+                starter,
+                base_url,
+                bearer,
+            } => {
+                let bearer = bearer.or_else(|| {
+                    std::env::var("TEST_BEARER")
+                        .ok()
+                        .or_else(|| std::env::var("FERRUM_BEARER").ok())
+                });
+                meta_export::run_meta_export(meta_export::ExportOpts {
+                    profile,
+                    output,
+                    starter,
+                    base_url,
+                    bearer,
+                })
+                .await
+                .map_err(CliExit::RuntimeFailed)?;
             }
         },
         Commands::Sync { action } => match action {

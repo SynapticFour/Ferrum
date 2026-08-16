@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Federated Beacon integration tests.
 
 use axum::{routing::post, Json, Router};

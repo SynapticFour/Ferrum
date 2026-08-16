@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use crate::error::{Result, WorkspaceError};
 use crate::repo::WorkspaceRepo;
 use crate::types::{Workspace, WorkspaceRole};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Append-only cryptographically chained data residency audit log.
 //! Timestamps in the hash are microsecond Zulu so Postgres timestamptz round-trips
 //! match (`to_rfc3339()` nanos / `+00:00` vs `Z` used to break `chain_valid`).

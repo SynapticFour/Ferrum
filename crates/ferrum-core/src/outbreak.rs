@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Outbreak Mode: policy activation, emergency Beacon access, audit trail, GISAID packaging.
 
 use crate::config::{OutbreakConfig, OutbreakPolicy};

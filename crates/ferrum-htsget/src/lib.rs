@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! GA4GH htsget 1.3.0-style tickets backed by DRS.
 //!
 //! Ticket endpoints resolve a DRS object (same DB as DRS), enforce dataset auth like DRS, and
@@ -24,11 +25,21 @@ pub struct HtsgetState {
 }
 
 #[derive(OpenApi)]
-#[openapi(info(
-    title = "Ferrum htsget",
-    description = "GA4GH htsget tickets (whole-object DRS stream; region slicing not implemented)",
-    version = "1.3.0"
-))]
+#[openapi(
+    info(
+        title = "Ferrum htsget",
+        description = "GA4GH htsget tickets (whole-object DRS stream; region slicing not implemented)",
+        version = "1.3.0"
+    ),
+    paths(
+        handlers::reads_service_info,
+        handlers::variants_service_info,
+        handlers::get_reads_ticket,
+        handlers::get_variants_ticket,
+        handlers::post_reads_ticket,
+        handlers::post_variants_ticket,
+    )
+)]
 pub struct HtsgetApiDoc;
 
 /// htsget router. Mount at `/ga4gh/htsget/v1` in the gateway.

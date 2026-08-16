@@ -24,6 +24,8 @@ High public quality bar. Not sold. They make Synaptic Four visible.
 | [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI against a running target (not a server) |
 | [HELIOS](https://github.com/SynapticFour/HELIOS) | Signed pipeline/audit evidence (`helios-audit` on PyPI). File ingest — does **not** orchestrate Ferrum or Solum |
 
+Third-party CI wrapper for HelixTest (same ambassador, not a SKU): [helixtest-action](https://github.com/SynapticFour/helixtest-action) (`v0.1.1` binaries). HelixTest validates against **published GA4GH OpenAPI**; Ferrum’s utoipa dump is an implementation map only.
+
 ## Comes with Ferrum (not sold separately)
 
 | Repo | Role |
@@ -55,10 +57,10 @@ Tests live **in each product** (`make prove`). There is no Solum-Test repo. Heli
 |-----------|------|
 | Ferrum → ga4gh-infra | Passports / clearinghouse (`[auth] mode = "external"`) |
 | Ferrum → Solum | Consent-gated DRS/WES (HTTP, fail-closed) |
-| BRA → Ferrum | GA4GH DRS/WES client when `FERRUM_DRS_URL` / `FERRUM_WES_URL` are set |
+| BRA → Ferrum | GA4GH DRS/WES client when `FERRUM_DRS_URL` / `FERRUM_WES_URL` are set. Contract is the published DRS/WES OpenAPI |
 | BRA → Solum | Optional subject-link HTTP |
 | HELIOS → Solum | JSON export file on disk |
 | Lab Kit → Ferrum | SHA-pinned image + `FERRUM_SERVICES__ENABLE_*` |
-| HelixTest → Ferrum / infra | HTTP conformance against a running stack |
+| HelixTest → Ferrum / infra | HTTP conformance against a running stack; schemas are the **published GA4GH OpenAPI** (vendored). Ferrum [utoipa dump](openapi/ferrum.openapi.json) is gateway/extension map only |
 
 See each repo `docs/IDENTITY.md` for audience / not-for / standalone prove.

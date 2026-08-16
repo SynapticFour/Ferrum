@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Field analysis pipeline configuration and helpers (Phase 5 / T5).
 
 use serde::Deserialize;

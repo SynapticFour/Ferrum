@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Deterministic manifest generation from FHIR NPM package tarballs (`.tgz`).
 
 use crate::{MiiModule, ProfileManifest, ProfilePackage, ResourceRule};

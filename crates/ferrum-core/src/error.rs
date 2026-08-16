@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Error types for Ferrum using thiserror, with axum IntoResponse.
 
 use axum::{

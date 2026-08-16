@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Offline validation for [ferrum-meta](https://github.com/SynapticFour/ferrum-meta) submissions.
 //!
 //! Structural subset of vendored LinkML YAML under `profiles/meta/schema/`

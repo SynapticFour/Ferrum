@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Auth middleware: JWT validation (jsonwebtoken), GA4GH Passport extraction, Bearer + cookie. A07: revocation check.
 
 use async_trait::async_trait;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! WES 1.1 API types.
 
 use serde::{Deserialize, Serialize};

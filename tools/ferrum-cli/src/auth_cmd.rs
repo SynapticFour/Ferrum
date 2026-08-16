@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Edge operator account management and local login tokens.
 
 use ferrum_core::{

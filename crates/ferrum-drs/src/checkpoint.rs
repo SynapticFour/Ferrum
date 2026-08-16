@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Chunked transfer checkpointing for bandwidth-adaptive DRS transfers.
 
 use ferrum_core::pool::FerrumPool;

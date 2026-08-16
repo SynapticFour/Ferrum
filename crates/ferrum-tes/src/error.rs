@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! TES errors.
 
 use axum::response::IntoResponse;

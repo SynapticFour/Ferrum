@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Blocking I/O helpers (POSIX / HPC-oriented).
 //!
 //! Lesson: dedicated thread pool for blocking filesystem work.

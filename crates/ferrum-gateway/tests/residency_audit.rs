@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Residency audit HTTP and event wiring tests.
 
 use axum::http::{Method, Request, StatusCode};

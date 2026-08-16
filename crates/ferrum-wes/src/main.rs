@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Standalone WES binary. Build with: cargo run -p ferrum-wes --features standalone
 //! Requires DATABASE_URL (PostgreSQL). Optional: WES_WORK_DIR, BIND (default 0.0.0.0:8083).
 

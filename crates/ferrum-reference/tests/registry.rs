@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Reference registry seeded entries and load API.
 
 use axum::body::Body;

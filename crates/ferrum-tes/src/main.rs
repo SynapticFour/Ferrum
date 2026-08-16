@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Standalone TES binary. Build with: cargo run -p ferrum-tes --features standalone
 //! Requires DATABASE_URL (PostgreSQL). Optional: TES_BACKEND (podman|slurm), TES_WORK_DIR, BIND.
 

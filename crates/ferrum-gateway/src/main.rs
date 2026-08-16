@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Ferrum API Gateway binary: single entrypoint for all GA4GH services.
 
 use clap::{Parser, Subcommand};

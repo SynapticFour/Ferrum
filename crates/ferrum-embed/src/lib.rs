@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Embedded backends for offline-first / laptop Ferrum deployments.
 
 mod bootstrap;

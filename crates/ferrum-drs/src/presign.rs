@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! S3-compatible presigned URL generation (optional feature).
 
 use crate::error::Result;

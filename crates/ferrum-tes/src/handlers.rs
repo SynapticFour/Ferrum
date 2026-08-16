@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! TES 1.1 HTTP handlers.
 
 use crate::error::{Result, TesError};

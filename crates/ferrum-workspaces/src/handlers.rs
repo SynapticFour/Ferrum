@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use crate::error::{Result, WorkspaceError};
 use crate::extract::RequireAuth;
 use crate::guard;

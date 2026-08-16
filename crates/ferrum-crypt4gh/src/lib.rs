@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Ferrum Crypt4GH: encryption, transparent DRS proxy, policy engine, key distribution.
 
 pub mod encryption;

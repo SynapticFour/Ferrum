@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Normalization of `drs_access_methods.access_url` JSONB for resolving download URLs.
 //!
 //! Write paths (create/ingest) store either a JSON string or a GA4GH-style object

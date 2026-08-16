@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! API Gateway: merges all GA4GH service routers under standard paths.
 //! A01: Auth middleware on every request. A05: Security headers, CORS from config.
 

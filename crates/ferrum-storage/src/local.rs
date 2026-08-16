@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Local filesystem storage.
 
 use crate::ObjectStorage;

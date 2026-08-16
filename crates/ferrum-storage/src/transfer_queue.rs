@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Priority transfer queue for bandwidth-constrained deployments.
 
 use crate::bandwidth::{BandwidthClass, BandwidthMonitor};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use crate::error::{Result, TrsError};
 use crate::repo::TrsRepo;
 use crate::types::*;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use bytes::Bytes;
 use criterion::{criterion_group, criterion_main, Criterion};
 use crypt4gh::reencrypt;

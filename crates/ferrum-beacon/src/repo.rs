@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 use crate::error::Result;
 use ferrum_core::{
     chromosomes_json, sql_beacon_variant_count_coord, sql_beacon_variant_count_exact,

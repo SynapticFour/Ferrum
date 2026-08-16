@@ -44,6 +44,8 @@ jobs:
           command: cargo clippy --workspace --all-targets -- -D warnings
       - name: Prove (offline)
         run: make prove
+      - name: OpenAPI drift (named for the Actions UI)
+        run: make openapi-check
       - name: Federated access smoke (ADS proxy + DRS/WES gates)
         run: bash deploy/scripts/ci-federated-e2e.sh
       - name: Run MII Connect validation (optional)

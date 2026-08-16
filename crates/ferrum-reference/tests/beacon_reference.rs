@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Beacon pathogen query reference genome metadata.
 
 use axum::http::{Method, Request, StatusCode};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Sample process CPU/memory for metrics (sysinfo, cross-platform).
 //! Used by local executors to record_task_sample every 30s.
 

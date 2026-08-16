@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! A03/A08: workflow_url validation, SSRF URL validation.
 
 #[cfg(test)]

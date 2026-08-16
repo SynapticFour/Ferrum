@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Cohort Browser API: named versioned sample collections with phenotype, DRS, Beacon, WES integration.
 
 pub mod error;

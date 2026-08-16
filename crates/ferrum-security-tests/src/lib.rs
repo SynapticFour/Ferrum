@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! OWASP security integration tests: A01 (auth/IDOR), A03 (injection), A07 (token/revocation), A10 (SSRF).
 
 pub mod ssrf;

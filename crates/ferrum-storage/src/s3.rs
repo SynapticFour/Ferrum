@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! S3-compatible storage with multipart upload for large payloads.
 
 use crate::parts::split_into_part_ranges;

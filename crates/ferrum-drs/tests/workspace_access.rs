@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Workspace-scoped private DRS access (no ADS until publish).
 
 use ferrum_core::{auth::AuthClaims, FerrumPool};

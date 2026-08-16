@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! Docker executor via bollard.
 //! GA4GH demo: volume binds from the task (WES symmetric workdir), docker.sock, static docker CLI,
 //! compose network mode, and explicit executor entrypoint/cmd (Cromwell / Nextflow).

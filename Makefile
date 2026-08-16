@@ -14,7 +14,7 @@ export FERRUM_WES_TES_WORK_HOST_PREFIX
 DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
 export DOCKER_BIN
 
-.PHONY: help up eval down-eval down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated test prove
+.PHONY: help up eval down-eval down destroy demo stop clean clean-all logs pull build rebuild rebuild-gateway edge laptop up-pilot up-pilot-local down-pilot down-pilot-local up-pilot-cloud down-pilot-cloud up-tes seed-pilot smoke-pilot verify-parity ui-parity ui-parity-fly ui-parity-tes ui-parity-pilot-cloud test-demo test-tes test-tes-full test-pilot test-pilot-local test-pilot-cloud test-federated test prove openapi openapi-check spdx-check
 
 # Synaptic Four unified local lifecycle: up → down → destroy
 help:
@@ -22,7 +22,8 @@ help:
 	@echo ""
 	@echo "  make eval      Auth-on clone path (HS256; no sibling infra)"
 	@echo "  make up        Start demo stack (NON-PILOT, auth off; alias: make demo)"
-	@echo "  make prove     Zero-risk proof: cargo test (no Docker)"
+	@echo "  make prove     Zero-risk proof: cargo test (no Docker); includes OpenAPI drift check"
+	@echo "  make openapi   Regenerate docs/openapi/ferrum.openapi.json from utoipa"
 	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
 	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF+ref bundle to MinIO (stack must be running)"
 	@echo "  make smoke-pilot Local smoke after up-tes (health, Crypt4GH, lineage, cohort, CWL + optional germline WES)"
@@ -61,7 +62,19 @@ test:
 	cargo test --workspace --all-targets
 
 prove: test
-	@echo "Ferrum prove OK. Auth-on: make eval. NON-PILOT demo: make up"
+	$(MAKE) openapi-check
+	$(MAKE) spdx-check
+	@echo "Ferrum prove OK (OpenAPI + SPDX). Auth-on: make eval. NON-PILOT demo: make up"
+
+# Committed implementation map (utoipa). GA4GH source of truth is each standard’s published OpenAPI (docs/GA4GH.md).
+openapi:
+	cargo run -p ferrum-openapi -- docs/openapi/ferrum.openapi.json
+
+openapi-check:
+	cargo run -p ferrum-openapi -- --check docs/openapi/ferrum.openapi.json
+
+spdx-check:
+	python3 scripts/spdx-rs.py . --license BUSL-1.1 --check
 
 # Demo + Docker TES: workflow engine images (pinned tags; amd64 on Apple Silicon).
 TES_PLATFORM ?= linux/amd64

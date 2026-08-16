@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: BUSL-1.1
 //! `ferrum meta import` — CSV to ferrum-meta YAML.
 
 use ferrum_meta_connect::{import_csv_to_submission, submission_to_yaml, MetaProfile};
