@@ -30,7 +30,7 @@ This section is the **single place** in the Ferrum repo that maps **GitHub Actio
 | **HelixTest (core services)** | Same stack | Per-service `--only` steps | Fast feedback in the Actions UI. |
 | **DRS /stream microbench** | Same stack | `deploy/scripts/ci-drs-microbench-stream.sh` (after gateway healthy) | **Fast path** (no HelixTest): plaintext **`microbench-plain-v1`** stream, **4096** bytes, SHA-256 check, **`X-Ferrum-DRS-Stream-Path`**. Catches DRS stream / MinIO seed regressions before heavy suites. |
 
-HelixTest is cloned from GitHub on each run; the ref is **`HELIXTEST_REF`** / **`HELIXTEST_SHA`** in `VERSIONS.lock` (tag **`v0.1.1`**). Auth-heavy Level‑4 behaviour is skipped in demo CI as documented below. CI does **not** rewrite HelixTest expected checksums.
+HelixTest is cloned from GitHub on each run; the ref is **`HELIXTEST_REF`** / **`HELIXTEST_SHA`** in `VERSIONS.lock` (tag **`v0.1.2`**). Auth-heavy Level‑4 behaviour is skipped in demo CI as documented below. CI does **not** rewrite HelixTest expected checksums.
 
 ### Workflow: [`.github/workflows/helixtest-ferrum-infra.yml`](../.github/workflows/helixtest-ferrum-infra.yml)
 
@@ -227,7 +227,7 @@ Ferrum’s CI runs HelixTest **on every push and pull request** to `main`/`maste
    - **`Run HelixTest (htsget only)`** — `--only htsget` (separate Actions step for isolated failures)
    htsget is also run in job 1 via `--all` (service-info, GET/POST tickets, DRS stream path in `urls[0]`, error codes, optional dataset-auth via env).
 
-Both jobs clone HelixTest from GitHub. The ref is **`HELIXTEST_REF`** in `VERSIONS.lock` (tag **`v0.1.1`**; SHA in `HELIXTEST_SHA`).
+Both jobs clone HelixTest from GitHub. The ref is **`HELIXTEST_REF`** in `VERSIONS.lock` (tag **`v0.1.2`**; SHA in `HELIXTEST_SHA`).
 
 You can adjust `--fail-level` (e.g. `2`) in the workflow for stricter gating.
 

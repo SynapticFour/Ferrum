@@ -18,6 +18,10 @@ All notable changes to this project will be documented in this file. The format 
 - **`ferrum meta export`** — default lists live DRS objects (`drs_id` / checksums). `--starter` writes the canned GHGA/EGA fixture. Empty node → `files: []`, not a fake submission.
 - **[docs/GOVERNANCE.md](docs/GOVERNANCE.md)** — one maintainer, no escrow.
 
+### Changed
+
+- **HelixTest pin** — `HELIXTEST_REF=v0.1.2` (official DRS/Beacon schemas; ferrum+infra fail-not-skip).
+
 ## [0.3.1] - 2026-08-16
 
 Patch so Ferrum-GA4GH-Demo can pin **stock** Ferrum (no `vendor/ferrum-overlay`). Crate versions match tag `v0.3.1`.
