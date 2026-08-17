@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed
 
+- **Docker TES image build** — `ferrum-htsget` uses `utoipa-swagger-ui` 6 (vendored zip) instead of 7 (GitHub download at compile). CI `tes-docker` no longer fails on a truncated swagger-ui zip.
+- **NON-PILOT DRS checksum** — `init-demo.sh` writes `test-object-1` bytes to a file before hashing and aborts on empty/`e3b0c442…`. A failed curl no longer seeds the empty-file digest while HelixTest downloads the real README.
 - **DRS JSON vs official OpenAPI** — omit unset optional fields (`version`, `contents`, `AccessMethod.region`, …) instead of `null`; `created_time` / `updated_time` are RFC3339 (`…Z`), not chrono `Display`. HelixTest v0.1.2 fail-level 2 was a schema miss, not a WES-QUEUED flake.
 - **ferrum+infra fail-level** — five infra tests passed on `a89a01b3` including Passport-on-DRS; HelixTest still exited 1 because overall level is 0 without a Level 0 test. Pin `4a10e12`. Workflow still parses the JSON if HelixTest exits non-zero.
 - **ferrum+infra aai-broker** — pass `REGISTRY_BOOTSTRAP_API_KEY` (same value as visa-registry). Tagged broker defaults visa sources to `required=true` and reads that env at startup; missing it exits before `/service-info`. PEM 644 was a different, earlier crash.

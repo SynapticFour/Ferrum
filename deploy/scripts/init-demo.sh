@@ -208,8 +208,21 @@ echo "Seeding demo data (DRS, workspace)..."
 
 # HelixTest strict DRS checksum validation expects `test-object-1` to expose a
 # sha256 checksum matching the bytes downloaded from its `access_url.url`.
+# Do not pipe curl into sha256sum: a failed fetch hashed empty bytes (e3b0c442…)
+# while HelixTest later downloaded the real README (~6 KiB).
 TEST_OBJECT_1_ACCESS_URL="https://raw.githubusercontent.com/ga4gh/data-repository-service-schemas/master/README.md"
-TEST_OBJECT_1_SHA256="$(curl -fsSL "$TEST_OBJECT_1_ACCESS_URL" | sha256sum | awk '{print $1}')"
+TEST_OBJECT_1_BODY="${TMPDIR:-/tmp}/ferrum-test-object-1.body"
+curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors -o "$TEST_OBJECT_1_BODY" "$TEST_OBJECT_1_ACCESS_URL"
+if [ ! -s "$TEST_OBJECT_1_BODY" ]; then
+  echo "ERROR: empty download for test-object-1 from $TEST_OBJECT_1_ACCESS_URL" >&2
+  exit 1
+fi
+TEST_OBJECT_1_SHA256="$(sha256sum "$TEST_OBJECT_1_BODY" | awk '{print $1}')"
+if [ "$TEST_OBJECT_1_SHA256" = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
+  echo "ERROR: test-object-1 sha256 is the empty-file digest; download failed" >&2
+  exit 1
+fi
+echo "test-object-1 sha256=${TEST_OBJECT_1_SHA256}"
 PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<'SEED'
 -- DRS: existing + BAM/VCF-style examples (URLs to public test data)
 INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
