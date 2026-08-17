@@ -2,6 +2,8 @@
 
 Ferrum is licensed under **BUSL-1.1** (Business Source License). The full legal text is in the repository **[LICENSE](../LICENSE)**. **Change Date:** four years from each **version’s** release; **Change License:** **Apache-2.0** (same delayed-open pattern as documented in the license file).
 
+How to obtain a **written commercial license**, and that there is **no combo SKU**: **[COMMERCIAL.md](COMMERCIAL.md)**.
+
 This page is **high-level guidance**, not legal advice. **Only the `LICENSE` file and your written agreements with Synaptic Four** determine your rights and obligations. Laws differ by **country and region**; universities, companies, and public bodies should **consult qualified counsel** where use touches export controls, tax, employment, or sector-specific rules. For commercial use, redistribution, or SaaS, contact **Synaptic Four** via [github.com/SynapticFour](https://github.com/SynapticFour) or the channels listed in `LICENSE`.
 
 **Illustrative examples** below (e.g. “typically covers universities”) describe common situations only; they **do not** extend or narrow the license text.

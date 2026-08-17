@@ -32,7 +32,12 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
 
+- **Clone path** — README Quick Start leads with `make eval` (`require_auth=true`, HS256). `make up` stays NON-PILOT. Images: GHCR `:edge`, not GitHub Release tag `v0.3.1` Docker.
 - **HelixTest pin** — `HELIXTEST_SHA=4a10e12` (infra broker service-info is Level 0 so `--fail-level 2` is reachable). Last tag remains `v0.1.2`.
+
+### Added
+
+- **[docs/COMMERCIAL.md](docs/COMMERCIAL.md)** — how to request a written commercial license. Four products, no combo SKU. Not a signed grant in-repo.
 
 ## [0.3.1] - 2026-08-16
 

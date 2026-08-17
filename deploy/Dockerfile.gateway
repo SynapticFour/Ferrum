@@ -18,6 +18,8 @@ COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
 COPY tools ./tools
 COPY third_party ./third_party
+# Required at compile time: ferrum-meta-connect / ferrum-cli include_str! these YAML
+# files. Tag v0.3.1 GitHub Release failed when this COPY was missing. Do not drop it.
 COPY profiles ./profiles
 COPY deploy/scripts/clone-ga4gh-infra.sh /tmp/clone-ga4gh-infra.sh
 COPY deploy/scripts/gateway-build-flags.sh /tmp/gateway-build-flags.sh

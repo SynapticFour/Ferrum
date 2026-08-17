@@ -49,7 +49,7 @@ Tests live **in each product** (`make prove`). There is no Solum-Test repo. Heli
 
 **Maintainer:** public git history on these products is one human (Synaptic Four). A second committer is a hiring/process item, not a README claim. Details: [GOVERNANCE.md](GOVERNANCE.md).
 
-**Support SKUs** (not a suite discount): [Showcase support tiers](https://github.com/SynapticFour/SynapticFour-Showcase/blob/main/docs/for-customers/support-tiers.md) — Ferrum / Solum / BRA licenses plus optional support; ga4gh-infra is Apache (support optional); Lab Kit included with Ferrum; ambassadors 0 €.
+**Support SKUs** (not a suite discount): [Showcase support tiers](https://github.com/SynapticFour/SynapticFour-Showcase/blob/main/docs/for-customers/support-tiers.md) — Ferrum / Solum / BRA licenses plus optional support; ga4gh-infra is Apache (support optional); Lab Kit included with Ferrum; ambassadors 0 €. Written commercial license: [COMMERCIAL.md](COMMERCIAL.md).
 
 ## Optional joins (standards, not a monorepo)
 

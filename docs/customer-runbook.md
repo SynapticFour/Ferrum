@@ -1,6 +1,6 @@
 # Ferrum — Installations- und Betriebshandbuch
 
-Kurzanleitung für IT-Betrieb und Forschungs-IT. Technische Details: [GitHub Releases](https://github.com/SynapticFour/Ferrum/releases).
+Kurzanleitung für IT-Betrieb und Forschungs-IT. Images: `ghcr.io/synapticfour/ferrum:edge` (HEAD). GitHub Release **Tag** `v0.3.1` ist nicht der aktuelle Docker-Stand (`profiles/meta` fehlte dort). Auth-on Clone: `make eval`. Commercial: [COMMERCIAL.md](COMMERCIAL.md).
 
 ---
 

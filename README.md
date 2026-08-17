@@ -71,7 +71,7 @@ Ferrum is intended for on-premises research and clinical-adjacent deployments. D
 
 Fail-closed behaviour (unless the demo flags above are set): JWT/Passport required when `require_auth` is on; admin APIs always require an admin visa; TES request bind-mounts require an operator prefix allowlist; htsget **rejects** genomic region queries rather than returning the whole object; WES `ferrum_backend=lsf` errors (LSF is not implemented). Full matrix: **[docs/OPERATOR-TRUST.md](docs/OPERATOR-TRUST.md)**.
 
-Questions, pilots, or commercial licensing: [contact@synapticfour.com](mailto:contact@synapticfour.com)
+Questions, pilots, or a **written commercial license** (per product, no combo SKU): [docs/COMMERCIAL.md](docs/COMMERCIAL.md) · [contact@synapticfour.com](mailto:contact@synapticfour.com)
 
 ---
 
@@ -188,11 +188,18 @@ See [docs/AFRICA-DEPLOYMENT.md](docs/AFRICA-DEPLOYMENT.md) for resource requirem
 
 Open **http://localhost:8082** for the UI. The gateway API is available at **http://localhost:8080**.
 
-From a clone (without the `ferrum` CLI installer), the same stack is available via **Make**:
+From a clone (without the `ferrum` CLI installer), **start here** — auth on, no `pilot.toml` to read:
+
+```bash
+make eval    # require_auth=true (HS256). Not ga4gh-infra Passports.
+make down-eval
+```
+
+`ferrum demo start` / `make up` stay **NON-PILOT** (`require_auth=false`, TES noop):
 
 ```bash
 make prove   # cargo test --workspace --all-targets (no Docker)
-make up      # start demo (alias: make demo) — TES noop; auth off (NON-PILOT)
+make up      # demo — TES noop; auth off (NON-PILOT). Not a pilot.
 make up-tes  # demo + Docker-backed TES (real containers locally; not default)
 make seed-pilot   # optional: real BAM+VCF on MinIO (after stack is up)
 make smoke-pilot  # smoke: lineage, preview, cohort, WES submit
@@ -200,7 +207,7 @@ make down    # stop; keep volumes
 make destroy # stop; remove volumes and project images
 ```
 
-Pilot auth and compute expectations: [docs/customer-runbook.md](docs/customer-runbook.md).
+Images: `ghcr.io/synapticfour/ferrum:edge` (HEAD). Do not treat GitHub Release **tag** `v0.3.1` Docker as current — that tag omitted `profiles/meta`. Pilot auth and compute: [docs/customer-runbook.md](docs/customer-runbook.md). Commercial use: [docs/COMMERCIAL.md](docs/COMMERCIAL.md).
 
 ### Stop / tear down
 
