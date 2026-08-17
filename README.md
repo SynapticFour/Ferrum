@@ -8,7 +8,7 @@
 
 On-premises GA4GH data/compute plane in Rust: DRS, WES, TES, TRS, Beacon v2, htsget, Passports, Crypt4GH — one gateway.
 
-**Maturity: Active (beta).** One maintainer. No third-party audit. HelixTest CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. Latest tag **v0.3.2**. Suite consumers still pin **v0.3.1** until that join is bumped.
+**Maturity: Active (beta).** One maintainer. No third-party audit. HelixTest CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. Latest tag **v0.3.2**. Suite consumers pin **v0.3.2**.
 
 > This README describes technical capabilities, not legal advice. GDPR, NIS2, EHDS, HIPAA, and similar frameworks depend on the operator’s legal basis, configuration, and organisational measures.
 

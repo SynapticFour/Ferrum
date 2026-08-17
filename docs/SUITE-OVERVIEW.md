@@ -4,7 +4,7 @@ These ten public repositories are from the same organisation (Synaptic Four) and
 
 Composition is pin-based: consumers declare which tag or SHA of another repository they use. That join is not sold as one SKU. HelixTest is a related Apache conformance CLI; it is not one of these ten repositories.
 
-**Pin join:** the latest Ferrum git tag is **v0.3.2**. Suite consumers (Demo, Lab Kit, Showcase, ga4gh-infra, BRA optional proxy) still pin **v0.3.1** until that join is bumped. A green laptop run against a pin is not proof of Ferrum `main`.
+**Pin join:** suite consumers (Demo, Lab Kit, Showcase, ga4gh-infra, BRA optional proxy) pin Ferrum **v0.3.2**. A green laptop run against that pin is not proof of Ferrum `main`.
 
 ## Maturity labels
 

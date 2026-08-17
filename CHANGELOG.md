@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [0.3.2] - 2026-08-17
 
-Patch so Docker TES image builds and NON-PILOT DRS checksums pass on GitHub-hosted CI. Crate versions match tag `v0.3.2`. **Suite consumers stay on v0.3.1** until the join is bumped.
+Patch so Docker TES image builds and NON-PILOT DRS checksums pass on GitHub-hosted CI. Crate versions match tag `v0.3.2`. Suite consumers pin **v0.3.2**.
 
 ### Changed
 

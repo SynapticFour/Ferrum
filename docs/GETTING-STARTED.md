@@ -58,6 +58,6 @@ Uninstall: [INSTALLATION.md](INSTALLATION.md#uninstall). Resource notes for edge
 
 Operator matrix: [OPERATOR-TRUST.md](OPERATOR-TRUST.md). Install variants: [INSTALLATION.md](INSTALLATION.md). TES Docker: [TES-DOCKER-BACKEND.md](TES-DOCKER-BACKEND.md).
 
-Images: `ghcr.io/synapticfour/ferrum:edge` tracks HEAD. GitHub Release tag **v0.3.1** Docker omitted `profiles/meta`. Latest Ferrum tag is **v0.3.2**; suite consumers still pin **v0.3.1** until that join is bumped.
+Images: `ghcr.io/synapticfour/ferrum:edge` tracks HEAD. GitHub Release tag **v0.3.1** Docker omitted `profiles/meta`. Suite consumers pin **v0.3.2**.
 
 Next: [ARCHITECTURE.md](ARCHITECTURE.md) · [FOR-EVALUATORS.md](FOR-EVALUATORS.md) · [GA4GH.md](GA4GH.md).
