@@ -9,4 +9,3 @@ this repo). If a procurement needs succession clauses, raise that in the first
 conversation — we will not invent a team or an escrow that does not exist.
 
 Procurement FAQ (company site): https://synapticfour.com/en/go/usecases/
-(continuity question on the outreach landings).

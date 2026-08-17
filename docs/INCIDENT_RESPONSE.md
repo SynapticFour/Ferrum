@@ -2,7 +2,7 @@
 
 **Status:** Living · 2026-08-12
 **Audience:** Operators + Synaptic Four support
-**Company plan:** [synapticfour-business incident-response-plan](https://github.com/SynapticFour/synapticfour-business/blob/main/security/incident-response-plan.md) (private)
+**Company plan:** not published in this repository. Operator incident steps for Ferrum are in this file.
 **Threat model:** [THREAT_MODEL.md](THREAT_MODEL.md)
 
 This runbook is product-specific. It does **not** replace legal counsel or the company IR plan.

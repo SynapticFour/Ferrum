@@ -76,7 +76,7 @@ Security-focused tests live in the `ferrum-security-tests` crate (SSRF, validati
   - [ ] Periodically review access rules (datasets, workspaces, Passport policies).
 
 - **Operations**
-  - [x] Define an incident response process — see [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) (test via tabletop; company plan in synapticfour-business).
+  - [x] Define an incident response process — see [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) (test via tabletop).
   - [x] Automate dependency policy checks in CI (`cargo deny check`).
 
 ---

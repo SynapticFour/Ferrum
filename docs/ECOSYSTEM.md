@@ -1,6 +1,6 @@
 # Synaptic Four — this repo in the portfolio
 
-Four **products**, two free **ambassadors**, Ferrum **companions**, and **proof** repos. Glue is GA4GH; Solum extends into clinical data. **Not a bundle SKU.** Canonical map: [PORTFOLIO.md](PORTFOLIO.md).
+Four **products**, two free **ambassadors**, Ferrum **companions**, and **reference / demo** repos. Glue is GA4GH; Solum extends into clinical data. **Not a bundle SKU.** Canonical public map: [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md). Longer portfolio notes: [PORTFOLIO.md](PORTFOLIO.md).
 
 **You are here:** [Ferrum](https://github.com/SynapticFour/Ferrum) — data/compute plane (DRS, WES, TES, TRS, Beacon, htsget, Crypt4GH).
 
@@ -14,7 +14,7 @@ Four **products**, two free **ambassadors**, Ferrum **companions**, and **proof*
 | Product | [BioResearch Assistant](https://github.com/SynapticFour/bioresearch-assistant) | Researcher workbench | BUSL-1.1 |
 | Ambassador | [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI | Apache-2.0 |
 | Ambassador | [HELIOS](https://github.com/SynapticFour/HELIOS) | Pipeline audit evidence (file ingest) | Apache-2.0 |
-| With Ferrum | [Ferrum-Lab-Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) | Subset install — not sold separately | BUSL-1.1 |
+| With Ferrum | [Ferrum-Lab-Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) | Subset install — Ferrum companion | BUSL-1.1 |
 | With Ferrum | [ferrum-meta](https://github.com/SynapticFour/ferrum-meta) | Metadata interchange schemas | Apache-2.0 |
 | Proof | [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo) | Local `./run` smoke | Apache-2.0 |
 

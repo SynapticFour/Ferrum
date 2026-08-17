@@ -26,14 +26,14 @@ High public quality bar. Not sold. They make Synaptic Four visible.
 
 Third-party CI wrapper for HelixTest (same ambassador, not a SKU): [helixtest-action](https://github.com/SynapticFour/helixtest-action) (`v0.1.1` binaries). HelixTest validates against **published GA4GH OpenAPI**; Ferrum’s utoipa dump is an implementation map only.
 
-## Comes with Ferrum (not sold separately)
+## Ferrum companions
 
 | Repo | Role |
 |------|------|
 | [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) | Select 1–3 GA4GH surfaces; generate Compose/Helm/systemd around the Ferrum image |
 | [ferrum-meta](https://github.com/SynapticFour/ferrum-meta) | LinkML schema + archive profiles (GHGA/EGA/…) for interchange; runtime lives in Ferrum |
 
-## Proof / outreach (not sold)
+## Proof / reference (not sold)
 
 Local walkthroughs so a curious operator can see real behaviour. Not evaluation kits, not pilots.
 
@@ -49,7 +49,7 @@ Tests live **in each product** (`make prove`). There is no Solum-Test repo. Heli
 
 **Maintainer:** public git history on these products is one human (Synaptic Four). A second committer is a hiring/process item, not a README claim. Details: [GOVERNANCE.md](GOVERNANCE.md).
 
-**Support SKUs** (not a suite discount): [Showcase support tiers](https://github.com/SynapticFour/SynapticFour-Showcase/blob/main/docs/for-customers/support-tiers.md) — Ferrum / Solum / BRA licenses plus optional support; ga4gh-infra is Apache (support optional); Lab Kit included with Ferrum; ambassadors 0 €. Written commercial license: [COMMERCIAL.md](COMMERCIAL.md).
+**Support:** written commercial license is [COMMERCIAL.md](COMMERCIAL.md). There is no combo SKU and no suite discount. ga4gh-infra is Apache-2.0 (support optional). Lab Kit is a Ferrum companion. HELIOS and HelixTest are Apache-2.0 ambassadors.
 
 ## Optional joins (standards, not a monorepo)
 

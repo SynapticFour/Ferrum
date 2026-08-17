@@ -23,9 +23,12 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 | Document | Description |
 |----------|-------------|
-| [README.md](../README.md) | Project overview, badges, quick start, features, deployment. |
+| [README.md](../README.md) | Project overview, maturity, suite block, `make` quick start. |
+| [GETTING-STARTED.md](GETTING-STARTED.md) | Clone paths: prove, eval, demo, TES. |
+| [FOR-EVALUATORS.md](FOR-EVALUATORS.md) | Maturity, license, tested vs not. |
+| [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md) | Ten public repositories: roles, maturity, who consumes whom. |
 | [INSTALLATION.md](INSTALLATION.md) | Prerequisites, demo, build from source, production install, Ansible, Helm, config reference, upgrading, troubleshooting. |
-| [ECOSYSTEM.md](ECOSYSTEM.md) | **Five-repo SynapticFour stack** — Ferrum, ga4gh-infra, Lab Kit, Demo, HelixTest |
+| [ECOSYSTEM.md](ECOSYSTEM.md) | Per-repo stack map (keep aligned with SUITE-OVERVIEW). |
 | [GA4GH-INFRA-INTEGRATION.md](GA4GH-INFRA-INTEGRATION.md) | External auth: broker, Passports, clearinghouse, service registry |
 | [deployment/README.md](deployment/README.md) | Deployment paths matrix, update/bugfix delivery strategy, preflight checks. |
 | [deployment/OFFLINE-AIRGAP.md](deployment/OFFLINE-AIRGAP.md) | Air-gapped deployment flow (export/import bundles). |

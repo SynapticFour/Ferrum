@@ -397,7 +397,7 @@ Before going into production with sensitive data, operators should complete:
 - [ ] Verify security event log is operational
 - [ ] Test breach notification webhook
 - [ ] Document data retention and deletion procedures
-- [x] Establish incident response procedure — see [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) (72h notification: operator/controller + counsel; company plan in synapticfour-business)
+- [x] Establish incident response procedure — see [INCIDENT_RESPONSE.md](INCIDENT_RESPONSE.md) (72h notification: operator/controller + counsel)
 - [x] Dependency policy in CI — `cargo deny check` on every PR/push (`deny.toml`); optionally schedule extra `cargo audit` quarterly
 
 ---
