@@ -3,7 +3,7 @@
 <p align="center"><strong>Ferrum</strong></p>
 
 [![CI](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml)
-[![Demo lifecycle](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
+[![NON-PILOT demo lifecycle](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
 [![ferrum+infra](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
 [![Rust 1.91](https://img.shields.io/badge/rust-1.91-orange.svg)](https://www.rust-lang.org/)
@@ -11,7 +11,7 @@
 **A complete GA4GH stack. On-premises. In Rust.**
 
 DRS · WES · TES · TRS · Beacon v2 · htsget · Passports · Crypt4GH —
-one gateway, your hardware. HelixTest demo-lifecycle CI is not GA4GH certification.
+one gateway, your hardware. HelixTest **demo-lifecycle** CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. **Suite pin for consumers:** git tag **v0.3.1**. Commits on `main` after that tag are unreleased; do not treat `main` as the suite contract. See the suite manifest `_suite/suite-manifest.toml` in the Synaptic Four workspace (not shipped in this repo).
 
 > **Legal notice:** This README describes technical capabilities, not legal advice.
 > Compliance with GDPR, NIS2, EHDS, HIPAA, or other frameworks depends on the

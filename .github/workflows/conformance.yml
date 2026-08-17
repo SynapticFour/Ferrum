@@ -8,7 +8,7 @@
 # Pin HelixTest / ga4gh-infra via VERSIONS.lock (see load-versions action).
 # See docs/HELIXTEST-INTEGRATION.md.
 
-name: Demo lifecycle (HelixTest)
+name: "NON-PILOT: Demo lifecycle (HelixTest stubs, auth skipped, TES noop)"
 
 on:
   push:
@@ -37,11 +37,18 @@ env:
 jobs:
   helixtest-full:
     if: github.actor != 'dependabot[bot]'
-    name: HelixTest (full)
+    name: "NON-PILOT HelixTest (stubs, skip-auth, TES noop)"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Ferrum
         uses: actions/checkout@v7
+      - name: NON-PILOT notice
+        run: |
+          {
+            echo "## NON-PILOT — not GA4GH certification"
+            echo "This job uses demo compose: \`require_auth=false\`, TES **noop**, HelixTest stubs **on**, \`HELIXTEST_SKIP_AUTH=true\`."
+            echo "Institute evidence: \`helixtest-pilot-auth.yml\` / \`helixtest-ferrum-infra.yml\` / \`make up-tes\`."
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:
@@ -173,11 +180,15 @@ jobs:
 
   helixtest-services:
     if: github.actor != 'dependabot[bot]'
-    name: HelixTest (core services)
+    name: "NON-PILOT HelixTest (core services, stubs)"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Ferrum
         uses: actions/checkout@v7
+      - name: NON-PILOT notice
+        run: |
+          echo "## NON-PILOT — not GA4GH certification" >> "$GITHUB_STEP_SUMMARY"
+          echo "Same demo stack as the full job: stubs on, auth skipped, TES noop." >> "$GITHUB_STEP_SUMMARY"
       - uses: ./.github/actions/load-versions
       - uses: ./.github/actions/clone-ga4gh-infra
         with:

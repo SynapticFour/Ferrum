@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- Demo lifecycle workflow name/jobs labelled **NON-PILOT** (auth off, TES noop, stubs). Green CI is not certification. Suite consumers stay on tag **v0.3.1**.
+
 ### Fixed
 
 - **DRS JSON vs official OpenAPI** — omit unset optional fields (`version`, `contents`, `AccessMethod.region`, …) instead of `null`; `created_time` / `updated_time` are RFC3339 (`…Z`), not chrono `Display`. HelixTest v0.1.2 fail-level 2 was a schema miss, not a WES-QUEUED flake.
