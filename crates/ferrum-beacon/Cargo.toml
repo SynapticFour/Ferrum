@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-beacon"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "GA4GH Beacon v2 API"
 license = "BUSL-1.1"

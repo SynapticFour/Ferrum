@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-core"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "Shared types, errors, config, and database abstractions for Ferrum"
 license = "BUSL-1.1"

@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-embed"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "Embedded SQLite and local storage backends for offline / laptop Ferrum deployments"
 license = "BUSL-1.1"

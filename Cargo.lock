@@ -1792,7 +1792,7 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "ferrum-beacon"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -1817,7 +1817,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-bench"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "criterion",
  "crypt4gh",
@@ -1827,7 +1827,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-cli"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "chrono",
  "clap 4.6.1",
@@ -1855,7 +1855,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-cohorts"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -1875,7 +1875,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1916,7 +1916,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-crypt4gh"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1947,7 +1947,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-discovery"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ferrum-core",
  "reqwest",
@@ -1961,7 +1961,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-drs"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2002,7 +2002,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-embed"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "axum",
@@ -2025,7 +2025,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-federation"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "ferrum-beacon",
@@ -2045,7 +2045,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-gateway"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "chrono",
@@ -2086,7 +2086,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-htsget"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "ferrum-core",
@@ -2110,7 +2110,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-mii-connect"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "chrono",
  "flate2",
@@ -2124,7 +2124,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-ont"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "ferrum-beacon",
@@ -2146,7 +2146,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-openapi"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ferrum-beacon",
  "ferrum-cohorts",
@@ -2162,7 +2162,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-passports"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "base64 0.22.1",
@@ -2190,7 +2190,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-reference"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -2211,7 +2211,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-security-tests"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "ferrum-core",
@@ -2227,7 +2227,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-storage"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2243,7 +2243,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-tes"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2269,7 +2269,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-trs"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "axum",
  "chrono",
@@ -2290,7 +2290,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-wes"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2325,7 +2325,7 @@ dependencies = [
 
 [[package]]
 name = "ferrum-workspaces"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "async-trait",

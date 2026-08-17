@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-crypt4gh"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "Crypt4GH encryption layer and DRS proxy"
 license = "BUSL-1.1"

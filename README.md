@@ -11,7 +11,7 @@
 **A complete GA4GH stack. On-premises. In Rust.**
 
 DRS · WES · TES · TRS · Beacon v2 · htsget · Passports · Crypt4GH —
-one gateway, your hardware. HelixTest **demo-lifecycle** CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. **Suite pin for consumers:** git tag **v0.3.1**. Commits on `main` after that tag are unreleased; do not treat `main` as the suite contract. The join contract (not a combo SKU) lives in the private operator repo `synapticfour-business` under `product/suite/` — not in this repository.
+one gateway, your hardware. HelixTest **demo-lifecycle** CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. **Latest Ferrum tag:** **v0.3.2**. **Suite pin for consumers:** still git tag **v0.3.1** until the join is bumped. The join contract (not a combo SKU) lives in the private operator repo `synapticfour-business` under `product/suite/` — not in this repository.
 
 > **Legal notice:** This README describes technical capabilities, not legal advice.
 > Compliance with GDPR, NIS2, EHDS, HIPAA, or other frameworks depends on the
