@@ -1,9 +1,37 @@
-# Ferrum Helm default values (Kubernetes / HPC)
+# Ferrum Helm defaults — chart version tracks the Ferrum release tag (0.3.2).
+# Copy values.yaml.example for a filled-in overlay. Do not ship :latest.
+
 replicaCount: 1
+
 image:
-  repository: ferrum-gateway
-  tag: latest
+  repository: ghcr.io/synapticfour/ferrum
+  tag: "v0.3.2"
   pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podSecurityContext:
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
 
 service:
   type: ClusterIP
@@ -20,16 +48,17 @@ ingress:
           pathType: Prefix
   tls: []
 
-# Use existing K8s secret for DB URL / S3 keys instead of generating from values
+# Use an existing Secret for DB URL / S3 keys instead of generating from values.
 existingSecret: ""
 
 config:
   bind: "0.0.0.0:8080"
   database:
-    url: ""  # set via values (then stored in generated Secret) or existingSecret
+    url: ""
     run_migrations: true
   storage:
     backend: local
+    base_path: /data/objects
     s3_endpoint: ""
     s3_region: us-east-1
     s3_bucket: ""
@@ -38,5 +67,34 @@ config:
   auth:
     require_auth: true
     jwks_url: ""
+  services:
+    enable_drs: true
+    enable_htsget: true
+    enable_wes: true
+    enable_tes: true
+    enable_beacon: true
+    enable_trs: true
+  # Lab Kit adapters map onto these (empty = Ferrum defaults).
+  wesBackend: ""
+  tesBackend: ""
+  wesSlurmPartition: ""
+  tesSlurmPartition: ""
 
-resources: {}
+persistence:
+  enabled: false
+  size: 20Gi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

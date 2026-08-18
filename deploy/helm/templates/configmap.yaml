@@ -8,12 +8,33 @@ data:
   FERRUM_BIND: "0.0.0.0:{{ .Values.service.port }}"
   FERRUM_DATABASE__RUN_MIGRATIONS: {{ .Values.config.database.run_migrations | default true | quote }}
   FERRUM_STORAGE__BACKEND: {{ .Values.config.storage.backend | default "local" | quote }}
+  {{- if .Values.config.storage.base_path }}
+  FERRUM_STORAGE__BASE_PATH: {{ .Values.config.storage.base_path | quote }}
+  {{- end }}
   {{- if .Values.config.storage.s3_endpoint }}
   FERRUM_STORAGE__S3_ENDPOINT: {{ .Values.config.storage.s3_endpoint | quote }}
   FERRUM_STORAGE__S3_REGION: {{ .Values.config.storage.s3_region | default "us-east-1" | quote }}
   FERRUM_STORAGE__S3_BUCKET: {{ .Values.config.storage.s3_bucket | quote }}
   {{- end }}
-  FERRUM_AUTH__REQUIRE_AUTH: {{ .Values.config.auth.require_auth | default false | quote }}
+  FERRUM_AUTH__REQUIRE_AUTH: {{ .Values.config.auth.require_auth | default true | quote }}
   {{- if .Values.config.auth.jwks_url }}
   FERRUM_AUTH__JWKS_URL: {{ .Values.config.auth.jwks_url | quote }}
+  {{- end }}
+  FERRUM_SERVICES__ENABLE_DRS: {{ .Values.config.services.enable_drs | default true | quote }}
+  FERRUM_SERVICES__ENABLE_HTSGET: {{ .Values.config.services.enable_htsget | default true | quote }}
+  FERRUM_SERVICES__ENABLE_WES: {{ .Values.config.services.enable_wes | default true | quote }}
+  FERRUM_SERVICES__ENABLE_TES: {{ .Values.config.services.enable_tes | default true | quote }}
+  FERRUM_SERVICES__ENABLE_BEACON: {{ .Values.config.services.enable_beacon | default true | quote }}
+  FERRUM_SERVICES__ENABLE_TRS: {{ .Values.config.services.enable_trs | default true | quote }}
+  {{- if .Values.config.wesBackend }}
+  FERRUM_WES_BACKEND: {{ .Values.config.wesBackend | quote }}
+  {{- end }}
+  {{- if .Values.config.tesBackend }}
+  FERRUM_TES_BACKEND: {{ .Values.config.tesBackend | quote }}
+  {{- end }}
+  {{- if .Values.config.wesSlurmPartition }}
+  FERRUM_WES_SLURM_PARTITION: {{ .Values.config.wesSlurmPartition | quote }}
+  {{- end }}
+  {{- if .Values.config.tesSlurmPartition }}
+  FERRUM_TES_SLURM_PARTITION: {{ .Values.config.tesSlurmPartition | quote }}
   {{- end }}

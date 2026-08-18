@@ -1,5 +1,6 @@
 # First Release Checklist — Ferrum v0.3.0
 
+Current released tag is **v0.3.2**. This file is the cut record for **v0.3.0**.
 Operator checklist before the **next customer-facing tag** (`v0.3.0`). `v0.2.0` (Africa resilience) is already on origin (2026-06-11).
 Reference: [`../RELEASING.md`](../RELEASING.md).
 

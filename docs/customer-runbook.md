@@ -1,6 +1,6 @@
 # Ferrum — Installations- und Betriebshandbuch
 
-Kurzanleitung für IT-Betrieb und Forschungs-IT. Images: `ghcr.io/synapticfour/ferrum:edge` (HEAD). GitHub Release **Tag** `v0.3.1` ist nicht der aktuelle Docker-Stand (`profiles/meta` fehlte dort). Auth-on Clone: `make eval`. Commercial: [COMMERCIAL.md](COMMERCIAL.md).
+Kurzanleitung für IT-Betrieb und Forschungs-IT. Released join: Git tag **v0.3.2**. Images: `ghcr.io/synapticfour/ferrum:v0.3.2` or `:edge` (HEAD). GitHub Release **Tag** `v0.3.1` Docker omitted `profiles/meta` — do not install that image. Auth-on Clone: `make eval`. Commercial: [COMMERCIAL.md](COMMERCIAL.md).
 
 ---
 
@@ -65,7 +65,7 @@ See [TESTING.md](../TESTING.md) and [TES-DOCKER-BACKEND.md](./TES-DOCKER-BACKEND
 **Online (empfohlen):**
 
 1. Release von GitHub laden und entpacken, oder Repository klonen.
-2. Konfiguration anlegen: `cp deploy/.env.example .env` — Passwörter ändern und **`FERRUM_VERSION=vX.Y.Z`** setzen (Release-Tag, z. B. `v0.2.0`). **Pflicht** — ohne diese Variable bricht `./install.sh` ab; es wird nicht automatisch `:latest` verwendet.
+2. Konfiguration anlegen: `cp deploy/.env.example .env` — Passwörter ändern und **`FERRUM_VERSION=v0.3.2`** setzen (aktueller Release-Tag). **Pflicht** — ohne diese Variable bricht `./install.sh` ab; es wird nicht automatisch `:latest` verwendet.
 3. Für **Pilot**: Auth-Profil mit `require_auth=true` verwenden (`deploy/configs/pilot.toml` oder `production.toml`) und JWKS setzen — nicht die Demo-Defaults.
 4. `./install.sh` ausführen (startet Stack, prüft `/health`).
 

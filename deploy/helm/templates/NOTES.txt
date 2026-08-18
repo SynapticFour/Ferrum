@@ -1,0 +1,15 @@
+Ferrum {{ .Chart.AppVersion }} is installed as {{ include "ferrum.fullname" . }}.
+
+1. Service:
+   kubectl get svc {{ include "ferrum.fullname" . }} -n {{ .Release.Namespace }}
+
+2. Health (in-cluster):
+   kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ferrum.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+   curl -sf http://127.0.0.1:{{ .Values.service.port }}/health
+   curl -sf http://127.0.0.1:{{ .Values.service.port }}/ready
+
+Image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+Auth required: {{ .Values.config.auth.require_auth }}
+
+This chart deploys the gateway only. PostgreSQL, object storage, and an IdP are operator-provided.
+The supported laptop path remains Docker Compose (`./install.sh`). See docs/kubernetes-deployment.md.

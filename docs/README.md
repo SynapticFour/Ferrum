@@ -26,7 +26,7 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | [README.md](../README.md) | Project overview, maturity, suite block, `make` quick start. |
 | [GETTING-STARTED.md](GETTING-STARTED.md) | Clone paths: prove, eval, demo, TES. |
 | [FOR-EVALUATORS.md](FOR-EVALUATORS.md) | Maturity, license, tested vs not. |
-| [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md) | Ten public repositories: roles, maturity, who consumes whom. |
+| [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md) | Pointer to the organisation map; this repository’s pin is v0.3.2. |
 | [INSTALLATION.md](INSTALLATION.md) | Prerequisites, demo, build from source, production install, Ansible, Helm, config reference, upgrading, troubleshooting. |
 | [ECOSYSTEM.md](ECOSYSTEM.md) | Per-repo stack map (keep aligned with SUITE-OVERVIEW). |
 | [GA4GH-INFRA-INTEGRATION.md](GA4GH-INFRA-INTEGRATION.md) | External auth: broker, Passports, clearinghouse, service registry |

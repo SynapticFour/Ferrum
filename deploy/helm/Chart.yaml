@@ -1,9 +1,9 @@
 apiVersion: v2
 name: ferrum
-description: GA4GH-compliant bioinformatics data and workflow management
+description: On-premises GA4GH data/compute gateway (DRS, WES, TES, TRS, Beacon, htsget)
 type: application
-version: 0.2.0
-appVersion: "0.2.0"
+version: 0.3.2
+appVersion: "0.3.2"
 keywords:
   - ga4gh
   - bioinformatics
@@ -11,3 +11,8 @@ keywords:
   - wes
   - tes
   - beacon
+sources:
+  - https://github.com/SynapticFour/Ferrum
+maintainers:
+  - name: Synaptic Four
+    email: contact@synapticfour.com

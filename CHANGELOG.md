@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Changed
+
+- Helm chart `version` / `appVersion` **0.3.2**; default image `ghcr.io/synapticfour/ferrum:v0.3.2` (not `:latest`). ServiceAccount, security context, `/health`+`/ready`, `FERRUM_SERVICES__ENABLE_*`, adapter-mapped WES/TES/storage env. `deploy/.env.example` `FERRUM_VERSION=v0.3.2`.
+
 ## [0.3.2] - 2026-08-17
 
 Patch so Docker TES image builds and NON-PILOT DRS checksums pass on GitHub-hosted CI. Crate versions match tag `v0.3.2`. Suite consumers pin **v0.3.2**.

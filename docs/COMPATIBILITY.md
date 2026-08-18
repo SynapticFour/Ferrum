@@ -2,18 +2,18 @@
 
 Each product versions independently. This table is the **last combination we claim works together**. Consumers that import another repo must pin these refs — not `main`.
 
-| Product | Role | Pin (15 Aug 2026) |
+| Product | Role | Pin (18 Aug 2026) |
 |---------|------|-------------------|
-| Ferrum | Data/compute | tag **v0.3.1** (see `VERSIONS.lock` `FERRUM_VERSION`) |
+| Ferrum | Data/compute | tag **v0.3.2** / `2bd147c` (`VERSIONS.lock` `FERRUM_VERSION`) |
 | ga4gh-infra | Identity | tag **ga4gh-infra-v0.2.3** (`613bd14`); Compose/GHCR stack images **`:0.2.3`** (crate Cargo.toml may stay 0.1.0) |
-| Solum | Clinical library | consumes ferrum-core **v0.3.0** (`6444469a` in Solum `config/ci/ferrum-revision.txt`) |
-| Solum-Demo / Lab-Kit sidecar | Runnable clinical demo | Solum SHA **6b4519c** (verified demo baseline; older than Solum HEAD after the v0.3.0 consume bump) |
-| HelixTest | Conformance | tag **v0.1.2** (Ferrum `VERSIONS.lock`) |
-| ferrum-meta | Schema plane | SHA **e34fce4** (`FERRUM_META_SHA`; vendored into Ferrum `profiles/meta/schema/`) |
-| HELIOS | Signed evidence | HEAD of HELIOS at demo time; no required Ferrum API |
-| BRA | Researcher UI | optional HTTP to Solum; no Ferrum crate pin |
+| Solum | Clinical library | tag **v0.1.0** / `b68a941`; consumes ferrum-core **v0.3.2** (`2bd147c` in Solum `config/ci/ferrum-revision.txt`) |
+| Solum-Demo | Runnable clinical demo | Solum **v0.1.0** (`PINNED_VERSIONS.txt` `Solum-ref`) |
+| HelixTest | Conformance | SHA **4a10e126c219** (Ferrum `HELIXTEST_SHA`; tag label v0.1.2 — SHA is ahead of the tag peel) |
+| ferrum-meta | Schema plane | tag **v0.1.0** / SHA **e34fce4** (`FERRUM_META_SHA`; vendored into Ferrum `profiles/meta/schema/`). Do not vendor `main`. |
+| HELIOS | Signed evidence | tag **v0.1.1**; reads export JSON from disk; no required Ferrum API |
+| BRA | Researcher UI | tag **v0.2.1**; optional HTTP to Ferrum/Solum; no Ferrum crate pin |
 
-Source of truth for Ferrum×infra×HelixTest: this repo’s [`VERSIONS.lock`](../VERSIONS.lock). Solum-Demo and Lab-Kit stay on Solum **6b4519c** until Solum cuts a `v*` tag — that demo pin is independent of which Ferrum SHA Solum HEAD compiles against.
+Source of truth for Ferrum×infra×HelixTest×meta: this repo’s [`VERSIONS.lock`](../VERSIONS.lock). A product `main` may be ahead of this join.
 
 ## Release train
 

@@ -1,8 +1,8 @@
-# Multi-node / HPC Kubernetes – resource limits and external DB/S3
+# Multi-node / HPC Kubernetes — Ferrum v0.3.2
 replicaCount: 2
 image:
-  repository: your-registry/ferrum-gateway
-  tag: "0.1.0"
+  repository: ghcr.io/synapticfour/ferrum
+  tag: "v0.3.2"
   pullPolicy: IfNotPresent
 
 service:
@@ -24,7 +24,6 @@ ingress:
         - ferrum.example.com
       secretName: ferrum-tls
 
-# Prefer external secret for DB and S3
 existingSecret: ferrum-secrets
 
 config:
@@ -36,6 +35,13 @@ config:
   auth:
     require_auth: true
     jwks_url: "https://auth.example.com/realms/ferrum/protocol/openid-connect/certs"
+  services:
+    enable_drs: true
+    enable_htsget: true
+    enable_wes: true
+    enable_tes: true
+    enable_beacon: true
+    enable_trs: true
 
 resources:
   limits:

@@ -1,6 +1,6 @@
 # Kubernetes deployment (optional)
 
-Ferrum ships a Helm chart under `deploy/helm/`. It is **optional** — the standard path is Docker Compose (`./install.sh`). The chart is versioned with the Ferrum release tag; there is no separate Helm release cycle.
+Ferrum ships a Helm chart under `deploy/helm/`. It is **optional** — the standard path is Docker Compose (`./install.sh`). The chart is versioned with the Ferrum release tag (**0.3.2** / image `ghcr.io/synapticfour/ferrum:v0.3.2`). There is no separate Helm release cycle. Defaults include a ServiceAccount, pod security context, `/health` and `/ready` probes, and `FERRUM_SERVICES__ENABLE_*` flags. Lab Kit `generate helm` writes the same storage/WES/TES adapter env onto its companion chart.
 
 ## When to use Helm
 
@@ -19,7 +19,7 @@ Use Helm if your organization runs Ferrum on an existing Kubernetes cluster (HPC
 
    ```bash
    cp deploy/helm/values.yaml.example my-values.yaml
-   # Edit postgres, storage, auth.jwks_url, image.tag (match your Ferrum release)
+   # Edit postgres, storage, auth.jwks_url. Image tag defaults to v0.3.2.
    ```
 
 2. Install or upgrade:

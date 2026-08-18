@@ -1,10 +1,10 @@
-# Self-managed Kubernetes — no cert-manager assumed
+# Self-managed Kubernetes — Ferrum v0.3.2, no cert-manager assumed
 # Usage: helm install ferrum ./deploy/helm -f deploy/helm/values-selfhosted.yaml
 
 replicaCount: 1
 image:
   repository: ghcr.io/synapticfour/ferrum
-  tag: "latest"
+  tag: "v0.3.2"
   pullPolicy: IfNotPresent
 
 service:
@@ -38,6 +38,13 @@ config:
   auth:
     require_auth: true
     jwks_url: "https://auth.example.org/realms/ferrum/protocol/openid-connect/certs"
+  services:
+    enable_drs: true
+    enable_htsget: true
+    enable_wes: true
+    enable_tes: true
+    enable_beacon: true
+    enable_trs: true
 
 resources:
   limits:

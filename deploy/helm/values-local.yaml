@@ -1,8 +1,8 @@
-# Single-node / k3s / MacBook local K8s
+# Single-node / k3s / local Kubernetes — Ferrum v0.3.2
 replicaCount: 1
 image:
-  repository: ferrum-gateway
-  tag: latest
+  repository: ghcr.io/synapticfour/ferrum
+  tag: "v0.3.2"
   pullPolicy: IfNotPresent
 
 service:
@@ -29,6 +29,13 @@ config:
     s3_bucket: ferrum
   auth:
     require_auth: false
+  services:
+    enable_drs: true
+    enable_htsget: true
+    enable_wes: true
+    enable_tes: true
+    enable_beacon: true
+    enable_trs: true
 
 resources:
   limits:

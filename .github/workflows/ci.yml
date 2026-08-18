@@ -261,3 +261,22 @@ jobs:
           mv "cargo-deny-${ver}-x86_64-unknown-linux-musl/cargo-deny" "${CARGO_HOME:-$HOME/.cargo}/bin/"
           cargo deny --version
       - run: cargo deny check
+
+  helm:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+      - name: Lint and template the v0.3.2 chart
+        run: |
+          set -euo pipefail
+          helm lint deploy/helm
+          helm template ferrum deploy/helm --values deploy/helm/values.yaml.example >/dev/null
+          helm template ferrum deploy/helm --values deploy/helm/values-local.yaml >/dev/null
+          helm template ferrum deploy/helm --values deploy/helm/values-production.yaml >/dev/null
+          helm template ferrum deploy/helm --values deploy/helm/values-selfhosted.yaml >/dev/null
+          grep -q 'appVersion: "0.3.2"' deploy/helm/Chart.yaml
+          grep -q 'tag: "v0.3.2"' deploy/helm/values.yaml
+          grep -q 'FERRUM_VERSION=v0.3.2' deploy/.env.example

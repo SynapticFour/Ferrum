@@ -1,19 +1,17 @@
-# Ferrum Helm — example values (maps to deploy/.env.example)
+# Ferrum Helm — example overlay (maps to deploy/.env.example)
 #
 #   cp deploy/helm/values.yaml.example my-values.yaml
 #   helm upgrade --install ferrum deploy/helm -f my-values.yaml
 #
-# Chart version = Ferrum release tag (no separate Helm release cycle).
+# Chart version = Ferrum release tag (no separate Helm cycle). Image tag v0.3.2.
 
 replicaCount: 1
 
-# FERRUM_VERSION / image tag → match GitHub Release (e.g. v0.2.0)
 image:
-  repository: ferrum-gateway
-  tag: v0.2.0
+  repository: ghcr.io/synapticfour/ferrum
+  tag: "v0.3.2"
   pullPolicy: IfNotPresent
 
-# GATEWAY_PORT
 service:
   type: ClusterIP
   port: 8080
@@ -29,29 +27,40 @@ ingress:
           pathType: Prefix
   tls: []
 
-# Optional: reference pre-created secret with FERRUM_DATABASE__URL, S3 keys, etc.
 existingSecret: ""
 
 config:
   bind: "0.0.0.0:8080"
-
-  # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB → FERRUM_DATABASE__URL
   database:
     url: "postgres://ferrum:CHANGE_ME@postgres.example.svc:5432/ferrum"
     run_migrations: true
-
-  # MINIO_ROOT_* / MINIO_BUCKET → FERRUM_STORAGE__S3_*
   storage:
     backend: s3
+    base_path: /data/objects
     s3_endpoint: "http://minio.example.svc:9000"
     s3_region: us-east-1
     s3_bucket: ferrum
     s3_access_key_id: CHANGE_ME
     s3_secret_access_key: CHANGE_ME
-
-  # KEYCLOAK_JWKS_URL → FERRUM_AUTH__JWKS_URL
   auth:
     require_auth: true
     jwks_url: "http://keycloak.example.svc/realms/ferrum/protocol/openid-connect/certs"
+  services:
+    enable_drs: true
+    enable_htsget: true
+    enable_wes: true
+    enable_tes: true
+    enable_beacon: true
+    enable_trs: true
+  wesBackend: ""
+  tesBackend: ""
+  wesSlurmPartition: ""
+  tesSlurmPartition: ""
 
-resources: {}
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
