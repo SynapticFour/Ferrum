@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 
 - Helm chart `version` / `appVersion` **0.3.2**; default image `ghcr.io/synapticfour/ferrum:v0.3.2` (not `:latest`). ServiceAccount, security context, `/health`+`/ready`, `FERRUM_SERVICES__ENABLE_*`, adapter-mapped WES/TES/storage env. `deploy/.env.example` `FERRUM_VERSION=v0.3.2`.
+- **HelixTest pin** — tag **v0.1.3** (`HELIXTEST_SHA=1832c04`). Infra broker service-info is Level 0 so `--fail-level 2` is reachable. `v0.1.2` remains the previous cut.
 
 ## [0.3.2] - 2026-08-17
 

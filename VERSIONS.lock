@@ -28,12 +28,11 @@ GA4GH_INFRA_SHA=613bd14932b57e30cfdca7b413841fe5b07a80fd
 GA4GH_INFRA_IMAGE_VERSION=0.2.3
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
-# Last tag v0.1.2 → 2c121187da00aebc57d7fcdcb8525507fcad9223 (DRS/Beacon schemas).
-# Pin SHA (not a new tag): 4a10e12 — ferrum+infra broker service-info is Level 0
-# so `--fail-level 2` can pass when all five infra checks pass (no L0 → overall 0).
-HELIXTEST_REF=4a10e126c21960471f439f26d23180058422b507
-HELIXTEST_TAG=v0.1.2
-HELIXTEST_SHA=4a10e126c21960471f439f26d23180058422b507
+# Tag v0.1.3 includes ferrum+infra broker service-info Level 0 (so `--fail-level 2`
+# can pass) and Live GHCR schedule `--only beacon`. v0.1.2 remains the DRS/Beacon schema cut.
+HELIXTEST_REF=v0.1.3
+HELIXTEST_TAG=v0.1.3
+HELIXTEST_SHA=1832c043e1679ec283cb2113510ee33684317cce
 
 # Solum — optional consent teeth on DRS/WES ([solum] / FERRUM_SOLUM__*). Fail-closed.
 # First SemVer tag v0.1.0. Unset BASE_URL leaves Ferrum behaviour unchanged.
