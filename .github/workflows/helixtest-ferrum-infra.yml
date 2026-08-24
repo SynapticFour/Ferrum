@@ -8,8 +8,9 @@
 name: ferrum+infra (HelixTest)
 
 on:
-  schedule:
-    - cron: "45 3 * * *"
+  # Temporarily disabled — restore when scheduled CI should resume.
+  # schedule:
+  #   - cron: "45 3 * * *"
   workflow_dispatch:
 
 concurrency:

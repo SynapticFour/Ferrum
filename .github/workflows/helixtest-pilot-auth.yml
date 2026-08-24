@@ -9,8 +9,9 @@
 name: Pilot auth (HelixTest nightly)
 
 on:
-  schedule:
-    - cron: "30 2 * * *" # after E2E (Real Workflows) at 02:00 UTC
+  # Temporarily disabled — restore when scheduled CI should resume.
+  # schedule:
+  #   - cron: "30 2 * * *" # after E2E (Real Workflows) at 02:00 UTC
   workflow_dispatch:
 
 concurrency:

@@ -1,9 +1,10 @@
 name: E2E (Real Workflows)
 
 on:
+  # Temporarily disabled — restore when scheduled CI should resume.
+  # schedule:
+  #   - cron: "0 2 * * *" # nightly on main
   workflow_dispatch:
-  schedule:
-    - cron: "0 2 * * *" # nightly on main
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
