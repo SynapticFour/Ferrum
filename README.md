@@ -40,3 +40,5 @@ Specialist notes (TES Docker, MII Connect, field/edge, and others) stay under `d
 ## License
 
 Business Source License 1.1 — see [LICENSE](LICENSE).
+
+**Synaptic Four** · [contact@synapticfour.com](mailto:contact@synapticfour.com) · [synapticfour.com](https://synapticfour.com)
