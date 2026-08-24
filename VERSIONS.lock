@@ -7,15 +7,13 @@
 #     3. Set HELIXTEST_REF to a HelixTest tag (vX.Y.Z) or commit SHA.
 #     4. Set SOLUM_REF / SOLUM_TAG / SOLUM_SHA to a Solum git tag when [solum] is in the cut.
 #     5. Run CI on main, then tag and push Ferrum.
-#   Also sync synapticfour-business pilot Dockerfiles / build-pilot-image.sh checks.
 #
 # WHO READS THIS FILE
 #   - Ferrum CI (.github/workflows/* via load-versions action)
 #   - deploy/docker-compose.yml (GA4GH_INFRA_REF build-arg)
 #   - deploy/scripts/run-helixtest-local.sh
-#   - synapticfour-business pilot-deploy (sources this file from sibling Ferrum/)
 
-# Ferrum release tag (customer bundles, pilot FERRUM_REF)
+# Ferrum release tag (customer bundles, hosted-pilot FERRUM_REF)
 FERRUM_VERSION=v0.3.2
 
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.

@@ -1,10 +1,9 @@
-# Default pilot overlay: local Ferrum + Fly ga4gh-infra / Keycloak AAI (no local broker stack).
+# Default pilot overlay: local Ferrum + hosted ga4gh-infra / Keycloak AAI (no local broker stack).
 #
 #   make up-pilot          # default — same as make up-pilot-cloud
 #   make up-pilot-cloud
 #
-# Requires: Fly pilot ga4gh-infra + keycloak running (./pilot.sh resume all --wait).
-# Override broker URL: PILOT_CLOUD_GA4GH_URL=https://your-ga4gh.fly.dev
+# Requires: PILOT_CLOUD_GA4GH_URL pointing at a reachable ga4gh-infra (JWT issuer / JWKS).
 
 services:
   ferrum-gateway:
@@ -19,16 +18,16 @@ services:
       FERRUM_AUTH__MODE: external
       FERRUM_AUTH__REQUIRE_AUTH: "true"
       FERRUM_AUTH__CLEARINGHOUSE: "true"
-      FERRUM_AUTH__ISSUER: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
-      FERRUM_AUTH__JWKS_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}/jwks.json
+      FERRUM_AUTH__ISSUER: ${PILOT_CLOUD_GA4GH_URL:?set PILOT_CLOUD_GA4GH_URL}
+      FERRUM_AUTH__JWKS_URL: ${PILOT_CLOUD_GA4GH_URL:?set PILOT_CLOUD_GA4GH_URL}/jwks.json
       FERRUM_TES_HELIXTEST_STUB: "false"
       FERRUM_WES_HELIXTEST_STUBS: "false"
-      FERRUM_PUBLIC_BROKER_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
+      FERRUM_PUBLIC_BROKER_URL: ${PILOT_CLOUD_GA4GH_URL:?set PILOT_CLOUD_GA4GH_URL}
       FERRUM_BROKER_LOGIN_IDP: keycloak
       FERRUM_SERVICES__ENABLE_PASSPORTS: "false"
       FERRUM_DISCOVERY__ENABLED: "true"
       FERRUM_DISCOVERY__AUTO_REGISTER: "${PILOT_CLOUD_AUTO_REGISTER:-true}"
-      FERRUM_DISCOVERY__SERVICE_REGISTRY_URL: ${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}
+      FERRUM_DISCOVERY__SERVICE_REGISTRY_URL: ${PILOT_CLOUD_GA4GH_URL:?set PILOT_CLOUD_GA4GH_URL}
       FERRUM_DISCOVERY__REGISTRATION_BASE_URL: http://localhost:${GATEWAY_PORT:-8080}
       SERVICE_REGISTRY_REGISTRATION_KEY: ${SERVICE_REGISTRY_REGISTRATION_KEY:-}
 

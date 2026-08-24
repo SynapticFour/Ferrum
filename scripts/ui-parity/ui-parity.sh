@@ -6,8 +6,8 @@
 #   ./scripts/ui-parity/ui-parity.sh --profile up-tes [--tier write]
 #   ./scripts/ui-parity/ui-parity.sh --profile up-pilot-cloud
 #
-# Fly profile: set FERRUM_PASSPORT_JWT (see pilot-deploy/scripts/obtain-passport.sh)
-# and run pilot-deploy ./pilot.sh seed all first.
+# Fly profile: set FERRUM_URL, GA4GH_URL, and FERRUM_PASSPORT_JWT. Optional PILOT_DIR
+# points at a local operator checkout that may contain .env (never committed here).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -85,21 +85,19 @@ set -a
 source "$PROFILE_FILE"
 set +a
 
-# Fly: load pilot-deploy .env if present (FERRUM_URL, secrets paths).
+# Fly: load optional operator .env (FERRUM_URL, secrets paths). No baked-in hostnames.
 if [[ "$PROFILE" == "fly" ]]; then
   pilot_dir="${PILOT_DIR:-}"
-  if [[ -z "$pilot_dir" && -d "$ROOT/../synapticfour-business/customers/pasteur-tunis/pilot-deploy" ]]; then
-    pilot_dir="$ROOT/../synapticfour-business/customers/pasteur-tunis/pilot-deploy"
-  fi
   if [[ -n "$pilot_dir" && -f "${pilot_dir}/.env" ]]; then
     # shellcheck source=/dev/null
-    source "$pilot_dir/.env"
-    export FERRUM_URL="${FERRUM_URL:-https://${PILOT_PREFIX:-pasteur-pilot}-ferrum.fly.dev}"
-    BASE_URL="$FERRUM_URL"
+    source "${pilot_dir}/.env"
   fi
+  : "${FERRUM_URL:?set FERRUM_URL to the hosted Ferrum base URL}"
+  : "${GA4GH_URL:?set GA4GH_URL to the hosted ga4gh-infra base URL}"
+  BASE_URL="$FERRUM_URL"
   if [[ -n "$pilot_dir" && -f "${pilot_dir}/.pilot-secrets.env" ]] && [[ -z "${FERRUM_PASSPORT_JWT:-}" ]]; then
     # shellcheck source=/dev/null
-    source "$pilot_dir/.pilot-secrets.env" 2>/dev/null || true
+    source "${pilot_dir}/.pilot-secrets.env" 2>/dev/null || true
   fi
 fi
 
@@ -130,7 +128,7 @@ preflight_fly() {
   if [[ -f "${PILOT_DIR:-}/seed/.seed-state/state.json" ]]; then
     ui_pass "preflight-seed" "pilot seed state present"
   else
-    ui_skip "preflight-seed" "no seed state — run: cd pilot-deploy && ./pilot.sh seed all"
+    ui_skip "preflight-seed" "no seed state — seed the hosted deployment, then retry"
   fi
 }
 

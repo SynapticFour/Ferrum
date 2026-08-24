@@ -26,7 +26,7 @@ async fn provision_pilot_workspace(repo: &WorkspaceRepo, sub: &str) -> Result<Op
     let workspace = repo
         .create(
             &id,
-            "Pasteur Pilot",
+            "Hosted pilot",
             Some("Auto-created workspace for the hosted pilot"),
             sub,
             &slug,

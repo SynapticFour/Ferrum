@@ -290,16 +290,16 @@ WHERE NOT EXISTS (
 
 -- Negative is validated by absence: referenceName=1, start=999999999, referenceBases=C, alternateBases=G.
 
--- Pasteur / pilot demo variant (GRCh37 chr22:2000 T>G)
+-- Hosted-pilot demo variant (GRCh37 chr22:2000 T>G)
 INSERT INTO beacon_datasets (id, name, description, assembly_id)
-VALUES ('pasteur-demo', 'Pasteur pilot demo', 'chr22:2000 T>G for UI walkthrough', 'GRCh37')
+VALUES ('pilot-demo', 'Hosted pilot demo', 'chr22:2000 T>G for UI walkthrough', 'GRCh37')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO beacon_variants (dataset_id, chromosome, start, "end", reference, alternate, variant_type)
-SELECT 'pasteur-demo', 'chr22', 2000, 2000, 'T', 'G', 'SNV'
+SELECT 'pilot-demo', 'chr22', 2000, 2000, 'T', 'G', 'SNV'
 WHERE NOT EXISTS (
   SELECT 1 FROM beacon_variants
-  WHERE dataset_id = 'pasteur-demo'
+  WHERE dataset_id = 'pilot-demo'
     AND chromosome = 'chr22'
     AND start = 2000
     AND reference = 'T'

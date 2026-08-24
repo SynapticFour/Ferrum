@@ -128,7 +128,7 @@ const deOverlay = {
   },
   pilot: {
     remoteSeedHint:
-      'Gehosteter Pilot: Demo-BAM/VCF erscheinen nach ./pilot.sh seed all durch den Betreiber. Bei leerer Datenliste nachfragen — Import ist weiterhin möglich.',
+      'Gehosteter Pilot: Demo-BAM/VCF erscheinen, nachdem der Betreiber das Deployment geseedet hat. Bei leerer Datenliste nachfragen — Import ist weiterhin möglich.',
   },
   data: {
     title: 'Daten',
@@ -433,7 +433,7 @@ const deOverlay = {
     variantNotFound: 'Variante nicht gefunden',
     formChanged: 'Formular geändert — erneut abfragen für ein aktuelles Ergebnis.',
     presetLocal: 'Lokale Demo (GRCh38)',
-    presetPasteur: 'Pasteur-Demo (GRCh37)',
+    presetHostedDemo: 'Hosted-Pilot-Demo (GRCh37)',
   },
   workflows: {
     title: 'Analysen',
@@ -609,7 +609,7 @@ const deOverlay = {
     registryLabel: 'Registry',
     servicesLine: 'Aktive Dienste — DRS: {drs} · Beacon: {beacon} · TRS: {trs} · WES: {wes}',
     registryUrlLabel: 'Service-Registry-URL',
-    registryUrlPlaceholder: 'https://pasteur-pilot-ga4gh-infra.fly.dev',
+    registryUrlPlaceholder: 'https://ga4gh-infra.example.org',
     apiKeyLabel: 'Registrierungs-API-Schlüssel',
     apiKeyPlaceholder: 'Nicht gespeichert — pro Sitzung eingeben',
     publicUrlLabel: 'Öffentliche URL dieses Knotens',
@@ -663,7 +663,7 @@ const deOverlay = {
     membersTitle: 'Mitglieder',
     noMembers: 'Bisher nur der Eigentümer. Mitarbeitende per Benutzer-ID (OIDC sub) hinzufügen.',
     memberSub: 'Benutzer-ID (sub)',
-    memberSubPlaceholder: 'pasteur-demo-1',
+    memberSubPlaceholder: 'demo-user-1',
     memberRole: 'Rolle',
     roleOwner: 'owner',
     roleEditor: 'editor',

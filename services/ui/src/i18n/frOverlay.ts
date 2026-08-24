@@ -131,7 +131,7 @@ export const frOverlay = {
   },
   pilot: {
     remoteSeedHint:
-      'Pilote hébergé : BAM/VCF démo après ./pilot.sh seed all par l\'opérateur. Si Données est vide, demandez-leur — vous pouvez aussi importer vous-même.',
+      'Pilote hébergé : BAM/VCF démo après que l\'opérateur a alimenté le déploiement. Si Données est vide, demandez-leur — vous pouvez aussi importer vous-même.',
   },
   data: {
     title: 'Données',
@@ -442,7 +442,7 @@ export const frOverlay = {
     variantNotFound: 'Variante non trouvée',
     formChanged: 'Formulaire modifié — interrogez à nouveau pour un résultat à jour.',
     presetLocal: 'Démo locale (GRCh38)',
-    presetPasteur: 'Démo Pasteur (GRCh37)',
+    presetHostedDemo: 'Démo du pilote hébergé (GRCh37)',
   },
   workflows: {
     title: 'Analyses',
@@ -624,7 +624,7 @@ export const frOverlay = {
     registryLabel: 'Registre',
     servicesLine: 'Services activés — DRS : {drs} · Beacon : {beacon} · TRS : {trs} · WES : {wes}',
     registryUrlLabel: 'URL du registre de services',
-    registryUrlPlaceholder: 'https://pasteur-pilot-ga4gh-infra.fly.dev',
+    registryUrlPlaceholder: 'https://ga4gh-infra.example.org',
     apiKeyLabel: 'Clé API d\'enregistrement',
     apiKeyPlaceholder: 'Non stockée — saisir à chaque session',
     publicUrlLabel: 'URL publique de ce nœud',
@@ -679,7 +679,7 @@ export const frOverlay = {
     membersTitle: 'Membres',
     noMembers: 'Seul le propriétaire pour l\'instant. Ajoutez des collaborateurs par identifiant utilisateur (OIDC sub).',
     memberSub: 'Identifiant utilisateur (sub)',
-    memberSubPlaceholder: 'pasteur-demo-1',
+    memberSubPlaceholder: 'demo-user-1',
     memberRole: 'Rôle',
     roleOwner: 'propriétaire',
     roleEditor: 'éditeur',

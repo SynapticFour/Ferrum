@@ -43,21 +43,21 @@ jobs:
         run: make ui-parity-tes UI_PARITY_TIER=${{ inputs.tier }}
 
   ui-parity-fly:
-    if: github.event.inputs.profile == 'fly'
+    if: github.event.inputs.profile == 'fly' && vars.HOSTED_PILOT_FERRUM_URL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
-      - name: UI parity (Fly)
+      - name: UI parity (hosted Ferrum)
         env:
-          FERRUM_PASSPORT_JWT: ${{ secrets.PASTEUR_PILOT_FERRUM_PASSPORT_JWT }}
-          FERRUM_URL: https://pasteur-pilot-ferrum.fly.dev
-          GA4GH_URL: https://pasteur-pilot-ga4gh-infra.fly.dev
+          FERRUM_PASSPORT_JWT: ${{ secrets.HOSTED_PILOT_FERRUM_PASSPORT_JWT }}
+          FERRUM_URL: ${{ vars.HOSTED_PILOT_FERRUM_URL }}
+          GA4GH_URL: ${{ vars.HOSTED_PILOT_GA4GH_URL }}
         run: make ui-parity-fly UI_PARITY_TIER=${{ inputs.tier }}
 
   ui-parity-pilot-cloud:
-    if: github.event.inputs.profile == 'up-pilot-cloud'
+    if: github.event.inputs.profile == 'up-pilot-cloud' && vars.HOSTED_PILOT_GA4GH_URL != ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -66,14 +66,19 @@ jobs:
       - name: Clone ga4gh-infra
         uses: ./.github/actions/clone-ga4gh-infra
 
-      - name: Check Fly broker reachable
+      - name: Check hosted broker reachable
+        env:
+          PILOT_CLOUD_GA4GH_URL: ${{ vars.HOSTED_PILOT_GA4GH_URL }}
         run: |
-          curl -sf https://pasteur-pilot-ga4gh-infra.fly.dev/service-info
+          curl -sf "${PILOT_CLOUD_GA4GH_URL}/service-info"
 
       - name: Start pilot-cloud stack
+        env:
+          PILOT_CLOUD_GA4GH_URL: ${{ vars.HOSTED_PILOT_GA4GH_URL }}
         run: make up-pilot-cloud
 
       - name: UI parity (up-pilot-cloud)
         env:
-          FERRUM_PASSPORT_JWT: ${{ secrets.PASTEUR_PILOT_FERRUM_PASSPORT_JWT }}
+          FERRUM_PASSPORT_JWT: ${{ secrets.HOSTED_PILOT_FERRUM_PASSPORT_JWT }}
+          PILOT_CLOUD_GA4GH_URL: ${{ vars.HOSTED_PILOT_GA4GH_URL }}
         run: make ui-parity-pilot-cloud UI_PARITY_TIER=${{ inputs.tier }}

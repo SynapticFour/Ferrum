@@ -9,13 +9,15 @@ Customer-acceptance API tests that mirror what the web UI calls (`services/ui`).
 make up-tes
 make ui-parity-tes
 
-# Local pilot + Fly Keycloak (needs Passport JWT)
+# Local Ferrum + hosted Keycloak (needs Passport JWT and PILOT_CLOUD_GA4GH_URL)
 make up-pilot-cloud
-export FERRUM_PASSPORT_JWT='…'   # obtain-passport.sh
+export FERRUM_PASSPORT_JWT='…'
 make ui-parity-pilot-cloud
 
-# Fly Pasteur pilot
-export FERRUM_PASSPORT_JWT='…'   # obtain-passport.sh or Settings → Profile → Copy API token
+# Hosted Ferrum (set URLs; no defaults in-tree)
+export FERRUM_URL='https://your-ferrum.example'
+export GA4GH_URL='https://your-ga4gh-infra.example'
+export FERRUM_PASSPORT_JWT='…'
 export PILOT_DIR=/path/to/pilot-deploy   # optional — directory with .env for Fly URLs
 make ui-parity-fly
 ```
@@ -35,7 +37,7 @@ make ui-parity-tes UI_PARITY_TIER=write
 
 | Profile | Base URL | Auth |
 |---------|----------|------|
-| `fly` | `pasteur-pilot-ferrum.fly.dev` | Passport required |
+| `fly` | `$FERRUM_URL` (required) | Passport required |
 | `up-tes` | `localhost:8080` | Demo (optional) |
 | `up-pilot-cloud` | `localhost:8080` | Passport required |
 

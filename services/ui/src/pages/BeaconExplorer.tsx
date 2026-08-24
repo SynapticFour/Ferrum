@@ -36,8 +36,8 @@ const DEMO_PRESETS = [
     alternateBases: 'T',
   },
   {
-    id: 'pasteur',
-    labelKey: 'beacon.presetPasteur',
+    id: 'hosted-pilot',
+    labelKey: 'beacon.presetHostedDemo',
     assemblyId: 'GRCh37',
     referenceName: '22',
     start: '2000',
@@ -77,8 +77,8 @@ export function BeaconExplorer() {
 
   useEffect(() => {
     if (pilotDefaultsApplied.current || !isFlyPilot(config)) return;
-    const pasteur = DEMO_PRESETS.find((p) => p.id === 'pasteur');
-    if (pasteur) applyPreset(pasteur);
+    const hosted = DEMO_PRESETS.find((p) => p.id === 'hosted-pilot');
+    if (hosted) applyPreset(hosted);
     pilotDefaultsApplied.current = true;
   }, [config]);
 

@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Local Ferrum + Fly ga4gh-infra / Keycloak AAI smoke tests.
-# Prereq: Fly pilot running, make up-pilot-cloud (gateway :8080, UI :8082).
+# Local Ferrum + hosted ga4gh-infra / Keycloak AAI smoke tests.
+# Prereq: hosted AAI running, make up-pilot-cloud (gateway :8080, UI :8082).
 set -euo pipefail
 
-GA4GH="${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}"
+GA4GH="${PILOT_CLOUD_GA4GH_URL:?set PILOT_CLOUD_GA4GH_URL to the hosted ga4gh-infra base URL}"
 GATEWAY="${FERRUM_BASE_URL:-http://localhost:${GATEWAY_PORT:-8080}}"
 UI="${FERRUM_UI_URL:-http://localhost:${UI_PORT:-8082}}"
 
 die() { echo "ci-pilot-cloud-e2e: $*" >&2; exit 1; }
 ok() { echo "ci-pilot-cloud-e2e: OK — $*"; }
 
-curl -sf "$GA4GH/service-info" >/dev/null || die "Fly broker unreachable at $GA4GH (run ./pilot.sh resume all --wait)"
-ok "Fly broker service-info"
+curl -sf "$GA4GH/service-info" >/dev/null || die "Hosted broker unreachable at $GA4GH"
+ok "hosted broker service-info"
 
 curl -sf "$GATEWAY/health" >/dev/null || die "local gateway /health failed"
 ok "local gateway health"
 
 cfg="$(curl -sf "$GATEWAY/admin/config")"
-python3 - "$cfg" "$GA4GH" <<'PY' || die "admin config does not point at Fly broker"
+python3 - "$cfg" "$GA4GH" <<'PY' || die "admin config does not point at hosted broker"
 import json, sys
 c = json.loads(sys.argv[1])
 fly = sys.argv[2].rstrip("/")
@@ -34,7 +34,7 @@ assert d.get("service_registry_url", "").startswith(fly), d
 print("broker_login_url:", login)
 print("discovery:", d.get("service_registry_url"))
 PY
-ok "gateway wired to Fly Keycloak + service registry"
+ok "gateway wired to hosted Keycloak + service registry"
 
 access_status="$(curl -sf "$GATEWAY/access/v1/status" 2>/dev/null || echo '{}')"
 python3 - "$access_status" <<'PY' || die "ADS proxy not available"

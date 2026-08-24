@@ -12,8 +12,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_URL="${BASE_URL:-${1:-}}"
 if [[ -z "$BASE_URL" ]]; then
-  echo "seed-pilot-remote: set BASE_URL (e.g. https://pasteur-pilot-ferrum.fly.dev)" >&2
-  echo "  Fly seed: cd synapticfour-business/customers/pasteur-tunis/pilot-deploy && ./pilot.sh seed all" >&2
+  echo "seed-pilot-remote: set BASE_URL (e.g. https://your-ferrum.example)" >&2
+  echo "  Then seed that deployment with its own operator scripts — this repo does not vendor a customer path." >&2
   exit 1
 fi
 
@@ -45,7 +45,7 @@ echo "  remote deploys may use different DRS object names than local make seed-p
 echo "seed-pilot-remote: verify DRS has objects"
 obj_count="$(curl_pilot "$BASE_URL/ga4gh/drs/v1/objects?limit=5" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))")"
 if [[ "$obj_count" -lt 1 ]]; then
-  echo "seed-pilot-remote: FAIL — no DRS objects (run ./pilot.sh seed all on Fly, or make seed-pilot locally)" >&2
+  echo "seed-pilot-remote: FAIL — no DRS objects (seed the hosted deployment, or make seed-pilot locally)" >&2
   exit 1
 fi
 echo "seed-pilot-remote: OK — DRS lists objects (count sample: $obj_count+)"
@@ -82,7 +82,7 @@ if need.issubset(names):
     sys.exit(0)
 sys.exit(1)
 " 2>/dev/null; then
-  echo "seed-pilot-remote: OK — Fly pilot fixture names present (./pilot.sh seed all)"
+  echo "seed-pilot-remote: OK — hosted-pilot fixture names present"
 fi
 
 echo "seed-pilot-remote: verify cohort sample ${PILOT_SAMPLE_ID} (optional)"

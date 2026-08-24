@@ -129,7 +129,7 @@ export const arOverlay = {
   },
   pilot: {
     remoteSeedHint:
-      'الطيار المستضاف: BAM/VCF التجريبية تظهر بعد ./pilot.sh seed all من المشغّل. إن كانت البيانات فارغة اسألهم — يمكنك الاستيراد بنفسك.',
+      'الطيار المستضاف: BAM/VCF التجريبية تظهر بعد أن يُغذّي المشغّل النشر. إن كانت البيانات فارغة اسألهم — يمكنك الاستيراد بنفسك.',
   },
   data: {
     title: 'البيانات',
@@ -433,7 +433,7 @@ export const arOverlay = {
     variantNotFound: 'المتغير غير موجود',
     formChanged: 'تغيّر النموذج — أعد الاستعلام للحصول على نتيجة محدّثة.',
     presetLocal: 'عرض محلي (GRCh38)',
-    presetPasteur: 'عرض Pasteur (GRCh37)',
+    presetHostedDemo: 'عرض التجريب المستضاف (GRCh37)',
   },
   workflows: {
     title: 'التحليلات',
@@ -608,7 +608,7 @@ export const arOverlay = {
     registryLabel: 'السجل',
     servicesLine: 'الخدمات المفعّلة — DRS: {drs} · Beacon: {beacon} · TRS: {trs} · WES: {wes}',
     registryUrlLabel: 'رابط سجل الخدمات',
-    registryUrlPlaceholder: 'https://pasteur-pilot-ga4gh-infra.fly.dev',
+    registryUrlPlaceholder: 'https://ga4gh-infra.example.org',
     apiKeyLabel: 'مفتاح API للتسجيل',
     apiKeyPlaceholder: 'غير مخزّن — أدخله في كل جلسة',
     publicUrlLabel: 'الرابط العام لهذه العقدة',
@@ -662,7 +662,7 @@ export const arOverlay = {
     membersTitle: 'الأعضاء',
     noMembers: 'المالك فقط حتى الآن. أضف متعاونين بمعرّف المستخدم (OIDC sub).',
     memberSub: 'معرّف المستخدم (sub)',
-    memberSubPlaceholder: 'pasteur-demo-1',
+    memberSubPlaceholder: 'demo-user-1',
     memberRole: 'الدور',
     roleOwner: 'مالك',
     roleEditor: 'محرر',

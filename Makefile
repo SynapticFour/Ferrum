@@ -134,7 +134,7 @@ ui-parity-tes:
 ui-parity-pilot-cloud:
 	@bash scripts/ui-parity/ui-parity.sh --profile up-pilot-cloud --tier $(UI_PARITY_TIER) $(if $(UI_PARITY_REPORT),--report $(UI_PARITY_REPORT),)
 
-# Default pilot: local Ferrum data plane + Fly AAI (Pasteur Keycloak flow on laptop).
+# Default pilot: local Ferrum data plane + hosted AAI (Keycloak flow on laptop).
 up-pilot: up-pilot-cloud
 
 # Pull postgres/minio/keycloak/nginx so `up --pull never` does not die on an empty daemon.
@@ -179,12 +179,12 @@ down-pilot: down-pilot-cloud
 down-pilot-local:
 	$(COMPOSE_PILOT) down
 
-# Local Ferrum demo stack; auth via Fly pasteur-pilot ga4gh-infra + Keycloak (return_url localhost OK).
+# Local Ferrum demo stack; auth via hosted ga4gh-infra + Keycloak (return_url localhost OK).
 up-pilot-cloud:
 	@test -d "$(GA4GH_INFRA_SRC)" || (echo "GA4GH_INFRA_SRC not found: $(GA4GH_INFRA_SRC)" && exit 1)
-	@GA4GH_URL="$${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}"; \
-	  curl -sf "$$GA4GH_URL/service-info" >/dev/null \
-	  || (echo "Fly broker not reachable at $$GA4GH_URL — run: pilot-deploy ./pilot.sh resume all --wait" && exit 1)
+	@test -n "$${PILOT_CLOUD_GA4GH_URL}" || { echo "Set PILOT_CLOUD_GA4GH_URL to your hosted ga4gh-infra base URL"; exit 1; }
+	@curl -sf "$${PILOT_CLOUD_GA4GH_URL}/service-info" >/dev/null \
+	  || (echo "Hosted broker not reachable at $$PILOT_CLOUD_GA4GH_URL" && exit 1)
 	$(COMPOSE_PILOT_CLOUD) pull
 	$(COMPOSE_PILOT_CLOUD) up -d --build
 	@echo "Waiting for gateway (max 90s)..."
@@ -193,13 +193,14 @@ up-pilot-cloud:
 		[ $$i -eq 45 ] && echo "Gateway did not become healthy. Check: $(COMPOSE_PILOT_CLOUD) logs ferrum-gateway" && exit 1; \
 		sleep 2; \
 	done
-	@GA4GH_URL="$${PILOT_CLOUD_GA4GH_URL:-https://pasteur-pilot-ga4gh-infra.fly.dev}"; \
+	@test -n "$${PILOT_CLOUD_GA4GH_URL}" || { echo "Set PILOT_CLOUD_GA4GH_URL to your hosted ga4gh-infra base URL"; exit 1; }; \
+	  GA4GH_URL="$${PILOT_CLOUD_GA4GH_URL}"; \
 	  echo ""; \
-	  echo "Ferrum pilot is up (local data plane + Fly AAI):"; \
+	  echo "Ferrum hosted pilot is up (local data plane + remote AAI):"; \
 	  echo "  UI:       http://localhost:$${UI_PORT:-8082}/"; \
 	  echo "  Gateway:  http://localhost:$${GATEWAY_PORT:-8080}"; \
-	  echo "  Fly AAI:  $$GA4GH_URL/login/keycloak"; \
-	  echo "  Sign in:  pasteur-demo-1 / PasteurDemo1!"; \
+	  echo "  AAI:      $$GA4GH_URL/login/keycloak"; \
+	  echo "  Sign in with the demo users from your hosted IdP (not stored in this repo)."; \
 	  echo "  Smoke:    make test-pilot"; \
 	  echo "  Offline mock-idp stack instead: make up-pilot-local"
 	@command -v open >/dev/null 2>&1 && open "http://localhost:$${UI_PORT:-8082}/" || true

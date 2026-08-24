@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Compare Ferrum git SHA embedded in running gateways (local compose + optional Fly).
+# Compare Ferrum git SHA embedded in running gateways (local compose + optional hosted).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOCAL_SHA="$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-FLY_URL="${FERRUM_URL:-https://pasteur-pilot-ferrum.fly.dev}"
+HOSTED_URL="${FERRUM_URL:-}"
 LOCAL_URL="${LOCAL_GATEWAY_URL:-http://localhost:${GATEWAY_PORT:-8080}}"
 
 fetch_build_sha() {
@@ -38,7 +38,11 @@ echo "=== Ferrum source parity ==="
 echo "Local repo:  $LOCAL_SHA ($REPO_ROOT)"
 echo ""
 
-check_one "Fly pilot" "$FLY_URL" "$LOCAL_SHA"
+if [[ -n "$HOSTED_URL" ]]; then
+  check_one "Hosted Ferrum" "$HOSTED_URL" "$LOCAL_SHA"
+else
+  echo "[SKIP] Hosted Ferrum (set FERRUM_URL to compare a remote gateway)"
+fi
 
 if curl -sf "${LOCAL_URL%/}/health" >/dev/null 2>&1; then
   check_one "Local gateway" "$LOCAL_URL" "$LOCAL_SHA"
@@ -49,7 +53,7 @@ fi
 echo ""
 if [[ "$fail" -ne 0 ]]; then
   echo "parity: MISMATCH — rebuild/redeploy so FERRUM_BUILD__GIT_SHA matches git HEAD"
-  echo "  make up-tes | make up-pilot | pilot-deploy ./pilot.sh deploy ferrum"
+  echo "  make up-tes | make up-pilot"
   exit 1
 fi
 echo "parity: OK"

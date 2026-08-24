@@ -126,7 +126,7 @@ export const en = {
   },
   pilot: {
     remoteSeedHint:
-      'Hosted pilot: demo BAM/VCF appear after your operator runs ./pilot.sh seed all. Ask them if Data is empty — you can still Import file yourself.',
+      'Hosted pilot: demo BAM/VCF appear after the operator seeds the hosted deployment. If Data is empty you can still Import a file yourself.',
   },
   data: {
     title: 'Data',
@@ -443,7 +443,7 @@ export const en = {
     variantNotFound: 'Variant not found',
     formChanged: 'Form changed — query again for an up-to-date result.',
     presetLocal: 'Local demo (GRCh38)',
-    presetPasteur: 'Pasteur demo (GRCh37)',
+    presetHostedDemo: 'Hosted-pilot demo (GRCh37)',
   },
   workflows: {
     title: 'Workflows',
@@ -701,7 +701,7 @@ export const en = {
     registryLabel: 'Registry',
     servicesLine: 'Enabled services — DRS: {drs} · Beacon: {beacon} · TRS: {trs} · WES: {wes}',
     registryUrlLabel: 'Service registry URL',
-    registryUrlPlaceholder: 'https://pasteur-pilot-ga4gh-infra.fly.dev',
+    registryUrlPlaceholder: 'https://ga4gh-infra.example.org',
     apiKeyLabel: 'Registration API key',
     apiKeyPlaceholder: 'Not stored — enter each session',
     publicUrlLabel: 'This node public URL',
@@ -717,7 +717,7 @@ export const en = {
   },
   workspace: {
     purpose: 'What is a workspace?',
-    purposeBody: 'A workspace is your project folder: it groups data files, cohorts, and analysis runs for one study or lab team. Use it to keep Pasteur pilot work separate from other projects.',
+    purposeBody: 'A workspace is your project folder: it groups data files, cohorts, and analysis runs for one study or lab team. Use it to keep hosted-pilot work separate from other projects.',
     step1: 'Browse or upload data linked to this workspace.',
     step2: 'Build or open a cohort (sample sets) for the study.',
     step3: 'Register workflows in Tools, then run analyses from Workflows.',
@@ -755,7 +755,7 @@ export const en = {
     membersTitle: 'Members',
     noMembers: 'Only the owner so far. Add collaborators by user ID (OIDC sub).',
     memberSub: 'User ID (sub)',
-    memberSubPlaceholder: 'pasteur-demo-1',
+    memberSubPlaceholder: 'demo-user-1',
     memberRole: 'Role',
     roleOwner: 'owner',
     roleEditor: 'editor',
