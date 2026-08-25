@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Fixed
+
+- **h2 0.4.16+** — cargo-deny RUSTSEC-2026-0258 (unbounded empty DATA frames). Transitive via hyper; lockfile bump only.
+
 ### Changed
 
 - Helm chart `version` / `appVersion` **0.3.2**; default image `ghcr.io/synapticfour/ferrum:v0.3.2` (not `:latest`). ServiceAccount, security context, `/health`+`/ready`, `FERRUM_SERVICES__ENABLE_*`, adapter-mapped WES/TES/storage env. `deploy/.env.example` `FERRUM_VERSION=v0.3.2`.
