@@ -93,7 +93,7 @@ jobs:
           done
 
       - name: Helix verify (regression vs baseline)
-        uses: SynapticFour/helix-action@main
+        uses: SynapticFour/helix-action@973a3e9f37134231760ad0fd34d78e034bac4ad0
         with:
           endpoint: ${{ env.GATEWAY_BASE }}
           helix-ref: ${{ github.event.inputs.helix_ref || 'main' }}
