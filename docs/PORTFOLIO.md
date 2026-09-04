@@ -1,6 +1,6 @@
 # Synaptic Four portfolio
 
-Four **products** (different buyers), two **free ambassadors**, Ferrum **companions**, and **proof** repos. Glue is **GA4GH** (research data/identity/compute). [Solum](https://github.com/SynapticFour/Solum) extends that into **clinical** consent, purpose, and interchange. This is a portfolio, **not a bundle SKU**.
+Four **products** (different buyers), two **ambassador lines** (Helix / HelixTest, and HELIOS), Ferrum **companions**, and **proof** repos. Glue is **GA4GH** (research data/identity/compute). [Solum](https://github.com/SynapticFour/Solum) extends that into **clinical** consent, purpose, and interchange. This is a portfolio, **not a bundle SKU**.
 
 Canonical copy — keep [ECOSYSTEM.md](ECOSYSTEM.md) in each public repo aligned with this map.
 
@@ -21,10 +21,11 @@ High public quality bar. Not sold. They make Synaptic Four visible.
 
 | Repo | Role |
 |------|------|
-| [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI against a running target (not a server) |
+| [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI (`helixtest`) against a running target (not a server). Suite pin **v0.1.3**. |
+| [Helix](https://github.com/SynapticFour/Helix) | VERIFY brand around HelixTest (`helix verify` / `security` / `bench`). Separate git root, **not** a third SKU, **not** HELIOS. |
 | [HELIOS](https://github.com/SynapticFour/HELIOS) | Signed pipeline/audit evidence (`helios-audit` on PyPI). File ingest — does **not** orchestrate Ferrum or Solum |
 
-Third-party CI wrapper for HelixTest (same ambassador, not a SKU): [helixtest-action](https://github.com/SynapticFour/helixtest-action) (`v0.1.1` binaries). HelixTest validates against **published GA4GH OpenAPI**; Ferrum’s utoipa dump is an implementation map only.
+CI wrappers (same ambassador line, not SKUs): [helixtest-action](https://github.com/SynapticFour/helixtest-action) (`v0.1.2` release binaries — **not** the suite pin) and [helix-action](https://github.com/SynapticFour/helix-action) (`helix verify` from Helix + HelixTest **v0.1.3**; Ferrum **`main` does not use it** — only branch `ci/helix-verify-pilot`). HelixTest validates against **published GA4GH OpenAPI**; Ferrum’s utoipa dump is an implementation map only.
 
 ## Ferrum companions
 
@@ -45,11 +46,11 @@ Local walkthroughs so a curious operator can see real behaviour. Not evaluation 
 
 Tests live **in each product** (`make prove`). There is no Solum-Test repo. HelixTest is the **external** GA4GH proof.
 
-**Toolchain:** Ferrum, Lab Kit, ga4gh-infra, Solum, and HelixTest checkouts use **Rust 1.91.1** (`rust-toolchain.toml`). HelixTest **MSRV** remains **1.88**. BRA and HELIOS require **Python 3.11+**.
+**Toolchain:** Ferrum, Lab Kit, ga4gh-infra, Solum, Helix, and HelixTest checkouts use **Rust 1.91.1** (`rust-toolchain.toml`). HelixTest **MSRV** remains **1.88**. BRA and HELIOS require **Python 3.11+**.
 
 **Maintainer:** public git history on these products is one human (Synaptic Four). A second committer is a hiring/process item, not a README claim. Details: [GOVERNANCE.md](GOVERNANCE.md).
 
-**Support:** written commercial license is [COMMERCIAL.md](COMMERCIAL.md). There is no combo SKU and no suite discount. ga4gh-infra is Apache-2.0 (support optional). Lab Kit is a Ferrum companion. HELIOS and HelixTest are Apache-2.0 ambassadors.
+**Support:** written commercial license is [COMMERCIAL.md](COMMERCIAL.md). There is no combo SKU and no suite discount. ga4gh-infra is Apache-2.0 (support optional). Lab Kit is a Ferrum companion. Helix/HelixTest and HELIOS are Apache-2.0 ambassadors.
 
 ## Optional joins (standards, not a monorepo)
 
@@ -62,5 +63,6 @@ Tests live **in each product** (`make prove`). There is no Solum-Test repo. Heli
 | HELIOS → Solum | JSON export file on disk |
 | Lab Kit → Ferrum | SHA-pinned image + `FERRUM_SERVICES__ENABLE_*` |
 | HelixTest → Ferrum / infra | HTTP conformance against a running stack; schemas are the **published GA4GH OpenAPI** (vendored). Ferrum [utoipa dump](openapi/ferrum.openapi.json) is gateway/extension map only |
+| Helix → HelixTest | Cargo path deps on sibling crates; CI pin `HELIXTEST_SHA` = v0.1.3. Separate git roots. |
 
 See each repo `docs/IDENTITY.md` for audience / not-for / standalone prove.

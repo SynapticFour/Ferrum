@@ -1,6 +1,6 @@
 # Synaptic Four — this repo in the portfolio
 
-Four **products**, two free **ambassadors**, Ferrum **companions**, and **reference / demo** repos. Glue is GA4GH; Solum extends into clinical data. **Not a bundle SKU.** Canonical public map: [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md). Longer portfolio notes: [PORTFOLIO.md](PORTFOLIO.md).
+Four **products**, two ambassador lines (**Helix / HelixTest**, **HELIOS**), Ferrum **companions**, and **reference / demo** repos. Glue is GA4GH; Solum extends into clinical data. **Not a bundle SKU.** Canonical public map: [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md). Longer portfolio notes: [PORTFOLIO.md](PORTFOLIO.md).
 
 **You are here:** [Ferrum](https://github.com/SynapticFour/Ferrum) — data/compute plane (DRS, WES, TES, TRS, Beacon, htsget, Crypt4GH).
 
@@ -12,7 +12,8 @@ Four **products**, two free **ambassadors**, Ferrum **companions**, and **refere
 | Product | [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra) | Identity plane (Apache open-core) | Apache-2.0 |
 | Product | [Solum](https://github.com/SynapticFour/Solum) | Clinical overlay | BUSL-1.1 |
 | Product | [BioResearch Assistant](https://github.com/SynapticFour/bioresearch-assistant) | Researcher workbench | BUSL-1.1 |
-| Ambassador | [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI | Apache-2.0 |
+| Ambassador | [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI (`helixtest`) | Apache-2.0 |
+| Ambassador | [Helix](https://github.com/SynapticFour/Helix) | VERIFY brand around HelixTest (`helix verify`) | Apache-2.0 |
 | Ambassador | [HELIOS](https://github.com/SynapticFour/HELIOS) | Pipeline audit evidence (file ingest) | Apache-2.0 |
 | With Ferrum | [Ferrum-Lab-Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) | Subset install — Ferrum companion | BUSL-1.1 |
 | With Ferrum | [ferrum-meta](https://github.com/SynapticFour/ferrum-meta) | Metadata interchange schemas | Apache-2.0 |
@@ -27,7 +28,7 @@ Four **products**, two free **ambassadors**, Ferrum **companions**, and **refere
 | Schema (scientific meta) | **[ferrum-meta](https://github.com/SynapticFour/ferrum-meta)** | LinkML profiles; runtime store/API in Ferrum (ADR-025) |
 | Deployment | **Ferrum-Lab-Kit** | Selective GA4GH surfaces for labs; does not fork Ferrum |
 | Demo/benchmark | **Ferrum-GA4GH-Demo** | Reproducible GIAB benchmark; optional `--with-infra` |
-| Conformance | **HelixTest** | Automated API and workflow tests |
+| Conformance | **HelixTest** (tagged CLI) / **Helix** (VERIFY brand) | Automated API and workflow tests. Ferrum `main` runs HelixTest v0.1.3. |
 
 Co-deploy: Ferrum `[auth] mode = "external"` disables built-in `/passports/v1` and validates via `ga4gh-clearinghouse`. See [GA4GH-INFRA-INTEGRATION.md](GA4GH-INFRA-INTEGRATION.md) and [DECISIONS.md](../DECISIONS.md) (ADR-017).
 

@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 
 - **HelixTest ingest docs** — `docs/HELIXTEST-INTEGRATION.md`: default `--mode ferrum` does not hit `/api/v1/ingest/*`; opt-in `--mode ferrum-africa` does (`POST /api/v1/ingest/ont`). Lab Kit register/upload/jobs remain Ferrum unit tests. Linked to [Helix INVENTORY.md](https://github.com/SynapticFour/Helix/blob/main/INVENTORY.md) §1 Africa.
+- **Portfolio map** — Helix is the VERIFY brand around HelixTest (same ambassador line, not a third SKU). helixtest-action binaries are **v0.1.2**, not the suite pin **v0.1.3**. helix-action is not on Ferrum `main`.
 - Helm chart `version` / `appVersion` **0.3.2**; default image `ghcr.io/synapticfour/ferrum:v0.3.2` (not `:latest`). ServiceAccount, security context, `/health`+`/ready`, `FERRUM_SERVICES__ENABLE_*`, adapter-mapped WES/TES/storage env. `deploy/.env.example` `FERRUM_VERSION=v0.3.2`.
 - **HelixTest pin** — tag **v0.1.3** (`HELIXTEST_SHA=1832c04`). Infra broker service-info is Level 0 so `--fail-level 2` is reachable. `v0.1.2` remains the previous cut.
 
