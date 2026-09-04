@@ -71,7 +71,7 @@ Exact test names evolve with HelixTest releases; the following **areas** are wha
 | **Auth / Passports** | Scenarios HelixTest defines for Ferrum mode (demo stack uses patched/skip where conflicting) |
 | **Crypt4GH** | Encryption-related checks HelixTest runs against Ferrum when enabled in profile |
 
-**Not in HelixTest today:** **`/api/v1/ingest/*`** (Lab Kit ingest) is covered by Ferrum **unit tests** (`ferrum-drs` `api_v1` request/JSON shape, `ferrum-core` `[ingest]` config) and manual/`scripts/demo_ingest_lab_kit.sh` checks — add HelixTest scenarios when the Ferrum profile grows.
+HelixTest's default `--mode ferrum` does not exercise `/api/v1/ingest/*`. The opt-in `--mode ferrum-africa` profile does (`POST /api/v1/ingest/ont`; `--africa-profile ont`). Lab Kit ingest (`register` / `upload` / `jobs`) stays Ferrum **unit tests** (`ferrum-drs` `api_v1`, `ferrum-core` `[ingest]`) and `scripts/demo_ingest_lab_kit.sh` — that is not the default Ferrum HelixTest ladder. Keep this paragraph in sync with [Helix `INVENTORY.md` §1 Africa](https://github.com/SynapticFour/Helix/blob/main/INVENTORY.md) (canonical list of what HelixTest actually runs; HelixTest has no in-tree `INVENTORY.md`).
 
 ### Default CI limitations (read before quoting results externally)
 
