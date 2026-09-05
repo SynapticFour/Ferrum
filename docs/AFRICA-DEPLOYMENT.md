@@ -34,7 +34,7 @@ Expected console output:
 ```
 [ferrum] Starting in Edge mode (SQLite + local storage).
 [ferrum] Data will be stored at ~/.ferrum/
-[ferrum] To use production backends, set FERRUM_CONFIG=/path/to/config.toml
+[ferrum] To use operator production-style (non-demo) backends, set FERRUM_CONFIG=/path/to/config.toml
 ```
 
 Verify:
@@ -61,7 +61,7 @@ Edge mode is a **single-process, embedded stack** — not the full Docker demo.
 |-------------------------------------|------------------|
 | WES, TES, TRS | `503` / service disabled |
 | Passports / OIDC flows | `503` or skipped at startup |
-| Full HelixTest matrix | Use Docker demo or production stack |
+| Full HelixTest matrix | Use Docker demo or operator production-style (non-demo) backends |
 
 For conformance testing and the complete GA4GH surface, use `deploy/docker-compose.yml` or a Postgres-backed deployment — see [HELIXTEST-INTEGRATION.md](HELIXTEST-INTEGRATION.md).
 
@@ -228,7 +228,7 @@ See also [OFFLINE-AIRGAP.md](deployment/OFFLINE-AIRGAP.md) for signed bundles.
 
 ### Decision rationale (ADR summary)
 
-Embedded backends trade horizontal scalability for operability: SQLite suits single-user laptop deployments; PostgreSQL remains the production source of truth. Local storage avoids S3 API dependencies while preserving the same `ObjectStorage` trait used by DRS ingest and streaming in production.
+Embedded backends trade horizontal scalability for operability: SQLite suits single-user laptop deployments; PostgreSQL remains the operator production-style (non-demo) source of truth. Local storage avoids S3 API dependencies while preserving the same `ObjectStorage` trait used by DRS ingest and streaming on those non-demo backends.
 
 See also: [deployment README](deployment/README.md), [INSTALLATION.md](INSTALLATION.md).
 
