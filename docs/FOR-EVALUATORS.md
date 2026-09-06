@@ -31,7 +31,7 @@ Business Source License 1.1. Additional Use Grant: non-commercial research, acad
 | htsget genomic region slicing | HTTP 400. Tickets are whole-object DRS streams. |
 | TES default demo compute | Noop (API lifecycle only). |
 | LSF | `ferrum_backend=lsf` errors. Slurm exists; LSF does not. |
-| Helm as “production-ready” | Charts exist; operator still owns IdP, secrets, and network. |
+| Helm as a finished operator path | Charts exist; operator still owns IdP, secrets, and network. |
 | Combo SKU with Solum / BRA / infra | Does not exist. |
 
 Fail-closed notes (unless demo flags are set): JWT/Passport required when `require_auth` is on; admin APIs always require an admin visa; TES bind-mounts require an operator prefix allowlist. Matrix: [OPERATOR-TRUST.md](OPERATOR-TRUST.md).
