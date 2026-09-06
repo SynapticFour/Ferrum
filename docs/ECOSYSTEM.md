@@ -1,6 +1,6 @@
 # Synaptic Four — this repo in the portfolio
 
-Four **products**, two ambassador lines (**Helix / HelixTest**, **HELIOS**), Ferrum **companions**, and **reference / demo** repos. Glue is GA4GH; Solum extends into clinical data. **Not a bundle SKU.** Canonical public map: [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md). Longer portfolio notes: [PORTFOLIO.md](PORTFOLIO.md).
+Ferrum, ga4gh-infra, Solum, and BioResearch Assistant sit alongside Helix/HelixTest (API checks), HELIOS (pipeline evidence), Ferrum companions, and local demos. Glue is GA4GH; Solum extends into clinical data. Canonical public map: [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md). Longer notes: [PORTFOLIO.md](PORTFOLIO.md).
 
 **You are here:** [Ferrum](https://github.com/SynapticFour/Ferrum) — data/compute plane (DRS, WES, TES, TRS, Beacon, htsget, Crypt4GH).
 
@@ -12,9 +12,9 @@ Four **products**, two ambassador lines (**Helix / HelixTest**, **HELIOS**), Fer
 | Product | [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra) | Identity plane (Apache open-core) | Apache-2.0 |
 | Product | [Solum](https://github.com/SynapticFour/Solum) | Clinical overlay | BUSL-1.1 |
 | Product | [BioResearch Assistant](https://github.com/SynapticFour/bioresearch-assistant) | Researcher workbench | BUSL-1.1 |
-| Ambassador | [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI (`helixtest`) | Apache-2.0 |
-| Ambassador | [Helix](https://github.com/SynapticFour/Helix) | VERIFY brand around HelixTest (`helix verify`) | Apache-2.0 |
-| Ambassador | [HELIOS](https://github.com/SynapticFour/HELIOS) | Pipeline audit evidence (file ingest) | Apache-2.0 |
+| Open source | [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI (`helixtest`) | Apache-2.0 |
+| Open source | [Helix](https://github.com/SynapticFour/Helix) | VERIFY CLI around HelixTest (`helix verify`) | Apache-2.0 |
+| Open source | [HELIOS](https://github.com/SynapticFour/HELIOS) | Pipeline audit evidence (file ingest) | Apache-2.0 |
 | With Ferrum | [Ferrum-Lab-Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) | Subset install — Ferrum companion | BUSL-1.1 |
 | With Ferrum | [ferrum-meta](https://github.com/SynapticFour/ferrum-meta) | Metadata interchange schemas | Apache-2.0 |
 | Proof | [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo) | Local `./run` smoke | Apache-2.0 |

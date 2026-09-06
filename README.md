@@ -20,9 +20,9 @@ These public repositories are maintained by the same organisation and are design
 
 ```bash
 make prove    # cargo test --workspace --all-targets (no Docker)
-make eval     # require_auth=true (HS256). TES noop. Not ga4gh-infra Passports.
-make up       # demo — TES noop; auth off (NON-PILOT). Not a pilot.
-make up-tes   # demo + Docker-backed TES (local containers; not default)
+make eval     # require_auth=true (HS256). TES noop.
+make up       # demo stack — TES noop; auth off
+make up-tes   # demo + Docker-backed TES (local containers)
 ```
 
 Stop: `make down` (keep volumes) or `make destroy` (remove volumes and project images).
@@ -37,7 +37,7 @@ htsget region queries (`referenceName` / `start` / `end`) return HTTP 400. WES `
 - [GA4GH specs vs this implementation](docs/GA4GH.md) · [OpenAPI dump](docs/openapi/README.md)
 - [Operator trust](docs/OPERATOR-TRUST.md) · [Documentation index](docs/README.md)
 
-Specialist notes (TES Docker, MII Connect, field/edge, and others) stay under `docs/` and are linked from the [index](docs/README.md). They are annexes, not the front door.
+Specialist notes (TES Docker, MII Connect, field/edge, and others) live under `docs/` and are linked from the [index](docs/README.md).
 
 ## License
 
