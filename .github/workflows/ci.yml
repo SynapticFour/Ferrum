@@ -280,3 +280,5 @@ jobs:
           grep -q 'appVersion: "0.3.2"' deploy/helm/Chart.yaml
           grep -q 'tag: "v0.3.2"' deploy/helm/values.yaml
           grep -q 'FERRUM_VERSION=v0.3.2' deploy/.env.example
+          grep -q 'image: ghcr.io/synapticfour/ferrum:v0.3.2' demo/docker-compose.demo.yml
+          grep -q 'image: ghcr.io/synapticfour/ferrum-ui:v0.3.2' demo/docker-compose.demo.yml

@@ -28,6 +28,8 @@ tower = "0.4"
 tower-http = { version = "0.5", features = ["trace"] }
 config = "0.14"
 utoipa = { version = "4", optional = true }
+# jsonwebtoken 10 has no default crypto backend. HS256 (Edge) and RS256/ES256
+# (Passport JWKS) need rust_crypto; without it the crate compiles, then panics.
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 async-trait = "0.1"
 ulid = "1"

@@ -14,7 +14,8 @@ services:
       retries: 10
 
   gateway:
-    image: ghcr.io/synapticfour/ferrum:latest
+    # Pin to VERSIONS.lock FERRUM_VERSION. :latest is not a pin.
+    image: ghcr.io/synapticfour/ferrum:v0.3.2
     ports:
       - "8080:8080"
     environment:
@@ -26,7 +27,8 @@ services:
         condition: service_healthy
 
   ui:
-    image: ghcr.io/synapticfour/ferrum-ui:latest
+    # Pin to VERSIONS.lock FERRUM_VERSION. :latest is not a pin.
+    image: ghcr.io/synapticfour/ferrum-ui:v0.3.2
     environment:
       VITE_API_BASE_URL: http://localhost:8080
     depends_on:

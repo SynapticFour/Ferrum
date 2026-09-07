@@ -260,4 +260,39 @@ mod tests {
             .expect("verify");
         assert_eq!(acct.role, ROLE_COLLECTOR);
     }
+
+    /// Production Edge tokens are HS256. jsonwebtoken 10 without `rust_crypto`
+    /// panics at encode/decode; this fails closed if that feature is dropped.
+    #[test]
+    fn hs256_mint_local_token_round_trip() {
+        use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+
+        let account = EdgeOperatorAccount {
+            id: "01TESTACCOUNT00000000000000".into(),
+            username: "alice".into(),
+            role: ROLE_COLLECTOR.to_string(),
+            created_time: "2026-01-01T00:00:00Z".into(),
+            disabled: false,
+        };
+        let secret = b"test-jwt-secret-not-for-production";
+        let token = mint_local_token(&account, secret, 1).expect("HS256 encode");
+        let header = jsonwebtoken::decode_header(&token).expect("decode header");
+        assert_eq!(header.alg, Algorithm::HS256);
+
+        #[derive(serde::Deserialize)]
+        struct LocalClaims {
+            sub: String,
+            iss: String,
+            scope: String,
+        }
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.algorithms = vec![Algorithm::HS256];
+        validation.set_issuer(&["ferrum-edge-local"]);
+        validation.validate_aud = false;
+        let decoded = decode::<LocalClaims>(&token, &DecodingKey::from_secret(secret), &validation)
+            .expect("HS256 decode");
+        assert_eq!(decoded.claims.sub, "alice");
+        assert_eq!(decoded.claims.iss, "ferrum-edge-local");
+        assert_eq!(decoded.claims.scope, crate::auth::VISA_COLLECTOR);
+    }
 }

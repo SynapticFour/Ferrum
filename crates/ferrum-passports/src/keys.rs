@@ -130,3 +130,71 @@ pub fn default_access_token_header() -> Header {
         ..Default::default()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::PassportConfig;
+    use jsonwebtoken::{decode, DecodingKey, Validation};
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Serialize, Deserialize, PartialEq)]
+    struct RoundTripClaims {
+        iss: String,
+        sub: String,
+        iat: i64,
+        exp: i64,
+    }
+
+    fn test_config() -> PassportConfig {
+        PassportConfig {
+            issuer_base_url: "https://ferrum.example/passports/v1".to_string(),
+            signing_key_pem: None,
+            oidc_authorization_url: None,
+            oidc_token_url: None,
+            oidc_userinfo_url: None,
+            oidc_client_id: None,
+            oidc_client_secret: None,
+            oidc_issuer: None,
+        }
+    }
+
+    /// Production algorithm is RS256 (passport, visa, and access-token headers).
+    /// jsonwebtoken 10 without `rust_crypto` panics here; this test fails closed
+    /// if that feature is dropped or the crate is downgraded without a backend.
+    #[test]
+    fn rs256_encode_decode_round_trip() {
+        let keys = SigningKeys::from_config(&test_config()).expect("signing keys");
+        let issuer = "https://ferrum.example/passports/v1";
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock")
+            .as_secs() as i64;
+        let claims = RoundTripClaims {
+            iss: issuer.to_string(),
+            sub: "researcher@example.org".to_string(),
+            iat: now,
+            exp: now + 3600,
+        };
+        let public_pem = keys.public_key_pem().expect("public pem");
+        let decoding_key =
+            DecodingKey::from_rsa_pem(public_pem.as_bytes()).expect("decoding key from RSA PEM");
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.set_issuer(&[issuer]);
+        validation.validate_aud = false;
+
+        for header in [
+            default_access_token_header(),
+            default_passport_header(),
+            default_visa_header(),
+        ] {
+            assert_eq!(header.alg, Algorithm::RS256, "production alg is RS256");
+            let token = keys.sign(&header, &claims).expect("RS256 encode");
+            let decoded_header = jsonwebtoken::decode_header(&token).expect("decode header");
+            assert_eq!(decoded_header.alg, Algorithm::RS256);
+            let decoded = decode::<RoundTripClaims>(&token, &decoding_key, &validation)
+                .expect("RS256 decode");
+            assert_eq!(decoded.claims, claims);
+        }
+    }
+}

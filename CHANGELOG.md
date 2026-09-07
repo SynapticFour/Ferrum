@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file. The format 
 ### Fixed
 
 - **h2 0.4.16+** — cargo-deny RUSTSEC-2026-0258 (unbounded empty DATA frames). Transitive via hyper; lockfile bump only.
+- **jsonwebtoken 10 `rust_crypto`** — `ferrum-passports` now pins the crypto backend (same as `ferrum-core`). RS256 encode/decode round-trip in `keys.rs`; HS256 Edge mint round-trip in `edge_accounts.rs`. Without the feature the crate compiles and panics at runtime.
+- **Demo compose images** — `demo/docker-compose.demo.yml` uses `ghcr.io/synapticfour/ferrum:v0.3.2` and `ferrum-ui:v0.3.2` (not `:latest`). Same pin as Helm / `VERSIONS.lock`.
 
 ### Changed
 
