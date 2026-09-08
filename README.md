@@ -18,6 +18,8 @@ These public repositories are maintained by the same organisation and are design
 
 ## Quick start
 
+Laptop walkthrough of **tagged** Ferrum (DRS / WES / TES): [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo) `./run` (gateway `http://127.0.0.1:18080`). Org stranger path: [github.com/SynapticFour](https://github.com/SynapticFour#try-it-30-min).
+
 ```bash
 make prove    # cargo test --workspace --all-targets (no Docker)
 make eval     # require_auth=true (HS256). TES noop.
