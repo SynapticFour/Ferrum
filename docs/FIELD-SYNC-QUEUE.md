@@ -4,7 +4,7 @@ Design reference for **ADR-019** / **Phase 4 (T4)**. Edge nodes queue DRS object
 
 ## Problem
 
-Researchers ingest sequencing data offline on a Raspberry Pi or edge SBC. Objects live in local SQLite + filesystem storage. When VSAT, mobile tether, or a visit to a connected site provides bandwidth, operators upload selected objects (and linked ferrum-meta bundles) to a hub without re-running MinION ingest.
+Researchers ingest sequencing data offline on the field edge board (Raspberry Pi 5, 8 GB, 64-bit, USB SSD or NVMe). Objects live in local SQLite + filesystem storage. When VSAT, mobile tether, or a visit to a connected site provides bandwidth, operators upload selected objects (and linked ferrum-meta bundles) to a hub without re-running MinION ingest.
 
 ## Queue model
 

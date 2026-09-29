@@ -34,4 +34,4 @@ Optional co-deploy **ga4gh-infra** on a **hub** machine (not Pi): see [GA4GH-INF
 
 ## Pi hardware checklist
 
-See [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md) — Pi 5, 8 GB+ RAM, USB SSD, ARM64 Linux. Binary budget: **&lt; 50 MB** (`release-edge`).
+See [AFRICA-DEPLOYMENT.md](AFRICA-DEPLOYMENT.md) and ADR-026. Field board: **Raspberry Pi 5, 8 GB RAM** (16 GB accepted), **64-bit** OS, **USB SSD or NVMe**. Binary budget: **&lt; 50 MB** (`release-edge`). The size gate is a CI compile check, not a boot of that board.

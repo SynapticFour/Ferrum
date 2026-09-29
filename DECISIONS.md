@@ -12,6 +12,16 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-09-29 - ADR-026: One supported field edge board
+
+- **Status:** Accepted
+- **Context:** Docs named Pi 4 and Pi 5, 4 GB and 8 GB, microSD and USB SSD, and 32-bit ARM, as if they were the same field target. The gnu ARM64 flags are Cortex-A76. CI compiles ARM64 and does not boot a Pi. The field claim has to be one board a reader can buy.
+- **Decision:** The supported field edge board is a **Raspberry Pi 5 with 8 GB RAM** (16 GB is the same board with more RAM), **64-bit** Raspberry Pi OS or Ubuntu 24.04 ARM64, and **USB SSD or NVMe** for the Ferrum data directory. Pi 4, Pi 5 1 GB/2 GB/4 GB, and 32-bit OS are not field targets. Ferrum’s share of that 8 GB board stays `max_memory_mb = 3072` (container limit 3 GB) so the OS, Docker, optional Solum Track A, and ga4gh-infra fit on the same machine. Edge-mode binaries on x86_64 and macOS remain developer and lab paths. They are not a second field board.
+- **Consequences:** Lab Kit `install-on-pi.sh` and the Demo `install-ferrum-edge.sh` refuse a board that is not a Pi 5, not 64-bit, under about 7 GB `MemTotal`, or whose data directory sits on `mmcblk`. No installer profile is generated for MinION Mk1C, Illumina instruments, or institute rack servers. Those machines produce files or run the hub. Ferrum ingests the files. Sequencing and basecalling stay on the Oxford Nanopore or Illumina host.
+- **Not decided:** Raising the 3072 MB Ferrum cap after a measured combined run on this board. Crypt4GH throughput on this board remains a target until someone records `cargo bench` there.
+
+---
+
 ### 2026-08-15 - Named gateway image variants (full / edge / edge-infra)
 
 - **Context:** Lab Kit selects GA4GH surfaces with runtime `FERRUM_SERVICES__ENABLE_*` on the full monolith image. Field/Pi operators still pull WES/TES/TRS code. Arbitrary per-lab compile matrices in Lab Kit would duplicate Ferrum CI (SBOM, signing, features).

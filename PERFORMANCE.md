@@ -47,7 +47,7 @@ cargo bench -p ferrum-crypt4gh --bench crypt_benchmark -- --noplot
 | Platform | Crypt4GH 64 KiB | Beacon SQLite | DRS plain stream |
 |----------|-----------------|---------------|------------------|
 | x86_64 server | _TBD_ | _TBD_ | _TBD_ |
-| Raspberry Pi 5 | **>500 MB/s target** | **<50 ms target** | **40–80 MB/s** (microSD) |
+| Raspberry Pi 5, 8 GB, USB SSD or NVMe | **>500 MB/s target** | **<50 ms target** | storage-bound; not measured here |
 | Apple M-series | _TBD_ | _TBD_ | _TBD_ |
 
 ## PostgreSQL pool

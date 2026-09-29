@@ -75,7 +75,7 @@ The demo stack includes: **ferrum-gateway**, **PostgreSQL 16**, **MinIO**, **Key
 
 ### Edge mode (no Docker — one command)
 
-For offline or resource-constrained machines (shared laptops, field sites, Raspberry Pi with ARM64 Linux):
+For offline or resource-constrained machines. The field board is a Raspberry Pi 5, 8 GB, 64-bit, with the data directory on USB SSD or NVMe (ADR-026). The same Edge binary also runs on shared Linux x86_64 laptops and macOS. Those are lab paths, not a second field board:
 
 ```bash
 curl -sSf https://raw.githubusercontent.com/SynapticFour/Ferrum/main/install.sh | sh

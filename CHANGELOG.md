@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Changed
 
+- **Field edge board** — one supported board: Raspberry Pi 5, 8 GB (16 GB accepted), 64-bit OS, USB SSD or NVMe for the data directory. Pi 4 and 4 GB are not field targets. ADR-026. ARM64 CI is still a compile, not a boot of that board.
 - **HelixTest ingest docs** — `docs/HELIXTEST-INTEGRATION.md`: default `--mode ferrum` does not hit `/api/v1/ingest/*`; opt-in `--mode ferrum-africa` does (`POST /api/v1/ingest/ont`). Lab Kit register/upload/jobs remain Ferrum unit tests. Linked to [Helix INVENTORY.md](https://github.com/SynapticFour/Helix/blob/main/INVENTORY.md) §1 Africa.
 - **Portfolio map** — Helix is the VERIFY CLI around HelixTest. helixtest-action default binaries are **v0.1.3**, same as the suite pin.
 - Helm chart `version` / `appVersion` **0.3.2**; default image `ghcr.io/synapticfour/ferrum:v0.3.2` (not `:latest`). ServiceAccount, security context, `/health`+`/ready`, `FERRUM_SERVICES__ENABLE_*`, adapter-mapped WES/TES/storage env. `deploy/.env.example` `FERRUM_VERSION=v0.3.2`.

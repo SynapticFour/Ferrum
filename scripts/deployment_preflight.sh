@@ -104,12 +104,17 @@ case "${SCENARIO}" in
     (( disk >= 20 )) && pass "Disk >= 20 GB" || fail "Disk < 20 GB"
     ;;
   edge|laptop)
-    if (( ram >= 8 )); then
-      pass "RAM >= 8 GB (recommended for Edge mode)"
-    elif (( ram >= 4 )); then
-      warn "RAM ${ram} GB — minimum for Edge mode (Pi 4); 8 GB+ recommended"
+    # Floor(GiB) of a Pi 5 8 GB is often 7, because MemTotal sits under 8 GiB.
+    # Compare MB. 4 GB boards report about 4000 MB and fail. 8 GB boards pass 7000.
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+      ram_mb=$(( $(sysctl -n hw.memsize) / 1024 / 1024 ))
     else
-      fail "RAM < 4 GB — insufficient for Edge mode"
+      ram_mb="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
+    fi
+    if (( ram_mb >= 7000 )); then
+      pass "RAM ${ram_mb} MB (field board: Raspberry Pi 5, 8 GB)"
+    else
+      fail "RAM ${ram_mb} MB < 7000 — field board is Raspberry Pi 5, 8 GB"
     fi
     (( disk >= 10 )) && pass "Disk >= 10 GB free" || fail "Disk < 10 GB free"
     warn "Edge mode preflight: no Docker check (embedded SQLite + local storage)"
@@ -145,4 +150,3 @@ if [[ "${FAILED}" -eq 1 ]]; then
   exit 1
 fi
 echo "Preflight finished successfully."
-

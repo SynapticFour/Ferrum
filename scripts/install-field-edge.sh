@@ -86,8 +86,8 @@ preflight() {
     local ram_mb
     ram_mb="$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)"
     log "RAM: ${ram_mb} MB"
-    if [ "$ram_mb" -lt 3800 ]; then
-      warn "4 GB+ RAM recommended for Ferrum + ga4gh-infra co-deploy"
+    if [ "$ram_mb" -lt 7000 ]; then
+      warn "Field board is Raspberry Pi 5 with 8 GB RAM (MemTotal ${ram_mb} MB). This machine is below that."
     fi
   fi
 }

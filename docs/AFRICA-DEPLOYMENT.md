@@ -84,8 +84,8 @@ These numbers set expectations for **Edge mode only** (one `ferrum-gateway` proc
 
 | Profile | RAM | Free disk | CPU | Typical use |
 |---------|-----|-----------|-----|-------------|
-| **Minimum** | 4 GB | 10 GB | 2 cores | Evaluation, small test files, single user |
-| **Recommended** | 8–16 GB | 50 GB+ | 4 cores | Shared lab laptop, modest VCF/BAM working sets |
+| **Field board** | 8 GB (Pi 5; 16 GB accepted) | USB SSD or NVMe, sized to the dataset | 4 cores | The supported field edge board (ADR-026) |
+| **Lab laptop** | 8–16 GB | 50 GB+ | 4 cores | Shared lab laptop, modest VCF/BAM working sets |
 | **Heavy data** | 16–32 GB | 100 GB – 1 TB+ | 4+ cores | Larger objects; disk dominates, not the binary |
 
 **Disk:** Ferrum itself is small (binary + SQLite metadata). Genomic objects live under `~/.ferrum/objects/` and grow with your ingest — plan disk from your dataset size, not from Ferrum’s install footprint.
@@ -100,8 +100,8 @@ These numbers set expectations for **Edge mode only** (one `ferrum-gateway` proc
 
 | Platform | Edge mode | Install path | Notes |
 |----------|-------------|--------------|-------|
-| **Linux x86_64** | Supported | `install.sh`, musl release binary | Primary target; memory cap monitoring via `/proc/self/status` |
-| **Linux ARM64** (Raspberry Pi 4/5, ARM SBCs) | Supported | `install.sh` (`aarch64-unknown-linux-musl`) | **4 GB RAM is tight** — 8 GB recommended; prefer USB SSD over SD card for SQLite + objects |
+| **Linux x86_64** | Supported lab path | `install.sh`, musl release binary | Memory cap monitoring via `/proc/self/status`. Not the field board |
+| **Raspberry Pi 5, 8 GB, 64-bit** | Supported field board (16 GB is the same board with more RAM) | `install.sh` (`aarch64-unknown-linux-musl`) or Lab Kit `install-on-pi.sh` | USB SSD or NVMe for SQLite + objects. ADR-026 |
 | **macOS** (Intel / Apple Silicon) | Supported | `install.sh`, darwin release binary | Memory cap logs are best-effort (no Linux `/proc`); otherwise same as Linux |
 | **Windows (native)** | Not supported | — | No official Windows binary or install script |
 | **Windows (WSL2 Ubuntu)** | Supported | Linux flow inside WSL | Treat as Linux; store data on Linux filesystem (`~/.ferrum/`), not `/mnt/c/` for performance |
@@ -144,16 +144,16 @@ Production PostgreSQL and S3 code paths are unchanged. HelixTest conformance con
 
 ### Performance on Raspberry Pi 5
 
-Raspberry Pi 5 (Cortex-A76, ARM64) is the primary **edge hardware** target for Africa field deployments.
+The field edge board is a **Raspberry Pi 5** (BCM2712, Cortex-A76, 64-bit) with **8 GB RAM** and the Ferrum data directory on **USB SSD or NVMe** (ADR-026). 16 GB is the same board with more RAM. Pi 4 and 4 GB boards are not field targets. These figures are design targets. This repository does not record a benchmark run on that board.
 
 | Workload | Expected performance | Limiting factor |
 |----------|---------------------|-----------------|
 | **Crypt4GH encrypt** | **>500 MB/s** (64 KiB chunks, release + NEON) | CPU; verify with `cargo bench -p ferrum-crypt4gh` |
-| **Beacon v2 query** (local SQLite) | **<50 ms** typical | SQLite + disk; use USB SSD not microSD for indexes |
-| **DRS download** (plain `/stream`) | **~40–80 MB/s** on good microSD; **100+ MB/s** on USB SSD | Storage I/O, not CPU |
-| **Idle RAM** | ~100–250 MB RSS | Set `[africa] max_memory_mb` to leave headroom on 4 GB models |
+| **Beacon v2 query** (local SQLite) | **<50 ms** typical | SQLite + disk. Indexes belong on USB SSD or NVMe |
+| **DRS download** (plain `/stream`) | Storage-bound on USB SSD or NVMe | Storage I/O, not CPU |
+| **Idle RAM** | ~100–250 MB RSS (not CI-gated) | Ferrum’s share of the 8 GB board is `[africa] max_memory_mb = 3072`, leaving room for the OS and optional companions |
 
-**USB / external storage:** Point `[africa] objects_path` (or `storage.base_path`) at a mounted USB SSD — e.g. `/mnt/ferrum-data/objects`. Ferrum reports free space on that path in `GET /health` (`disk.free_bytes`, `disk.warn_low_space` when below 10%).
+**USB SSD or NVMe:** Point `[africa] objects_path` (or `storage.base_path`) at that mount — e.g. `/mnt/ferrum-data/objects`. Ferrum reports free space on that path in `GET /health` (`disk.free_bytes`, `disk.warn_low_space` when below 10%).
 
 **Performance build:** Use profile `release-edge-perf` (`opt-level = 3`) when CPU throughput matters more than binary size:
 
@@ -194,7 +194,7 @@ What the script does:
 
 | Step | Behaviour |
 |------|-----------|
-| OS / arch | Linux x86_64, Linux ARM64 (Raspberry Pi), macOS Intel/Apple Silicon |
+| OS / arch | Linux x86_64, Linux ARM64 (field board: Pi 5, 8 GB, 64-bit), macOS Intel/Apple Silicon |
 | CPU | `-C target-cpu=native` when building **on** the target machine (best performance) |
 | Profile | `release-edge` — LTO, strip, size-optimized (`opt-level = "s"`) |
 | Features | `--no-default-features --features edge` — slim embedded stack only |

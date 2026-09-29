@@ -28,7 +28,7 @@ Ferrum owns GA4GH semantics; Lab Kit only selects backends and calls [INGEST-LAB
 
 ## Raspberry Pi scenario (7.2 — Ferrum-GA4GH-Demo)
 
-**Ferrum-GA4GH-Demo** targets Docker + GIAB benchmark on x86 servers. For **ARM field nodes (Pi 5)**, use Ferrum Edge directly — do not run the full Demo stack on Pi.
+**Ferrum-GA4GH-Demo** targets Docker + GIAB benchmark on x86 servers. The field board is a **Raspberry Pi 5, 8 GB, 64-bit, USB SSD or NVMe** running Ferrum Edge. Do not run the full Demo stack on that board.
 
 | Goal | Path |
 |------|------|
