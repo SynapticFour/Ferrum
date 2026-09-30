@@ -10,7 +10,7 @@ Latest git tag on this repo: **v0.3.2**. Suite consumers pin git tag **v0.3.2**.
 
 ## License
 
-Business Source License 1.1. Additional Use Grant: non-commercial research, academic, and internal research use. Change License Apache-2.0 four years after each version. See [LICENSE](../LICENSE) and [BUSINESS-MODEL.md](BUSINESS-MODEL.md).
+Business Source License 1.1. Additional Use Grant: non-commercial research, academic, and internal research use, licence fee €0. Change License Apache-2.0 four years after each version. Ferrum is not Apache-2.0 today. A guided pilot fee on the website is time, not a licence. See [LICENSE](../LICENSE) and [BUSINESS-MODEL.md](BUSINESS-MODEL.md).
 
 ## Tested in this tree
 

@@ -87,8 +87,9 @@ Nothing here replaces the **LICENSE** file; it describes **how** Synaptic Four c
 | | |
 |--|--|
 | **License** | BUSL-1.1 → Apache-2.0 after Change Date per version |
-| **Research / education** | Broadly permitted under Additional Use Grant |
-| **Commercial / SaaS / embedding** | Contact Synaptic Four |
+| **Research / education** | Broadly permitted under Additional Use Grant. Licence fee €0. |
+| **Guided pilot (website)** | Time, not a licence. Indicative fixed bands on synapticfour.com: Ferrum €10,000–20,000 and Solum Track A €8,000–18,000, each 60–90 days. If you do not book the pilot and you stay within the grant, you do not pay that sum. |
+| **Commercial / SaaS / embedding** | Contact Synaptic Four. The grant does not cover embedding the software in a product you sell. |
 | **Lab Kit** | Same philosophy; optional **gated extras** (e.g. PDF reports) documented [there](https://github.com/SynapticFour/Ferrum-Lab-Kit/blob/main/docs/BUSINESS-MODEL.md) |
 | **Ferrum core** | Full stack usable without vendor keys under permitted use |
 | **Standards conformance** | Interoperability targets GA4GH APIs; **formal conformance** or **accreditation** is deployment-specific and **not** promised by the license or this page. |

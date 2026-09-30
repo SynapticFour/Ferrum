@@ -8,7 +8,9 @@ There is **no combo SKU**. Ferrum, Solum, BioResearch Assistant, and GA4GH Infra
 
 See `LICENSE`. Typical permitted use: non-commercial research, academic, and educational use, and internal research infrastructure that is **not** offered as a paid service to third parties.
 
-If that describes you, you do **not** need a commercial license to run the code under those terms.
+If that describes you, you do **not** need a commercial license to run the code under those terms. The licence fee stays €0.
+
+Published pilot prices on synapticfour.com are **our time** in a bounded engagement (Ferrum €10,000–20,000 fixed, 60–90 days; indicative, binding only in writing). They are not a purchase right in the software. If you do not book the pilot and you stay within the grant, you do not pay that sum. The same sentence is used for Solum Track A (€8,000–18,000). The grant does not cover embedding the software in a product you sell.
 
 ## When you need a written commercial license
 
