@@ -12,6 +12,16 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-10-03 - ADR-028: Discover broker JWKS from the issuer
+
+- **Status:** Accepted
+- **Context:** External auth required `jwks_url` or `jwks_file` even when `issuer` was set. Operators then named the broker JWKS by hand. Guessing `/.well-known` from a URL path, or accepting a JWKS URI on a different scheme, would trust a key the issuer document did not pin.
+- **Decision:** When `auth.mode` is `external`, `issuer` is set, and both `jwks_url` and `jwks_file` are unset, Ferrum GETs `{issuer}/.well-known/openid-configuration`. The document `issuer` must equal the configured issuer after trimming a trailing slash. `jwks_uri` must be present and use the same scheme as the issuer. That URI is fetched and cached for `jwks_cache_ttl_secs` (default 3600). A failed fetch, a missing `jwks_uri`, or an issuer mismatch fails closed. An explicit `jwks_url` or `jwks_file` skips discovery. `require_auth` stays default true. The discovery URL is not inferred from a path segment other than the standard OIDC suffix on the configured issuer.
+- **Consequences:** A co-deploy can start with `FERRUM_AUTH__ISSUER` and no JWKS URL. The JWKS URL remains the override. Builtin mode does not perform this fetch.
+- **Alternatives considered:** Always append `/jwks.json` (rejected: that guesses); follow a `jwks_uri` on another scheme (rejected: that upgrades or downgrades trust); fall back to a cached document after a failed refresh (rejected: fail closed).
+
+---
+
 ### 2026-10-03 - ADR-027: DRS mutations require a bearer token
 
 - **Status:** Accepted
