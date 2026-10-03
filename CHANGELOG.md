@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [0.3.3] - 2026-10-03
 
-Crate versions match tag `v0.3.3`. The git tag is not created in this commit. `GA4GH_INFRA_REF` stays `ga4gh-infra-v0.2.3` until that successor tag exists on origin.
+Crate versions match tag `v0.3.3`. The git tag is not created in this commit. `GA4GH_INFRA_REF` is `ga4gh-infra-v0.2.4` (`999b103`), which is on origin.
 
 ### Security
 
@@ -16,7 +16,7 @@ Crate versions match tag `v0.3.3`. The git tag is not created in this commit. `G
 
 ### Fixed
 
-- **ga4gh-infra Docker default** — `ARG GA4GH_INFRA_REF` in `deploy/Dockerfile`, `deploy/Dockerfile.gateway`, and `deploy/Dockerfile.init` is `ga4gh-infra-v0.2.3`, matching `VERSIONS.lock`.
+- **ga4gh-infra Docker default** — `ARG GA4GH_INFRA_REF` in `deploy/Dockerfile`, `deploy/Dockerfile.gateway`, and `deploy/Dockerfile.init` is `ga4gh-infra-v0.2.4`, matching `VERSIONS.lock`. The clearinghouse git dependency uses the same tag.
 - **h2 0.4.16+** — cargo-deny RUSTSEC-2026-0258 (unbounded empty DATA frames). Transitive via hyper; lockfile bump only.
 - **jsonwebtoken 10 `rust_crypto`** — `ferrum-passports` now pins the crypto backend (same as `ferrum-core`). RS256 encode/decode round-trip in `keys.rs`; HS256 Edge mint round-trip in `edge_accounts.rs`. Without the feature the crate compiles and panics at runtime.
 - **Demo compose images** — `demo/docker-compose.demo.yml` uses `ghcr.io/synapticfour/ferrum:v0.3.3` and `ferrum-ui:v0.3.3` (not `:latest`). Same pin as Helm / `VERSIONS.lock`.

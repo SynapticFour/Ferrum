@@ -23,7 +23,7 @@ COPY third_party ./third_party
 COPY profiles ./profiles
 COPY deploy/scripts/clone-ga4gh-infra.sh /tmp/clone-ga4gh-infra.sh
 COPY deploy/scripts/gateway-build-flags.sh /tmp/gateway-build-flags.sh
-ARG GA4GH_INFRA_REF=ga4gh-infra-v0.2.3
+ARG GA4GH_INFRA_REF=ga4gh-infra-v0.2.4
 RUN chmod +x /tmp/clone-ga4gh-infra.sh /tmp/gateway-build-flags.sh \
     && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
 

@@ -2,10 +2,10 @@
 
 Each product versions independently. This table is the **last combination we claim works together**. Consumers that import another repo must pin these refs — not `main`.
 
-| Product | Role | Pin (18 Aug 2026) |
+| Product | Role | Pin (3 Oct 2026) |
 |---------|------|-------------------|
-| Ferrum | Data/compute | tag **v0.3.2** / `2bd147c` (`VERSIONS.lock` `FERRUM_VERSION`) |
-| ga4gh-infra | Identity | tag **ga4gh-infra-v0.2.3** (`613bd14`); Compose/GHCR stack images **`:0.2.3`** (crate Cargo.toml may stay 0.1.0) |
+| Ferrum | Data/compute | tag **v0.3.3** (`VERSIONS.lock` `FERRUM_VERSION`) |
+| ga4gh-infra | Identity | tag **ga4gh-infra-v0.2.4** (`999b103`); Compose/GHCR stack images **`:0.2.4`** (crate Cargo.toml may stay 0.1.0) |
 | Solum | Clinical library | tag **v0.1.0** / `b68a941`; consumes ferrum-core **v0.3.2** (`2bd147c` in Solum `config/ci/ferrum-revision.txt`) |
 | Solum-Demo | Runnable clinical demo | Solum **v0.1.0** (`PINNED_VERSIONS.txt` `Solum-ref`) |
 | HelixTest | Conformance | tag **v0.1.3** / SHA **1832c043e167** (Ferrum `HELIXTEST_SHA`) |
@@ -20,7 +20,7 @@ Source of truth for Ferrum×infra×HelixTest×meta: this repo’s [`VERSIONS.loc
 A **Ferrum tag** is the composition contract. After this table and `VERSIONS.lock` change:
 
 1. Ferrum CI green against the new `GA4GH_INFRA_REF` (optional `clearinghouse` feature).
-2. Lab-Kit Compose image tags follow the infra stack version (already `:0.2.3`).
+2. Lab-Kit Compose image tags follow the infra stack version when that repo is updated. This pin is `:0.2.4`.
 3. Showcase `PINNED_VERSIONS.txt` only after published artefacts are regenerated.
 4. Demos (Ferrum-GA4GH-Demo, Solum-Demo) follow **one repo at a time**.
 
