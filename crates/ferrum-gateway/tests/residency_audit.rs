@@ -15,6 +15,17 @@ use ferrum_storage::{LocalStorage, ObjectStorage};
 use std::sync::Arc;
 use tower::ServiceExt;
 
+struct RestoreRequireAuth(Option<String>);
+
+impl Drop for RestoreRequireAuth {
+    fn drop(&mut self) {
+        match &self.0 {
+            Some(value) => std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", value),
+            None => std::env::remove_var("FERRUM_AUTH__REQUIRE_AUTH"),
+        }
+    }
+}
+
 async fn audit_pool() -> (FerrumPool, Arc<ResidencyAuditLog>) {
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .connect("sqlite::memory:")
@@ -44,6 +55,11 @@ async fn test_audit_delete_method_not_allowed() {
 
 #[tokio::test]
 async fn test_upload_writes_data_uploaded_event() {
+    // Audit event wiring, not the bearer gate. ADR-027 rejects anonymous ingest
+    // when require_auth is on, and the runtime default is on.
+    let prev_auth = std::env::var("FERRUM_AUTH__REQUIRE_AUTH").ok();
+    std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
+    let _restore_auth = RestoreRequireAuth(prev_auth);
     let (fp, audit) = audit_pool().await;
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(LocalStorage::new(tmp.path()).unwrap());

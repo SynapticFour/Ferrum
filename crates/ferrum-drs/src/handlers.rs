@@ -1000,6 +1000,17 @@ fn parse_range_header(
     }
 }
 
+/// Fail closed when `require_auth` is on and the request has no bearer claims.
+/// `workspace_id` does not skip this check.
+fn reject_anonymous_mutation(auth: &Option<Extension<ferrum_core::AuthClaims>>) -> Result<()> {
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(DrsError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Create object (admin).
 #[utoipa::path(
     post,
@@ -1012,6 +1023,7 @@ pub async fn post_object(
     Json(req): Json<CreateObjectRequest>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<CreatedResponse>> {
+    reject_anonymous_mutation(&auth)?;
     if let Some(ref ws_id) = req.workspace_id {
         let sub = auth
             .as_ref()
@@ -1054,7 +1066,9 @@ pub async fn put_object(
     State(state): State<Arc<AppState>>,
     Path(object_id): Path<String>,
     Json(req): Json<UpdateObjectRequest>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<UpdatedResponse>> {
+    reject_anonymous_mutation(&auth)?;
     if let Some(ref name) = req.name {
         ferrum_core::validate_drs_name(name).map_err(|e| DrsError::Validation(e.to_string()))?;
     }
@@ -1086,7 +1100,9 @@ pub struct UpdatedResponse {
 pub async fn delete_object(
     State(state): State<Arc<AppState>>,
     Path(object_id): Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<DeletedResponse>> {
+    reject_anonymous_mutation(&auth)?;
     let canonical = state
         .repo
         .resolve_id_or_uri(&object_id)

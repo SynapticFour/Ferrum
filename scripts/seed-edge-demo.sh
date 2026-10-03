@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Seed minimal demo data into a running Ferrum Edge mode instance (DRS + Beacon).
-# Usage: BASE_URL=http://127.0.0.1:8080 ./scripts/seed-laptop-demo.sh
+# Usage: FERRUM_PASSPORT_JWT=… BASE_URL=http://127.0.0.1:8080 ./scripts/seed-edge-demo.sh
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://127.0.0.1:8080}"
@@ -33,8 +33,14 @@ if command -v samtools >/dev/null 2>&1; then
   samtools faidx "$DATA/ref_slice.fa"
 fi
 
+if [[ -z "${FERRUM_PASSPORT_JWT:-}" ]]; then
+  echo "seed-edge-demo: set FERRUM_PASSPORT_JWT. Ingest is 401 without a bearer when require_auth is on (ADR-027)." >&2
+  exit 1
+fi
+
 echo "==> Ingesting DRS objects"
 REF_ID=$(curl -fsS -X POST "$BASE_URL/ga4gh/drs/v1/ingest/file" \
+  -H "Authorization: Bearer ${FERRUM_PASSPORT_JWT}" \
   -F "file=@$DATA/ref_slice.fa" -F "name=ref_slice.fa" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
 echo "  ref_slice.fa → $REF_ID"
 

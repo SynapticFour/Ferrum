@@ -83,6 +83,12 @@ impl IngestApiError {
                 message: m,
                 details: None,
             },
+            DrsError::Unauthorized(m) => Self {
+                status: StatusCode::UNAUTHORIZED,
+                code: "unauthorized",
+                message: m,
+                details: None,
+            },
             DrsError::Forbidden(m) => Self::forbidden(m),
             DrsError::Validation(m) => Self::validation(m),
             DrsError::Conflict(m) => Self {

@@ -105,6 +105,12 @@ impl ApiError {
     fn from_drs(e: crate::error::DrsError) -> Self {
         match e {
             crate::error::DrsError::NotFound(m) => Self::not_found(m),
+            crate::error::DrsError::Unauthorized(m) => Self {
+                status: StatusCode::UNAUTHORIZED,
+                code: "unauthorized",
+                message: m,
+                details: None,
+            },
             crate::error::DrsError::Forbidden(m) => Self::forbidden(m),
             crate::error::DrsError::Validation(m) => Self::validation(m),
             crate::error::DrsError::Conflict(m) => Self::conflict(m),

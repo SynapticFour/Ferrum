@@ -18,6 +18,9 @@ use tower::ServiceExt;
 const PAYLOAD: &[u8] = b"0123456789abcdef0123456789abcdef";
 
 async fn drs_test_state() -> (AppState, tempfile::TempDir) {
+    // Transfer behaviour, not the bearer gate. ADR-027 rejects anonymous creates
+    // when require_auth is on, and the runtime default is on.
+    std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .connect("sqlite::memory:")
         .await

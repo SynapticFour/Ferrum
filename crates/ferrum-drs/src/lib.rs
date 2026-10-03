@@ -94,6 +94,23 @@ async fn list_objects_json(
     JsonResult(list_objects(state, query, auth).await)
 }
 
+async fn put_object_json(
+    state: State<Arc<AppState>>,
+    path: axum::extract::Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+    req: Json<crate::types::UpdateObjectRequest>,
+) -> impl axum::response::IntoResponse {
+    JsonResult(put_object(state, path, req, auth).await)
+}
+
+async fn delete_object_json(
+    state: State<Arc<AppState>>,
+    path: axum::extract::Path<String>,
+    auth: Option<Extension<ferrum_core::AuthClaims>>,
+) -> impl axum::response::IntoResponse {
+    JsonResult(delete_object(state, path, auth).await)
+}
+
 async fn post_object_json(
     state: State<Arc<AppState>>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
@@ -161,8 +178,8 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/objects/:object_id",
             get(get_object)
-                .put(|s, p, j| async move { JsonResult(put_object(s, p, j).await) })
-                .delete(|s, p| async move { JsonResult(delete_object(s, p).await) })
+                .put(put_object_json)
+                .delete(delete_object_json)
                 .options(options_object),
         )
         .route("/ingest/file", post(ingest_file_json))

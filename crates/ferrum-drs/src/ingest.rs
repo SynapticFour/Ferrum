@@ -226,6 +226,11 @@ pub async fn process_upload_from_parts(
     auth: Option<&ferrum_core::AuthClaims>,
     parsed: ParsedMultipartUpload,
 ) -> Result<IngestFileResponse> {
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(DrsError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
     let storage = state
         .storage
         .clone()
@@ -384,6 +389,11 @@ pub async fn process_upload_from_spooled(
     spool_path: std::path::PathBuf,
     spool_size: u64,
 ) -> Result<IngestFileResponse> {
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(DrsError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
     let storage = state
         .storage
         .clone()
@@ -639,6 +649,11 @@ pub async fn ingest_url(
     Json(req): Json<IngestUrlRequest>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<IngestUrlResponse>> {
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(DrsError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
     if let Some(ref ws_id) = req.workspace_id {
         let claims =
             auth.ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;
@@ -719,6 +734,11 @@ pub async fn ingest_batch(
     Json(req): Json<IngestBatchRequest>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<IngestBatchResponse>> {
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(DrsError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
     if let Some(ref ws_id) = req.workspace_id {
         let claims =
             auth.ok_or_else(|| DrsError::Forbidden("workspace_id requires authentication".into()))?;

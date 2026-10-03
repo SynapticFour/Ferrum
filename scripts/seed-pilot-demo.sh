@@ -37,6 +37,10 @@ POSTGRES_DB="${POSTGRES_DB:-ferrum}"
 
 die() { echo "seed-pilot-demo: $*" >&2; exit 1; }
 
+if [[ -z "${FERRUM_PASSPORT_JWT:-}" ]]; then
+  die "set FERRUM_PASSPORT_JWT. Ingest is 401 without a bearer when require_auth is on (ADR-027)."
+fi
+
 # Bash 3.2 (macOS) + `set -u`: empty CURL_AUTH[@] is unbound — use a helper instead.
 curl_pilot() {
   if [[ -n "${FERRUM_PASSPORT_JWT:-}" ]]; then

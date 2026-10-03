@@ -11,6 +11,8 @@ pub type Result<T> = std::result::Result<T, DrsError>;
 pub enum DrsError {
     #[error("not found: {0}")]
     NotFound(String),
+    #[error("unauthorized: {0}")]
+    Unauthorized(String),
     #[error("forbidden: {0}")]
     Forbidden(String),
     #[error("validation: {0}")]
@@ -29,6 +31,7 @@ impl From<DrsError> for FerrumError {
     fn from(e: DrsError) -> Self {
         match e {
             DrsError::NotFound(s) => FerrumError::NotFound(s),
+            DrsError::Unauthorized(s) => FerrumError::Unauthorized(s),
             DrsError::Forbidden(s) => FerrumError::Forbidden(s),
             DrsError::Validation(s) => FerrumError::ValidationError(s),
             DrsError::Conflict(s) => FerrumError::ValidationError(s),

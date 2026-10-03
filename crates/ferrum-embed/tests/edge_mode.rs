@@ -82,6 +82,17 @@ async fn spawn_edge_gateway(
     addr
 }
 
+struct RestoreRequireAuth(Option<String>);
+
+impl Drop for RestoreRequireAuth {
+    fn drop(&mut self) {
+        match &self.0 {
+            Some(value) => std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", value),
+            None => std::env::remove_var("FERRUM_AUTH__REQUIRE_AUTH"),
+        }
+    }
+}
+
 fn beacon_variant_query_envelope(request_parameters: serde_json::Value) -> serde_json::Value {
     serde_json::json!({
         "meta": { "apiVersion": "v2.0.0" },
@@ -109,6 +120,11 @@ async fn seed_beacon_fixture_sqlite(pool: &sqlx::SqlitePool) {
 
 #[tokio::test]
 async fn test_sqlite_full_lifecycle() {
+    // SQLite lifecycle, not the bearer gate. ADR-027 rejects anonymous ingest
+    // when require_auth is on, and the runtime default is on.
+    let prev_auth = std::env::var("FERRUM_AUTH__REQUIRE_AUTH").ok();
+    std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
+    let _restore_auth = RestoreRequireAuth(prev_auth);
     let dir = TempDir::new().unwrap();
     let db_path = dir.path().join("ferrum.db");
     let objects_dir = dir.path().join("objects");
