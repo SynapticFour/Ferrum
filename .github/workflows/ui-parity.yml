@@ -21,6 +21,10 @@ on:
           - read
           - write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ui-parity-up-tes:
     if: github.event.inputs.profile == 'up-tes'

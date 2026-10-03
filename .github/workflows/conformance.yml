@@ -11,10 +11,7 @@
 name: "NON-PILOT: Demo lifecycle (HelixTest stubs, auth skipped, TES noop)"
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+  workflow_dispatch:
 
 
 concurrency:

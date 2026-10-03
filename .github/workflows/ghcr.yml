@@ -2,11 +2,15 @@ name: Build and publish Docker images
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      variants:
+        description: "JSON array of gateway variants. Showcase pin is edge-infra. A v* tag publishes full, edge, and edge-infra."
+        required: false
+        default: '["full","edge","edge-infra"]'
+        type: string
 
 permissions:
   contents: read
@@ -25,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [full, edge, edge-infra]
+        variant: ${{ fromJSON(github.event_name == 'workflow_dispatch' && github.event.inputs.variants || '["full","edge","edge-infra"]') }}
     steps:
       - uses: actions/checkout@v7
 
