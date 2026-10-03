@@ -4,19 +4,22 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-Proposed tag: `v0.3.3`. The tag is not created in this change.
+## [0.3.3] - 2026-10-03
+
+Crate versions match tag `v0.3.3`. The git tag is not created in this commit. `GA4GH_INFRA_REF` stays `ga4gh-infra-v0.2.3` until that successor tag exists on origin.
 
 ### Security
 
 - **DRS mutations require a bearer token** when `FERRUM_AUTH__REQUIRE_AUTH=true`, including `POST /ga4gh/drs/v1/objects` with no `workspace_id`, plus object `PUT`/`DELETE` and `POST /ingest/file`, `/ingest/url`, and `/ingest/batch`. Missing token is 401. ADR-027. `scripts/seed-edge-demo.sh` and `scripts/seed-pilot-demo.sh` send `Authorization: Bearer` from `FERRUM_PASSPORT_JWT` and exit if that variable is unset. `GET /api/v1/audit/residency/verify` stays unauthenticated and returns chain metadata only.
 - **External JWKS discovery** — when `auth.mode` is `external` and neither `jwks_url` nor `jwks_file` is set, Ferrum reads `{issuer}/.well-known/openid-configuration`. The document issuer must match, and `jwks_uri` must use the same scheme. An explicit JWKS URL or file skips discovery. `require_auth` stays default true. ADR-028.
+- **rustls 0.23.45** — RUSTSEC-2026-0285. `cargo deny` is part of `make verify-release`.
 
 ### Fixed
 
 - **ga4gh-infra Docker default** — `ARG GA4GH_INFRA_REF` in `deploy/Dockerfile`, `deploy/Dockerfile.gateway`, and `deploy/Dockerfile.init` is `ga4gh-infra-v0.2.3`, matching `VERSIONS.lock`.
 - **h2 0.4.16+** — cargo-deny RUSTSEC-2026-0258 (unbounded empty DATA frames). Transitive via hyper; lockfile bump only.
 - **jsonwebtoken 10 `rust_crypto`** — `ferrum-passports` now pins the crypto backend (same as `ferrum-core`). RS256 encode/decode round-trip in `keys.rs`; HS256 Edge mint round-trip in `edge_accounts.rs`. Without the feature the crate compiles and panics at runtime.
-- **Demo compose images** — `demo/docker-compose.demo.yml` uses `ghcr.io/synapticfour/ferrum:v0.3.2` and `ferrum-ui:v0.3.2` (not `:latest`). Same pin as Helm / `VERSIONS.lock`.
+- **Demo compose images** — `demo/docker-compose.demo.yml` uses `ghcr.io/synapticfour/ferrum:v0.3.3` and `ferrum-ui:v0.3.3` (not `:latest`). Same pin as Helm / `VERSIONS.lock`.
 
 ### Changed
 
@@ -25,7 +28,8 @@ Proposed tag: `v0.3.3`. The tag is not created in this change.
 - **Field edge board** — one supported board: Raspberry Pi 5, 8 GB (16 GB accepted), 64-bit OS, USB SSD or NVMe for the data directory. Pi 4 and 4 GB are not field targets. ADR-026. ARM64 CI is still a compile, not a boot of that board.
 - **HelixTest ingest docs** — `docs/HELIXTEST-INTEGRATION.md`: default `--mode ferrum` does not hit `/api/v1/ingest/*`; opt-in `--mode ferrum-africa` does (`POST /api/v1/ingest/ont`). Lab Kit register/upload/jobs remain Ferrum unit tests. Linked to [Helix INVENTORY.md](https://github.com/SynapticFour/Helix/blob/main/INVENTORY.md) §1 Africa.
 - **Portfolio map** — Helix is the VERIFY CLI around HelixTest. helixtest-action default binaries are **v0.1.3**, same as the suite pin.
-- Helm chart `version` / `appVersion` **0.3.2**; default image `ghcr.io/synapticfour/ferrum:v0.3.2` (not `:latest`). ServiceAccount, security context, `/health`+`/ready`, `FERRUM_SERVICES__ENABLE_*`, adapter-mapped WES/TES/storage env. `deploy/.env.example` `FERRUM_VERSION=v0.3.2`.
+- Helm chart `version` / `appVersion` **0.3.3**; default image `ghcr.io/synapticfour/ferrum:v0.3.3` (not `:latest`). ServiceAccount, security context, `/health`+`/ready`, `FERRUM_SERVICES__ENABLE_*`, adapter-mapped WES/TES/storage env. `deploy/.env.example` `FERRUM_VERSION=v0.3.3`.
+- **CI** — push to `main` and pull requests run secret scan and dependency review. Product CI is `workflow_dispatch`. A `v*` tag publishes the GitHub Release and the GHCR images (`full`, `edge`, `edge-infra`, and the UI image). `make verify-release` is the local gate before the tag.
 - **HelixTest pin** — tag **v0.1.3** (`HELIXTEST_SHA=1832c04`). Infra broker service-info is Level 0 so `--fail-level 2` is reachable. `v0.1.2` remains the previous cut.
 
 ## [0.3.2] - 2026-08-17

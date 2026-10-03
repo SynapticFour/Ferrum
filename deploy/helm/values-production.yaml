@@ -1,8 +1,8 @@
-# Multi-node / HPC Kubernetes — Ferrum v0.3.2
+# Multi-node / HPC Kubernetes — Ferrum v0.3.3
 replicaCount: 2
 image:
   repository: ghcr.io/synapticfour/ferrum
-  tag: "v0.3.2"
+  tag: "v0.3.3"
   pullPolicy: IfNotPresent
 
 service:

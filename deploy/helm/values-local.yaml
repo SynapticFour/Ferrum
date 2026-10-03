@@ -1,8 +1,8 @@
-# Single-node / k3s / local Kubernetes — Ferrum v0.3.2
+# Single-node / k3s / local Kubernetes — Ferrum v0.3.3
 replicaCount: 1
 image:
   repository: ghcr.io/synapticfour/ferrum
-  tag: "v0.3.2"
+  tag: "v0.3.3"
   pullPolicy: IfNotPresent
 
 service:

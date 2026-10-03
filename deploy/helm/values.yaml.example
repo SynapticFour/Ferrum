@@ -3,13 +3,13 @@
 #   cp deploy/helm/values.yaml.example my-values.yaml
 #   helm upgrade --install ferrum deploy/helm -f my-values.yaml
 #
-# Chart version = Ferrum release tag (no separate Helm cycle). Image tag v0.3.2.
+# Chart version = Ferrum release tag (no separate Helm cycle). Image tag v0.3.3.
 
 replicaCount: 1
 
 image:
   repository: ghcr.io/synapticfour/ferrum
-  tag: "v0.3.2"
+  tag: "v0.3.3"
   pullPolicy: IfNotPresent
 
 service:
