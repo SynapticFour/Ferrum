@@ -12,6 +12,15 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-10-03 - ADR-027: DRS mutations require a bearer token
+
+- **Status:** Accepted
+- **Context:** `POST /ga4gh/drs/v1/objects` checked the caller only when the body set `workspace_id`. `PUT` and `DELETE` on an object, and `POST /ingest/url`, `/ingest/batch`, and `/ingest/file`, had the same gap. With `FERRUM_AUTH__REQUIRE_AUTH=true`, a request without a bearer token could create a DRS object. `GET /api/v1/audit/residency/verify` stays unauthenticated. It returns chain metadata and no audit entries. Tightening that route is not this decision.
+- **Decision:** When `require_auth` is enabled, object create, update, and delete refuse a missing bearer token before they read `workspace_id`. The status is 401. A present token still has to pass the existing workspace editor check when `workspace_id` is set. `require_auth` false is unchanged and remains the explicit non-pilot setting. The default stays fail-closed.
+- **Consequences:** Callers that posted objects with no token, including a demo seed, must send `Authorization: Bearer`. Anonymous reads are not changed by this ADR. `/api/v1/audit/residency/verify` still has no auth check.
+
+---
+
 ### 2026-09-29 - ADR-026: One supported field edge board
 
 - **Status:** Accepted
