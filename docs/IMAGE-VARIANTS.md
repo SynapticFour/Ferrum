@@ -47,3 +47,15 @@ Ferrum-Lab-Kit wraps the same script (`lab-kit build image`). Override cargo fea
 | `field-edge`, `beacon-only`, no WES/TES/TRS | `edge` |
 | `field-edge+infra` (and other co-deploy without WES/TES/TRS) | `edge-infra` |
 | `institute`, `drs-wes`, GDI, any WES/TES/TRS | `full` |
+
+## Which variant is the external-auth gateway
+
+`edge-infra` is the image for a gateway with external auth (ga4gh-infra clearinghouse and service registry), SQLite, DRS, Beacon, and htsget compiled in. It does not compile the WES, TES, or TRS crates. WES/TES HelixTest stubs are process env (`FERRUM_SERVICES__ENABLE_WES` and the matching TES flag), not a fourth image. `edge` is the same SQLite surfaces without the `external-auth` feature. `full` is Postgres plus WES, TES, TRS, and built-in passports, and its default feature set does not pass `--features external-auth`.
+
+GHCR publish does not set a multi-arch platform list. Published images are linux/amd64. This pass does not add arm64.
+
+## Health, readiness, metrics
+
+`GET /health` returns `status` `ok` or `degraded`. Degraded means low disk space on the configured data path or clock skew past the NTP threshold. `GET /ready` returns `status` `ready` and does not check the database. This pass does not make `/ready` stricter.
+
+There is no Prometheus scrape route. WES run metrics (`GET /ga4gh/wes/v1/runs/{id}/metrics`) are per-run JSON on the full image. They are not a node exporter.

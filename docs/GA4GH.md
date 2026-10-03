@@ -41,6 +41,10 @@ These patterns match what many **reference stacks**, **Starter Kit** deployments
 | POST | `/ga4gh/drs/v1/ingest/url` | Ingest from URL | Yes |
 | POST | `/ga4gh/drs/v1/ingest/batch` | Batch ingest | Yes |
 
+When `FERRUM_AUTH__REQUIRE_AUTH=true` (or config `require_auth`, which defaults on), `POST`, `PUT`, and `DELETE` on `/objects`, and `POST` on `/ingest/file`, `/ingest/url`, and `/ingest/batch`, return **401** if the bearer token is missing. Omitting `workspace_id` does not skip that check (ADR-027). A token that is present still has to be a workspace editor or owner when `workspace_id` is set. `require_auth=false` is the explicit non-pilot switch. It is not the default.
+
+`POST /ga4gh/drs/v1/objects` does not accept a caller-supplied `access_url`. `create_object_with_id` writes `access_url` as `https://{FERRUM_DRS_HOSTNAME}/ga4gh/drs/v1/objects/{id}/access/{access_id}`. `FERRUM_PUBLIC_BASE_URL` is a separate public prefix (htsget tickets and other links). It does not replace that hostname. To publish a GIAB file, register a catalog object whose bytes contain the NCBI URL (`storage_backend=local`), or `POST /api/v1/ingest/register` with `kind: "url"` so the external URL is the storage key. The DRS access method URL is still the Ferrum access URL, not the GIAB URL.
+
 ### Versioned ingest API (Lab Kit / automation)
 
 Stable routes on the **gateway** (same auth as DRS). Errors: JSON `{ "code", "message", "details?" }`. Reference: [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md).

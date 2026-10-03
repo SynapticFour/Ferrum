@@ -30,13 +30,25 @@ Table `residency_audit`:
 GET /api/v1/audit/residency?from=2026-01-01T00:00:00Z&to=2026-12-31T23:59:59Z
 ```
 
-Response includes `entries` and `chain_valid`.
+Response includes `entries` and `chain_valid`. Query parameters are `from` and `to` only. There is no page size and no cursor. A caller with no admin claim sees only rows whose `requester` is their own `sub`. An admin sees the range. This route uses the bearer claims when they are present. It is not the unauthenticated verify route below.
 
 ### Verify chain
 
 ```http
 GET /api/v1/audit/residency/verify
 ```
+
+This route does not read `Authorization`. It stays that way (ADR-027). The body is chain metadata and not the log:
+
+| Field | Meaning |
+|-------|---------|
+| `chain_valid` | Whether each stored row's hash matches the previous row |
+| `entry_count` | How many rows were hashed |
+| `first_timestamp` | Timestamp of the first row, if any |
+| `last_timestamp` | Timestamp of the last row, if any |
+| `last_hash` | Hash of the last row |
+
+There is no `entries` array, no `requester`, no `drs_id`, and no event payload. `entry_count` and the two timestamps say that the log is non-empty and when it spans. They do not name a person or an object.
 
 ```json
 {
