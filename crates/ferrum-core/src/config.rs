@@ -740,7 +740,7 @@ pub struct SyncConfig {
 }
 
 /// GA4GH Service Registry discovery configuration.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct DiscoveryConfig {
     /// When true, register enabled Ferrum services and resolve peer URLs via service registry.
     #[serde(default)]
@@ -770,10 +770,35 @@ pub struct DiscoveryConfig {
     /// Exact GA4GH service `id` to use when multiple entries share an artifact.
     #[serde(default)]
     pub preferred_service_id: Option<String>,
+    /// Seconds between registry re-POSTs while `auto_register` is on. `0` registers once.
+    /// Default 300. The registry `stale_after_seconds` should be at least twice this value.
+    #[serde(default = "default_heartbeat_interval_secs")]
+    pub heartbeat_interval_secs: u64,
 }
 
 fn default_registry_key_env() -> String {
     "SERVICE_REGISTRY_REGISTRATION_KEY".to_string()
+}
+
+fn default_heartbeat_interval_secs() -> u64 {
+    300
+}
+
+impl Default for DiscoveryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            service_registry_url: None,
+            registration_api_key_env: String::new(),
+            auto_register: false,
+            registration_base_url: None,
+            fallback_urls: std::collections::HashMap::new(),
+            preferred_environment: None,
+            preferred_organization: None,
+            preferred_service_id: None,
+            heartbeat_interval_secs: default_heartbeat_interval_secs(),
+        }
+    }
 }
 
 impl DiscoveryConfig {

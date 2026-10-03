@@ -19,7 +19,9 @@ When Ferrum is deployed alongside [ga4gh-infra](https://github.com/SynapticFour/
 mode = "external"
 require_auth = true
 issuer = "http://localhost:8180"
-jwks_url = "http://localhost:8180/jwks.json"
+# Optional override. When unset, external mode reads `{issuer}/.well-known/openid-configuration`
+# and uses `jwks_uri` only when its scheme matches the issuer. ADR-028.
+# jwks_url = "http://localhost:8180/jwks.json"
 clearinghouse = true
 ads_url = "http://localhost:8190"
 
@@ -28,6 +30,8 @@ enabled = true
 service_registry_url = "http://localhost:8183"
 auto_register = true
 registration_base_url = "http://ferrum-gateway:8080"
+# Re-POST this often. Set the registry stale_after_seconds to at least twice this value (600).
+heartbeat_interval_secs = 300
 
 [services]
 enable_passports = false
@@ -37,12 +41,14 @@ Environment equivalents:
 
 ```bash
 export FERRUM_AUTH__ISSUER=http://localhost:8180
-export FERRUM_AUTH__JWKS_URL=http://localhost:8180/jwks.json
+# FERRUM_AUTH__JWKS_URL is optional when the issuer publishes OIDC discovery.
 export FERRUM_DISCOVERY__ENABLED=true
 export FERRUM_DISCOVERY__SERVICE_REGISTRY_URL=http://localhost:8183
 export FERRUM_DISCOVERY__REGISTRATION_BASE_URL=http://ferrum-gateway:8080
 export FERRUM_SERVICES__ENABLE_PASSPORTS=false
 ```
+
+Minimal external bootstrap is the database, storage, which routes are on, `FERRUM_AUTH__ISSUER`, the registry URL, the registration key, and `FERRUM_DISCOVERY__REGISTRATION_BASE_URL`. The JWKS URL is the override. Recommended registry liveness is a 300 second heartbeat and `stale_after_seconds` of at least 600. A graceful stop deletes only the services this process has enabled. A kill leaves the row.
 
 ## Co-deploy Docker build (monorepo context)
 

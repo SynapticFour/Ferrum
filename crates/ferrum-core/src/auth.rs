@@ -298,6 +298,8 @@ pub struct AuthMiddlewareConfig {
     pub use_clearinghouse: bool,
     /// Expected JWT `aud` (optional). When set, HS256 and Passport JWTs must match.
     pub audience: Option<String>,
+    /// External ga4gh-infra mode. JWKS discovery runs only when this is true.
+    pub external_mode: bool,
 }
 
 impl AuthMiddlewareConfig {
@@ -337,6 +339,7 @@ impl AuthMiddlewareConfig {
                 .clone()
                 .or_else(|| std::env::var("FERRUM_AUTH__AUDIENCE").ok())
                 .filter(|s| !s.is_empty()),
+            external_mode: cfg.is_external(),
         }
     }
 
@@ -354,6 +357,7 @@ impl AuthMiddlewareConfig {
             revocation_check: None,
             use_clearinghouse: false,
             audience: None,
+            external_mode: false,
         }
     }
 
@@ -371,6 +375,7 @@ impl AuthMiddlewareConfig {
             revocation_check: None,
             use_clearinghouse: false,
             audience: None,
+            external_mode: false,
         }
     }
 
@@ -394,6 +399,7 @@ impl AuthMiddlewareConfig {
             audience: std::env::var("FERRUM_AUTH__AUDIENCE")
                 .ok()
                 .filter(|s| !s.is_empty()),
+            external_mode: false,
         })
     }
 }
@@ -617,15 +623,118 @@ fn load_jwks_from_file(
     serde_json::from_value(value).map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken.into())
 }
 
+fn jwks_cache_key(cfg: &AuthMiddlewareConfig) -> String {
+    if let Some(file) = cfg.jwks_file.as_deref().filter(|s| !s.is_empty()) {
+        return file.to_string();
+    }
+    if let Some(url) = cfg.jwks_url.as_deref().filter(|s| !s.is_empty()) {
+        return url.to_string();
+    }
+    if cfg.external_mode {
+        if let Some(issuer) = cfg.issuer.as_deref().filter(|s| !s.is_empty()) {
+            return format!("oidc:{}", issuer.trim_end_matches('/'));
+        }
+    }
+    String::new()
+}
+
+fn can_discover_jwks(cfg: &AuthMiddlewareConfig) -> bool {
+    cfg.external_mode
+        && cfg
+            .issuer
+            .as_deref()
+            .is_some_and(|issuer| !issuer.is_empty())
+        && cfg.jwks_url.as_deref().map(str::is_empty).unwrap_or(true)
+        && cfg.jwks_file.as_deref().map(str::is_empty).unwrap_or(true)
+}
+
+fn issuer_and_jwks_share_scheme(issuer: &str, jwks_uri: &str) -> bool {
+    let issuer_scheme = issuer.split("://").next();
+    let jwks_scheme = jwks_uri.split("://").next();
+    matches!(
+        (issuer_scheme, jwks_scheme),
+        (Some("https"), Some("https")) | (Some("http"), Some("http"))
+    )
+}
+
+async fn discover_jwks_uri(issuer: &str) -> Result<String, jsonwebtoken::errors::Error> {
+    let issuer = issuer.trim_end_matches('/');
+    let url = format!("{issuer}/.well-known/openid-configuration");
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .timeout(Duration::from_secs(15))
+        .send()
+        .await
+        .map_err(|err| {
+            tracing::warn!(issuer, error = %err, "OIDC discovery failed");
+            jsonwebtoken::errors::ErrorKind::InvalidToken
+        })?;
+    if !response.status().is_success() {
+        tracing::warn!(issuer, status = %response.status(), "OIDC discovery failed");
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    }
+    let document: serde_json::Value = response.json().await.map_err(|err| {
+        tracing::warn!(issuer, error = %err, "OIDC discovery document was not JSON");
+        jsonwebtoken::errors::ErrorKind::InvalidToken
+    })?;
+    let document_issuer = document
+        .get("issuer")
+        .and_then(|value| value.as_str())
+        .unwrap_or("")
+        .trim_end_matches('/');
+    if document_issuer != issuer {
+        tracing::warn!(
+            configured = issuer,
+            document = document_issuer,
+            "OIDC discovery issuer does not match the configured issuer"
+        );
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    }
+    let Some(jwks_uri) = document
+        .get("jwks_uri")
+        .and_then(|value| value.as_str())
+        .filter(|uri| !uri.is_empty())
+    else {
+        tracing::warn!(issuer, "OIDC discovery document has no jwks_uri");
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    };
+    if !issuer_and_jwks_share_scheme(issuer, jwks_uri) {
+        tracing::warn!(
+            issuer,
+            jwks_uri,
+            "JWKS URI scheme does not match the issuer"
+        );
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    }
+    Ok(jwks_uri.to_string())
+}
+
+async fn resolve_jwks_url(
+    cfg: &AuthMiddlewareConfig,
+) -> Result<String, jsonwebtoken::errors::Error> {
+    if let Some(url) = cfg.jwks_url.clone().filter(|url| !url.is_empty()) {
+        return Ok(url);
+    }
+    if cfg.external_mode {
+        let issuer = cfg
+            .issuer
+            .as_deref()
+            .filter(|issuer| !issuer.is_empty())
+            .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        return discover_jwks_uri(issuer).await;
+    }
+    Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into())
+}
+
 async fn fetch_jwks_cached(
     cfg: &AuthMiddlewareConfig,
     force_refresh: bool,
 ) -> Result<jsonwebtoken::jwk::JwkSet, jsonwebtoken::errors::Error> {
-    let cache_key = cfg
-        .jwks_file
-        .clone()
-        .or_else(|| cfg.jwks_url.clone())
-        .unwrap_or_default();
+    let cache_key = jwks_cache_key(cfg);
+    if cache_key.is_empty() {
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    }
 
     if force_refresh {
         if let Ok(mut cache) = JWKS_CACHE.lock() {
@@ -642,16 +751,13 @@ async fn fetch_jwks_cached(
     let set = if let Some(ref file) = cfg.jwks_file {
         load_jwks_from_file(&resolve_jwks_path(file))?
     } else {
-        let jwks_url = cfg
-            .jwks_url
-            .as_deref()
-            .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        let jwks_url = resolve_jwks_url(cfg).await?;
         let client = reqwest::Client::new();
         let mut last_err = None;
         let mut jwks_value = None;
         for attempt in 0..3 {
             match client
-                .get(jwks_url)
+                .get(&jwks_url)
                 .timeout(Duration::from_secs(15))
                 .send()
                 .await
@@ -698,7 +804,7 @@ async fn fetch_jwks_cached(
 
 /// Pre-fetch JWKS at gateway startup so the first authenticated request avoids cold-start latency.
 pub async fn warm_jwks_cache(cfg: &AuthMiddlewareConfig) {
-    if cfg.jwks_url.is_none() && cfg.jwks_file.is_none() {
+    if cfg.jwks_url.is_none() && cfg.jwks_file.is_none() && !can_discover_jwks(cfg) {
         return;
     }
     match fetch_jwks_cached(cfg, false).await {
@@ -788,8 +894,14 @@ async fn clearinghouse_for_cfg(
         .jwks_url
         .clone()
         .or_else(|| std::env::var("FERRUM_AUTH__JWKS_URL").ok())
-        .filter(|s| !s.is_empty())
-        .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        .filter(|s| !s.is_empty());
+    let jwks_url = if let Some(url) = jwks_url {
+        url
+    } else if cfg.external_mode {
+        discover_jwks_uri(&issuer).await?
+    } else {
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    };
     if !jwks_url.starts_with("http://") && !jwks_url.starts_with("https://") {
         return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
     }
@@ -924,11 +1036,9 @@ async fn decode_passport_jwt(
         return Err(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm.into());
     }
 
-    let _jwks_ref = cfg
-        .jwks_url
-        .as_deref()
-        .or(cfg.jwks_file.as_deref())
-        .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+    if cfg.jwks_url.is_none() && cfg.jwks_file.is_none() && !can_discover_jwks(cfg) {
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    }
 
     let kid = decoded_header.kid.unwrap_or_default();
     let validation = passport_decode_validation(alg, cfg);
@@ -1116,7 +1226,7 @@ async fn verify_visa_jwt(
     if alg != Algorithm::RS256 && alg != Algorithm::ES256 {
         return Err(jsonwebtoken::errors::ErrorKind::InvalidAlgorithm.into());
     }
-    if cfg.jwks_url.is_none() && cfg.jwks_file.is_none() {
+    if cfg.jwks_url.is_none() && cfg.jwks_file.is_none() && !can_discover_jwks(cfg) {
         return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
     }
     let kid = header.kid.unwrap_or_default();
@@ -1306,5 +1416,134 @@ mod published_access_tests {
             raw_token: None,
         };
         assert!(claims.can_sync());
+    }
+}
+
+#[cfg(test)]
+mod jwks_discovery_tests {
+    use std::time::Duration;
+
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    use super::{fetch_jwks_cached, AuthMiddlewareConfig};
+
+    const JWKS: &str = r#"{"keys":[{"kty":"RSA","alg":"RS256","kid":"test","use":"sig","n":"0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw","e":"AQAB"}]}"#;
+
+    fn external_cfg(issuer: &str, jwks_url: Option<&str>) -> AuthMiddlewareConfig {
+        AuthMiddlewareConfig {
+            jwt_secret: None,
+            issuer: Some(issuer.to_string()),
+            jwks_url: jwks_url.map(str::to_string),
+            jwks_file: None,
+            jwks_cache_ttl: Duration::from_secs(3600),
+            passport_endpoints: Vec::new(),
+            require_auth: true,
+            max_token_age_hours: 24,
+            revocation_check: None,
+            use_clearinghouse: false,
+            audience: None,
+            external_mode: true,
+        }
+    }
+
+    #[tokio::test]
+    async fn external_mode_discovers_jwks_when_no_url_is_set() {
+        let server = MockServer::start().await;
+        let issuer = server.uri();
+        let jwks_uri = format!("{issuer}/jwks.json");
+        Mock::given(method("GET"))
+            .and(path("/.well-known/openid-configuration"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "issuer": issuer,
+                "jwks_uri": jwks_uri,
+            })))
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/jwks.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(JWKS))
+            .mount(&server)
+            .await;
+        let set = fetch_jwks_cached(&external_cfg(&issuer, None), true)
+            .await
+            .expect("discover");
+        assert_eq!(set.keys.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn discovery_fails_closed_on_issuer_mismatch_missing_uri_or_scheme_change() {
+        let mismatch = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/.well-known/openid-configuration"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "issuer": "https://other.example",
+                "jwks_uri": format!("{}/jwks.json", mismatch.uri()),
+            })))
+            .mount(&mismatch)
+            .await;
+        assert!(
+            fetch_jwks_cached(&external_cfg(&mismatch.uri(), None), true)
+                .await
+                .is_err()
+        );
+
+        let missing = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/.well-known/openid-configuration"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "issuer": missing.uri(),
+            })))
+            .mount(&missing)
+            .await;
+        assert!(fetch_jwks_cached(&external_cfg(&missing.uri(), None), true)
+            .await
+            .is_err());
+
+        let upgraded = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/.well-known/openid-configuration"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "issuer": upgraded.uri(),
+                "jwks_uri": "https://evil.example/jwks.json",
+            })))
+            .mount(&upgraded)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/jwks.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(JWKS))
+            .expect(0)
+            .mount(&upgraded)
+            .await;
+        assert!(
+            fetch_jwks_cached(&external_cfg(&upgraded.uri(), None), true)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn explicit_jwks_url_skips_discovery_and_builtin_mode_does_not_discover() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/.well-known/openid-configuration"))
+            .respond_with(ResponseTemplate::new(500))
+            .expect(0)
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/jwks.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(JWKS))
+            .mount(&server)
+            .await;
+        let jwks_url = format!("{}/jwks.json", server.uri());
+        let set = fetch_jwks_cached(&external_cfg(&server.uri(), Some(&jwks_url)), true)
+            .await
+            .expect("explicit url");
+        assert_eq!(set.keys.len(), 1);
+
+        let mut builtin = external_cfg(&server.uri(), None);
+        builtin.external_mode = false;
+        assert!(fetch_jwks_cached(&builtin, true).await.is_err());
     }
 }

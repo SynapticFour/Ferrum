@@ -465,6 +465,29 @@ impl ServiceRegistryClient {
         store_listing(&self.registry_url, services.clone()).await;
         Ok(services)
     }
+
+    /// Remove one service this process registered. A non-success status is an error.
+    pub async fn deregister(&self, id: &str) -> Result<(), DiscoveryError> {
+        let key = self
+            .registration_key
+            .as_deref()
+            .ok_or(DiscoveryError::MissingApiKey)?;
+        let response = self
+            .http
+            .delete(format!("{}/services/{id}", self.registry_url))
+            .header("X-API-Key", key)
+            .timeout(Duration::from_secs(2))
+            .send()
+            .await?;
+        if response.status().is_success() {
+            invalidate_listing(&self.registry_url).await;
+            return Ok(());
+        }
+        Err(DiscoveryError::RegistryHttp {
+            status: response.status().as_u16(),
+            body: response.text().await.unwrap_or_default(),
+        })
+    }
 }
 
 /// Register all enabled Ferrum GA4GH services with the service registry.
@@ -558,6 +581,32 @@ pub async fn register_ferrum_services(
     Ok(())
 }
 
+/// Service ids `register_ferrum_services` would POST for this process.
+///
+/// A service that is off in this config is omitted, including a row left by an older config.
+pub fn enabled_registration_ids(services: &ferrum_core::ServicesConfig) -> Vec<String> {
+    let mut ids = Vec::new();
+    if services.enable_drs {
+        ids.push("org.synapticfour.ferrum.drs".to_string());
+    }
+    if services.enable_beacon {
+        ids.push("org.synapticfour.ferrum.beacon".to_string());
+    }
+    if services.enable_htsget {
+        ids.push("org.synapticfour.ferrum.htsget".to_string());
+    }
+    if services.enable_wes {
+        ids.push("org.synapticfour.ferrum.wes".to_string());
+    }
+    if services.enable_tes {
+        ids.push("org.synapticfour.ferrum.tes".to_string());
+    }
+    if services.enable_trs {
+        ids.push("org.synapticfour.ferrum.trs".to_string());
+    }
+    ids
+}
+
 fn build_service(
     id: &str,
     name: &str,
@@ -643,6 +692,7 @@ mod tests {
             preferred_environment: None,
             preferred_organization: None,
             preferred_service_id: None,
+            heartbeat_interval_secs: 300,
         };
         std::env::set_var("TEST_REGISTRY_KEY", "secret");
         let client = ServiceRegistryClient::from_config(&config).expect("client");
@@ -711,6 +761,7 @@ mod tests {
             preferred_environment: None,
             preferred_organization: None,
             preferred_service_id: None,
+            heartbeat_interval_secs: 300,
         };
         let client = ServiceRegistryClient::from_config(&config).expect("client");
         let url1 = client.resolve_artifact("drsservice").await;
@@ -815,5 +866,194 @@ mod tests {
         let prefs = ServiceSelectionPrefs::default();
         let url = drs_url_for_ads_origin(&services, "org.a.ads", &prefs).unwrap();
         assert_eq!(url, "https://a.example.org/ga4gh/drs/v1");
+    }
+
+    #[test]
+    fn disabled_service_is_omitted_from_deregister_ids() {
+        let services = ferrum_core::ServicesConfig {
+            enable_drs: true,
+            enable_htsget: false,
+            ..ferrum_core::ServicesConfig::default()
+        };
+        let ids = enabled_registration_ids(&services);
+        assert!(ids.iter().any(|id| id == "org.synapticfour.ferrum.drs"));
+        assert!(ids.iter().all(|id| !id.contains("htsget")));
+        assert_eq!(
+            ferrum_core::config::DiscoveryConfig::default().heartbeat_interval_secs,
+            300
+        );
+    }
+
+    #[tokio::test]
+    async fn heartbeat_reposts_move_updated_at_on_a_stale_registry() {
+        let rows = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
+            String,
+            i64,
+        >::new()));
+        let server = MockServer::start().await;
+        Mock::given(path("/services"))
+            .respond_with(LiveRegistry {
+                stale_after: 10,
+                rows: std::sync::Arc::clone(&rows),
+            })
+            .mount(&server)
+            .await;
+
+        std::env::set_var("FERRUM_HEARTBEAT_TEST_KEY", "secret");
+        let config = ferrum_core::config::DiscoveryConfig {
+            service_registry_url: Some(server.uri()),
+            auto_register: true,
+            registration_api_key_env: "FERRUM_HEARTBEAT_TEST_KEY".to_string(),
+            ..ferrum_core::config::DiscoveryConfig::default()
+        };
+        let client = ServiceRegistryClient::from_config(&config).expect("client");
+        let services = ferrum_core::ServicesConfig {
+            enable_drs: true,
+            enable_beacon: false,
+            enable_htsget: false,
+            enable_wes: false,
+            enable_tes: false,
+            enable_trs: false,
+            ..ferrum_core::ServicesConfig::default()
+        };
+        register_ferrum_services(&client, "http://ferrum.example", &services, "development")
+            .await
+            .expect("first post");
+        let first = *rows
+            .lock()
+            .expect("rows")
+            .get("org.synapticfour.ferrum.drs")
+            .expect("drs row");
+        let start = unix_now();
+        while unix_now() == start {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        register_ferrum_services(&client, "http://ferrum.example", &services, "development")
+            .await
+            .expect("heartbeat post");
+        let second = *rows
+            .lock()
+            .expect("rows")
+            .get("org.synapticfour.ferrum.drs")
+            .expect("drs row");
+        assert!(second > first, "re-POST moves updatedAt");
+
+        let listed: Vec<serde_json::Value> = client
+            .http
+            .get(format!("{}/services", server.uri()))
+            .send()
+            .await
+            .expect("get")
+            .json()
+            .await
+            .expect("json");
+        let row = listed
+            .iter()
+            .find(|row| row["id"] == "org.synapticfour.ferrum.drs")
+            .expect("listed");
+        assert_eq!(row["stale"], false);
+        assert_ne!(row["updatedAt"], rfc3339(first));
+
+        rows.lock()
+            .expect("rows")
+            .insert("org.synapticfour.ferrum.drs".to_string(), unix_now() - 30);
+        let stale_listed: Vec<serde_json::Value> = client
+            .http
+            .get(format!("{}/services", server.uri()))
+            .send()
+            .await
+            .expect("get")
+            .json()
+            .await
+            .expect("json");
+        let stale_row = stale_listed
+            .iter()
+            .find(|row| row["id"] == "org.synapticfour.ferrum.drs")
+            .expect("listed");
+        assert_eq!(stale_row["stale"], true);
+    }
+
+    #[tokio::test]
+    async fn deregister_deletes_only_the_named_id() {
+        let server = MockServer::start().await;
+        Mock::given(method("DELETE"))
+            .and(path("/services/org.synapticfour.ferrum.drs"))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&server)
+            .await;
+        std::env::set_var("FERRUM_HEARTBEAT_TEST_KEY", "secret");
+        let config = ferrum_core::config::DiscoveryConfig {
+            service_registry_url: Some(server.uri()),
+            auto_register: true,
+            registration_api_key_env: "FERRUM_HEARTBEAT_TEST_KEY".to_string(),
+            ..ferrum_core::config::DiscoveryConfig::default()
+        };
+        let client = ServiceRegistryClient::from_config(&config).expect("client");
+        client
+            .deregister("org.synapticfour.ferrum.drs")
+            .await
+            .expect("delete");
+    }
+
+    fn unix_now() -> i64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_secs() as i64)
+            .unwrap_or(0)
+    }
+
+    fn rfc3339(unix: i64) -> String {
+        let days = unix.div_euclid(86_400);
+        let tod = unix.rem_euclid(86_400) as u32;
+        let hour = tod / 3600;
+        let min = (tod % 3600) / 60;
+        let sec = tod % 60;
+        let z = days + 719_468;
+        let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+        let doe = (z - era * 146_097) as u64;
+        let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+        let mut y = yoe as i64 + era * 400;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let d = doy - (153 * mp + 2) / 5 + 1;
+        let m = if mp < 10 { mp + 3 } else { mp - 9 };
+        if m <= 2 {
+            y += 1;
+        }
+        format!("{y:04}-{m:02}-{d:02}T{hour:02}:{min:02}:{sec:02}Z")
+    }
+
+    struct LiveRegistry {
+        stale_after: i64,
+        rows: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, i64>>>,
+    }
+
+    impl wiremock::Respond for LiveRegistry {
+        fn respond(&self, request: &wiremock::Request) -> wiremock::ResponseTemplate {
+            let now = unix_now();
+            if request.method.as_str() == "GET" {
+                let rows = self.rows.lock().expect("rows");
+                let body: Vec<serde_json::Value> = rows
+                    .iter()
+                    .map(|(id, updated)| {
+                        serde_json::json!({
+                            "id": id,
+                            "updatedAt": rfc3339(*updated),
+                            "stale": now.saturating_sub(*updated) > self.stale_after,
+                        })
+                    })
+                    .collect();
+                return wiremock::ResponseTemplate::new(200).set_body_json(body);
+            }
+            if request.method.as_str() == "POST" {
+                let value: serde_json::Value =
+                    serde_json::from_slice(&request.body).unwrap_or_else(|_| serde_json::json!({}));
+                if let Some(id) = value.get("id").and_then(|item| item.as_str()) {
+                    self.rows.lock().expect("rows").insert(id.to_string(), now);
+                }
+                return wiremock::ResponseTemplate::new(204);
+            }
+            wiremock::ResponseTemplate::new(404)
+        }
     }
 }

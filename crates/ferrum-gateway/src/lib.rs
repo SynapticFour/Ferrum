@@ -718,6 +718,10 @@ pub async fn run(
         }
     }
 
+    #[cfg(feature = "external-auth")]
+    let mut registry_shutdown: Option<(ferrum_discovery::ServiceRegistryClient, Vec<String>)> =
+        None;
+
     if let Some(ref cfg) = config {
         #[cfg(feature = "discovery")]
         if cfg.discovery.enabled {
@@ -753,6 +757,34 @@ pub async fn run(
                 {
                     tracing::warn!(error = %err, "service registry auto-registration failed");
                 }
+                let interval = cfg.discovery.heartbeat_interval_secs;
+                if interval > 0 {
+                    let beat_client = client.clone();
+                    let beat_base = gateway_base.clone();
+                    let beat_services = services.clone();
+                    let beat_env = environment.clone();
+                    tokio::spawn(async move {
+                        let mut ticker = tokio::time::interval(Duration::from_secs(interval));
+                        ticker.tick().await;
+                        loop {
+                            ticker.tick().await;
+                            if let Err(err) = ferrum_discovery::register_ferrum_services(
+                                &beat_client,
+                                &beat_base,
+                                &beat_services,
+                                &beat_env,
+                            )
+                            .await
+                            {
+                                tracing::warn!(error = %err, "service registry heartbeat failed");
+                            }
+                        }
+                    });
+                }
+                registry_shutdown = Some((
+                    client,
+                    ferrum_discovery::enabled_registration_ids(&services),
+                ));
             } else {
                 tracing::warn!("discovery.auto_register enabled but service registry client could not be built");
             }
@@ -807,6 +839,26 @@ pub async fn run(
         #[cfg(not(unix))]
         {
             let _ = tokio::signal::ctrl_c().await;
+        }
+        #[cfg(feature = "external-auth")]
+        if let Some((client, ids)) = registry_shutdown {
+            let deregister = async {
+                for id in &ids {
+                    if let Err(err) = client.deregister(id).await {
+                        tracing::warn!(
+                            service_id = %id,
+                            error = %err,
+                            "service registry deregister failed"
+                        );
+                    }
+                }
+            };
+            if tokio::time::timeout(Duration::from_secs(3), deregister)
+                .await
+                .is_err()
+            {
+                tracing::warn!("service registry deregister timed out");
+            }
         }
         shutdown_for_server.shutdown(drain_timeout).await;
     };

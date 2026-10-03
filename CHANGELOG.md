@@ -9,6 +9,7 @@ Proposed tag: `v0.3.3`. The tag is not created in this change.
 ### Security
 
 - **DRS mutations require a bearer token** when `FERRUM_AUTH__REQUIRE_AUTH=true`, including `POST /ga4gh/drs/v1/objects` with no `workspace_id`, plus object `PUT`/`DELETE` and `POST /ingest/file`, `/ingest/url`, and `/ingest/batch`. Missing token is 401. ADR-027. `scripts/seed-edge-demo.sh` and `scripts/seed-pilot-demo.sh` send `Authorization: Bearer` from `FERRUM_PASSPORT_JWT` and exit if that variable is unset. `GET /api/v1/audit/residency/verify` stays unauthenticated and returns chain metadata only.
+- **External JWKS discovery** — when `auth.mode` is `external` and neither `jwks_url` nor `jwks_file` is set, Ferrum reads `{issuer}/.well-known/openid-configuration`. The document issuer must match, and `jwks_uri` must use the same scheme. An explicit JWKS URL or file skips discovery. `require_auth` stays default true. ADR-028.
 
 ### Fixed
 
@@ -19,6 +20,7 @@ Proposed tag: `v0.3.3`. The tag is not created in this change.
 
 ### Changed
 
+- **Service registry heartbeat** — `discovery.heartbeat_interval_secs` defaults to 300. `0` registers once. Each tick re-POSTs the same body. A failed tick is logged and the process stays up. Graceful shutdown sends `DELETE` for the services this process has enabled. A service left on from an older config is not deleted. SIGKILL leaves the row. Set the registry `stale_after_seconds` to at least twice the heartbeat (600 when the heartbeat is 300).
 - **Demo deploy notes** — image variant table (external auth is `edge-infra`, linux/amd64), `/health` vs `/ready`, no Prometheus route, residency verify fields, and that DRS `access_url` is built from `FERRUM_DRS_HOSTNAME`.
 - **Field edge board** — one supported board: Raspberry Pi 5, 8 GB (16 GB accepted), 64-bit OS, USB SSD or NVMe for the data directory. Pi 4 and 4 GB are not field targets. ADR-026. ARM64 CI is still a compile, not a boot of that board.
 - **HelixTest ingest docs** — `docs/HELIXTEST-INTEGRATION.md`: default `--mode ferrum` does not hit `/api/v1/ingest/*`; opt-in `--mode ferrum-africa` does (`POST /api/v1/ingest/ont`). Lab Kit register/upload/jobs remain Ferrum unit tests. Linked to [Helix INVENTORY.md](https://github.com/SynapticFour/Helix/blob/main/INVENTORY.md) §1 Africa.
