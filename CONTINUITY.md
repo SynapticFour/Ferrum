@@ -83,7 +83,7 @@ Image publish: `.github/workflows/ghcr.yml` → `ghcr.io/synapticfour/ferrum` an
 
 ## Continuity
 
-Ferrum is maintained by a single steward (Synaptic Four). To reduce dependence on any one person, the build is documented from a clean machine in this file, the release steps are written down, and the source can be inspected and built without access to Synaptic Four systems (clean-room check dated 2026-10; product crates are not published to crates.io — build from git or use GHCR images). Operational details such as accounts, publication rights and escrow arrangements are kept in a non-public continuity plan. If you depend on Ferrum in production, ask for it.
+Ferrum is maintained by a single steward (Synaptic Four). To reduce dependence on any one person, the build is documented from a clean machine in this file, the release steps are written down, and the source can be inspected and built without access to Synaptic Four systems (clean-room check dated 2026-10; product crates are not published to crates.io — build from git or use GHCR images). Operational details such as accounts, publication rights and escrow arrangements are being documented in a non-public continuity plan.
 
 ## Minimal operator runbook
 
