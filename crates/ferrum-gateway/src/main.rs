@@ -528,6 +528,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             bandwidth: Some(bandwidth),
             transfer_queue: Some(transfer_queue),
             residency_audit: Some(residency_audit),
+            denied_audit: None,
             background_gate: Some(background_gate),
             ads_introspect: ads_introspect.clone(),
             solum_consent: solum_consent.clone(),

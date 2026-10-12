@@ -52,7 +52,7 @@ Constraints that follow from this:
 ## Related gateway behaviour (v0.3.4)
 
 - `GET /api/v1/audit/residency` returns **401** without a bearer when `require_auth` is on (ADR-031). `GET /api/v1/audit/residency/verify` stays unauthenticated (chain metadata only).
-- Invalid or revoked bearer tokens append `authorization_denied` events to the residency chain (ADR-032), rate-limited and with the client address minimized (`[audit]` config: `anonymous_client_ip` = `omit` default, `truncated`, `full`; `denied_events_per_minute`, default 30). Missing-bearer and DRS-level `forbidden` denials are **not yet** recorded; only the auth middleware path is wired.
+- Invalid or revoked bearer tokens append `authorization_denied` events to the residency chain (ADR-032), rate-limited and with the client address minimized (`[audit]` config: `anonymous_client_ip` = `omit` default, `truncated`, `full`; `denied_events_per_minute`, default 30). From **v0.3.5**, `missing_bearer` (DRS mutations/ingest, passport-for-bytes, residency list) and DRS `forbidden` (access.rs) are recorded on the same sink.
 - With HelixTest stubs enabled, WES and TES `service-info` carry an explicit `SIMULATED / NON-PILOT` marker (ADR-033).
 
 ## Laptop stack (`full-infra` + ga4gh-infra)

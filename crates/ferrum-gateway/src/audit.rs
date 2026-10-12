@@ -7,7 +7,9 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
-use ferrum_core::{residency_delete_blocked, AuthClaims, ResidencyAuditLog};
+use ferrum_core::{
+    residency_delete_blocked, AuthClaims, DeniedAuditSink, DeniedReason, ResidencyAuditLog,
+};
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -17,7 +19,16 @@ pub struct ResidencyQuery {
     pub to: Option<String>,
 }
 
-pub fn audit_router(audit: Arc<ResidencyAuditLog>) -> Router {
+#[derive(Clone)]
+struct AuditRouterState {
+    audit: Arc<ResidencyAuditLog>,
+    denied_audit: Option<Arc<DeniedAuditSink>>,
+}
+
+pub fn audit_router(
+    audit: Arc<ResidencyAuditLog>,
+    denied_audit: Option<Arc<DeniedAuditSink>>,
+) -> Router {
     Router::new()
         .route(
             "/residency",
@@ -27,16 +38,22 @@ pub fn audit_router(audit: Arc<ResidencyAuditLog>) -> Router {
                 .post(method_not_allowed),
         )
         .route("/residency/verify", get(verify_residency))
-        .with_state(audit)
+        .with_state(AuditRouterState {
+            audit,
+            denied_audit,
+        })
 }
 
 async fn get_residency(
-    State(audit): State<Arc<ResidencyAuditLog>>,
+    State(state): State<AuditRouterState>,
     auth: Option<Extension<AuthClaims>>,
     Query(q): Query<ResidencyQuery>,
 ) -> Result<Json<serde_json::Value>, Response> {
     // ADR-031: listing requires a bearer when require_auth is on. `/residency/verify` stays open.
     if ferrum_core::require_auth_enabled() && auth.is_none() {
+        if let Some(sink) = state.denied_audit.as_ref() {
+            sink.record_spawn(DeniedReason::MissingBearer, None, None, None);
+        }
         return Err(unauthorized(
             "Bearer authentication required to list residency audit entries",
         ));
@@ -45,7 +62,8 @@ async fn get_residency(
     let to = parse_ts(q.to.as_deref())?;
     let is_admin = auth.as_ref().is_some_and(|c| c.0.is_admin());
     let requester = auth.as_ref().and_then(|c| c.0.sub());
-    let result = audit
+    let result = state
+        .audit
         .query_range_for_requester(from, to, requester, is_admin)
         .await
         .map_err(internal)?;
@@ -56,9 +74,9 @@ async fn get_residency(
 }
 
 async fn verify_residency(
-    State(audit): State<Arc<ResidencyAuditLog>>,
+    State(state): State<AuditRouterState>,
 ) -> Result<Json<serde_json::Value>, Response> {
-    let result = audit.verify().await.map_err(internal)?;
+    let result = state.audit.verify().await.map_err(internal)?;
     Ok(Json(serde_json::json!({
         "chain_valid": result.chain_valid,
         "entry_count": result.entry_count,

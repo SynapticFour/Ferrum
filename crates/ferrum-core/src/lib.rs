@@ -15,6 +15,7 @@ pub mod gisaid;
 pub mod health;
 pub mod io;
 pub mod pool;
+pub mod userinfo_visas;
 #[cfg(feature = "libdeflate")]
 pub use noodles_bgzf;
 pub mod ops;

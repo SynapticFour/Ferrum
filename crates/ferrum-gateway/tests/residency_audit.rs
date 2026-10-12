@@ -46,7 +46,7 @@ async fn audit_pool() -> (FerrumPool, Arc<ResidencyAuditLog>) {
 #[tokio::test]
 async fn test_audit_delete_method_not_allowed() {
     let (_, audit) = audit_pool().await;
-    let app = audit_router(audit);
+    let app = audit_router(audit, None);
     let req = Request::builder()
         .method(Method::DELETE)
         .uri("/residency")
@@ -81,6 +81,7 @@ async fn test_upload_writes_data_uploaded_event() {
         bandwidth: None,
         transfer_queue: None,
         residency_audit: Some(audit.clone()),
+        denied_audit: None,
         background_gate: None,
         ads_introspect: None,
         solum_consent: None,
@@ -232,7 +233,7 @@ async fn test_residency_get_without_auth_is_401_when_require_auth_on() {
     let _restore_auth = RestoreRequireAuth(prev_auth);
 
     let (_, audit) = audit_pool().await;
-    let app = audit_router(audit);
+    let app = audit_router(audit, None);
 
     let resp = app
         .clone()
@@ -277,7 +278,7 @@ async fn test_residency_get_anonymous_ok_when_require_auth_off() {
     let _restore_auth = RestoreRequireAuth(prev_auth);
 
     let (_, audit) = audit_pool().await;
-    let resp = audit_router(audit)
+    let resp = audit_router(audit, None)
         .oneshot(get_residency_request("/residency"))
         .await
         .unwrap();

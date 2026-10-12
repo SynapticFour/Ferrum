@@ -74,6 +74,7 @@ async fn drs_test_state() -> (AppState, tempfile::TempDir) {
             bandwidth: Some(bw),
             transfer_queue: Some(Arc::new(TransferQueue::new(300))),
             residency_audit: Some(Arc::new(ResidencyAuditLog::new(fp))),
+            denied_audit: None,
             background_gate: None,
             ads_introspect: None,
             solum_consent: None,

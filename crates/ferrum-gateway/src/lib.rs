@@ -123,7 +123,7 @@ fn cors_layer(cfg: Option<&FerrumConfig>, require_auth: bool) -> CorsLayer {
 #[cfg_attr(not(feature = "full"), allow(unused_variables))]
 pub fn app(
     config: Option<&ferrum_core::AppConfig>,
-    drs_state: Option<ferrum_drs::AppState>,
+    mut drs_state: Option<ferrum_drs::AppState>,
     htsget_state: Option<std::sync::Arc<ferrum_htsget::HtsgetState>>,
     wes_params: Option<WesRouterParams>,
     tes_params: Option<TesRouterParams>,
@@ -193,8 +193,12 @@ pub fn app(
         });
     if let Some(log) = denied_audit_log {
         let audit_cfg = cfg.map(|c| c.audit.clone()).unwrap_or_default();
-        resolved_auth.denied_audit =
-            Some(Arc::new(ferrum_core::DeniedAuditSink::new(log, &audit_cfg)));
+        let sink = Arc::new(ferrum_core::DeniedAuditSink::new(log, &audit_cfg));
+        resolved_auth.denied_audit = Some(Arc::clone(&sink));
+        // Share the same rate-limited sink with DRS access / mutation denial paths (ADR-032).
+        if let Some(ref mut ds) = drs_state {
+            ds.denied_audit = Some(sink);
+        }
     }
 
     let auth_config = Arc::new(resolved_auth);
@@ -370,7 +374,10 @@ pub fn app(
             );
         }
         if let Some(audit) = residency_audit {
-            app = app.nest("/api/v1/audit", audit::audit_router(audit));
+            app = app.nest(
+                "/api/v1/audit",
+                audit::audit_router(audit, auth_config.denied_audit.clone()),
+            );
         }
         if let Some(registry) = reference_registry {
             app = app.nest(

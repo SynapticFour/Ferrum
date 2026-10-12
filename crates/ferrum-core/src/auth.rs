@@ -608,14 +608,26 @@ async fn decode_jwt_or_passport(
     // Try as GA4GH Passport (has ga4gh_passport_v1 claim)
     if let Ok(claims) = decode_passport_jwt(token, cfg).await {
         reject_token_if_too_old(claims.iat, cfg.max_token_age_hours)?;
-        let visa_jwts = claims.ga4gh_passport_v1.as_deref().unwrap_or(&[]);
+        let mut visa_jwts = claims.ga4gh_passport_v1.clone().unwrap_or_default();
+        // ADR-034: empty embedded Visas → UserInfo from configured issuer only.
+        if visa_jwts.is_empty() && cfg.external_mode {
+            let issuer = cfg
+                .issuer
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+            let exp = claims.exp.unwrap_or(0);
+            visa_jwts = crate::userinfo_visas::visas_from_userinfo(issuer, token, exp).await?;
+        }
         let visas = if cfg.use_clearinghouse {
-            decode_passport_visas_clearinghouse(token, visa_jwts).await
+            decode_passport_visas_clearinghouse(token, &visa_jwts).await
         } else {
-            decode_passport_visas_verified(visa_jwts, cfg).await
+            decode_passport_visas_verified(&visa_jwts, cfg).await
         };
+        let mut claims = claims.clone();
+        claims.ga4gh_passport_v1 = Some(visa_jwts);
         return Ok(AuthClaims::Passport {
-            claims: claims.clone(),
+            claims,
             visas,
             raw_token: Some(token.to_string()),
         });
@@ -999,7 +1011,7 @@ async fn decode_passport_via_clearinghouse(
     cfg: &AuthMiddlewareConfig,
 ) -> Result<AuthClaims, jsonwebtoken::errors::Error> {
     let clearinghouse = clearinghouse_for_cfg(cfg).await?;
-    let passport = clearinghouse
+    let mut passport = clearinghouse
         .validate_passport(token)
         .await
         .map_err(|err| {
@@ -1012,6 +1024,16 @@ async fn decode_passport_via_clearinghouse(
             );
             jsonwebtoken::errors::ErrorKind::InvalidToken
         })?;
+    // ADR-034: empty ga4gh_passport_v1 → UserInfo from configured issuer discovery only.
+    if passport.visa_jwts.is_empty() && cfg.external_mode {
+        let issuer = cfg
+            .issuer
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
+        passport.visa_jwts =
+            crate::userinfo_visas::visas_from_userinfo(issuer, token, passport.exp).await?;
+    }
     let visa_objects = match clearinghouse.extract_visas(&passport).await {
         Ok(visas) => visas
             .into_iter()

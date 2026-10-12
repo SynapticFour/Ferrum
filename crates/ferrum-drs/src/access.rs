@@ -3,8 +3,29 @@
 
 use crate::error::{DrsError, Result};
 use crate::state::AppState;
-use ferrum_core::{is_workspace_member, AuthClaims, OutbreakService};
+use ferrum_core::{is_workspace_member, AuthClaims, DeniedReason, OutbreakService};
 use std::sync::Arc;
+
+fn record_denied(state: &AppState, reason: DeniedReason, auth: Option<&AuthClaims>) {
+    if let Some(sink) = state.denied_audit.as_ref() {
+        sink.record_spawn(
+            reason,
+            auth.and_then(|a| a.sub().map(str::to_string)),
+            None,
+            None,
+        );
+    }
+}
+
+fn forbidden(state: &AppState, auth: Option<&AuthClaims>, msg: impl Into<String>) -> DrsError {
+    record_denied(state, DeniedReason::Forbidden, auth);
+    DrsError::Forbidden(msg.into())
+}
+
+fn missing_bearer(state: &AppState, msg: impl Into<String>) -> DrsError {
+    record_denied(state, DeniedReason::MissingBearer, None);
+    DrsError::Unauthorized(msg.into())
+}
 
 /// Enforce workspace-private, dataset DAC, and outbreak download approval before byte access.
 pub async fn check_object_byte_access(
@@ -18,17 +39,18 @@ pub async fn check_object_byte_access(
 
     // ADR-030: optional Passport for all byte paths (default off).
     if state.require_passport_for_bytes && auth.is_none() {
-        return Err(DrsError::Unauthorized(
-            "Bearer authentication required for object byte access".into(),
+        return Err(missing_bearer(
+            state,
+            "Bearer authentication required for object byte access",
         ));
     }
 
     if let Some(dataset_id) = dataset_id {
-        let claims = auth.ok_or_else(|| {
-            DrsError::Forbidden("authentication required for this dataset".into())
-        })?;
+        let claims =
+            auth.ok_or_else(|| forbidden(state, None, "authentication required for this dataset"))?;
         if let Some(client) = state.ads_introspect.as_ref() {
             enforce_ads_dataset_access(
+                state,
                 client,
                 &dataset_id,
                 canonical_object_id,
@@ -39,25 +61,32 @@ pub async fn check_object_byte_access(
         } else if !claims.has_published_dataset_access(&dataset_id, canonical_object_id)
             && !claims.is_admin()
         {
-            return Err(DrsError::Forbidden("dataset access not granted".into()));
+            return Err(forbidden(state, Some(claims), "dataset access not granted"));
         }
     } else if let Some(ws_id) = workspace_id {
         let claims = auth.ok_or_else(|| {
-            DrsError::Forbidden("authentication required for workspace-private data".into())
+            forbidden(
+                state,
+                None,
+                "authentication required for workspace-private data",
+            )
         })?;
         if !claims.is_admin() {
             let sub = claims
                 .sub()
-                .ok_or_else(|| DrsError::Forbidden("missing subject in token".into()))?;
+                .ok_or_else(|| forbidden(state, Some(claims), "missing subject in token"))?;
             if !is_workspace_member(state.repo.pool(), &ws_id, sub).await? {
-                return Err(DrsError::Forbidden(
-                    "workspace-private object: not a workspace member".into(),
+                return Err(forbidden(
+                    state,
+                    Some(claims),
+                    "workspace-private object: not a workspace member",
                 ));
             }
         }
     }
 
     enforce_outbreak_download(
+        state,
         state.outbreak.as_ref(),
         &state.repo,
         canonical_object_id,
@@ -79,10 +108,11 @@ async fn enforce_solum_object_consent(state: &AppState, object_id: &str) -> Resu
     client
         .require_granted(&subject, &purpose)
         .await
-        .map_err(|e| DrsError::Forbidden(format!("solum consent: {e}")))
+        .map_err(|e| forbidden(state, None, format!("solum consent: {e}")))
 }
 
 async fn enforce_ads_dataset_access(
+    state: &AppState,
     client: &ferrum_core::AdsIntrospectClient,
     dataset_id: &str,
     object_id: &str,
@@ -92,9 +122,13 @@ async fn enforce_ads_dataset_access(
     if claims.is_admin() || claims.has_published_dataset_access(dataset_id, object_id) {
         return Ok(());
     }
-    let token = claims
-        .raw_token()
-        .ok_or_else(|| DrsError::Forbidden("Bearer token required for ADS access check".into()))?;
+    let token = claims.raw_token().ok_or_else(|| {
+        forbidden(
+            state,
+            Some(claims),
+            "Bearer token required for ADS access check",
+        )
+    })?;
     let resource = format!("drs:{object_id}");
     let active = if let Some(ads_base) = federated_ads_base {
         let policy = ferrum_core::SsrfPolicy {
@@ -104,7 +138,7 @@ async fn enforce_ads_dataset_access(
         };
         ferrum_core::validate_url_ssrf_resolved(ads_base, &policy)
             .await
-            .map_err(|e| DrsError::Forbidden(format!("ADS base URL rejected: {e}")))?;
+            .map_err(|e| forbidden(state, Some(claims), format!("ADS base URL rejected: {e}")))?;
         client
             .introspect_at_base(ads_base, token, &resource, dataset_id)
             .await
@@ -113,9 +147,9 @@ async fn enforce_ads_dataset_access(
             .is_dataset_access_active(token, &resource, dataset_id)
             .await
     }
-    .map_err(|e| DrsError::Forbidden(format!("ADS access check failed: {e}")))?;
+    .map_err(|e| forbidden(state, Some(claims), format!("ADS access check failed: {e}")))?;
     if !active {
-        return Err(DrsError::Forbidden("dataset access not granted".into()));
+        return Err(forbidden(state, Some(claims), "dataset access not granted"));
     }
     Ok(())
 }
@@ -133,6 +167,7 @@ pub async fn check_object_metadata_access(
     let workspace_id = state.repo.get_workspace_id(canonical_object_id).await?;
     if dataset_id.is_none() && workspace_id.is_none() {
         enforce_outbreak_download(
+            state,
             state.outbreak.as_ref(),
             &state.repo,
             canonical_object_id,
@@ -146,6 +181,7 @@ pub async fn check_object_metadata_access(
 }
 
 async fn enforce_outbreak_download(
+    state: &AppState,
     outbreak: Option<&Arc<OutbreakService>>,
     repo: &crate::repo::DrsRepo,
     object_id: &str,
@@ -161,7 +197,11 @@ async fn enforce_outbreak_download(
         return Ok(());
     };
     let claims = auth.ok_or_else(|| {
-        DrsError::Forbidden("authentication required for outbreak-controlled pathogen data".into())
+        forbidden(
+            state,
+            None,
+            "authentication required for outbreak-controlled pathogen data",
+        )
     })?;
     let recipient = claims
         .recipient_identity()
@@ -185,9 +225,13 @@ async fn enforce_outbreak_download(
             .has_download_approval(&policy_name, object_id, recipient)
             .await?
         {
-            return Err(DrsError::Forbidden(format!(
-                "outbreak mode: DRS download for '{object_id}' requires POST /api/v1/outbreak/approve-download/{object_id}"
-            )));
+            return Err(forbidden(
+                state,
+                Some(claims),
+                format!(
+                    "outbreak mode: DRS download for '{object_id}' requires POST /api/v1/outbreak/approve-download/{object_id}"
+                ),
+            ));
         }
     }
     Ok(())

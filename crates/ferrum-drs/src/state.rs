@@ -9,8 +9,8 @@
 use crate::presign::S3Presigner;
 use crate::repo::DrsRepo;
 use ferrum_core::{
-    BackgroundWorkGate, IngestConfig, OutbreakService, PipelineConfig, ProvenanceStore,
-    ResidencyAuditLog,
+    BackgroundWorkGate, DeniedAuditSink, IngestConfig, OutbreakService, PipelineConfig,
+    ProvenanceStore, ResidencyAuditLog,
 };
 use ferrum_storage::{BandwidthMonitor, ObjectStorage, TransferQueue};
 use std::path::PathBuf;
@@ -41,6 +41,8 @@ pub struct AppState {
     pub transfer_queue: Option<Arc<TransferQueue>>,
     /// Append-only residency audit log (optional; set by gateway).
     pub residency_audit: Option<Arc<ResidencyAuditLog>>,
+    /// ADR-032 sink for `authorization_denied` (missing_bearer / forbidden). Same rate limit as middleware.
+    pub denied_audit: Option<Arc<DeniedAuditSink>>,
     /// Solar/battery gate for pausing background checksum/index work (optional; set by gateway).
     pub background_gate: Option<Arc<BackgroundWorkGate>>,
     /// Optional ADS introspection for published datasets (ga4gh-infra co-deploy).

@@ -92,6 +92,7 @@ async fn outbreak_drs_state() -> AppState {
         bandwidth: None,
         transfer_queue: None,
         residency_audit: None,
+        denied_audit: None,
         background_gate: None,
         ads_introspect: None,
         solum_consent: None,

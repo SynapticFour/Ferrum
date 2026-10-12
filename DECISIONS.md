@@ -44,8 +44,18 @@ Track important architectural and operational decisions here.
 - **Status:** Accepted
 - **Context:** Denied and anonymous auth failures did not appear on the residency chain. EHDS-style access logging needs those attempts without storing tokens or raw Authorization headers.
 - **Decision:** Append `authorization_denied` events (reason: `missing_bearer` | `invalid_token` | `wrong_audience` | `forbidden`) to the residency hash chain. Subject/audience only when a token parsed far enough. Write rate limit (default 30/min process-wide, configurable). For anonymous requests, store a **minimized** client address in `destination` (`audit.anonymous_client_ip`: `omit` default | `truncated` /24 IPv4 or /32 IPv6 | `full`).
-- **Consequences:** Chain grows with attack traffic under the rate limit. No secrets in the log. Operators who need fuller IP for incident response set `truncated` or `full` deliberately.
-- **Implementation status (v0.3.4):** `ferrum_core::denied_audit`, wired from `auth_middleware_with_config` for `invalid_token` and `wrong_audience` (also revoked tokens, recorded as `invalid_token`). `missing_bearer` and DRS-level `forbidden` are **not yet** recorded. Reason and audience are encoded in the `drs_id` column (`reason=<r>[;aud=<a>]`); the residency table has no dedicated columns. `X-Forwarded-For` / `X-Real-IP` are client-controlled unless a trusted proxy overwrites them.
+- **Consequences:** Chain grows with attack traffic under the rate limit. No secrets in the log. Operators who need fuller IP for incident response set `truncated` or `full` deliberately. Reason and audience are encoded in the `drs_id` column (`reason=<r>[;aud=<a>]`); the residency table has no dedicated columns. `X-Forwarded-For` / `X-Real-IP` are client-controlled unless a trusted proxy overwrites them.
+- **Implementation status (v0.3.5):** Middleware records `invalid_token` / `wrong_audience` (and revoked → `invalid_token`). DRS `reject_anonymous_mutation` and `require_passport_for_bytes` missing-bearer paths, plus gateway `GET /api/v1/audit/residency` without a bearer, record `missing_bearer`. DRS `access.rs` Forbidden outcomes record `forbidden` via the shared `DeniedAuditSink` on `AppState` (same rate limit and IP minimization). No token bytes are stored.
+
+---
+
+### 2026-10-12 - ADR-034: UserInfo Visa fetch for empty `ga4gh_passport_v1` (external auth)
+
+- **Status:** Accepted
+- **Context:** ga4gh-infra ADR-005 lets brokers mint Passport-scoped access tokens with an empty `ga4gh_passport_v1` and deliver Visas from `GET /userinfo`. Ferrum external-auth resource servers only read embedded Visas, so `embed_visas = false` denied every controlled access. Taking a UserInfo URL from token claims would be SSRF.
+- **Decision:** When `auth.mode` is `external` and a validated access token has an empty `ga4gh_passport_v1`, Ferrum GETs `userinfo_endpoint` from **OIDC discovery of the configured issuer only** (same document rules as ADR-028: issuer match, scheme match). Forward the same Bearer. Cache Visa JWT strings keyed by **SHA-256 of the raw token**, TTL bounded by token `exp` and a process max entry count (1024). Any discovery/HTTP/JSON/scheme error, timeout, or non-2xx (including broker restart → UserInfo 401) **fails closed** (treat as invalid token). Default `embed_visas = true` on the broker is unchanged; this path is idle when Visas are embedded. Builtin auth does not fetch UserInfo.
+- **Consequences:** Operators can lower edge header limits with ga4gh-infra `embed_visas = false` once Ferrum is on this release. Cache memory is bounded; after broker restart, cached entries expire with the token and a fresh UserInfo 401 denies access until re-login. No UserInfo URL is taken from JWT claims.
+- **Alternatives considered:** Always require embedded Visas (rejected: fights ADR-005); follow `userinfo` from token claims (rejected: SSRF); unbounded cache (rejected); treat empty Visas as anonymous success (rejected: fail closed).
 
 ---
 
