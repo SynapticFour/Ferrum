@@ -47,9 +47,8 @@ tempfile = "3"
 libc = "0.2"
 # Git pin (not a sibling path) so `cargo metadata` / default builds work without cloning ga4gh-infra.
 # Enable with `--features clearinghouse` (gateway: `external-auth`).
-# After ga4gh-infra-v0.2.6 is tagged on origin, switch `rev` → `tag = "ga4gh-infra-v0.2.6"`.
-# Clearinghouse API is unchanged in that cut; rev keeps `cargo` resolvable before the tag exists.
-ga4gh-clearinghouse = { git = "https://github.com/SynapticFour/ga4gh-infra", rev = "447bc13e05972f4cafee48cefd2c7d002fda0959", optional = true }
+# Keep in sync with VERSIONS.lock GA4GH_INFRA_REF / deploy Dockerfile ARG defaults.
+ga4gh-clearinghouse = { git = "https://github.com/SynapticFour/ga4gh-infra", tag = "ga4gh-infra-v0.2.6", optional = true }
 noodles-bgzf = { version = "0.46", optional = true, default-features = false, features = [
     "libdeflate",
 ] }
