@@ -14,18 +14,18 @@
 #   - deploy/scripts/run-helixtest-local.sh
 
 # Ferrum release tag (customer bundles, hosted-pilot FERRUM_REF)
-FERRUM_VERSION=v0.3.4
+FERRUM_VERSION=v0.3.5
 
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
-# Tagged on origin 2026-10-03: ga4gh-infra-v0.2.4 → 999b103dc1cae1c3a5ccb35b125cdb603515f68f
-# (Docker Release publishes every Compose service as :0.2.4). Do not install ga4gh-infra-v0.1.0.
-# Stack/deploy image tags follow ga4gh-infra-v* (0.2.4). Crate Cargo.toml may stay 0.1.0.
-GA4GH_INFRA_REF=ga4gh-infra-v0.2.4
-GA4GH_INFRA_TAG=ga4gh-infra-v0.2.4
-GA4GH_INFRA_SHA=999b103dc1cae1c3a5ccb35b125cdb603515f68f
+# On origin: ga4gh-infra-v0.2.6 → f2ac411ab1d9b78307019ba764203402cb00a9f6
+# (Docker Release / Compose image tags :0.2.6). Do not install ga4gh-infra-v0.1.0.
+# Crate Cargo.toml may stay 0.1.0.
+GA4GH_INFRA_REF=ga4gh-infra-v0.2.6
+GA4GH_INFRA_TAG=ga4gh-infra-v0.2.6
+GA4GH_INFRA_SHA=f2ac411ab1d9b78307019ba764203402cb00a9f6
 
 # Docker image pins for ga4gh-infra compose (see ga4gh-infra/docker/.env.example)
-GA4GH_INFRA_IMAGE_VERSION=0.2.4
+GA4GH_INFRA_IMAGE_VERSION=0.2.6
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
 # Tag v0.1.3 includes ferrum+infra broker service-info Level 0 (so `--fail-level 2`

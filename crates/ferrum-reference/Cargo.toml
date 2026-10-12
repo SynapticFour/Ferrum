@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-reference"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 description = "Pluggable reference genome registry for Ferrum"
 license = "BUSL-1.1"

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-10-12 (proposed)
+
+Crate versions match proposed tag `v0.3.5`. **Do not create the tag until `ga4gh-infra-v0.2.6` exists on origin** (image build clones it) and `make verify-release` is green. `GA4GH_INFRA_REF` → `ga4gh-infra-v0.2.6`.
+
+### Security
+
+- **UserInfo Visas for empty `ga4gh_passport_v1`** — external auth only. After validating the access token, if Visas are empty, Ferrum GETs `userinfo_endpoint` from OIDC discovery of the **configured issuer** (not from token claims), forwards the Bearer, caches by SHA-256(token) until token `exp` (max 1024 entries). Fail closed on errors/timeouts/401 (broker restart). Default broker embed behaviour unchanged. ADR-034.
+- **`authorization_denied` gap closed** — `missing_bearer` from DRS mutations/ingest, `require_passport_for_bytes`, and `GET /api/v1/audit/residency`; `forbidden` from DRS `access.rs`. Same rate limit and IP minimization. ADR-032 consequences updated.
+
+### Fixed
+
+- **`Dockerfile.init` MinIO client** — `dl.min.io` returns HTTP 410. Pin GitHub release `RELEASE.2025-08-13T08-35-41Z`, verify SHA-256, retry thrice, fall back to `third_party/mc/`, or skip with a clear error (`deploy/scripts/fetch-mc.sh`).
+
 ## [0.3.4] - 2026-10-12
 
 Crate versions and pins match tag `v0.3.4`. `GA4GH_INFRA_REF` remains `ga4gh-infra-v0.2.4`.

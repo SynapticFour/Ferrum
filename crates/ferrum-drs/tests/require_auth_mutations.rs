@@ -38,6 +38,7 @@ async fn app() -> axum::Router {
         bandwidth: None,
         transfer_queue: None,
         residency_audit: None,
+        denied_audit: None,
         background_gate: None,
         ads_introspect: None,
         solum_consent: None,

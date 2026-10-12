@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-core"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 description = "Shared types, errors, config, and database abstractions for Ferrum"
 license = "BUSL-1.1"
@@ -47,7 +47,8 @@ tempfile = "3"
 libc = "0.2"
 # Git pin (not a sibling path) so `cargo metadata` / default builds work without cloning ga4gh-infra.
 # Enable with `--features clearinghouse` (gateway: `external-auth`).
-ga4gh-clearinghouse = { git = "https://github.com/SynapticFour/ga4gh-infra", tag = "ga4gh-infra-v0.2.4", optional = true }
+# Keep in sync with VERSIONS.lock GA4GH_INFRA_REF / deploy Dockerfile ARG defaults.
+ga4gh-clearinghouse = { git = "https://github.com/SynapticFour/ga4gh-infra", tag = "ga4gh-infra-v0.2.6", optional = true }
 noodles-bgzf = { version = "0.46", optional = true, default-features = false, features = [
     "libdeflate",
 ] }

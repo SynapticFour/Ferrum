@@ -52,6 +52,7 @@ fn drs_state_for_edge(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum
         ))),
         transfer_queue: Some(Arc::new(ferrum_storage::TransferQueue::new(300))),
         residency_audit: Some(Arc::new(ferrum_core::ResidencyAuditLog::new(pool))),
+        denied_audit: None,
         background_gate: Some(Arc::new(ferrum_core::BackgroundWorkGate::default())),
         ads_introspect: None,
         solum_consent: None,

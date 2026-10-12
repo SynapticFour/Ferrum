@@ -220,16 +220,26 @@ async fn encrypt_spool_to_storage(
     Ok(size)
 }
 
+fn reject_anonymous_ingest(state: &AppState) -> Result<()> {
+    if ferrum_core::require_auth_enabled() {
+        if let Some(sink) = state.denied_audit.as_ref() {
+            sink.record_spawn(ferrum_core::DeniedReason::MissingBearer, None, None, None);
+        }
+        return Err(DrsError::Unauthorized(
+            "Bearer authentication required when require_auth is enabled".into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Store bytes (optionally Crypt4GH-encrypted with Ferrum node public key), create DRS object, async checksums.
 pub async fn process_upload_from_parts(
     state: Arc<AppState>,
     auth: Option<&ferrum_core::AuthClaims>,
     parsed: ParsedMultipartUpload,
 ) -> Result<IngestFileResponse> {
-    if ferrum_core::require_auth_enabled() && auth.is_none() {
-        return Err(DrsError::Unauthorized(
-            "Bearer authentication required when require_auth is enabled".into(),
-        ));
+    if auth.is_none() {
+        reject_anonymous_ingest(&state)?;
     }
     let storage = state
         .storage
@@ -389,10 +399,8 @@ pub async fn process_upload_from_spooled(
     spool_path: std::path::PathBuf,
     spool_size: u64,
 ) -> Result<IngestFileResponse> {
-    if ferrum_core::require_auth_enabled() && auth.is_none() {
-        return Err(DrsError::Unauthorized(
-            "Bearer authentication required when require_auth is enabled".into(),
-        ));
+    if auth.is_none() {
+        reject_anonymous_ingest(&state)?;
     }
     let storage = state
         .storage
@@ -649,10 +657,8 @@ pub async fn ingest_url(
     Json(req): Json<IngestUrlRequest>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<IngestUrlResponse>> {
-    if ferrum_core::require_auth_enabled() && auth.is_none() {
-        return Err(DrsError::Unauthorized(
-            "Bearer authentication required when require_auth is enabled".into(),
-        ));
+    if auth.is_none() {
+        reject_anonymous_ingest(&state)?;
     }
     if let Some(ref ws_id) = req.workspace_id {
         let claims =
@@ -734,10 +740,8 @@ pub async fn ingest_batch(
     Json(req): Json<IngestBatchRequest>,
     auth: Option<Extension<ferrum_core::AuthClaims>>,
 ) -> Result<Json<IngestBatchResponse>> {
-    if ferrum_core::require_auth_enabled() && auth.is_none() {
-        return Err(DrsError::Unauthorized(
-            "Bearer authentication required when require_auth is enabled".into(),
-        ));
+    if auth.is_none() {
+        reject_anonymous_ingest(&state)?;
     }
     if let Some(ref ws_id) = req.workspace_id {
         let claims =
