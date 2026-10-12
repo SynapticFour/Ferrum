@@ -266,7 +266,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install Helm
         uses: azure/setup-helm@v5
-      - name: Lint and template the v0.3.4 chart
+      - name: Lint and template the v0.3.5 chart
         run: |
           set -euo pipefail
           helm lint deploy/helm
@@ -274,8 +274,10 @@ jobs:
           helm template ferrum deploy/helm --values deploy/helm/values-local.yaml >/dev/null
           helm template ferrum deploy/helm --values deploy/helm/values-production.yaml >/dev/null
           helm template ferrum deploy/helm --values deploy/helm/values-selfhosted.yaml >/dev/null
-          grep -q 'appVersion: "0.3.4"' deploy/helm/Chart.yaml
-          grep -q 'tag: "v0.3.4"' deploy/helm/values.yaml
-          grep -q 'FERRUM_VERSION=v0.3.4' deploy/.env.example
-          grep -q 'image: ghcr.io/synapticfour/ferrum:v0.3.4' demo/docker-compose.demo.yml
-          grep -q 'image: ghcr.io/synapticfour/ferrum-ui:v0.3.4' demo/docker-compose.demo.yml
+          grep -q 'appVersion: "0.3.5"' deploy/helm/Chart.yaml
+          grep -q 'tag: "v0.3.5-full-infra"' deploy/helm/values.yaml
+          grep -q 'FERRUM_VERSION=v0.3.5' deploy/.env.example
+          grep -q 'ghcr.io/synapticfour/ferrum:v0.3.5-full-infra@sha256:' demo/docker-compose.demo.yml
+          grep -q 'ghcr.io/synapticfour/ferrum-ui:v0.3.5@sha256:' demo/docker-compose.demo.yml
+          grep -q 'chrislusf/seaweedfs:3.80@sha256:' deploy/docker-compose.yml
+          bash deploy/scripts/compose-cmd.sh >/dev/null

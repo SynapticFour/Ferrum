@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
-# Ferrum demo init: migrations, MinIO bucket, Keycloak realm, Crypt4GH keys, seed DRS objects.
+# Ferrum demo init: migrations, S3 bucket seed, Keycloak realm, Crypt4GH keys, seed DRS objects.
+# Reference object store is SeaweedFS (Apache-2.0). MINIO_* env names remain as aliases for S3_*.
 set -e
 
 # --- Wait for dependencies ---
@@ -18,7 +19,7 @@ wait_for() {
 }
 
 wait_for "${POSTGRES_HOST:-postgres}" "${POSTGRES_PORT:-5432}" "PostgreSQL"
-wait_for "${MINIO_HOST:-minio}" "${MINIO_PORT:-9000}" "MinIO"
+wait_for "${S3_HOST:-${MINIO_HOST:-object-store}}" "${S3_PORT:-${MINIO_PORT:-8333}}" "S3 object store"
 wait_for "${KEYCLOAK_HOST:-keycloak}" "${KEYCLOAK_PORT:-8080}" "Keycloak"
 
 # --- 1. Run DB migrations (journal-tracked; safe on partial / re-used volumes) ---
@@ -141,13 +142,18 @@ for f in $(ls -1 "$MIGRATIONS_DIR"/*.up.sql 2>/dev/null | sort); do
   record_migration "$version" "$filename"
 done
 
-# --- 2. Create MinIO bucket ---
-echo "Creating MinIO bucket..."
+# --- 2. Ensure S3 bucket (SeaweedFS auto-creates on Put; mb is best-effort) ---
+S3_ENDPOINT_HOST="${S3_HOST:-${MINIO_HOST:-object-store}}"
+S3_ENDPOINT_PORT="${S3_PORT:-${MINIO_PORT:-8333}}"
+S3_AK="${S3_ACCESS_KEY:-${MINIO_ROOT_USER:-ferrum}}"
+S3_SK="${S3_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-ferrumsecretkey123}}"
+S3_BUCKET_NAME="${S3_BUCKET:-${MINIO_BUCKET:-ferrum}}"
+echo "Ensuring S3 bucket ${S3_BUCKET_NAME} at ${S3_ENDPOINT_HOST}:${S3_ENDPOINT_PORT}..."
 if command -v mc >/dev/null 2>&1; then
-  mc alias set local "http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}" "${MINIO_ROOT_USER:-minioadmin}" "${MINIO_ROOT_PASSWORD:-minioadmin}"
-  mc mb "local/${MINIO_BUCKET:-ferrum}" --ignore-existing 2>/dev/null || true
+  mc alias set local "http://${S3_ENDPOINT_HOST}:${S3_ENDPOINT_PORT}" "${S3_AK}" "${S3_SK}"
+  mc mb "local/${S3_BUCKET_NAME}" --ignore-existing 2>/dev/null || true
 else
-  echo "  (mc not installed, skipping bucket create; ensure bucket exists)"
+  echo "  (mc not installed, skipping bucket create; SeaweedFS creates on first Put)"
 fi
 
 # --- 3. Keycloak realm + test users ---
@@ -536,13 +542,13 @@ PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POS
   fi
 done
 
-# --- 6b. DRS /stream microbenchmark (MinIO + Postgres, last — repairs partial init / DO NOTHING skips) ---
+# --- 6b. DRS /stream microbenchmark (S3 + Postgres, last — repairs partial init / DO NOTHING skips) ---
 # `GET .../objects/microbench-plain-v1/stream` for CI (see docs/PERFORMANCE-CRYPT4GH.md). Runs AFTER all DRS URL seeds.
 MICRO_ID="microbench-plain-v1"
 MICRO_KEY="microbench/plain-v1.bin"
 GATEWAY_PUBLIC_URL="${GATEWAY_PUBLIC_URL:-http://localhost:8080}"
 if command -v mc >/dev/null 2>&1; then
-  mc alias set local "http://${MINIO_HOST:-minio}:${MINIO_PORT:-9000}" "${MINIO_ROOT_USER:-minioadmin}" "${MINIO_ROOT_PASSWORD:-minioadmin}" >/dev/null 2>&1 || true
+  mc alias set local "http://${S3_ENDPOINT_HOST}:${S3_ENDPOINT_PORT}" "${S3_AK}" "${S3_SK}" >/dev/null 2>&1 || true
   TMP_MB="/tmp/ferrum-microbench-plain.bin"
   if ! dd if=/dev/zero bs=4096 count=1 2>/dev/null | tr '\0' 'P' > "$TMP_MB" 2>/dev/null; then
     echo "ERROR: could not build microbench payload at $TMP_MB" >&2
@@ -552,25 +558,25 @@ if command -v mc >/dev/null 2>&1; then
   UPLOAD_OK=0
   i=1
   while [ "$i" -le 25 ]; do
-    if mc cp "$TMP_MB" "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" && mc stat "local/${MINIO_BUCKET:-ferrum}/$MICRO_KEY" >/dev/null 2>&1; then
+    if mc cp "$TMP_MB" "local/${S3_BUCKET_NAME}/$MICRO_KEY" && mc stat "local/${S3_BUCKET_NAME}/$MICRO_KEY" >/dev/null 2>&1; then
       UPLOAD_OK=1
       break
     fi
-    echo "  microbench: MinIO upload/stat attempt $i failed, retry in 2s..."
+    echo "  microbench: S3 upload/stat attempt $i failed, retry in 2s..."
     sleep 2
     i=$((i + 1))
   done
   if [ "$UPLOAD_OK" != "1" ]; then
-    echo "ERROR: microbench upload to MinIO failed after retries (bucket=${MINIO_BUCKET:-ferrum} key=$MICRO_KEY)" >&2
+    echo "ERROR: microbench upload to S3 failed after retries (bucket=${S3_BUCKET_NAME} key=$MICRO_KEY)" >&2
     exit 1
   fi
-  echo "  Microbench $MICRO_ID: MinIO ok, sha256=$MB_SHA256"
+  echo "  Microbench $MICRO_ID: S3 ok, sha256=$MB_SHA256"
   PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST:-postgres}" -p "${POSTGRES_PORT:-5432}" -U "${POSTGRES_USER:-ferrum}" -d "${POSTGRES_DB:-ferrum}" -v ON_ERROR_STOP=1 <<SEEDMICRO
 INSERT INTO drs_objects (id, name, description, size, mime_type, is_bundle, aliases)
 VALUES (
   '${MICRO_ID}',
   'Microbench plaintext (S3)',
-  'Deterministic 4096-byte payload on MinIO for DRS /stream timing (Plain path).',
+  'Deterministic 4096-byte payload on S3 for DRS /stream timing (Plain path).',
   4096,
   'application/octet-stream',
   false,

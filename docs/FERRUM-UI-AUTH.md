@@ -57,12 +57,12 @@ Constraints that follow from this:
 
 ## Laptop stack (`full-infra` + ga4gh-infra)
 
-Target: one laptop, UI + gateway + Postgres + MinIO + ga4gh-infra broker.
+Target: one laptop, UI + gateway + Postgres + SeaweedFS (S3) + ga4gh-infra broker.
 
 | Piece | Source |
 |-------|--------|
 | Gateway image variant | `full-infra` (`FERRUM_VARIANT=full-infra`, [IMAGE-VARIANTS.md](IMAGE-VARIANTS.md)) |
-| Postgres, MinIO, init, UI | `deploy/docker-compose.yml` |
+| Postgres, object-store (SeaweedFS), init, UI | `deploy/docker-compose.yml` |
 | Broker, mock-idp, visa-registry, ADS, service-registry | `deploy/docker-compose.ga4gh-infra.yml` (needs `GA4GH_INFRA_SRC`) |
 | Overlay for external auth | `deploy/docker-compose.full-infra-ui.yml` |
 

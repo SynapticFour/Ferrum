@@ -1,8 +1,9 @@
 # Lightweight demo stack for install.sh / `ferrum demo start` (pre-built images, no local build).
-# Full stack with MinIO, Keycloak, init seeding: clone the repo and run `make demo`.
+# Full stack with SeaweedFS S3, Keycloak, init seeding: clone the repo and run `make demo`.
+# Digests: docs/COMPOSE-IMAGE-PINS.md
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     environment:
       POSTGRES_USER: ferrum
       POSTGRES_PASSWORD: ferrum-demo
@@ -14,8 +15,9 @@ services:
       retries: 10
 
   gateway:
-    # Pin to VERSIONS.lock FERRUM_VERSION. :latest is not a pin.
-    image: ghcr.io/synapticfour/ferrum:v0.3.4
+    # Pin to VERSIONS.lock FERRUM_VERSION + digest. linux/amd64 only on GHCR.
+    image: ghcr.io/synapticfour/ferrum:v0.3.5-full-infra@sha256:555f44bada386bd58d7b6914a94b22e4bd5319edf5d4e70c11c7a82dae14c312
+    platform: linux/amd64
     ports:
       - "8080:8080"
     environment:
@@ -27,15 +29,15 @@ services:
         condition: service_healthy
 
   ui:
-    # Pin to VERSIONS.lock FERRUM_VERSION. :latest is not a pin.
-    image: ghcr.io/synapticfour/ferrum-ui:v0.3.4
+    image: ghcr.io/synapticfour/ferrum-ui:v0.3.5@sha256:59b7230e2736c089d81ca7316cde811a4da33658cfe2297b4e43e905c51ae2bf
+    platform: linux/amd64
     environment:
       VITE_API_BASE_URL: http://localhost:8080
     depends_on:
       - gateway
 
   nginx:
-    image: nginx:alpine
+    image: nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
     ports:
       - "8082:80"
     volumes:

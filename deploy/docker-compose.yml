@@ -1,10 +1,11 @@
-# Ferrum local demo - single command: docker compose up
-# Services: gateway, postgres, minio, keycloak, ferrum-ui, init
-# Usage: make demo  (or: docker compose -f deploy/docker-compose.yml up -d)
+# Ferrum local demo — gateway + Postgres + SeaweedFS (S3) + Keycloak + UI + init.
+# Usage: make demo  (or: $(deploy/scripts/compose-cmd.sh) -f deploy/docker-compose.yml up -d)
+# Object store: SeaweedFS Apache-2.0 — see docs/TESTED-S3-BACKENDS.md (MinIO is BYO only).
+# Image digests: docs/COMPOSE-IMAGE-PINS.md
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ferrum}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ferrum}
@@ -18,19 +19,25 @@ services:
       retries: 5
     restart: unless-stopped
 
-  minio:
-    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
-    command: server /data
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  # Reference S3: SeaweedFS 3.80 (Apache-2.0). Auto-creates bucket on Put.
+  object-store:
+    image: chrislusf/seaweedfs:3.80@sha256:1055999e08eed1789b0ae45d235126e4495e23d3fb9d6396293fd42539b1ae6a
+    platform: linux/amd64
+    command:
+      - server
+      - -dir=/data
+      - -s3
+      - -s3.port=8333
+      - -s3.config=/etc/seaweedfs/s3.json
+      - -ip.bind=0.0.0.0
+      - -master.volumeSizeLimitMB=1024
     volumes:
-      - minio-data:/data
-    # MinIO image is minimal (no curl/mc); init script waits with nc
+      - object-store-data:/data
+      - ./object-store/seaweed-s3.json:/etc/seaweedfs/s3.json:ro
     restart: unless-stopped
 
   keycloak:
-    image: keycloak/keycloak:26.0
+    image: keycloak/keycloak:26.0@sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858
     command: start-dev
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
@@ -55,7 +62,8 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.init
       args:
-        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.4}
+        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.6}
+        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.91.1-alpine@sha256:45c1c35cd364b8055e9e86f8ecd3e8c874b2dcb658d8a4f94b5d111aa0d651a2}
     image: ferrum-init:${FERRUM_VERSION:-latest}
     environment:
       POSTGRES_HOST: postgres
@@ -63,24 +71,28 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ferrum}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ferrum}
       POSTGRES_DB: ${POSTGRES_DB:-ferrum}
-      MINIO_HOST: minio
-      MINIO_PORT: 9000
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_BUCKET: ${MINIO_BUCKET:-ferrum}
-      # DRS access_url in seeded objects (microbench); match gateway public URL for clients
+      # S3-compatible object store (SeaweedFS). Legacy MINIO_* names still accepted by init-demo.sh.
+      S3_HOST: object-store
+      S3_PORT: 8333
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-ferrum}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-ferrumsecretkey123}
+      S3_BUCKET: ${S3_BUCKET:-ferrum}
+      MINIO_HOST: object-store
+      MINIO_PORT: 8333
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-ferrum}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-ferrumsecretkey123}
+      MINIO_BUCKET: ${S3_BUCKET:-ferrum}
       GATEWAY_PUBLIC_URL: ${FERRUM_PUBLIC_BASE_URL:-http://localhost:8080}
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
       CRYPT4GH_KEY_DIR: /data/ferrum/keys
       CRYPT4GH_MASTER_KEY_ID: node
-      # Optional dev-only: FERRUM_INIT_RESET_MIGRATIONS=1 clears _ferrum_init_migrations (see init-demo.sh)
     volumes:
       - crypt4gh-keys:/data/ferrum/keys
     depends_on:
       postgres: { condition: service_healthy }
-      minio: { condition: service_started }
+      object-store: { condition: service_started }
       keycloak: { condition: service_healthy }
     restart: "no"
 
@@ -89,37 +101,31 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.gateway
       args:
-        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.91.1-bookworm}
-        DEBIAN_RUNTIME_IMAGE: ${DEBIAN_RUNTIME_IMAGE:-debian:bookworm-slim}
+        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.91.1-bookworm@sha256:c1e5f19e773b7878c3f7a805dd00a495e747acbdc76fb2337a4ebf0418896b33}
+        DEBIAN_RUNTIME_IMAGE: ${DEBIAN_RUNTIME_IMAGE:-debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587}
         FERRUM_GIT_SHA: ${FERRUM_GIT_SHA:-unknown}
         FERRUM_BUILD_PROFILE: ${FERRUM_BUILD_PROFILE:-demo}
-        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.4}
+        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.6}
     image: ferrum-gateway:${FERRUM_VERSION:-latest}
     pull_policy: build
     environment:
       FERRUM_BIND: "0.0.0.0:8080"
       FERRUM_DATABASE__URL: "postgres://${POSTGRES_USER:-ferrum}:${POSTGRES_PASSWORD:-ferrum}@postgres:5432/${POSTGRES_DB:-ferrum}"
-      # Init container runs migrations and seeds; gateway must not re-run (would DROP and wipe seeds)
       FERRUM_DATABASE__RUN_MIGRATIONS: "false"
       FERRUM_STORAGE__BACKEND: s3
-      FERRUM_STORAGE__S3_ENDPOINT: "http://minio:9000"
+      FERRUM_STORAGE__S3_ENDPOINT: "http://object-store:8333"
       FERRUM_STORAGE__S3_REGION: us-east-1
-      FERRUM_STORAGE__S3_BUCKET: ${MINIO_BUCKET:-ferrum}
-      FERRUM_STORAGE__S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      FERRUM_STORAGE__S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      FERRUM_STORAGE__S3_BUCKET: ${S3_BUCKET:-ferrum}
+      FERRUM_STORAGE__S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-ferrum}
+      FERRUM_STORAGE__S3_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-ferrumsecretkey123}
       FERRUM_AUTH__JWKS_URL: "${KEYCLOAK_JWKS_URL:-http://localhost:8081/realms/ferrum/protocol/openid-connect/certs}"
-      # CI sets these via env for HelixTest auth; local demo defaults stay open.
       FERRUM_AUTH__REQUIRE_AUTH: "${FERRUM_AUTH__REQUIRE_AUTH:-false}"
       FERRUM_AUTH__JWT_SECRET: "${FERRUM_AUTH__JWT_SECRET:-}"
       FERRUM_AUTH__ISSUER: "${FERRUM_AUTH__ISSUER:-}"
-      # NON-PILOT demo only: HelixTest lifecycle stubs (TES hello-tes, WES synthetic trs://).
-      # Pilot/production overlays must leave these unset or false.
       FERRUM_TES_HELIXTEST_STUB: "${FERRUM_TES_HELIXTEST_STUB:-true}"
       FERRUM_WES_HELIXTEST_STUBS: "${FERRUM_WES_HELIXTEST_STUBS:-true}"
-      # WES→TES, htsget tickets, DRS self-URIs — must match the host:port clients use (not https://localhost).
       FERRUM_PUBLIC_BASE_URL: "${FERRUM_PUBLIC_BASE_URL:-http://localhost:8080}"
       FERRUM_WES_TRS_AUTO_REGISTER: "${FERRUM_WES_TRS_AUTO_REGISTER:-true}"
-      # Service discovery: resolve TES/TRS via registry when co-deployed; fall back to local gateway paths.
       FERRUM_DISCOVERY__ENABLED: "${FERRUM_DISCOVERY__ENABLED:-true}"
       FERRUM_DISCOVERY__REGISTRATION_BASE_URL: "http://localhost:${GATEWAY_PORT:-8080}"
       FERRUM_ENCRYPTION__CRYPT4GH_KEY_DIR: /data/ferrum/keys
@@ -128,7 +134,7 @@ services:
       - crypt4gh-keys:/data/ferrum/keys:ro
     depends_on:
       postgres: { condition: service_healthy }
-      minio: { condition: service_started }
+      object-store: { condition: service_started }
       ferrum-init: { condition: service_completed_successfully }
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/health"]
@@ -155,7 +161,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:alpine
+    image: nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
     ports:
       - "${UI_PORT:-8082}:80"
     volumes:
@@ -167,6 +173,6 @@ services:
 
 volumes:
   pgdata:
-  minio-data:
+  object-store-data:
   keycloak-data:
   crypt4gh-keys:

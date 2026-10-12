@@ -1,8 +1,10 @@
-# Single-node / k3s / local Kubernetes — Ferrum v0.3.4
+# Single-node / k3s / local Kubernetes — Ferrum v0.3.5 tip / proposed v0.3.6
+# Object store: point at SeaweedFS (or BYO S3). See docs/TESTED-S3-BACKENDS.md.
 replicaCount: 1
 image:
   repository: ghcr.io/synapticfour/ferrum
-  tag: "v0.3.4"
+  tag: "v0.3.5-full-infra"
+  digest: "sha256:555f44bada386bd58d7b6914a94b22e4bd5319edf5d4e70c11c7a82dae14c312"
   pullPolicy: IfNotPresent
 
 service:
@@ -24,9 +26,12 @@ config:
     run_migrations: true
   storage:
     backend: s3
-    s3_endpoint: "http://minio:9000"
+    # Reference: SeaweedFS S3 API (Compose service name object-store). Not MinIO.
+    s3_endpoint: "http://object-store:8333"
     s3_region: us-east-1
     s3_bucket: ferrum
+    s3_access_key_id: ferrum
+    s3_secret_access_key: ferrumsecretkey123
   auth:
     require_auth: false
   services:

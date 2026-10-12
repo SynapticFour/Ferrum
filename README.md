@@ -8,9 +8,9 @@
 GitHub may label this Other; SPDX is **BUSL-1.1**.
 [![Rust 1.91](https://img.shields.io/badge/rust-1.91-orange.svg)](https://www.rust-lang.org/)
 
-On-premises GA4GH data/compute plane in Rust: DRS, WES, TES, TRS, Beacon v2, htsget, Passports, Crypt4GH — one gateway.
+On-premises GA4GH data/compute plane in Rust: DRS, WES, TES, TRS, Beacon v2, htsget, Passports, Crypt4GH — **one HTTP gateway process** (not zero dependencies: full demo needs Postgres + object storage).
 
-**Maturity: Active (beta).** No third-party audit. HelixTest CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. Release **v0.3.4**.
+**Maturity: Active (beta).** No third-party audit. HelixTest CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. Tagged release **v0.3.5**; proposed **v0.3.6** (SeaweedFS reference store, compose digests). No clinical pilot deployment.
 
 > This README describes technical capabilities, not legal advice. GDPR, NIS2, EHDS, HIPAA, and similar frameworks depend on the operator’s legal basis, configuration, and organisational measures.
 
@@ -18,12 +18,14 @@ These public repositories are maintained by the same organisation and are design
 
 ## Quick start
 
+**Prerequisites for `make up`:** Docker Engine, and either the `docker compose` plugin **or** standalone `docker-compose` (Makefile detects both). Disk/RAM for Postgres + SeaweedFS + Keycloak + image builds.
+
 Laptop walkthrough of **tagged** Ferrum (DRS / WES / TES): [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo) `./run` (gateway `http://127.0.0.1:18080`). Org stranger path: [github.com/SynapticFour](https://github.com/SynapticFour#try-it-30-min).
 
 ```bash
 make prove    # cargo test --workspace --all-targets (no Docker)
 make eval     # require_auth=true (HS256). TES noop.
-make up       # demo stack — TES noop; auth off
+make up       # demo stack — TES noop; auth off; Postgres + SeaweedFS S3
 make up-tes   # demo + Docker-backed TES (local containers)
 ```
 
@@ -33,6 +35,9 @@ htsget region queries (`referenceName` / `start` / `end`) return HTTP 400. WES `
 
 ## Documentation
 
+- [Deployment shapes](docs/DEPLOYMENT-SHAPES.md) — edge vs full; what is verified
+- [Tested S3 backends](docs/TESTED-S3-BACKENDS.md) — SeaweedFS reference; Garage/MinIO BYO
+- [Compose image pins](docs/COMPOSE-IMAGE-PINS.md)
 - [Getting started](docs/GETTING-STARTED.md) — installer CLI, eval vs demo vs TES, uninstall
 - [Architecture](docs/ARCHITECTURE.md)
 - [For evaluators](docs/FOR-EVALUATORS.md)

@@ -4,9 +4,19 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [0.3.5] - 2026-10-12 (proposed)
+### Reference object store + release hygiene (proposed tag `v0.3.6`)
 
-Crate versions match proposed tag `v0.3.5`. **Do not create the tag until `ga4gh-infra-v0.2.6` exists on origin** (image build clones it) and `make verify-release` is green. `GA4GH_INFRA_REF` → `ga4gh-infra-v0.2.6`.
+Tag proposal only — **do not create the tag until `make verify-release` is green on this branch.** Do not move `v0.3.5`.
+
+- **SeaweedFS 3.80** replaces MinIO in reference Compose, offline bundle, and Helm `values-local` (Apache-2.0; auto-create bucket). Digests in [docs/COMPOSE-IMAGE-PINS.md](docs/COMPOSE-IMAGE-PINS.md). **Garage** is AGPL-3.0 (upstream repo) — tested alternative; **MinIO** is BYO only (Hub/binary unavailable). [docs/TESTED-S3-BACKENDS.md](docs/TESTED-S3-BACKENDS.md).
+- **Release workflow** — offline image bundle is optional/`continue-on-error`; GitHub Release still publishes binaries, Helm, SBOM when the bundle pull fails.
+- **Makefile / scripts** — detect `docker compose` or standalone `docker-compose` (`deploy/scripts/compose-cmd.sh`).
+- **Compose digests** for postgres, SeaweedFS, Keycloak, nginx, demo GHCR images; ga4gh-infra local build remains an exception.
+- **Docs** — [DEPLOYMENT-SHAPES.md](docs/DEPLOYMENT-SHAPES.md): edge = one process + SQLite/local files; full = gateway + Postgres + object storage (+ optional IdP). Offline edge marked **documented-not-verified**. “All APIs in one offline binary” is not verified as a single claim.
+
+## [0.3.5] - 2026-10-12
+
+Tag `v0.3.5` on origin (`ae3762b0`). GitHub Release workflow may have failed on the MinIO offline pull — create the Release by hand if assets exist (see RELEASING.md / U2 notes). `GA4GH_INFRA_REF` → `ga4gh-infra-v0.2.6`.
 
 ### Security
 

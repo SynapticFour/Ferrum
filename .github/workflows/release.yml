@@ -139,17 +139,38 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v5
 
-      # The offline bundle step pulls third-party images; export_offline_bundle.sh retries each
-      # `docker pull` (3 tries, 5 s apart). The step runs for `v*` tag pushes and for workflow_dispatch
-      # dry-runs (draft release); not pushing a tag and not dispatching this workflow skips it.
-      # No continue-on-error here on purpose: a failed bundle must fail the release.
+      # Offline bundle pulls third-party images (SeaweedFS, postgres, …). Optional and
+      # non-blocking: a Hub outage must not prevent the GitHub Release (binaries + Helm + SBOM).
       - name: Build offline bundle and Helm chart
+        id: package_bundle
+        continue-on-error: true
         env:
           GA4GH_INFRA_REF: ${{ env.GA4GH_INFRA_REF }}
           FERRUM_RELEASE_VERSION: ${{ env.FERRUM_RELEASE_VERSION }}
+          FERRUM_OFFLINE_BUNDLE_OPTIONAL: "1"
         run: |
-          chmod +x scripts/package_release_bundle.sh scripts/export_offline_bundle.sh import.sh
+          chmod +x scripts/package_release_bundle.sh scripts/export_offline_bundle.sh import.sh deploy/scripts/compose-cmd.sh
           ./scripts/package_release_bundle.sh
+          if [[ -f "ferrum-offline-${FERRUM_RELEASE_VERSION}.tar.gz" ]]; then
+            echo "offline_bundle=present" >> "$GITHUB_OUTPUT"
+          else
+            echo "offline_bundle=missing" >> "$GITHUB_OUTPUT"
+            echo "::warning::Offline image bundle was not produced (third-party pull or build failed). Release continues without it."
+          fi
+
+      - name: Ensure Helm chart exists after optional bundle step
+        if: steps.package_bundle.outcome == 'failure' || steps.package_bundle.outputs.offline_bundle == 'missing'
+        env:
+          FERRUM_RELEASE_VERSION: ${{ env.FERRUM_RELEASE_VERSION }}
+        run: |
+          if [[ ! -f "ferrum-helm-${FERRUM_RELEASE_VERSION}.tgz" ]]; then
+            helm package deploy/helm \
+              --version "${FERRUM_RELEASE_VERSION#v}" \
+              --app-version "${FERRUM_RELEASE_VERSION}" \
+              -d .
+            mv "ferrum-${FERRUM_RELEASE_VERSION#v}.tgz" "ferrum-helm-${FERRUM_RELEASE_VERSION}.tgz"
+          fi
+          test -f "ferrum-helm-${FERRUM_RELEASE_VERSION}.tgz"
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -172,16 +193,17 @@ jobs:
           echo "SBOM: ferrum-sbom.cdx.json ($(wc -c < ferrum-sbom.cdx.json) bytes) from $src"
 
       - name: Generate SHA256SUMS for all release artifacts
+        env:
+          FERRUM_RELEASE_VERSION: ${{ env.FERRUM_RELEASE_VERSION }}
         run: |
-          shasum -a 256 \
-            ferrum-gateway-*.tar.gz \
-            ferrum-offline-*.tar.gz \
-            ferrum-helm-*.tgz \
-            ferrum-sbom.cdx.json \
-            VERSIONS.lock \
-            install.sh \
-            import.sh \
-            > SHA256SUMS.txt
+          files=(ferrum-gateway-*.tar.gz ferrum-helm-*.tgz ferrum-sbom.cdx.json VERSIONS.lock install.sh import.sh)
+          if compgen -G "ferrum-offline-*.tar.gz" > /dev/null; then
+            files+=(ferrum-offline-*.tar.gz)
+          else
+            echo "NOTE: ferrum-offline-*.tar.gz absent — omitted from SHA256SUMS.txt"
+          fi
+          # shellcheck disable=SC2068
+          shasum -a 256 ${files[@]} > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Create Release
@@ -190,6 +212,7 @@ jobs:
           draft: ${{ github.event_name == 'workflow_dispatch' }}
           tag_name: ${{ env.FERRUM_RELEASE_VERSION }}
           generate_release_notes: true
+          fail_on_unmatched_files: false
           files: |
             ferrum-gateway-*.tar.gz
             ferrum-offline-*.tar.gz

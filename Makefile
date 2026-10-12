@@ -1,17 +1,19 @@
 # Ferrum – local demo and dev targets
 # Run from repo root.
+# Compose: prefer `docker compose` plugin, else standalone `docker-compose` (see deploy/scripts/compose-cmd.sh).
 
 COMPOSE_FILE := deploy/docker-compose.yml
-COMPOSE := docker compose -f $(COMPOSE_FILE)
+COMPOSE_BIN := $(shell bash deploy/scripts/compose-cmd.sh 2>/dev/null || echo "docker-compose")
+COMPOSE := $(COMPOSE_BIN) -f $(COMPOSE_FILE)
 GA4GH_INFRA_SRC ?= $(abspath ../ga4gh-infra)
 export GA4GH_INFRA_SRC
 export FERRUM_GIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
-COMPOSE_PILOT := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml
-COMPOSE_PILOT_CLOUD := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-cloud.yml
+COMPOSE_PILOT := $(COMPOSE_BIN) -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml
+COMPOSE_PILOT_CLOUD := $(COMPOSE_BIN) -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-cloud.yml
 # Third-party images used by deploy/docker-compose.yml. `up --pull never` keeps Ferrum/ga4gh-infra
 # local --build; these still have to exist in the daemon (CI runners start empty).
-PILOT_BASE_IMAGES := postgres:16-alpine minio/minio:RELEASE.2024-12-18T13-15-44Z keycloak/keycloak:26.0 nginx:alpine
-COMPOSE_TES := docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tes.yml
+PILOT_BASE_IMAGES := postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea chrislusf/seaweedfs:3.80@sha256:1055999e08eed1789b0ae45d235126e4495e23d3fb9d6396293fd42539b1ae6a keycloak/keycloak:26.0@sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858 nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
+COMPOSE_TES := $(COMPOSE_BIN) -f deploy/docker-compose.yml -f deploy/docker-compose.tes.yml
 FERRUM_WES_TES_WORK_HOST_PREFIX ?= $(CURDIR)/deploy/.wes-runs
 export FERRUM_WES_TES_WORK_HOST_PREFIX
 DOCKER_BIN ?= $(shell command -v docker 2>/dev/null || echo /usr/local/bin/docker)
@@ -29,7 +31,7 @@ help:
 	@echo "  make verify-release  Gate before a v* tag (fmt, clippy, tests, SPDX, cargo deny)"
 	@echo "  make openapi   Regenerate docs/openapi/ferrum.openapi.json from utoipa"
 	@echo "  make up-tes    Demo stack + Docker-backed TES (real container runs)"
-	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF+ref bundle to MinIO (stack must be running)"
+	@echo "  make seed-pilot  Optional: upload pilot BAM+VCF+ref bundle to S3 (stack must be running)"
 	@echo "  make smoke-pilot Local smoke after up-tes (health, Crypt4GH, lineage, cohort, CWL + optional germline WES)"
 	@echo "  make ui-parity-tes       API acceptance vs UI (read tier; stack must be up)"
 	@echo "  make ui-parity-pilot-cloud  Same against up-pilot-cloud (needs FERRUM_PASSPORT_JWT)"
@@ -49,7 +51,8 @@ help:
 	@echo "  make rebuild-gateway-tes  Rebuild gateway image when using make up-tes"
 	@echo ""
 	@echo "  Crypt4GH: make up / make up-tes generates node keys (crypt4gh-keys volume)."
-	@echo "  Keep volumes with make down; make destroy wipes keys and MinIO data."
+	@echo "  Keep volumes with make down; make destroy wipes keys and object-store data."
+	@echo "  Compose CLI: $(COMPOSE_BIN) (docker compose or docker-compose)"
 
 up: demo
 
@@ -59,7 +62,7 @@ eval:
 	@./scripts/eval-up.sh
 
 down-eval:
-	docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-auth-ci.yml down
+	$(COMPOSE_BIN) -f deploy/docker-compose.yml -f deploy/docker-compose.pilot-auth-ci.yml down
 
 # Zero-risk product proof (CI workspace tests). Live stack: make up.
 test:

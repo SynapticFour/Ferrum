@@ -24,6 +24,9 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 | Document | Description |
 |----------|-------------|
 | [README.md](../README.md) | Project overview, maturity, suite block, `make` quick start. |
+| [DEPLOYMENT-SHAPES.md](DEPLOYMENT-SHAPES.md) | Edge vs full; deps; verified vs documented-not-verified. |
+| [TESTED-S3-BACKENDS.md](TESTED-S3-BACKENDS.md) | SeaweedFS reference; Garage/MinIO BYO; licenses from upstream. |
+| [COMPOSE-IMAGE-PINS.md](COMPOSE-IMAGE-PINS.md) | Digest pins and exceptions. |
 | [GETTING-STARTED.md](GETTING-STARTED.md) | Clone paths: prove, eval, demo, TES. |
 | [FOR-EVALUATORS.md](FOR-EVALUATORS.md) | Maturity, license, tested vs not. |
 | [SUITE-OVERVIEW.md](SUITE-OVERVIEW.md) | Pointer to the organisation map; this repository’s pin is v0.3.2. |

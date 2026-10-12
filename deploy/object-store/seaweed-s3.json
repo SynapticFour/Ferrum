@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "ferrum",
+      "credentials": [
+        {
+          "accessKey": "ferrum",
+          "secretKey": "ferrumsecretkey123"
+        }
+      ],
+      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+    }
+  ]
+}
