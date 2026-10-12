@@ -49,6 +49,7 @@ impl std::str::FromStr for ExecutorBackend {
 }
 
 /// Workflow executor: submit, cancel, poll status.
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait WorkflowExecutor: Send + Sync {
     /// Supported (workflow_type, versions) e.g. ("CWL", ["1.0", "1.1"]), ("Nextflow", ["22.10"]).

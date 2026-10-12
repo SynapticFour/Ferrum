@@ -23,6 +23,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 /// Object storage backend: put_bytes, get, delete, exists, size.
 /// Only [`ObjectStorage::put_bytes`] is used (no generic put) so the trait is object-safe for `Arc<dyn ObjectStorage>`.
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait ObjectStorage: Send + Sync {
     async fn put_bytes(&self, key: &str, data: &[u8]) -> Result<()>;

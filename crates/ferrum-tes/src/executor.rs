@@ -6,6 +6,7 @@ use crate::types::{CreateTaskRequest, TaskState};
 use async_trait::async_trait;
 use std::sync::Arc;
 
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait TaskExecutor: Send + Sync {
     /// Backend name (e.g. "podman", "docker", "slurm").

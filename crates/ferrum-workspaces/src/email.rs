@@ -5,6 +5,7 @@ use crate::error::Result;
 use async_trait::async_trait;
 
 /// Sends workspace invite emails. When not configured, invites are stored but not emailed.
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait EmailSender: Send + Sync {
     /// Send an invite email to `to_email` for workspace `workspace_name` with link `invite_url`.

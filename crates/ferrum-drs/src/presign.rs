@@ -7,6 +7,7 @@ use std::time::Duration;
 
 /// Generates presigned GET URLs for S3-compatible storage.
 /// Used when returning DRS access URLs for objects stored in S3/MinIO.
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait S3Presigner: Send + Sync {
     /// Produce a presigned GET URL for the given key.

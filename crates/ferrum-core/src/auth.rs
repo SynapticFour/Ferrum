@@ -213,6 +213,7 @@ impl AuthClaims {
 }
 
 /// A07: Token revocation check (e.g. against revoked_tokens table).
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait RevocationCheck: Send + Sync {
     async fn is_revoked(&self, jti: &str) -> bool;

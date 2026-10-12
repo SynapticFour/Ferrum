@@ -169,6 +169,7 @@ pub fn validate_drs_name(name: &str) -> Result<()> {
 }
 
 /// Resource authorization (A01). Implement per service.
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait ResourceAuthorizer: Send + Sync {
     async fn can_read(&self, sub: &str, resource_id: &str) -> Result<bool>;

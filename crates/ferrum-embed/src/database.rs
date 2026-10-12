@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use ferrum_core::{DbDialect, FerrumConfig, FerrumError, FerrumPool, Result};
 
 /// Storage backend abstraction shared by PostgreSQL and SQLite implementations.
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait Database: Send + Sync {
     fn pool(&self) -> &FerrumPool;

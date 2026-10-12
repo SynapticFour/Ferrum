@@ -65,6 +65,7 @@ pub fn generate_keypair(
 }
 
 /// KeyStore trait: resolve keys by ID (e.g. "master", "user:123").
+#[allow(clippy::double_must_use)] // async_trait + Clippy 1.99 false positive
 #[async_trait]
 pub trait KeyStore: Send + Sync {
     /// Get decryption keys (private key) for the given key ID.
