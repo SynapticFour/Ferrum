@@ -4,7 +4,7 @@ Each product versions independently. This table is the **last combination we cla
 
 | Product | Role | Pin (3 Oct 2026) |
 |---------|------|-------------------|
-| Ferrum | Data/compute | tag **v0.3.3** (`VERSIONS.lock` `FERRUM_VERSION`) |
+| Ferrum | Data/compute | tag **v0.3.4** (`VERSIONS.lock` `FERRUM_VERSION`) |
 | ga4gh-infra | Identity | tag **ga4gh-infra-v0.2.4** (`999b103`); Compose/GHCR stack images **`:0.2.4`** (crate Cargo.toml may stay 0.1.0) |
 | Solum | Clinical library | tag **v0.1.0** / `b68a941`; consumes ferrum-core **v0.3.2** (`2bd147c` in Solum `config/ci/ferrum-revision.txt`) |
 | Solum-Demo | Runnable clinical demo | Solum **v0.1.0** (`PINNED_VERSIONS.txt` `Solum-ref`) |

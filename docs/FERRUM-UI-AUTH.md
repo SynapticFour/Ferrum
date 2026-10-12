@@ -49,7 +49,7 @@ Constraints that follow from this:
 - `return_url` must be on a host the broker allows. Configure that on the broker side (ga4gh-infra), not in Ferrum.
 - Anonymous catalog reads still work with `require_auth=true`; see [GA4GH.md](GA4GH.md#require_passport_for_bytes-adr-030).
 
-## Related gateway behaviour (v0.3.4 proposed)
+## Related gateway behaviour (v0.3.4)
 
 - `GET /api/v1/audit/residency` returns **401** without a bearer when `require_auth` is on (ADR-031). `GET /api/v1/audit/residency/verify` stays unauthenticated (chain metadata only).
 - Invalid or revoked bearer tokens append `authorization_denied` events to the residency chain (ADR-032), rate-limited and with the client address minimized (`[audit]` config: `anonymous_client_ip` = `omit` default, `truncated`, `full`; `denied_events_per_minute`, default 30). Missing-bearer and DRS-level `forbidden` denials are **not yet** recorded; only the auth middleware path is wired.

@@ -4,30 +4,30 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-### v0.3.4 (proposed)
+## [0.3.4] - 2026-10-12
 
-Crate versions are bumped to `0.3.4` to match the proposed tag. The git tag is not created, and `VERSIONS.lock`, Helm, and demo image pins still say `v0.3.3` until the release cut.
+Crate versions and pins match tag `v0.3.4`. `GA4GH_INFRA_REF` remains `ga4gh-infra-v0.2.4`.
 
-#### Security
+### Security
 
 - **Optional Passport for DRS bytes** — `auth.require_passport_for_bytes` (env `FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES`, default **false**). When true, `/stream` and `/access/*` return 401 without a bearer even for objects with no dataset or workspace. Catalog and metadata reads stay anonymous for unbound objects. Why anonymous reads succeed with `require_auth=true` otherwise: [GA4GH.md](docs/GA4GH.md). ADR-030.
 - **`GET /api/v1/audit/residency` requires a bearer** when `require_auth` is on (401 JSON). `/residency/verify` stays unauthenticated. ADR-031.
 - **`authorization_denied` residency events** — the auth middleware appends them for invalid, expired, revoked, or wrong-audience tokens. Rate limited (`audit.denied_events_per_minute`, default 30, 0 disables). Client address is minimized in `destination` (`audit.anonymous_client_ip` = `omit` default, `truncated`, `full`). No token or `Authorization` header is stored. The reason and optional audience are encoded in the `drs_id` column as `reason=<reason>[;aud=<audience>]` because the residency table has no dedicated columns. **Not yet wired:** `missing_bearer` and DRS-level `forbidden` events. ADR-032.
 
-#### Added
+### Added
 
 - **`full-infra` gateway variant** (default `full` features + `external-auth`) in `gateway-build-flags.sh`, `build-variant-image.sh`, `ghcr.yml`, and [IMAGE-VARIANTS.md](docs/IMAGE-VARIANTS.md). ADR-029.
 - [docs/FERRUM-UI-AUTH.md](docs/FERRUM-UI-AUTH.md) — `GET /admin/config` auth fields, broker-fragment sign-in flow (the UI is not a confidential client), laptop stack notes.
 - `deploy/docker-compose.full-infra-ui.yml` — overlay for a laptop `full-infra` stack. **Unproven:** `docker compose config` accepts it; no stack was started.
 
-#### Changed
+### Changed
 
 - **HelixTest stubs are labelled simulated** — with `FERRUM_WES_HELIXTEST_STUBS` or `FERRUM_TES_HELIXTEST_STUB` set, WES/TES `service-info` description includes `SIMULATED / NON-PILOT` and tags carry `simulated=true` / `helixtest_stubs=true`. Stubs off: no marker. `TesServiceInfo` gains optional `description` and `tags` (omitted when empty). ADR-033.
 - **Post-ingest pipeline** — default Beacon dataset is `default`; `POST` object creation schedules the post-ingest hooks.
 - **VCF index coordinates** — `beacon_variants` stores 0-based half-open `[POS-1, POS)`; covered by a test.
 - **Offline bundle** — `export_offline_bundle.sh` retries each `docker pull` (3 tries, 5 s apart). The bundle needs only the MinIO server image; the `mc` client is not required.
 
-#### Fixed
+### Fixed
 
 - Every `AppState` literal sets `require_passport_for_bytes`; the gateway reads it from config with the env override.
 
