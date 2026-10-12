@@ -534,6 +534,12 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
             ingest_require_auth: ferrum_core::require_auth_from_env_or(
                 config.as_ref().map(|c| c.auth.require_auth).unwrap_or(true),
             ),
+            require_passport_for_bytes: ferrum_core::require_passport_for_bytes_from_env_or(
+                config
+                    .as_ref()
+                    .map(|c| c.auth.require_passport_for_bytes)
+                    .unwrap_or(false),
+            ),
             metadata_store_enabled: config
                 .as_ref()
                 .map(|c| c.metadata_store.enabled)

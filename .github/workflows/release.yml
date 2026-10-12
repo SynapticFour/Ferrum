@@ -139,6 +139,10 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v5
 
+      # The offline bundle step pulls third-party images; export_offline_bundle.sh retries each
+      # `docker pull` (3 tries, 5 s apart). The step runs for `v*` tag pushes and for workflow_dispatch
+      # dry-runs (draft release); not pushing a tag and not dispatching this workflow skips it.
+      # No continue-on-error here on purpose: a failed bundle must fail the release.
       - name: Build offline bundle and Helm chart
         env:
           GA4GH_INFRA_REF: ${{ env.GA4GH_INFRA_REF }}

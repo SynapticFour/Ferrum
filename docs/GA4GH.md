@@ -43,6 +43,12 @@ These patterns match what many **reference stacks**, **Starter Kit** deployments
 
 When `FERRUM_AUTH__REQUIRE_AUTH=true` (or config `require_auth`, which defaults on), `POST`, `PUT`, and `DELETE` on `/objects`, and `POST` on `/ingest/file`, `/ingest/url`, and `/ingest/batch`, return **401** if the bearer token is missing. Omitting `workspace_id` does not skip that check (ADR-027). A token that is present still has to be a workspace editor or owner when `workspace_id` is set. `require_auth=false` is the explicit non-pilot switch. It is not the default.
 
+### `require_passport_for_bytes` (ADR-030)
+
+`require_auth=true` gates **mutations** (and objects bound to a dataset or workspace). It does **not** by itself require a bearer for reads of unbound objects: the auth middleware only injects claims when a token is present, and `check_object_byte_access` demands a Passport only when the object has a `dataset_id` or `workspace_id`. Seed/demo objects usually have neither, so anonymous `GET .../stream` and `GET .../access/{access_id}` succeed even with `require_auth=true`.
+
+Set `auth.require_passport_for_bytes = true` (env `FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES`, which wins over config; default **false**) to return **401** on those two byte paths when no valid bearer is sent. Catalog and metadata `GET`s (`/objects`, `/objects/{id}`) stay anonymous for unbound objects. Controlled objects keep their dataset/workspace rules either way. This is a Ferrum policy knob, not a GA4GH requirement.
+
 `POST /ga4gh/drs/v1/objects` does not accept a caller-supplied `access_url`. `create_object_with_id` writes `access_url` as `https://{FERRUM_DRS_HOSTNAME}/ga4gh/drs/v1/objects/{id}/access/{access_id}`. `FERRUM_PUBLIC_BASE_URL` is a separate public prefix (htsget tickets and other links). It does not replace that hostname. To publish a GIAB file, register a catalog object whose bytes contain the NCBI URL (`storage_backend=local`), or `POST /api/v1/ingest/register` with `kind: "url"` so the external URL is the storage key. The DRS access method URL is still the Ferrum access URL, not the GIAB URL.
 
 ### Versioned ingest API (Lab Kit / automation)

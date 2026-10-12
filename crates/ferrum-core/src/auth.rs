@@ -278,6 +278,42 @@ pub fn require_auth_from_env_or(fallback: bool) -> bool {
     env_require_auth().unwrap_or(fallback)
 }
 
+/// `FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES` wins when set to a recognised boolean; otherwise
+/// `fallback` (typically `config.auth.require_passport_for_bytes`). ADR-030.
+pub fn require_passport_for_bytes_from_env_or(fallback: bool) -> bool {
+    let Ok(v) = std::env::var("FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES") else {
+        return fallback;
+    };
+    match v.trim().to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => true,
+        "false" | "0" | "no" | "off" => false,
+        "" => fallback,
+        other => {
+            tracing::warn!(
+                value = %other,
+                "invalid FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES; expected true/false, using config value"
+            );
+            fallback
+        }
+    }
+}
+
+/// Best-effort client address for audit minimization (headers are client-controlled).
+fn client_ip_hint(request: &Request) -> Option<String> {
+    let headers = request.headers();
+    headers
+        .get("x-forwarded-for")
+        .or_else(|| headers.get("x-real-ip"))
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string())
+        .or_else(|| {
+            request
+                .extensions()
+                .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+                .map(|ci| ci.0.ip().to_string())
+        })
+}
+
 /// Auth config used by the middleware (from FerrumConfig).
 #[derive(Clone)]
 pub struct AuthMiddlewareConfig {
@@ -300,6 +336,8 @@ pub struct AuthMiddlewareConfig {
     pub audience: Option<String>,
     /// External ga4gh-infra mode. JWKS discovery runs only when this is true.
     pub external_mode: bool,
+    /// Optional ADR-032 sink for `authorization_denied` residency events (set by the gateway).
+    pub denied_audit: Option<Arc<crate::denied_audit::DeniedAuditSink>>,
 }
 
 impl AuthMiddlewareConfig {
@@ -340,6 +378,7 @@ impl AuthMiddlewareConfig {
                 .or_else(|| std::env::var("FERRUM_AUTH__AUDIENCE").ok())
                 .filter(|s| !s.is_empty()),
             external_mode: cfg.is_external(),
+            denied_audit: None,
         }
     }
 
@@ -358,6 +397,7 @@ impl AuthMiddlewareConfig {
             use_clearinghouse: false,
             audience: None,
             external_mode: false,
+            denied_audit: None,
         }
     }
 
@@ -376,6 +416,7 @@ impl AuthMiddlewareConfig {
             use_clearinghouse: false,
             audience: None,
             external_mode: false,
+            denied_audit: None,
         }
     }
 
@@ -400,6 +441,7 @@ impl AuthMiddlewareConfig {
                 .ok()
                 .filter(|s| !s.is_empty()),
             external_mode: false,
+            denied_audit: None,
         })
     }
 }
@@ -472,6 +514,14 @@ pub async fn auth_middleware_with_config(
                         false
                     };
                     if revoked {
+                        if let Some(sink) = cfg.denied_audit.as_ref() {
+                            sink.record_spawn(
+                                crate::denied_audit::DeniedReason::InvalidToken,
+                                claims.sub().map(str::to_string),
+                                None,
+                                client_ip_hint(&request),
+                            );
+                        }
                         return unauthorized_json("token revoked");
                     }
                     request.extensions_mut().insert(claims);
@@ -482,6 +532,17 @@ pub async fn auth_middleware_with_config(
                         jwks_url = ?cfg.jwks_url,
                         "JWT/Passport validation failed"
                     );
+                    if let Some(sink) = cfg.denied_audit.as_ref() {
+                        let reason =
+                            if matches!(e.kind(), jsonwebtoken::errors::ErrorKind::InvalidAudience)
+                            {
+                                crate::denied_audit::DeniedReason::WrongAudience
+                            } else {
+                                crate::denied_audit::DeniedReason::InvalidToken
+                            };
+                        // Token did not validate: no trusted subject/audience to record.
+                        sink.record_spawn(reason, None, None, client_ip_hint(&request));
+                    }
                     return unauthorized_json("invalid or expired token");
                 }
             }
@@ -1444,6 +1505,7 @@ mod jwks_discovery_tests {
             use_clearinghouse: false,
             audience: None,
             external_mode: true,
+            denied_audit: None,
         }
     }
 

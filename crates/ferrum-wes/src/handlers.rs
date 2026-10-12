@@ -55,6 +55,13 @@ pub async fn get_service_info(State(app): State<Arc<AppState>>) -> Json<WesServi
         }
     }
     let system_state_counts = app.repo.system_state_counts().await.unwrap_or_default();
+    let mut description = "GA4GH Workflow Execution Service 1.1".to_string();
+    let mut tags = std::collections::HashMap::new();
+    apply_helixtest_stub_labels(
+        ferrum_core::env_flag("FERRUM_WES_HELIXTEST_STUBS"),
+        &mut description,
+        &mut tags,
+    );
     Json(WesServiceInfo {
         id: "ferrum-wes".to_string(),
         name: "Ferrum WES".to_string(),
@@ -63,7 +70,7 @@ pub async fn get_service_info(State(app): State<Arc<AppState>>) -> Json<WesServi
             artifact: "wes".to_string(),
             version: "1.1.0".to_string(),
         },
-        description: Some("GA4GH Workflow Execution Service 1.1".to_string()),
+        description: Some(description),
         organization: Organization {
             name: "Ferrum".to_string(),
             url: Some("https://synapticfour.com".to_string()),
@@ -80,8 +87,52 @@ pub async fn get_service_info(State(app): State<Arc<AppState>>) -> Json<WesServi
         default_workflow_engine_parameters: vec![],
         system_state_counts,
         auth_instructions_url: String::new(),
-        tags: std::collections::HashMap::new(),
+        tags,
     })
+}
+
+/// ADR-033: HelixTest stubs invent run states; label service-info as simulated.
+/// With stubs off the description and tags are left unchanged.
+pub(crate) fn apply_helixtest_stub_labels(
+    stubs_on: bool,
+    description: &mut String,
+    tags: &mut std::collections::HashMap<String, String>,
+) {
+    if !stubs_on {
+        return;
+    }
+    description.push_str(" — SIMULATED / NON-PILOT HelixTest stubs (not real workflow execution)");
+    tags.insert("simulated".to_string(), "true".to_string());
+    tags.insert("helixtest_stubs".to_string(), "true".to_string());
+}
+
+#[cfg(test)]
+mod simulated_label_tests {
+    use super::apply_helixtest_stub_labels;
+    use std::collections::HashMap;
+
+    #[test]
+    fn stubs_off_has_no_simulated_marker() {
+        let mut d = "GA4GH Workflow Execution Service 1.1".to_string();
+        let mut tags = HashMap::new();
+        apply_helixtest_stub_labels(false, &mut d, &mut tags);
+        assert_eq!(d, "GA4GH Workflow Execution Service 1.1");
+        assert!(!d.contains("SIMULATED"));
+        assert!(tags.is_empty());
+    }
+
+    #[test]
+    fn stubs_on_marks_simulated() {
+        let mut d = "GA4GH Workflow Execution Service 1.1".to_string();
+        let mut tags = HashMap::new();
+        apply_helixtest_stub_labels(true, &mut d, &mut tags);
+        assert!(d.contains("SIMULATED / NON-PILOT HelixTest stubs"));
+        assert_eq!(tags.get("simulated").map(String::as_str), Some("true"));
+        assert_eq!(
+            tags.get("helixtest_stubs").map(String::as_str),
+            Some("true")
+        );
+    }
 }
 
 #[derive(Debug, serde::Deserialize, IntoParams, ToSchema)]

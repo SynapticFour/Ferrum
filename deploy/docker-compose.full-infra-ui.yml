@@ -1,0 +1,51 @@
+# Laptop overlay: Ferrum `full-infra` gateway + ferrum-ui against a local ga4gh-infra broker (ADR-029).
+#
+# STATUS: authored but NOT proven by a recorded run. Treat as a starting point, not as evidence
+# of a working stack. See docs/FERRUM-UI-AUTH.md ("Laptop stack") for the checks to run.
+#
+# Merge order (Postgres + MinIO + init come from docker-compose.yml, broker/mock-idp from ga4gh-infra):
+#
+#   export GA4GH_INFRA_SRC=/abs/path/to/ga4gh-infra
+#   docker compose \
+#     -f deploy/docker-compose.yml \
+#     -f deploy/docker-compose.ga4gh-infra.yml \
+#     -f deploy/docker-compose.full-infra-ui.yml \
+#     up -d --build
+#
+# Notes
+# - Variant: FERRUM_VARIANT=full-infra = default `full` features + `external-auth`
+#   (WES/TES/TRS and /admin + broker Passport clearinghouse). See docs/IMAGE-VARIANTS.md.
+# - The UI is NOT a confidential OIDC client. It sends the browser to the broker login URL and
+#   receives a Passport in the URL fragment at /auth/callback. No client secret lives in the UI.
+# - Keycloak in docker-compose.yml stays a broker -> IdP concern; the gateway never talks OIDC to it
+#   in this overlay (issuer = broker public URL).
+# - HelixTest stubs are forced off so service-info does not carry the SIMULATED marker (ADR-033).
+
+services:
+  ferrum-gateway:
+    build:
+      args:
+        FERRUM_VARIANT: full-infra
+        FERRUM_BUILD_PROFILE: ${FERRUM_BUILD_PROFILE:-demo}
+    environment:
+      FERRUM_AUTH__MODE: external
+      FERRUM_AUTH__REQUIRE_AUTH: "true"
+      FERRUM_AUTH__CLEARINGHOUSE: "true"
+      # `iss` must match what the browser-visible broker mints; JWKS is fetched in-network.
+      FERRUM_AUTH__ISSUER: ${FERRUM_PUBLIC_BROKER_URL:-http://localhost:8180}
+      FERRUM_AUTH__JWKS_URL: http://aai-broker:8080/jwks.json
+      FERRUM_PUBLIC_BROKER_URL: ${FERRUM_PUBLIC_BROKER_URL:-http://localhost:8180}
+      FERRUM_BROKER_LOGIN_IDP: ${FERRUM_BROKER_LOGIN_IDP:-mock-idp}
+      # ADR-030: default off. Set to true to require a bearer on /stream and /access/*.
+      FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES: "${FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES:-false}"
+      FERRUM_SERVICES__ENABLE_PASSPORTS: "false"
+      FERRUM_TES_HELIXTEST_STUB: "false"
+      FERRUM_WES_HELIXTEST_STUBS: "false"
+    depends_on:
+      aai-broker:
+        condition: service_healthy
+
+  ferrum-ui:
+    environment:
+      # UI reads broker_login_url from GET /admin/config on the gateway.
+      VITE_API_BASE: ""

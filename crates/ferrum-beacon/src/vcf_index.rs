@@ -103,9 +103,12 @@ async fn insert_snvs_batched(
                     "INSERT INTO beacon_variants (dataset_id, chromosome, start, \"end\", reference, alternate, variant_type) ",
                 );
                 qb.push_values(chunk, |mut b, row| {
+                    // Beacon v2 genomic coords are 0-based half-open [start, end).
+                    // VCF POS is 1-based → store start=POS-1, end=POS.
+                    let start0 = row.pos.saturating_sub(1);
                     b.push_bind(dataset_id)
                         .push_bind(&row.chrom)
-                        .push_bind(row.pos)
+                        .push_bind(start0)
                         .push_bind(row.pos)
                         .push_bind(&row.reference)
                         .push_bind(&row.alternate)
@@ -118,9 +121,10 @@ async fn insert_snvs_batched(
                     "INSERT INTO beacon_variants (dataset_id, chromosome, start, \"end\", reference, alternate, variant_type) ",
                 );
                 qb.push_values(chunk, |mut b, row| {
+                    let start0 = row.pos.saturating_sub(1);
                     b.push_bind(dataset_id)
                         .push_bind(&row.chrom)
-                        .push_bind(row.pos)
+                        .push_bind(start0)
                         .push_bind(row.pos)
                         .push_bind(&row.reference)
                         .push_bind(&row.alternate)
@@ -178,5 +182,42 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].chrom, "chr1");
         assert_eq!(rows[0].pos, 100);
+    }
+
+    /// Documents the stored coordinate convention: VCF POS is 1-based; `beacon_variants`
+    /// stores 0-based half-open `[start, end)` = `[POS-1, POS)`.
+    #[tokio::test]
+    async fn stores_zero_based_half_open_coordinates() {
+        let sqlite = sqlx::sqlite::SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .expect("pool");
+        sqlx::migrate!("../ferrum-embed/migrations")
+            .run(&sqlite)
+            .await
+            .expect("migrate");
+        sqlx::query(
+            "INSERT INTO beacon_datasets (id, name, description, assembly_id) VALUES ('ds-coord', 'Coord', 'test', 'GRCh38')",
+        )
+        .execute(&sqlite)
+        .await
+        .expect("dataset");
+        let pool = FerrumPool::Sqlite(sqlite.clone());
+        let vcf = b"##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\nchr1\t100\t.\tA\tG\nchr2\t1\t.\tC\tT\n";
+        let n = index_vcf_bytes(&pool, "ds-coord", vcf)
+            .await
+            .expect("index");
+        assert_eq!(n, 2);
+
+        let rows: Vec<(String, i64, i64)> = sqlx::query_as(
+            "SELECT chromosome, start, \"end\" FROM beacon_variants WHERE dataset_id = 'ds-coord' ORDER BY chromosome",
+        )
+        .fetch_all(&sqlite)
+        .await
+        .expect("select");
+        assert_eq!(
+            rows,
+            vec![("chr1".to_string(), 99, 100), ("chr2".to_string(), 0, 1)]
+        );
     }
 }

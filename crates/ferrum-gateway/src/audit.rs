@@ -35,6 +35,12 @@ async fn get_residency(
     auth: Option<Extension<AuthClaims>>,
     Query(q): Query<ResidencyQuery>,
 ) -> Result<Json<serde_json::Value>, Response> {
+    // ADR-031: listing requires a bearer when require_auth is on. `/residency/verify` stays open.
+    if ferrum_core::require_auth_enabled() && auth.is_none() {
+        return Err(unauthorized(
+            "Bearer authentication required to list residency audit entries",
+        ));
+    }
     let from = parse_ts(q.from.as_deref())?;
     let to = parse_ts(q.to.as_deref())?;
     let is_admin = auth.as_ref().is_some_and(|c| c.0.is_admin());
@@ -81,6 +87,14 @@ fn parse_ts(s: Option<&str>) -> Result<Option<DateTime<Utc>>, Response> {
             .map(|dt| Some(dt.with_timezone(&Utc)))
             .map_err(|e| bad_request(e.to_string())),
     }
+}
+
+fn unauthorized(msg: &str) -> Response {
+    (
+        StatusCode::UNAUTHORIZED,
+        Json(serde_json::json!({ "error": "unauthorized", "message": msg })),
+    )
+        .into_response()
 }
 
 fn bad_request(msg: String) -> Response {

@@ -12,6 +12,52 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-10-12 - ADR-029: Published `full-infra` gateway variant
+
+- **Status:** Accepted
+- **Context:** Showcase and institute co-deploys need WES/TES/TRS/`/admin` **and** ga4gh-infra Passport validation. GHCR only published `full` (no `external-auth`) and `edge-infra` (external-auth, no WES/TES/admin). ferrum-ui requires `GET /admin/config`.
+- **Decision:** Publish **`full-infra`**: default `full` cargo features plus `--features external-auth`. Tags `:<sha>-full-infra`, `:full-infra`, `:<tag>-full-infra`. Tag builds include it in the matrix; `workflow_dispatch` defaults omit it so operators can pass `["full-infra"]` alone.
+- **Consequences:** One more gateway build per tag. Lab Kit maps broker+WES profiles to `full-infra`. Optional `tes-docker` stays a feature override, not a fifth variant.
+
+---
+
+### 2026-10-12 - ADR-030: Optional Passport required for DRS byte access
+
+- **Status:** Accepted
+- **Context:** With `require_auth=true`, mutations need a bearer, but middleware still allows requests with no bearer. `check_object_byte_access` only requires a Passport when `dataset_id` or `workspace_id` is set. Seed objects often have neither, so anonymous `/stream` and `/access/*` succeed. Showcase gates those paths in Caddy today.
+- **Decision:** Add `auth.require_passport_for_bytes` (env `FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES`), **default false** (unchanged behaviour). When true, `/stream` and `/access/*` require a valid bearer even for objects without dataset/workspace binding. Catalog and metadata GETs stay anonymous for unbound objects. Controlled objects keep existing dataset/workspace rules.
+- **Consequences:** Operators who want anonymous catalog + Passport bytes enable one flag. Default demos and existing pilots are unchanged.
+
+---
+
+### 2026-10-12 - ADR-031: Residency audit list requires authentication
+
+- **Status:** Accepted
+- **Context:** `GET /api/v1/audit/residency` could be called without a bearer; non-admin filtering already existed but anonymous callers could probe the API. `/residency/verify` stays metadata-only for chain health.
+- **Decision:** `GET /residency` returns **401** without a bearer when `require_auth` is on (default). Admins see all rows; other subjects see only their `requester` rows. Verify remains unauthenticated.
+- **Consequences:** Auditors and operators must sign in to list entries. Demo `require_auth=false` is unchanged.
+
+---
+
+### 2026-10-12 - ADR-032: `authorization_denied` residency events
+
+- **Status:** Accepted
+- **Context:** Denied and anonymous auth failures did not appear on the residency chain. EHDS-style access logging needs those attempts without storing tokens or raw Authorization headers.
+- **Decision:** Append `authorization_denied` events (reason: `missing_bearer` | `invalid_token` | `wrong_audience` | `forbidden`) to the residency hash chain. Subject/audience only when a token parsed far enough. Write rate limit (default 30/min process-wide, configurable). For anonymous requests, store a **minimized** client address in `destination` (`audit.anonymous_client_ip`: `omit` default | `truncated` /24 IPv4 or /32 IPv6 | `full`).
+- **Consequences:** Chain grows with attack traffic under the rate limit. No secrets in the log. Operators who need fuller IP for incident response set `truncated` or `full` deliberately.
+- **Implementation status (v0.3.4 proposed):** `ferrum_core::denied_audit`, wired from `auth_middleware_with_config` for `invalid_token` and `wrong_audience` (also revoked tokens, recorded as `invalid_token`). `missing_bearer` and DRS-level `forbidden` are **not yet** recorded. Reason and audience are encoded in the `drs_id` column (`reason=<r>[;aud=<a>]`); the residency table has no dedicated columns. `X-Forwarded-For` / `X-Real-IP` are client-controlled unless a trusted proxy overwrites them.
+
+---
+
+### 2026-10-12 - ADR-033: Label HelixTest WES/TES stubs as simulated
+
+- **Status:** Accepted
+- **Context:** HelixTest stubs (`FERRUM_WES_HELIXTEST_STUBS`, `FERRUM_TES_HELIXTEST_STUB`) invent run states / echo output. Public demos must not imply real compute.
+- **Decision:** When those env flags are set, WES and TES `service-info` (and WES tags) include an explicit **simulated** / NON-PILOT marker. Real executors are unchanged and remain the default (stubs off).
+- **Consequences:** Copy and UI can key off service-info. No change to production executor paths.
+
+---
+
 ### 2026-10-03 - ADR-028: Discover broker JWKS from the issuer
 
 - **Status:** Accepted

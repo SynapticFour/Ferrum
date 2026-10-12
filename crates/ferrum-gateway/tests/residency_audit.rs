@@ -15,6 +15,9 @@ use ferrum_storage::{LocalStorage, ObjectStorage};
 use std::sync::Arc;
 use tower::ServiceExt;
 
+/// Serialise tests that mutate `FERRUM_AUTH__REQUIRE_AUTH` (process-global).
+static ENV_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 struct RestoreRequireAuth(Option<String>);
 
 impl Drop for RestoreRequireAuth {
@@ -57,6 +60,7 @@ async fn test_audit_delete_method_not_allowed() {
 async fn test_upload_writes_data_uploaded_event() {
     // Audit event wiring, not the bearer gate. ADR-027 rejects anonymous ingest
     // when require_auth is on, and the runtime default is on.
+    let _env = ENV_LOCK.lock().await;
     let prev_auth = std::env::var("FERRUM_AUTH__REQUIRE_AUTH").ok();
     std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
     let _restore_auth = RestoreRequireAuth(prev_auth);
@@ -81,6 +85,7 @@ async fn test_upload_writes_data_uploaded_event() {
         ads_introspect: None,
         solum_consent: None,
         ingest_require_auth: false,
+        require_passport_for_bytes: false,
         metadata_store_enabled: false,
         pipeline: ferrum_core::PipelineConfig::default(),
     };
@@ -209,4 +214,138 @@ async fn test_rls_residency_audit() {
         .await
         .unwrap();
     assert!(admin.entries.len() >= 2);
+}
+
+fn get_residency_request(uri: &str) -> Request<axum::body::Body> {
+    Request::builder()
+        .method(Method::GET)
+        .uri(uri)
+        .body(axum::body::Body::empty())
+        .unwrap()
+}
+
+#[tokio::test]
+async fn test_residency_get_without_auth_is_401_when_require_auth_on() {
+    let _env = ENV_LOCK.lock().await;
+    let prev_auth = std::env::var("FERRUM_AUTH__REQUIRE_AUTH").ok();
+    std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "true");
+    let _restore_auth = RestoreRequireAuth(prev_auth);
+
+    let (_, audit) = audit_pool().await;
+    let app = audit_router(audit);
+
+    let resp = app
+        .clone()
+        .oneshot(get_residency_request("/residency"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    let body = axum::body::to_bytes(resp.into_body(), 64 * 1024)
+        .await
+        .unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["error"], "unauthorized");
+
+    // ADR-031: verify stays unauthenticated.
+    let resp = app
+        .clone()
+        .oneshot(get_residency_request("/residency/verify"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    // With a bearer-derived claim the list is served.
+    let claims = AuthClaims::Jwt {
+        sub: "auditor@lab.org".into(),
+        iss: Some("lab.org".into()),
+        exp: i64::MAX,
+        jti: None,
+        scope: None,
+        raw_token: None,
+    };
+    let mut req = get_residency_request("/residency");
+    req.extensions_mut().insert(claims);
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_residency_get_anonymous_ok_when_require_auth_off() {
+    let _env = ENV_LOCK.lock().await;
+    let prev_auth = std::env::var("FERRUM_AUTH__REQUIRE_AUTH").ok();
+    std::env::set_var("FERRUM_AUTH__REQUIRE_AUTH", "false");
+    let _restore_auth = RestoreRequireAuth(prev_auth);
+
+    let (_, audit) = audit_pool().await;
+    let resp = audit_router(audit)
+        .oneshot(get_residency_request("/residency"))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_authorization_denied_event_minimizes_ip_and_stores_no_token() {
+    let (_, audit) = audit_pool().await;
+    let sink = ferrum_core::DeniedAuditSink::new(
+        audit.clone(),
+        &ferrum_core::AuditConfig {
+            anonymous_client_ip: "truncated".into(),
+            denied_events_per_minute: 1,
+        },
+    );
+    assert!(
+        sink.record(
+            ferrum_core::DeniedReason::InvalidToken,
+            None,
+            None,
+            Some("203.0.113.77"),
+        )
+        .await
+    );
+    // Second append in the same minute is rate limited.
+    assert!(
+        !sink
+            .record(
+                ferrum_core::DeniedReason::InvalidToken,
+                None,
+                None,
+                Some("203.0.113.78"),
+            )
+            .await
+    );
+
+    let result = audit.query_range(None, None).await.unwrap();
+    let denied: Vec<_> = result
+        .entries
+        .iter()
+        .filter(|e| e.event_type == "authorization_denied")
+        .collect();
+    assert_eq!(denied.len(), 1);
+    assert_eq!(denied[0].destination.as_deref(), Some("203.0.113.0/24"));
+    assert_eq!(denied[0].drs_id.as_deref(), Some("reason=invalid_token"));
+    assert!(denied[0].requester.is_none());
+    assert!(!denied[0].data_left_node);
+    assert!(result.chain_valid);
+}
+
+#[tokio::test]
+async fn test_authorization_denied_default_omits_ip() {
+    let (_, audit) = audit_pool().await;
+    let sink = ferrum_core::DeniedAuditSink::new(audit.clone(), &Default::default());
+    assert!(
+        sink.record(
+            ferrum_core::DeniedReason::MissingBearer,
+            None,
+            None,
+            Some("198.51.100.5"),
+        )
+        .await
+    );
+    let entries = audit.query_range(None, None).await.unwrap().entries;
+    let e = entries
+        .iter()
+        .find(|e| e.event_type == "authorization_denied")
+        .unwrap();
+    assert!(e.destination.is_none());
 }

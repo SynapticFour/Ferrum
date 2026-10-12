@@ -180,6 +180,23 @@ pub fn app(
         );
     }
     let require_auth = resolved_auth.require_auth;
+
+    // ADR-032: authorization_denied residency events (middleware: invalid/revoked tokens).
+    // Disabled when no residency audit log is available.
+    let denied_audit_log = drs_state
+        .as_ref()
+        .and_then(|s| s.residency_audit.clone())
+        .or_else(|| {
+            beacon_params
+                .clone()
+                .map(|pool| Arc::new(ferrum_core::ResidencyAuditLog::new(pool)))
+        });
+    if let Some(log) = denied_audit_log {
+        let audit_cfg = cfg.map(|c| c.audit.clone()).unwrap_or_default();
+        resolved_auth.denied_audit =
+            Some(Arc::new(ferrum_core::DeniedAuditSink::new(log, &audit_cfg)));
+    }
+
     let auth_config = Arc::new(resolved_auth);
     let cors = cors_layer(cfg, require_auth);
 

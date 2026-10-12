@@ -190,4 +190,10 @@ pub struct TesServiceInfo {
     pub id: String,
     pub name: String,
     pub version: String,
+    /// Set only when HelixTest stubs are enabled (ADR-033): marks the service as simulated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// `simulated` / `helixtest_stubs` = `"true"` only when HelixTest stubs are enabled.
+    #[serde(skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub tags: std::collections::HashMap<String, String>,
 }

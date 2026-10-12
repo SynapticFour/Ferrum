@@ -56,6 +56,7 @@ fn drs_state_for_edge(pool: FerrumPool, objects_dir: &std::path::Path) -> ferrum
         ads_introspect: None,
         solum_consent: None,
         ingest_require_auth: false,
+        require_passport_for_bytes: false,
         metadata_store_enabled: false,
         pipeline: ferrum_core::PipelineConfig::default(),
     }

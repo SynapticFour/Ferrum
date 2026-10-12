@@ -3,7 +3,7 @@
 # Sourced by Dockerfiles and scripts/build-variant-image.sh.
 #
 # Env:
-#   FERRUM_VARIANT            full | edge | edge-infra  (default: full)
+#   FERRUM_VARIANT            full | edge | edge-infra | full-infra  (default: full)
 #   FERRUM_GATEWAY_FEATURES   if set, overrides variant (comma-separated cargo features;
 #                             always passed with --no-default-features)
 set -euo pipefail
@@ -27,8 +27,12 @@ case "$VARIANT" in
   edge-infra)
     printf '%s\n' "--no-default-features --features edge,external-auth"
     ;;
+  full-infra)
+    # Full surfaces (WES/TES/TRS/admin/Postgres) plus ga4gh-infra external-auth.
+    printf '%s\n' "--features external-auth"
+    ;;
   *)
-    echo "error: unknown FERRUM_VARIANT=${VARIANT} (expected full|edge|edge-infra)" >&2
+    echo "error: unknown FERRUM_VARIANT=${VARIANT} (expected full|edge|edge-infra|full-infra)" >&2
     exit 1
     ;;
 esac
