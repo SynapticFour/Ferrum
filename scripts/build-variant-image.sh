@@ -25,7 +25,7 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/build-variant-image.sh [options]
 
-  --variant full|edge|edge-infra   Named Ferrum image variant (default: full)
+  --variant full|edge|edge-infra|full-infra   Named Ferrum image variant (default: full)
   --features <cargo-features>      Override variant (comma-separated, --no-default-features)
   --platform linux/amd64|linux/arm64
   --tag <name:tag>                 Image tag (default: ferrum:<variant>)

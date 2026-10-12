@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       variants:
-        description: "JSON array of gateway variants. Showcase pin is edge-infra. A v* tag publishes full, edge, and edge-infra."
+        description: "JSON array of gateway variants (full|edge|edge-infra|full-infra). Showcase pin is edge-infra. Dispatch default omits full-infra; pass [\"full-infra\"] to build only it. A v* tag publishes all four."
         required: false
         default: '["full","edge","edge-infra"]'
         type: string
@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: ${{ fromJSON(github.event_name == 'workflow_dispatch' && github.event.inputs.variants || '["full","edge","edge-infra"]') }}
+        variant: ${{ fromJSON(github.event_name == 'workflow_dispatch' && github.event.inputs.variants || '["full","edge","edge-infra","full-infra"]') }}
     steps:
       - uses: actions/checkout@v7
 

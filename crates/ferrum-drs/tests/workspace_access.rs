@@ -100,6 +100,7 @@ async fn workspace_drs_state() -> (AppState, tempfile::TempDir) {
         ads_introspect: None,
         solum_consent: None,
         ingest_require_auth: false,
+        require_passport_for_bytes: false,
         metadata_store_enabled: false,
         pipeline: ferrum_core::PipelineConfig::default(),
     };

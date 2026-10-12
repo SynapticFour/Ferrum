@@ -6,6 +6,7 @@ pub mod auth;
 pub mod clock;
 pub mod config;
 pub mod db;
+pub mod denied_audit;
 pub mod dialect;
 pub mod disk;
 pub mod edge_accounts;
@@ -34,18 +35,23 @@ pub mod workspace;
 pub use ads::{AdsIntrospectClient, AdsIntrospectError};
 pub use auth::{
     auth_layer, auth_middleware, auth_middleware_with_config, require_auth_enabled,
-    require_auth_from_env_or, set_require_auth_runtime, warm_jwks_cache, AuthClaims,
-    AuthMiddlewareConfig, PassportClaims, RevocationCheck, RevokedTokensChecker, VisaObject,
+    require_auth_from_env_or, require_passport_for_bytes_from_env_or, set_require_auth_runtime,
+    warm_jwks_cache, AuthClaims, AuthMiddlewareConfig, PassportClaims, RevocationCheck,
+    RevokedTokensChecker, VisaObject,
 };
 pub use clock::{clock_status, ClockStatus, DEFAULT_MAX_SKEW_SECS, DEFAULT_NTP_HOST};
 pub use config::{
-    AfricaProfile, AggregateStrategy, AppConfig, AuthConfig, AuthMode, BandwidthConfig,
-    DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig, FerrumConfig,
-    FerrumPeerConfig, IngestConfig, MetadataStoreConfig, MultiQCConfig, OperationsConfig,
-    OutbreakConfig, OutbreakPolicy, PowerConfig, PricingConfig, PricingTier, SecurityConfig,
-    ServicesConfig, SolumConfig, StorageConfig, SyncConfig, WesServiceConfig,
+    AfricaProfile, AggregateStrategy, AppConfig, AuditConfig, AuthConfig, AuthMode,
+    BandwidthConfig, DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig,
+    FerrumConfig, FerrumPeerConfig, IngestConfig, MetadataStoreConfig, MultiQCConfig,
+    OperationsConfig, OutbreakConfig, OutbreakPolicy, PowerConfig, PricingConfig, PricingTier,
+    SecurityConfig, ServicesConfig, SolumConfig, StorageConfig, SyncConfig, WesServiceConfig,
 };
 pub use db::DatabasePool;
+pub use denied_audit::{
+    minimize_client_ip, record_authorization_denied, ClientIpMode, DeniedAuditSink,
+    DeniedRateLimiter, DeniedReason, EVENT_AUTHORIZATION_DENIED,
+};
 pub use dialect::{
     chromosomes_json, empty_json_array, now, sql_alias_lookup, sql_beacon_variant_count_coord,
     sql_beacon_variant_count_exact, sql_beacon_variant_exists_coord,

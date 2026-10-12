@@ -49,6 +49,8 @@ pub struct AppState {
     pub solum_consent: Option<Arc<ferrum_core::SolumConsentClient>>,
     /// When true, ingest routes require collector/admin role (set by gateway from auth config).
     pub ingest_require_auth: bool,
+    /// When true, `/stream` and `/access/*` require a Passport even for unbound objects (ADR-030).
+    pub require_passport_for_bytes: bool,
     /// When true, `/api/v1/metadata/*` is enabled (set by gateway from `[metadata_store]`).
     pub metadata_store_enabled: bool,
     /// Post-ingest QC / Beacon / htsget automation (Phase 5).

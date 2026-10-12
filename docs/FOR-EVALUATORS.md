@@ -6,7 +6,7 @@ Factual snapshot of this repository. Not a sales brief. Not legal advice.
 
 **Active (beta).** One human maintains this tree ([GOVERNANCE.md](GOVERNANCE.md)): no second committer with merge rights, no code escrow. There is **no** third-party security audit. HelixTest CI is **not** GA4GH certification.
 
-Prepared release **v0.3.3**. The git tag is not created in this commit. The tag on origin is still **v0.3.2**. See [SUITE-OVERVIEW](SUITE-OVERVIEW.md).
+Release **v0.3.4**. See [SUITE-OVERVIEW](SUITE-OVERVIEW.md).
 
 ## License
 

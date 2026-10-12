@@ -11,7 +11,7 @@
       "name": "BUSL-1.1",
       "url": "https://github.com/SynapticFour/Ferrum/blob/main/LICENSE"
     },
-    "version": "0.3.3"
+    "version": "0.3.4"
   },
   "servers": [
     {
@@ -3654,11 +3654,23 @@
           "version"
         ],
         "properties": {
+          "description": {
+            "type": "string",
+            "description": "Set only when HelixTest stubs are enabled (ADR-033): marks the service as simulated.",
+            "nullable": true
+          },
           "id": {
             "type": "string"
           },
           "name": {
             "type": "string"
+          },
+          "tags": {
+            "type": "object",
+            "description": "`simulated` / `helixtest_stubs` = `\"true\"` only when HelixTest stubs are enabled.",
+            "additionalProperties": {
+              "type": "string"
+            }
           },
           "version": {
             "type": "string"

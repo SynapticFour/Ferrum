@@ -1047,6 +1047,13 @@ pub async fn post_object(
         }
     }
     let id = state.repo.create_object(&req).await?;
+    // JSON create must trigger the same Beacon/htsget hooks as multipart ingest (N4 / UPSTREAM).
+    crate::pipeline_hooks::schedule_post_ingest_hooks(
+        state.clone(),
+        id.clone(),
+        req.name.clone(),
+        req.mime_type.clone(),
+    );
     Ok(Json(CreatedResponse { id }))
 }
 

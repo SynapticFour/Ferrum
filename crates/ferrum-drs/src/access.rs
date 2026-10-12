@@ -16,6 +16,13 @@ pub async fn check_object_byte_access(
     let dataset_id = state.repo.get_dataset_id(canonical_object_id).await?;
     let workspace_id = state.repo.get_workspace_id(canonical_object_id).await?;
 
+    // ADR-030: optional Passport for all byte paths (default off).
+    if state.require_passport_for_bytes && auth.is_none() {
+        return Err(DrsError::Unauthorized(
+            "Bearer authentication required for object byte access".into(),
+        ));
+    }
+
     if let Some(dataset_id) = dataset_id {
         let claims = auth.ok_or_else(|| {
             DrsError::Forbidden("authentication required for this dataset".into())
@@ -113,13 +120,28 @@ async fn enforce_ads_dataset_access(
     Ok(())
 }
 
-/// Metadata GET uses the same rules as stream/download for controlled objects.
+/// Metadata GET: controlled objects use the same rules as bytes, but
+/// `require_passport_for_bytes` does **not** close anonymous catalog/metadata
+/// for unbound objects (ADR-030).
 pub async fn check_object_metadata_access(
     state: &AppState,
     canonical_object_id: &str,
     auth: Option<&AuthClaims>,
     federated_ads_base: Option<&str>,
 ) -> Result<()> {
+    let dataset_id = state.repo.get_dataset_id(canonical_object_id).await?;
+    let workspace_id = state.repo.get_workspace_id(canonical_object_id).await?;
+    if dataset_id.is_none() && workspace_id.is_none() {
+        enforce_outbreak_download(
+            state.outbreak.as_ref(),
+            &state.repo,
+            canonical_object_id,
+            auth,
+        )
+        .await?;
+        return enforce_solum_object_consent(state, canonical_object_id).await;
+    }
+    // Controlled objects already require auth for dataset/workspace; byte flag is a no-op here.
     check_object_byte_access(state, canonical_object_id, auth, federated_ads_base).await
 }
 

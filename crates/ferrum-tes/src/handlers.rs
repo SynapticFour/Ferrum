@@ -61,11 +61,57 @@ fn reject_anonymous_when_auth_required(
 
 #[utoipa::path(get, path = "/service-info", responses((status = 200, body = TesServiceInfo)))]
 pub async fn get_service_info() -> Json<TesServiceInfo> {
-    Json(TesServiceInfo {
+    Json(build_service_info(ferrum_core::env_flag(
+        "FERRUM_TES_HELIXTEST_STUB",
+    )))
+}
+
+/// ADR-033: with stubs on, label service-info as simulated. Stubs off → no marker.
+pub(crate) fn build_service_info(stubs_on: bool) -> TesServiceInfo {
+    let mut info = TesServiceInfo {
         id: "ferrum-tes".to_string(),
         name: "Ferrum TES".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-    })
+        description: None,
+        tags: std::collections::HashMap::new(),
+    };
+    if stubs_on {
+        info.description = Some(
+            "SIMULATED / NON-PILOT HelixTest stub (demo echo output, not real task execution)"
+                .to_string(),
+        );
+        info.tags
+            .insert("simulated".to_string(), "true".to_string());
+        info.tags
+            .insert("helixtest_stubs".to_string(), "true".to_string());
+    }
+    info
+}
+
+#[cfg(test)]
+mod simulated_label_tests {
+    use super::build_service_info;
+
+    #[test]
+    fn stubs_off_has_no_simulated_marker() {
+        let info = build_service_info(false);
+        assert!(info.description.is_none());
+        assert!(info.tags.is_empty());
+        let json = serde_json::to_value(&info).unwrap();
+        assert!(json.get("description").is_none());
+        assert!(json.get("tags").is_none());
+    }
+
+    #[test]
+    fn stubs_on_marks_simulated() {
+        let info = build_service_info(true);
+        assert!(info.description.as_deref().unwrap().contains("SIMULATED"));
+        assert_eq!(info.tags.get("simulated").map(String::as_str), Some("true"));
+        assert_eq!(
+            info.tags.get("helixtest_stubs").map(String::as_str),
+            Some("true")
+        );
+    }
 }
 
 #[utoipa::path(post, path = "/tasks", request_body = CreateTaskRequest, responses((status = 200, body = CreateTaskResponse)))]

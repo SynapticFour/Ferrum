@@ -69,6 +69,29 @@ pub struct FerrumConfig {
     /// Optional Metadata Store HTTP API (`/api/v1/metadata/*`). Env: `FERRUM_METADATA_STORE__ENABLED`.
     #[serde(default)]
     pub metadata_store: MetadataStoreConfig,
+    /// Residency audit extras (denied events, anonymous IP minimization). ADR-032.
+    #[serde(default)]
+    pub audit: AuditConfig,
+}
+
+/// Residency audit operator knobs (ADR-031 / ADR-032).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct AuditConfig {
+    /// How to record client addresses on anonymous `authorization_denied` events.
+    /// `omit` (default) | `truncated` (/24 IPv4, /32 IPv6) | `full`.
+    pub anonymous_client_ip: String,
+    /// Max `authorization_denied` appends per minute (process-wide). 0 = disable denied logging.
+    pub denied_events_per_minute: u32,
+}
+
+impl Default for AuditConfig {
+    fn default() -> Self {
+        Self {
+            anonymous_client_ip: "omit".into(),
+            denied_events_per_minute: 30,
+        }
+    }
 }
 
 /// Optional ferrum-meta submission management API ([metadata_store] config).
@@ -682,6 +705,11 @@ pub struct AuthConfig {
     pub audience: Option<String>,
     #[serde(default = "default_require_auth")]
     pub require_auth: bool,
+    /// When true, DRS `/stream` and `/access/*` require a valid Passport even if the object
+    /// has no `dataset_id` / `workspace_id`. Catalog/metadata for unbound objects stay anonymous.
+    /// Default false preserves historical demo behaviour (ADR-030).
+    #[serde(default)]
+    pub require_passport_for_bytes: bool,
     /// When true and `mode = external`, validate Passports via ga4gh-clearinghouse (visa signature verification).
     #[serde(default)]
     pub clearinghouse: bool,
@@ -983,6 +1011,9 @@ impl FerrumConfig {
         let mut builder = config::Config::builder()
             .set_default("bind", "0.0.0.0:8080")?
             .set_default("auth.require_auth", true)?
+            .set_default("auth.require_passport_for_bytes", false)?
+            .set_default("audit.anonymous_client_ip", "omit")?
+            .set_default("audit.denied_events_per_minute", 30)?
             .set_default("database.max_connections", default_max_connections() as i64)?
             .set_default("database.min_connections", default_min_connections() as i64)?
             .set_default(

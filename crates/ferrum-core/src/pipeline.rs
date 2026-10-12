@@ -26,7 +26,8 @@ impl Default for PipelineConfig {
         Self {
             auto_htsget_index: true,
             auto_index_beacon: true,
-            default_beacon_dataset: "field-edge".into(),
+            // Must match Beacon query fallback when `assemblyId` is omitted (`handlers` → "default").
+            default_beacon_dataset: "default".into(),
             nanostat_bin: None,
             allow_qc_stub: false,
             default_wes_url: None,
