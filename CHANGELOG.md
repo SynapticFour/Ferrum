@@ -6,13 +6,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Reference object store + release hygiene (proposed tag `v0.3.6`)
 
-Tag proposal only — **do not create the tag until `make verify-release` is green on this branch.** Do not move `v0.3.5`.
+Tag proposal only — **do not create the tag until `make verify-release` is green on the release commit.** Do not move `v0.3.5`. **Showcase / Contabo stays on `v0.3.5-full-infra`:** this tag changes deployment files and docs only (SeaweedFS reference Compose, digests, offline-bundle optional); it does not require a demo gate image rebuild.
 
 - **SeaweedFS 3.80** replaces MinIO in reference Compose, offline bundle, and Helm `values-local` (Apache-2.0; auto-create bucket). Digests in [docs/COMPOSE-IMAGE-PINS.md](docs/COMPOSE-IMAGE-PINS.md). **Garage** is AGPL-3.0 (upstream repo) — tested alternative; **MinIO** is BYO only (Hub/binary unavailable). [docs/TESTED-S3-BACKENDS.md](docs/TESTED-S3-BACKENDS.md).
 - **Release workflow** — offline image bundle is optional/`continue-on-error`; GitHub Release still publishes binaries, Helm, SBOM when the bundle pull fails.
 - **Makefile / scripts** — detect `docker compose` or standalone `docker-compose` (`deploy/scripts/compose-cmd.sh`).
 - **Compose digests** for postgres, SeaweedFS, Keycloak, nginx, demo GHCR images; ga4gh-infra local build remains an exception.
 - **Docs** — [DEPLOYMENT-SHAPES.md](docs/DEPLOYMENT-SHAPES.md): edge = one process + SQLite/local files; full = gateway + Postgres + object storage (+ optional IdP). Offline edge marked **documented-not-verified**. “All APIs in one offline binary” is not verified as a single claim.
+- **Clippy 1.99** — allow `result_large_err` where handlers return axum `Response` as `Err` (gateway / htsget / reference).
 
 ## [0.3.5] - 2026-10-12
 

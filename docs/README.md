@@ -113,6 +113,13 @@ Documentation is organized into: **Getting Started**, **Architecture**, **Standa
 
 ## Internal notes (contributors)
 
+## Other task (not merged)
+
+| Branch | Why left | Notes |
+|--------|----------|-------|
+| `evidence/g-continuity` | Docs-only but **not accurate for current `main`** | Adds `CONTINUITY.md` (“continuity: no unwritten plan promise”). Audited tip still named as `8d72bc4` / tag `v0.3.3`; `main` is at `v0.3.5`+ SeaweedFS work. Belongs to another task — refresh against current tip before merge. Worktree: `_worktrees/Ferrum-g-continuity` (untouched). |
+
+Local `audit-main` worktree (`_worktrees/Ferrum-audit`) is intentionally left alone. Keep branch `license/ferrum`.
 
 ---
 
