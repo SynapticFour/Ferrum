@@ -18,9 +18,9 @@ These public repositories are maintained by the same organisation and are design
 
 ## Quick start
 
-**Prerequisites for `make up`:** Docker Engine, and either the `docker compose` plugin **or** standalone `docker-compose` (Makefile detects both). Disk/RAM for Postgres + SeaweedFS + Keycloak + image builds.
-
 Laptop walkthrough of **tagged** Ferrum (DRS / WES / TES): [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo) `./run` (gateway `http://127.0.0.1:18080`). Org stranger path: [github.com/SynapticFour](https://github.com/SynapticFour#try-it-30-min).
+
+**Prerequisites for `make up`:** Docker Engine, and either the `docker compose` plugin **or** standalone `docker-compose` (Makefile detects both). Disk/RAM for Postgres + SeaweedFS + Keycloak + image builds.
 
 ```bash
 make prove    # cargo test --workspace --all-targets (no Docker)
