@@ -1,17 +1,13 @@
-# Helix verify PILOT — do not merge this workflow onto Ferrum main.
+# Helix verify PILOT — workflow_dispatch only (quiet on main pushes).
 # Stage 2: comment + regression-only fail. Not a required status check.
 # Not GA4GH certification. Does not start ga4gh-infra. Demo compose, TES noop.
 #
 # Needs: SynapticFour/helix-action on GitHub, and Helix `helix-ref` that contains
 # `helix verify` (local Helix is ahead of origin until those commits are pushed).
 
-name: "PILOT: Helix verify (not main)"
+name: "PILOT: Helix verify"
 
 on:
-  push:
-    branches: [ci/helix-verify-pilot]
-  pull_request:
-    branches: [ci/helix-verify-pilot]
   workflow_dispatch:
     inputs:
       helix_ref:
