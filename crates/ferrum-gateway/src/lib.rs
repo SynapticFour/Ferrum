@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
+#![allow(clippy::result_large_err)] // axum Response as Err (Clippy 1.99)
 //! API Gateway: merges all GA4GH service routers under standard paths.
 //! A01: Auth middleware on every request. A05: Security headers, CORS from config.
 

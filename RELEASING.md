@@ -38,40 +38,32 @@ gh run download 38251721231 -R SynapticFour/Ferrum \
   -n ferrum-gateway-x86_64-apple-darwin \
   -n ferrum-gateway-aarch64-apple-darwin
 
-# Artifacts unpack as directories or tarballs named ferrum-gateway-*.tar.gz — collect:
-find . -name 'ferrum-gateway-*.tar.gz' -print
+# Each artifact is a directory containing the tarball — flatten (zsh: setopt nullglob):
+setopt nullglob
+mv ferrum-gateway-*/ferrum-gateway-*.tar.gz .
+rmdir ferrum-gateway-* 2>/dev/null || true
+ls -la ferrum-gateway-*.tar.gz
 
-# Optional: Helm chart from that commit
-git -C /path/to/Ferrum archive --format=tar.gz --prefix=ferrum-helm/ v0.3.5:deploy/helm \
-  >/dev/null 2>&1 || true
-# Prefer: helm package at that commit
-#   helm package deploy/helm --version 0.3.5 --appVersion v0.3.5 -d .
-#   mv ferrum-0.3.5.tgz ferrum-helm-v0.3.5.tgz
+FERRUM=/path/to/Ferrum   # checkout at v0.3.5 / ae3762b0
+cp "$FERRUM/VERSIONS.lock" "$FERRUM/install.sh" "$FERRUM/import.sh" .
 
-# Optional SBOM (needs rust toolchain at that commit):
-#   cargo install cargo-cyclonedx --locked --version 0.5.9
-#   cargo cyclonedx --manifest-path crates/ferrum-gateway/Cargo.toml --format json --override-filename ferrum-sbom.cdx
-#   cp … ferrum-sbom.cdx.json
+# Optional Helm / SBOM at that commit — skip if not building them.
+# helm package "$FERRUM/deploy/helm" --version 0.3.5 --appVersion v0.3.5 -d .
+# mv ferrum-0.3.5.tgz ferrum-helm-v0.3.5.tgz
 
-cp /path/to/Ferrum/VERSIONS.lock /path/to/Ferrum/install.sh /path/to/Ferrum/import.sh .
+shasum -a 256 ferrum-gateway-*.tar.gz VERSIONS.lock install.sh import.sh > SHA256SUMS.txt
 
-shasum -a 256 ferrum-gateway-*.tar.gz ferrum-helm-v0.3.5.tgz \
-  ferrum-sbom.cdx.json VERSIONS.lock install.sh import.sh > SHA256SUMS.txt 2>/dev/null \
-  || shasum -a 256 ferrum-gateway-*.tar.gz VERSIONS.lock install.sh import.sh > SHA256SUMS.txt
+# Quote or use an array so zsh does not fail on missing optional globs:
+assets=(ferrum-gateway-*.tar.gz SHA256SUMS.txt VERSIONS.lock install.sh import.sh)
+[[ -f ferrum-helm-v0.3.5.tgz ]] && assets+=(ferrum-helm-v0.3.5.tgz)
+[[ -f ferrum-sbom.cdx.json ]] && assets+=(ferrum-sbom.cdx.json)
 
 gh release create v0.3.5 \
   --repo SynapticFour/Ferrum \
   --verify-tag \
   --title "v0.3.5" \
   --notes "Gateway binaries for tag v0.3.5. Offline image bundle omitted (MinIO Hub 401 at release time). Use SeaweedFS reference Compose from a later commit / proposed v0.3.6. GHCR images: ferrum:v0.3.5-full-infra, ferrum-ui:v0.3.5." \
-  ferrum-gateway-*.tar.gz \
-  SHA256SUMS.txt \
-  VERSIONS.lock \
-  install.sh \
-  import.sh \
-  ferrum-helm-v0.3.5.tgz \
-  ferrum-sbom.cdx.json
-# Omit last two lines if those files were not produced.
+  "${assets[@]}"
 ```
 
 Offline bundle for `v0.3.5` is intentionally skipped in this manual path; rebuild with post-U2 `export_offline_bundle.sh` (SeaweedFS) only if you need it and are willing to attach a later-built artifact to the same Release.
