@@ -43,9 +43,11 @@ When `[power] enabled = true` (default on Linux), Ferrum reads `/sys/class/power
 |------|---------|----------------|
 | HighPerformance | AC power | Normal |
 | LowPower | Battery &lt; 50% | Max 4 concurrent requests; background checksum/index paused |
-| Emergency | Battery &lt; 10% | **503** on new requests; checkpoint then exit |
+| Emergency | Battery &lt; 10%, and the source is not AC, and monitoring is enabled | **503** on new requests; write a shutdown note, then exit |
 
 Override for testing: `FERRUM_POWER_MODE=low_power|emergency|high_performance`.
+
+Emergency mode writes `~/.ferrum/CHECKPOINT`. That file is a shutdown note (`timestamp`, `last_transaction_id`, `message`). Startup does not read it. It is not a restart recovery and it is not a tested power-cut recovery. The note is written to a temporary file in the same directory, fsynced, and renamed, so a crash does not leave a 0-byte `CHECKPOINT`. Field backup archives use the same publish method, so a crash does not leave a truncated archive under the final name. A `.ferrum-partial-*` sibling may remain; it is not the note or the archive.
 
 HelixTest (optional): `helixtest --all --mode ferrum-africa --africa-profile power`
 

@@ -326,7 +326,7 @@ Reads Linux `/sys/class/power_supply/` (macOS: `pmset`) when `[power] enabled = 
 |------|---------|--------|
 | `HighPerformance` | AC power | All features |
 | `LowPower` | Battery &lt; 50% | Max 4 concurrent requests; background checksum/index work paused |
-| `Emergency` | Battery &lt; 10% | Refuse new connections; write `~/.ferrum/CHECKPOINT`; exit after 30s drain |
+| `Emergency` | Battery &lt; 10%, source is not AC, and `[power] enabled` | Refuse new connections; write `~/.ferrum/CHECKPOINT`; exit after 30s drain. Startup does not read that file. It is a shutdown note, not recovery. |
 
 Override: `FERRUM_POWER_MODE=low_power|emergency|high_performance`.
 

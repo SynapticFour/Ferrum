@@ -81,18 +81,40 @@ pub fn create_field_backup(
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent).map_err(|e| FerrumError::StorageError(e.into()))?;
     }
-    let file = File::create(output).map_err(|e| FerrumError::StorageError(e.into()))?;
-    let enc = GzEncoder::new(file, Compression::default());
-    let mut tar = Builder::new(enc);
-    append_file_to_tar(&mut tar, DB_ENTRY, &db_path)?;
-    let manifest_bytes =
-        serde_json::to_vec_pretty(&manifest).map_err(|e| FerrumError::Internal(e.into()))?;
-    append_bytes_to_tar(&mut tar, MANIFEST_NAME, &manifest_bytes)?;
-    if include_objects && objects_root.is_dir() {
-        append_dir_recursive(&mut tar, &objects_root, OBJECTS_PREFIX)?;
+    // Write the gzip tar to a sibling temporary, fsync, then rename. A crash
+    // must not leave a truncated archive at `output`.
+    let tmp =
+        crate::durable::partial_path(output).map_err(|e| FerrumError::StorageError(e.into()))?;
+    let published = (|| -> Result<()> {
+        let file = File::create(&tmp).map_err(|e| FerrumError::StorageError(e.into()))?;
+        let enc = GzEncoder::new(file, Compression::default());
+        let mut tar = Builder::new(enc);
+        append_file_to_tar(&mut tar, DB_ENTRY, &db_path)?;
+        let manifest_bytes =
+            serde_json::to_vec_pretty(&manifest).map_err(|e| FerrumError::Internal(e.into()))?;
+        append_bytes_to_tar(&mut tar, MANIFEST_NAME, &manifest_bytes)?;
+        if include_objects && objects_root.is_dir() {
+            append_dir_recursive(&mut tar, &objects_root, OBJECTS_PREFIX)?;
+        }
+        tar.finish()
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        let enc = tar
+            .into_inner()
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        let file = enc
+            .finish()
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        file.sync_all()
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        drop(file);
+        crate::durable::durable_publish(&tmp, output)
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        Ok(())
+    })();
+    if published.is_err() {
+        let _ = fs::remove_file(&tmp);
     }
-    tar.finish()
-        .map_err(|e| FerrumError::StorageError(e.into()))?;
+    published?;
     Ok(manifest)
 }
 

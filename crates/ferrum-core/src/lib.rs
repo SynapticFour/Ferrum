@@ -9,6 +9,7 @@ pub mod db;
 pub mod denied_audit;
 pub mod dialect;
 pub mod disk;
+mod durable;
 pub mod edge_accounts;
 pub mod error;
 pub mod gisaid;
