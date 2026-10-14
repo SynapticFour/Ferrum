@@ -910,10 +910,6 @@ async fn store_uploaded_object(
 ) -> Result<(String, i64), IngestApiError> {
     let object_id = ulid::Ulid::new().to_string();
     let storage_key = format!("drs/{}", object_id);
-    storage
-        .put_file(&storage_key, file_path)
-        .await
-        .map_err(|e| IngestApiError::internal(e.to_string()))?;
     let create = CreateObjectRequest {
         name: fields.name,
         description: fields.description,
@@ -922,18 +918,32 @@ async fn store_uploaded_object(
         checksums: vec![],
         aliases: None,
         storage_backend: fields.storage_backend,
-        storage_key,
+        storage_key: storage_key.clone(),
         is_encrypted: Some(false),
         workspace_id: None,
         ont_metrics: None,
         gisaid_metadata: None,
         metadata_ref,
     };
-    state
-        .repo
-        .create_object_with_id(&create, Some(object_id.clone()))
-        .await
-        .map_err(IngestApiError::from_drs)?;
+    if let Some(root) = storage.local_root() {
+        state
+            .repo
+            .create_local_object_from_file(root, file_path, &create, Some(object_id.clone()))
+            .await
+            .map_err(IngestApiError::from_drs)?;
+    } else {
+        // S3 is not in the SQL transaction. Process death can leave a remote
+        // object without a row.
+        storage
+            .put_file(&storage_key, file_path)
+            .await
+            .map_err(|e| IngestApiError::internal(e.to_string()))?;
+        state
+            .repo
+            .create_object_with_id(&create, Some(object_id.clone()))
+            .await
+            .map_err(IngestApiError::from_drs)?;
+    }
     state
         .repo
         .set_checksum_status(&object_id, "pending")

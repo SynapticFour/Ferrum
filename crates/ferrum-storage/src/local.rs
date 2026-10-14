@@ -25,6 +25,10 @@ impl LocalStorage {
     }
 }
 
+pub fn local_object_path(base_path: &std::path::Path, key: &str) -> Result<PathBuf> {
+    path_for_local(base_path, key)
+}
+
 pub(crate) fn path_for_local(base_path: &std::path::Path, key: &str) -> Result<PathBuf> {
     ferrum_core::validate_object_key(key)?;
     Ok(base_path.join(key))
@@ -32,6 +36,10 @@ pub(crate) fn path_for_local(base_path: &std::path::Path, key: &str) -> Result<P
 
 #[async_trait]
 impl ObjectStorage for LocalStorage {
+    fn local_root(&self) -> Option<&std::path::Path> {
+        Some(self.base_path.as_path())
+    }
+
     async fn put_bytes(&self, key: &str, data: &[u8]) -> Result<()> {
         let base_path = self.base_path.clone();
         let key = key.to_string();

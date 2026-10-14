@@ -7,9 +7,10 @@ use crate::types::{
 };
 use base64::Engine;
 use ferrum_core::{
-    sql_alias_lookup, sql_ingest_job_failed, sql_ingest_job_succeeded, sql_insert_access_method,
-    sql_insert_drs_object, sql_list_bundle_contents_page, sql_list_objects, sql_update_drs_object,
-    AccessMethod, AccessType, Checksum, DbDialect, FerrumPool,
+    publish_staged_file, sql_alias_lookup, sql_ingest_job_failed, sql_ingest_job_succeeded,
+    sql_insert_access_method, sql_insert_drs_object, sql_list_bundle_contents_page,
+    sql_list_objects, sql_update_drs_object, stage_bytes_beside, stage_file_beside, AccessMethod,
+    AccessType, Checksum, DbDialect, FerrumPool,
 };
 
 macro_rules! pool_query {
@@ -19,6 +20,49 @@ macro_rules! pool_query {
             FerrumPool::Sqlite($p) => $body,
         }
     };
+}
+
+/// Run `$body` on one transaction and commit only when it returns `Ok`.
+///
+/// SQLite uses `BEGIN IMMEDIATE` so the writes are one reserved transaction.
+/// Process death rolls the transaction back.
+macro_rules! pool_transaction {
+    ($self:expr, |$tx:ident| $body:expr) => {{
+        match &$self.pool {
+            FerrumPool::Postgres(pool) => {
+                let mut $tx = pool.begin().await?;
+                let outcome = $body;
+                match outcome {
+                    Ok(value) => {
+                        $tx.commit().await?;
+                        Ok(value)
+                    }
+                    Err(err) => {
+                        let _ = $tx.rollback().await;
+                        Err(err)
+                    }
+                }
+            }
+            FerrumPool::Sqlite(pool) => {
+                let mut conn = pool.acquire().await?;
+                sqlx::query("PRAGMA busy_timeout = 8000")
+                    .execute(&mut *conn)
+                    .await?;
+                let mut $tx = sqlx::Connection::begin_with(&mut *conn, "BEGIN IMMEDIATE").await?;
+                let outcome = $body;
+                match outcome {
+                    Ok(value) => {
+                        $tx.commit().await?;
+                        Ok(value)
+                    }
+                    Err(err) => {
+                        let _ = $tx.rollback().await;
+                        Err(err)
+                    }
+                }
+            }
+        }
+    }};
 }
 
 pub struct DrsRepo {
@@ -803,6 +847,14 @@ impl DrsRepo {
         self.create_object_with_id(req, None).await
     }
 
+    /// Insert the object row, checksums, storage reference, and access method
+    /// in one transaction.
+    ///
+    /// Process death rolls the transaction back. A `drs_objects` row is not
+    /// left without a `storage_references` row. This method does not write
+    /// bytes. Local ingest that also stores a file uses
+    /// [`Self::create_local_object_from_file`] so the final file name appears
+    /// only after this transaction commits.
     pub async fn create_object_with_id(
         &self,
         req: &CreateObjectRequest,
@@ -813,19 +865,19 @@ impl DrsRepo {
             .aliases
             .as_ref()
             .map(|a| serde_json::to_value(a).unwrap_or(serde_json::Value::Array(vec![])));
-        pool_query!(self, |p| {
+        pool_transaction!(self, |tx| {
             sqlx::query(&sql_insert_drs_object(self.dialect))
                 .bind(&id)
                 .bind(&req.name)
                 .bind(&req.description)
                 .bind(&req.mime_type)
                 .bind(req.size)
-                .bind(aliases)
+                .bind(&aliases)
                 .bind(req.workspace_id.as_deref())
                 .bind(req.ont_metrics.as_ref())
                 .bind(req.gisaid_metadata.as_ref())
                 .bind(req.metadata_ref.as_deref())
-                .execute(p)
+                .execute(&mut *tx)
                 .await?;
             for c in &req.checksums {
                 sqlx::query(
@@ -834,7 +886,7 @@ impl DrsRepo {
                 .bind(&id)
                 .bind(&c.r#type)
                 .bind(&c.checksum)
-                .execute(p)
+                .execute(&mut *tx)
                 .await?;
             }
             sqlx::query(
@@ -844,7 +896,7 @@ impl DrsRepo {
             .bind(&req.storage_backend)
             .bind(&req.storage_key)
             .bind(req.is_encrypted.unwrap_or(false))
-            .execute(p)
+            .execute(&mut *tx)
             .await?;
             let access_id = format!("access-{}", id);
             let access_url_json = serde_json::json!({"url": format!("https://{}/ga4gh/drs/v1/objects/{}/access/{}", self.hostname, id, access_id)});
@@ -852,9 +904,78 @@ impl DrsRepo {
                 .bind(&id)
                 .bind(&access_id)
                 .bind(access_url_json)
-                .execute(p)
+                .execute(&mut *tx)
                 .await?;
             Ok::<(), DrsError>(())
+        })?;
+        Ok(id)
+    }
+
+    /// Copy `src` beside the local key, commit the DRS row, then rename.
+    ///
+    /// Order: write `.{name}.ferrum-partial-*` in the same directory and fsync
+    /// it; insert the object and its storage reference in one transaction;
+    /// rename the partial onto the final key and fsync the directory.
+    ///
+    /// Startup does not read or delete `.ferrum-partial-*` files. A partial is
+    /// not a DRS object. A kill before commit leaves no row and no file at the
+    /// final key. A kill after commit and before rename leaves a row that has
+    /// a storage reference, no file at the final key, and the partial beside
+    /// it. S3 is not this path: those bytes are not in the SQL transaction, so
+    /// a process death can still leave a bucket object without a row.
+    pub async fn create_local_object_from_file(
+        &self,
+        root: &std::path::Path,
+        src: &std::path::Path,
+        req: &CreateObjectRequest,
+        optional_id: Option<String>,
+    ) -> Result<String> {
+        let final_path = ferrum_storage::local_object_path(root, &req.storage_key)
+            .map_err(|e| DrsError::Validation(e.to_string()))?;
+        let partial = stage_file_beside(&final_path, src)
+            .map_err(|e| DrsError::Other(anyhow::anyhow!("stage local object: {e}")))?;
+        self.finish_local_object(final_path, partial, req, optional_id)
+            .await
+    }
+
+    /// Same publish order as [`Self::create_local_object_from_file`], for bytes
+    /// already in memory.
+    pub async fn create_local_object_from_bytes(
+        &self,
+        root: &std::path::Path,
+        bytes: &[u8],
+        req: &CreateObjectRequest,
+        optional_id: Option<String>,
+    ) -> Result<String> {
+        let final_path = ferrum_storage::local_object_path(root, &req.storage_key)
+            .map_err(|e| DrsError::Validation(e.to_string()))?;
+        let partial = stage_bytes_beside(&final_path, bytes)
+            .map_err(|e| DrsError::Other(anyhow::anyhow!("stage local object: {e}")))?;
+        self.finish_local_object(final_path, partial, req, optional_id)
+            .await
+    }
+
+    async fn finish_local_object(
+        &self,
+        final_path: std::path::PathBuf,
+        partial: std::path::PathBuf,
+        req: &CreateObjectRequest,
+        optional_id: Option<String>,
+    ) -> Result<String> {
+        let created = self.create_object_with_id(req, optional_id).await;
+        let id = match created {
+            Ok(id) => id,
+            Err(err) => {
+                let _ = std::fs::remove_file(&partial);
+                return Err(err);
+            }
+        };
+        // The row is committed. Leave the partial in place if rename fails so
+        // the bytes are not deleted out from under that row.
+        publish_staged_file(&partial, &final_path).map_err(|e| {
+            DrsError::Other(anyhow::anyhow!(
+                "object {id} is committed; rename onto the final key failed: {e}"
+            ))
         })?;
         Ok(id)
     }

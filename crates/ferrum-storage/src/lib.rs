@@ -10,7 +10,7 @@ mod s3;
 mod transfer_queue;
 
 pub use bandwidth::{BandwidthClass, BandwidthMonitor, MIN_BANDWIDTH_SAMPLE_BYTES};
-pub use local::LocalStorage;
+pub use local::{local_object_path, LocalStorage};
 #[cfg(feature = "opendal")]
 pub use opendal_store::OpenDalStorage;
 pub use parts::{split_file_part_ranges, split_into_part_ranges};
@@ -43,6 +43,15 @@ pub trait ObjectStorage: Send + Sync {
     async fn exists(&self, key: &str) -> Result<bool>;
 
     async fn size(&self, key: &str) -> Result<u64>;
+
+    /// Filesystem root for a local backend.
+    ///
+    /// `None` for S3 and other backends that are not a directory on this
+    /// machine. Local ingest uses the root to commit the DRS row before the
+    /// final object name exists.
+    fn local_root(&self) -> Option<&std::path::Path> {
+        None
+    }
 
     /// Append bytes to an object (creates the key when missing).
     async fn append_bytes(&self, key: &str, data: &[u8]) -> Result<()> {

@@ -73,3 +73,59 @@ pub(crate) fn durable_publish(tmp: &Path, final_path: &Path) -> io::Result<()> {
     }
     fsync_parent(final_path)
 }
+
+fn prepare_partial(final_path: &Path) -> io::Result<PathBuf> {
+    if let Some(parent) = final_path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent)?;
+        }
+    }
+    partial_path(final_path)
+}
+
+/// Copy `src` to a sibling partial of `final_path` and fsync it.
+///
+/// The final name is not created. The caller renames with
+/// [`publish_staged_file`] after any database commit that must precede the
+/// final name.
+pub fn stage_file_beside(final_path: &Path, src: &Path) -> io::Result<PathBuf> {
+    let tmp = prepare_partial(final_path)?;
+    let copied = (|| -> io::Result<()> {
+        fs::copy(src, &tmp)?;
+        let file = File::open(&tmp)?;
+        file.sync_all()?;
+        Ok(())
+    })();
+    if let Err(err) = copied {
+        let _ = fs::remove_file(&tmp);
+        return Err(err);
+    }
+    Ok(tmp)
+}
+
+/// Write `bytes` to a sibling partial of `final_path` and fsync it.
+///
+/// The final name is not created. See [`stage_file_beside`].
+pub fn stage_bytes_beside(final_path: &Path, bytes: &[u8]) -> io::Result<PathBuf> {
+    let tmp = prepare_partial(final_path)?;
+    let written = (|| -> io::Result<()> {
+        let mut file = File::create(&tmp)?;
+        file.write_all(bytes)?;
+        file.sync_all()?;
+        Ok(())
+    })();
+    if let Err(err) = written {
+        let _ = fs::remove_file(&tmp);
+        return Err(err);
+    }
+    Ok(tmp)
+}
+
+/// Rename a staged partial onto `final_path` and fsync the directory.
+///
+/// On a rename error the partial is left in place. Startup does not read or
+/// delete `.ferrum-partial-*` files.
+pub fn publish_staged_file(tmp: &Path, final_path: &Path) -> io::Result<()> {
+    fs::rename(tmp, final_path)?;
+    fsync_parent(final_path)
+}
