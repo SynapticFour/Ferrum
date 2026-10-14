@@ -277,7 +277,18 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let mut config = ferrum_core::FerrumConfig::load().ok();
+    let default_bind = ferrum_core::default_bind_for_profile(EDGE_BUILD);
+    // A discovered config.toml that fails to parse used to be discarded here
+    // (`.ok()`), and the process then listened on 0.0.0.0:8080. Fail closed.
+    let mut config = match ferrum_core::FerrumConfig::load_with_bind_default(default_bind) {
+        Ok(cfg) => Some(cfg),
+        Err(err) => {
+            eprintln!(
+                "ferrum: configuration error: {err}\nferrum: refusing to start. A configuration file on the default search path failed to parse. The process will not fall back to {default_bind}."
+            );
+            return Err(err.into());
+        }
+    };
     if let Some(ref mut cfg) = config {
         cfg.apply_embedded_defaults();
         if let Ok(data_dir) = ensure_data_dirs(cfg) {
@@ -337,10 +348,23 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         .and_then(|a| a.max_memory_mb)
         .map(|mb| MemoryCapGuard::spawn_monitor(MemoryCapState::new(mb)));
 
-    let bind: SocketAddr = config
-        .as_ref()
-        .and_then(|c| c.bind.parse().ok())
-        .unwrap_or_else(|| "0.0.0.0:8080".parse().unwrap());
+    let bind: SocketAddr = match config.as_ref().map(|c| c.bind.parse::<SocketAddr>()) {
+        Some(Ok(addr)) => addr,
+        Some(Err(err)) => {
+            let raw = config.as_ref().map(|c| c.bind.as_str()).unwrap_or("");
+            eprintln!(
+                "ferrum: configuration error: bind {raw:?} is not a socket address ({err}). Refusing to start."
+            );
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("invalid bind address: {err}"),
+            )
+            .into());
+        }
+        None => default_bind
+            .parse()
+            .expect("built-in bind address is a socket address"),
+    };
 
     let ferrum_pool: Option<ferrum_core::FerrumPool> = if let Some(ref cfg) = config {
         let result = match embed_mode {

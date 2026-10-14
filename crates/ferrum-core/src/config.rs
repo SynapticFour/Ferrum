@@ -318,6 +318,52 @@ manifest_path = "profiles/mii/custom-manifest.json"
 
         let _ = fs::remove_file(file);
     }
+
+    #[test]
+    fn edge_profile_default_bind_is_loopback() {
+        assert_eq!(
+            super::default_bind_for_profile(true),
+            super::EDGE_DEFAULT_BIND
+        );
+        assert_eq!(super::default_bind_for_profile(false), super::DEFAULT_BIND);
+        assert_eq!(super::EDGE_DEFAULT_BIND, "127.0.0.1:8080");
+        assert_eq!(super::DEFAULT_BIND, "0.0.0.0:8080");
+    }
+
+    #[test]
+    fn edge_default_bind_applies_when_no_file_sets_bind() {
+        let cfg = FerrumConfig::load_from_sources(&[], super::EDGE_DEFAULT_BIND, false)
+            .expect("defaults");
+        assert_eq!(cfg.bind, "127.0.0.1:8080");
+    }
+
+    #[test]
+    fn explicit_bind_overrides_edge_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        fs::write(&path, "bind = \"0.0.0.0:9090\"\n").unwrap();
+        let cfg = FerrumConfig::load_from_sources(&[path], super::EDGE_DEFAULT_BIND, false)
+            .expect("file bind");
+        assert_eq!(cfg.bind, "0.0.0.0:9090");
+    }
+
+    #[test]
+    fn broken_discovered_config_is_an_error_not_a_default_bind() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        // Same shape as the deployment proof: `bind = [` does not parse.
+        fs::write(&path, "bind = [\n").unwrap();
+        let err = FerrumConfig::load_from_sources(&[path], super::EDGE_DEFAULT_BIND, false)
+            .expect_err("parse error must surface");
+        let msg = err.to_string();
+        assert!(
+            msg.to_lowercase().contains("invalid")
+                || msg.to_lowercase().contains("parse")
+                || msg.to_lowercase().contains("toml")
+                || msg.to_lowercase().contains("expected"),
+            "error should name the parse failure, got {msg}"
+        );
+    }
 }
 
 /// SMTP configuration for workspace invite emails.
@@ -394,8 +440,27 @@ fn default_storage_gb_month() -> f64 {
     0.023
 }
 
+/// Full / server profile listen address when `bind` is unset.
+pub const DEFAULT_BIND: &str = "0.0.0.0:8080";
+
+/// Edge profile listen address when `bind` is unset.
+///
+/// The edge binary is one process on a single machine. Loopback is the default
+/// so a missing `bind` does not listen on every interface. A file or
+/// `FERRUM_BIND` that sets `bind` still wins.
+pub const EDGE_DEFAULT_BIND: &str = "127.0.0.1:8080";
+
+/// `edge_profile` is true for the gateway built without the `full` feature.
+pub fn default_bind_for_profile(edge_profile: bool) -> &'static str {
+    if edge_profile {
+        EDGE_DEFAULT_BIND
+    } else {
+        DEFAULT_BIND
+    }
+}
+
 fn default_bind() -> String {
-    "0.0.0.0:8080".to_string()
+    DEFAULT_BIND.to_string()
 }
 
 /// Offline-first / laptop deployment profile for resource-constrained environments.
@@ -1005,11 +1070,20 @@ impl FerrumConfig {
     }
 
     /// Build config from layered sources: defaults, then files (if exist), then env.
-    fn build_builder(explicit_path: Option<&Path>) -> Result<config::Config, config::ConfigError> {
+    ///
+    /// A path that does not exist is skipped. A path that exists and does not
+    /// parse fails the build. Callers must not discard that error: the process
+    /// has no config, and substituting [`DEFAULT_BIND`] would hide the file.
+    fn build_builder(
+        explicit_path: Option<&Path>,
+        discovered: Option<&[PathBuf]>,
+        default_bind: &str,
+        include_env: bool,
+    ) -> Result<config::Config, config::ConfigError> {
         use config::Environment;
 
         let mut builder = config::Config::builder()
-            .set_default("bind", "0.0.0.0:8080")?
+            .set_default("bind", default_bind)?
             .set_default("auth.require_auth", true)?
             .set_default("auth.require_passport_for_bytes", false)?
             .set_default("audit.anonymous_client_ip", "omit")?
@@ -1079,43 +1153,81 @@ impl FerrumConfig {
 
         let paths: Vec<PathBuf> = if let Some(p) = explicit_path {
             vec![p.to_path_buf()]
+        } else if let Some(paths) = discovered {
+            paths.to_vec()
         } else {
             Self::default_paths()
         };
 
         for path in paths {
             if path.exists() {
+                // required(false) skips a missing file. A file that exists and
+                // fails to parse still returns Err from `build`.
                 builder = builder.add_source(config::File::from(path.clone()).required(false));
             }
         }
 
-        builder = builder.add_source(
-            Environment::with_prefix("FERRUM")
-                .prefix_separator("_")
-                .separator("__")
-                .try_parsing(true),
-        );
+        if include_env {
+            builder = builder.add_source(
+                Environment::with_prefix("FERRUM")
+                    .prefix_separator("_")
+                    .separator("__")
+                    .try_parsing(true),
+            );
+        }
 
         builder.build()
     }
 
-    /// Load config from layered defaults: /etc/ferrum, ~/.ferrum, FERRUM_CONFIG, then FERRUM_* env.
-    pub fn load() -> Result<Self, config::ConfigError> {
-        let c = Self::build_builder(None)?;
-        let mut cfg: Self = c.try_deserialize()?;
+    fn finish(built: config::Config) -> Result<Self, config::ConfigError> {
+        let mut cfg: Self = built.try_deserialize()?;
         cfg.resolve_file_secrets();
         cfg.apply_embedded_defaults();
         Ok(cfg)
     }
 
+    /// Load config from layered defaults: /etc/ferrum, ~/.ferrum, FERRUM_CONFIG, then FERRUM_* env.
+    ///
+    /// Parse errors are returned. The gateway must exit on `Err`.
+    pub fn load() -> Result<Self, config::ConfigError> {
+        Self::load_with_bind_default(DEFAULT_BIND)
+    }
+
+    /// Same as [`Self::load`], with `default_bind` used only when no file or
+    /// `FERRUM_BIND` sets `bind`. The edge profile passes [`EDGE_DEFAULT_BIND`].
+    pub fn load_with_bind_default(default_bind: &str) -> Result<Self, config::ConfigError> {
+        let c = Self::build_builder(None, None, default_bind, true)?;
+        Self::finish(c)
+    }
+
     /// Load config from an explicit path (e.g. --config path.toml), then apply env overrides.
     pub fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self, config::ConfigError> {
+        Self::load_from_path_with_bind_default(path, DEFAULT_BIND)
+    }
+
+    /// [`Self::load_from_path`] with an explicit default bind.
+    pub fn load_from_path_with_bind_default<P: AsRef<Path>>(
+        path: P,
+        default_bind: &str,
+    ) -> Result<Self, config::ConfigError> {
         let path = path.as_ref();
-        let c = Self::build_builder(Some(path))?;
-        let mut cfg: Self = c.try_deserialize()?;
-        cfg.resolve_file_secrets();
-        cfg.apply_embedded_defaults();
-        Ok(cfg)
+        let c = Self::build_builder(Some(path), None, default_bind, true)?;
+        Self::finish(c)
+    }
+
+    /// Load the given files only.
+    ///
+    /// Missing paths are skipped. A file that exists and does not parse returns
+    /// the parse error and does not yield a config. `include_env` controls
+    /// `FERRUM_*` overrides. Tests pass `include_env = false` so the machine
+    /// environment cannot hide the file under test.
+    pub fn load_from_sources(
+        paths: &[PathBuf],
+        default_bind: &str,
+        include_env: bool,
+    ) -> Result<Self, config::ConfigError> {
+        let c = Self::build_builder(None, Some(paths), default_bind, include_env)?;
+        Self::finish(c)
     }
 
     /// True when embedded (SQLite + local storage) backends should be used.

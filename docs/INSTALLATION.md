@@ -299,7 +299,7 @@ helm install ferrum ./deploy/helm \
 
 | Section | Option | Type | Default | Description |
 |---------|--------|------|---------|--------------|
-| (root) | `bind` | string | `0.0.0.0:8080` | Listen address |
+| (root) | `bind` | string | `0.0.0.0:8080` (full); `127.0.0.1:8080` (edge) | Listen address. The edge profile is the gateway built without the `full` feature. A configuration file that exists and fails to parse stops the process; it is not replaced by this default. |
 | `[database]` | `url` | string | — | PostgreSQL URL (overrides driver/params) |
 | | `run_migrations` | bool | true | Run migrations on startup |
 | | `max_connections` | u32 | see below | PostgreSQL pool max size; default ≈ `min(100, max(10, 2 × CPU cores))` |

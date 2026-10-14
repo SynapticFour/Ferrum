@@ -42,11 +42,12 @@ pub use auth::{
 };
 pub use clock::{clock_status, ClockStatus, DEFAULT_MAX_SKEW_SECS, DEFAULT_NTP_HOST};
 pub use config::{
-    AfricaProfile, AggregateStrategy, AppConfig, AuditConfig, AuthConfig, AuthMode,
-    BandwidthConfig, DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig,
+    default_bind_for_profile, AfricaProfile, AggregateStrategy, AppConfig, AuditConfig, AuthConfig,
+    AuthMode, BandwidthConfig, DatabaseConfig, DiscoveryConfig, EncryptionConfig, FederationConfig,
     FerrumConfig, FerrumPeerConfig, IngestConfig, MetadataStoreConfig, MultiQCConfig,
     OperationsConfig, OutbreakConfig, OutbreakPolicy, PowerConfig, PricingConfig, PricingTier,
     SecurityConfig, ServicesConfig, SolumConfig, StorageConfig, SyncConfig, WesServiceConfig,
+    DEFAULT_BIND, EDGE_DEFAULT_BIND,
 };
 pub use db::DatabasePool;
 pub use denied_audit::{
