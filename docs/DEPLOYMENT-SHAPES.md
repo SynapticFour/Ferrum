@@ -14,14 +14,14 @@ What each shape **needs**, and what is **verified**. Helix baseline: HelixTest a
 
 ## “One gateway” means
 
-**One HTTP process** exposing DRS/WES/TES/TRS/Beacon/htsget — not “zero dependencies.”
+The **full** gateway is one HTTP process for DRS, WES, TES, TRS, Beacon, htsget, Passports, and Crypt4GH — not “zero dependencies.”
 
-- **Edge:** one process + local disk (+ SQLite).
-- **Full demo:** that process **plus** Postgres and object storage (and usually an IdP/broker for Passports).
+- **Edge binary:** DRS, Beacon, htsget, and Crypt4GH, in one process with local disk and SQLite. It does not serve WES, TES, TRS, or Passports.
+- **Full demo:** the full gateway process **plus** Postgres and object storage (and usually an IdP/broker for Passports).
 
 ## “All APIs in one offline binary”
 
-**Not verified** as a single claim. The release ships gateway tarballs and (optionally) an offline *image* bundle for the Compose demo shape. Edge native binary covers APIs with local storage; it is not the same artifact as the full Compose offline tarball. Treat “offline” as shape-specific until an operator records a successful air-gapped run ([documented-not-verified](#shapes) for edge offline bundle).
+**Not verified** as a single claim. The release ships gateway tarballs and (optionally) an offline *image* bundle for the Compose demo shape. The edge binary serves DRS, Beacon, htsget, and Crypt4GH with local storage. It does not serve WES, TES, TRS, or Passports, and it is not the same artifact as the full Compose offline tarball. Treat “offline” as shape-specific until an operator records a successful air-gapped run ([documented-not-verified](#shapes) for edge offline bundle).
 
 ## Object storage
 
