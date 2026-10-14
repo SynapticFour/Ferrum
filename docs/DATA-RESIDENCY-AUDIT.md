@@ -5,7 +5,7 @@ Ferrum maintains an **append-only, cryptographically chained** audit log of data
 ## Properties
 
 - **Append-only** — rows cannot be updated or deleted via SQL triggers or HTTP API.
-- **Chained** — each entry includes `prev_hash` (SHA-256 of the prior entry) and `entry_hash` (SHA-256 of canonical JSON for this row).
+- **Chained** — each entry includes `prev_hash` (SHA-256 of the prior entry) and `entry_hash` (SHA-256 of canonical JSON for this row). The previous hash is read and the new row is inserted in one transaction, so concurrent appends keep a single chain.
 - **Dual backend** — PostgreSQL and SQLite (Laptop Mode).
 
 ## Schema
@@ -68,8 +68,9 @@ There is no `entries` array, no `requester`, no `drs_id`, and no event payload. 
 |-------|--------------|------------------|
 | DRS access URL | `data_accessed` | false |
 | DRS `/stream` | `data_downloaded` | true |
-| ONT / register ingest | `data_uploaded` | false |
-| ONT ingest with provenance | `collection_recorded` | false (`destination` holds JSON: collector, geo, metadata_ref) |
+| ONT ingest | `data_uploaded` | false. Uses `append_warn`: a failed insert is logged and the object can still be stored. That path is not fail-closed. |
+| `POST /api/v1/ingest/register` | `data_uploaded` | false. When a residency log is configured, uses `append`. A failed insert fails the request and the new object row is deleted. There is no setting that makes register ignore the error. When no log is configured, no row is written. |
+| ONT ingest with provenance | `collection_recorded` | false (`destination` holds JSON: collector, geo, metadata_ref). Uses `append_warn`. |
 | Beacon query | `beacon_query` | false |
 | Federation fan-out | `peer_query_sent` | false |
 
@@ -79,6 +80,12 @@ Outbreak activations should also be logged (see [OUTBREAK-MODE.md](OUTBREAK-MODE
 
 1. Export entries via the query API (or DB backup).
 2. Call `/verify` after incidents or audits.
-3. Any tampering with historical rows breaks `chain_valid`.
+3. Any tampering with historical rows breaks `chain_valid` while the append-only triggers remain.
+
+## When an audit write fails
+
+`append` returns the error. Callers that propagate it fail the request. That is fail-closed. There is no configuration flag that turns a failed `append` into success.
+
+`append_warn` logs the error and returns. The caller continues. ONT ingest uses `append_warn`. `POST /api/v1/ingest/register` does not.
 
 Genesis hash: 64 zero hex digits (`000…000`).

@@ -2,12 +2,17 @@
 //! Append-only cryptographically chained data residency audit log.
 //! Timestamps in the hash are microsecond Zulu so Postgres timestamptz round-trips
 //! match (`to_rfc3339()` nanos / `+00:00` vs `Z` used to break `chain_valid`).
+//!
+//! Appends take the previous hash and insert the new row in one transaction.
+//! A failed `append` returns the error (fail closed for callers that propagate
+//! it). `append_warn` logs the error and returns; that is not fail-closed.
 
 use crate::error::{FerrumError, Result};
 use crate::pool::FerrumPool;
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use sqlx::Connection;
 
 pub const GENESIS_HASH: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -42,13 +47,32 @@ pub struct ResidencyVerifyResult {
 
 pub struct ResidencyAuditLog {
     pool: FerrumPool,
+    /// One in-process writer at a time. The database transaction in `append`
+    /// also serializes writers that do not share this mutex.
+    write_lock: tokio::sync::Mutex<()>,
 }
+
+/// Postgres advisory lock held for the duration of one audit insert.
+const RESIDENCY_APPEND_LOCK: i64 = 4_829_100_174;
 
 impl ResidencyAuditLog {
     pub fn new(pool: FerrumPool) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            write_lock: tokio::sync::Mutex::new(()),
+        }
     }
 
+    /// Append one residency row and return its id.
+    ///
+    /// The previous hash is read and the new row is inserted in one
+    /// transaction (`BEGIN IMMEDIATE` on SQLite, `pg_advisory_xact_lock` on
+    /// Postgres). Concurrent appends therefore extend one chain.
+    ///
+    /// A failed insert returns `Err`. Callers that move or register bytes and
+    /// use this method fail the request (fail closed). There is no setting
+    /// that turns a failed `append` into success. [`Self::append_warn`] logs
+    /// the error and returns; that path is not fail-closed.
     pub async fn append(
         &self,
         event_type: &str,
@@ -58,58 +82,39 @@ impl ResidencyAuditLog {
         data_left_node: bool,
         bytes_transferred: Option<i64>,
     ) -> Result<i64> {
-        let prev_hash = self.last_entry_hash().await?;
-        let timestamp = timestamp_for_hash(Utc::now());
-        let canonical = canonical_json(&CanonicalAuditFields {
-            timestamp: &timestamp,
-            event_type,
-            drs_id,
-            requester,
-            destination,
-            data_left_node,
-            bytes_transferred,
-            prev_hash: &prev_hash,
-        });
-        let entry_hash = sha256_hex(&canonical);
-
-        let sql = "INSERT INTO residency_audit
-            (timestamp, event_type, drs_id, requester, destination, data_left_node, bytes_transferred, prev_hash, entry_hash)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING id";
-        let id: i64 = match &self.pool {
-            FerrumPool::Postgres(p) => {
-                sqlx::query_scalar(sql)
-                    .bind(timestamp)
-                    .bind(event_type)
-                    .bind(drs_id)
-                    .bind(requester)
-                    .bind(destination)
-                    .bind(data_left_node)
-                    .bind(bytes_transferred)
-                    .bind(&prev_hash)
-                    .bind(&entry_hash)
-                    .fetch_one(p)
-                    .await?
+        let _guard = self.write_lock.lock().await;
+        match &self.pool {
+            FerrumPool::Sqlite(pool) => {
+                append_sqlite(
+                    pool,
+                    event_type,
+                    drs_id,
+                    requester,
+                    destination,
+                    data_left_node,
+                    bytes_transferred,
+                )
+                .await
             }
-            FerrumPool::Sqlite(p) => {
-                sqlx::query_scalar(sql)
-                    .bind(canonical_timestamp(&timestamp))
-                    .bind(event_type)
-                    .bind(drs_id)
-                    .bind(requester)
-                    .bind(destination)
-                    .bind(data_left_node)
-                    .bind(bytes_transferred)
-                    .bind(&prev_hash)
-                    .bind(&entry_hash)
-                    .fetch_one(p)
-                    .await?
+            FerrumPool::Postgres(pool) => {
+                append_postgres(
+                    pool,
+                    event_type,
+                    drs_id,
+                    requester,
+                    destination,
+                    data_left_node,
+                    bytes_transferred,
+                )
+                .await
             }
-        };
-        Ok(id)
+        }
     }
 
-    /// Append an audit row; log a warning instead of dropping the error silently.
+    /// Append an audit row and log a warning if the insert fails.
+    ///
+    /// This is not fail-closed. The caller continues when the insert fails.
+    /// `POST /api/v1/ingest/register` does not use this method.
     pub async fn append_warn(
         &self,
         event_type: &str,
@@ -175,15 +180,6 @@ impl ResidencyAuditLog {
         })
     }
 
-    async fn last_entry_hash(&self) -> Result<String> {
-        let sql = "SELECT entry_hash FROM residency_audit ORDER BY id DESC LIMIT 1";
-        let hash: Option<String> = match &self.pool {
-            FerrumPool::Postgres(p) => sqlx::query_scalar(sql).fetch_optional(p).await?,
-            FerrumPool::Sqlite(p) => sqlx::query_scalar(sql).fetch_optional(p).await?,
-        };
-        Ok(hash.unwrap_or_else(|| GENESIS_HASH.to_string()))
-    }
-
     async fn fetch_all_ordered(&self) -> Result<Vec<ResidencyAuditEntry>> {
         self.fetch_filtered(None, None, None, true).await
     }
@@ -243,6 +239,132 @@ impl ResidencyAuditLog {
             }
         }
     }
+}
+
+const INSERT_SQL: &str = "INSERT INTO residency_audit
+    (timestamp, event_type, drs_id, requester, destination, data_left_node, bytes_transferred, prev_hash, entry_hash)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING id";
+
+struct PreparedAudit {
+    timestamp: DateTime<Utc>,
+    prev_hash: String,
+    entry_hash: String,
+}
+
+fn prepare_audit(
+    prev_hash: String,
+    event_type: &str,
+    drs_id: Option<&str>,
+    requester: Option<&str>,
+    destination: Option<&str>,
+    data_left_node: bool,
+    bytes_transferred: Option<i64>,
+) -> PreparedAudit {
+    let timestamp = timestamp_for_hash(Utc::now());
+    let canonical = canonical_json(&CanonicalAuditFields {
+        timestamp: &timestamp,
+        event_type,
+        drs_id,
+        requester,
+        destination,
+        data_left_node,
+        bytes_transferred,
+        prev_hash: &prev_hash,
+    });
+    PreparedAudit {
+        timestamp,
+        entry_hash: sha256_hex(&canonical),
+        prev_hash,
+    }
+}
+
+async fn append_sqlite(
+    pool: &sqlx::SqlitePool,
+    event_type: &str,
+    drs_id: Option<&str>,
+    requester: Option<&str>,
+    destination: Option<&str>,
+    data_left_node: bool,
+    bytes_transferred: Option<i64>,
+) -> Result<i64> {
+    let mut conn = pool.acquire().await?;
+    sqlx::query("PRAGMA busy_timeout = 8000")
+        .execute(&mut *conn)
+        .await?;
+    let mut tx = conn.begin_with("BEGIN IMMEDIATE").await?;
+    let prev_hash: String =
+        sqlx::query_scalar("SELECT entry_hash FROM residency_audit ORDER BY id DESC LIMIT 1")
+            .fetch_optional(&mut *tx)
+            .await?
+            .unwrap_or_else(|| GENESIS_HASH.to_string());
+    let row = prepare_audit(
+        prev_hash,
+        event_type,
+        drs_id,
+        requester,
+        destination,
+        data_left_node,
+        bytes_transferred,
+    );
+    let id: i64 = sqlx::query_scalar(INSERT_SQL)
+        .bind(canonical_timestamp(&row.timestamp))
+        .bind(event_type)
+        .bind(drs_id)
+        .bind(requester)
+        .bind(destination)
+        .bind(data_left_node)
+        .bind(bytes_transferred)
+        .bind(&row.prev_hash)
+        .bind(&row.entry_hash)
+        .fetch_one(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(id)
+}
+
+async fn append_postgres(
+    pool: &sqlx::PgPool,
+    event_type: &str,
+    drs_id: Option<&str>,
+    requester: Option<&str>,
+    destination: Option<&str>,
+    data_left_node: bool,
+    bytes_transferred: Option<i64>,
+) -> Result<i64> {
+    let mut tx = pool.begin().await?;
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(RESIDENCY_APPEND_LOCK)
+        .execute(&mut *tx)
+        .await?;
+    let prev_hash: String =
+        sqlx::query_scalar("SELECT entry_hash FROM residency_audit ORDER BY id DESC LIMIT 1")
+            .fetch_optional(&mut *tx)
+            .await?
+            .unwrap_or_else(|| GENESIS_HASH.to_string());
+    let row = prepare_audit(
+        prev_hash,
+        event_type,
+        drs_id,
+        requester,
+        destination,
+        data_left_node,
+        bytes_transferred,
+    );
+    let id: i64 = sqlx::query_scalar(INSERT_SQL)
+        .bind(row.timestamp)
+        .bind(event_type)
+        .bind(drs_id)
+        .bind(requester)
+        .bind(destination)
+        .bind(data_left_node)
+        .bind(bytes_transferred)
+        .bind(&row.prev_hash)
+        .bind(&row.entry_hash)
+        .fetch_one(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(id)
 }
 
 #[derive(sqlx::FromRow)]
