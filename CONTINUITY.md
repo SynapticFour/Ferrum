@@ -2,7 +2,7 @@
 
 Survivability notes for operators and successors. Describes **what is true on `origin/main` today**, not a roadmap. Not legal advice.
 
-**Audited revision:** `origin/main` @ `8d72bc4ddba571840341c36398fb03b2db173321`. Latest tag on origin: `v0.3.3` (same commit as this main tip). Crate versions on main (`ferrum-core`, `ferrum-cli`, `ferrum-gateway`): `0.3.3`.
+Checked on 2026-10-14. Release tags: `git tag` (do not copy a tag into this file). Companion pins and crate versions: `VERSIONS.lock`.
 
 ## What this project is
 
@@ -28,7 +28,8 @@ Related public repos (separate versioning): [ga4gh-infra](https://github.com/Syn
 ```bash
 git clone https://github.com/SynapticFour/Ferrum.git
 cd Ferrum
-git checkout v0.3.3   # or another annotated tag; use a tag that exists on origin
+git tag -l 'v*'       # pick a tag that exists; pins for a release are in VERSIONS.lock
+git checkout <tag>
 # For current main instead of a tag:
 # git checkout main && git pull
 ```
