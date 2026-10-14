@@ -1,6 +1,6 @@
 # Crypt4GH: Transparent Encryption
 
-> Ferrum can store data encrypted at rest using Crypt4GH. By default, downloads can be **re-wrapped** for the requester’s public key (Crypt4GH on the wire). Optionally, **`GET /ga4gh/drs/v1/objects/{id}/stream`** decrypts server-side and sends **plaintext** over TLS so clients without a Crypt4GH library still see the logical file (see below).
+> Ferrum stores data encrypted at rest using the vendored Crypt4GH fork at `third_party/crypt4gh` (upstream crypt4gh 0.4.1, Apache-2.0; see `third_party/crypt4gh/NOTICE`). By default, downloads can be **re-wrapped** for the requester’s public key (Crypt4GH on the wire). Optionally, **`GET /ga4gh/drs/v1/objects/{id}/stream`** decrypts server-side and sends **plaintext** over TLS so clients without a Crypt4GH library still see the logical file (see below).
 
 This document describes how Crypt4GH works, Ferrum’s header re-wrapping extension, the DRS **stream** endpoint, security invariants, key management, and client usage.
 
