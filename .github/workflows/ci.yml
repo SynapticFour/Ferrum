@@ -92,14 +92,14 @@ jobs:
       - name: Run ferrum-embed Edge mode tests (isolated network)
         run: |
           if command -v unshare >/dev/null 2>&1; then
-            unshare --net cargo test -p ferrum-embed || cargo test -p ferrum-embed
+            unshare --net cargo test --locked -p ferrum-embed || cargo test --locked -p ferrum-embed
           else
-            cargo test -p ferrum-embed
+            cargo test --locked -p ferrum-embed
           fi
       - name: Build optimized edge gateway + CLI
         run: |
           ./scripts/build-edge-native.sh --no-native-cpu
-          cargo build -p ferrum-cli
+          cargo build --locked -p ferrum-cli
       - name: ferrum-meta validate fixtures
         run: |
           for f in profiles/meta/fixtures/*.yaml; do
@@ -154,7 +154,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: ./.github/actions/rust-deps
       - name: Build ferrum-gateway (release-edge, ARM64)
-        run: cargo build -p ferrum-gateway --features edge --profile release-edge
+        run: cargo build --locked -p ferrum-gateway --features edge --profile release-edge
       - name: ARM64 gateway binary size check (50 MB budget)
         run: |
           BIN=target/release-edge/ferrum-gateway
