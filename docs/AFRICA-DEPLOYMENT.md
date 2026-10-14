@@ -181,7 +181,7 @@ See [PERFORMANCE.md](../PERFORMANCE.md) for benchmark methodology and CI size ta
 
 ### Native optimized build (recommended)
 
-Ferrum ships a **single optimized binary** for Edge mode: DRS + Beacon + htsget + Crypt4GH on SQLite (no WES/TES/TRS/Postgres in the binary). GitHub Releases and `install.sh --offline` use this build.
+Ferrum ships a **single optimized binary** for Edge mode: DRS + Beacon + htsget + Crypt4GH on SQLite. That binary does not serve WES, TES, TRS, or Passports, and it does not include Postgres. GitHub Releases and `install.sh --offline` use this build.
 
 **Simplest path** — auto-detect OS, CPU, and apply native optimizations:
 
@@ -234,7 +234,7 @@ See also: [deployment README](deployment/README.md), [INSTALLATION.md](INSTALLAT
 
 ## Nanopore Ingestion
 
-Field labs in Africa predominantly use **Oxford Nanopore MinION** sequencers. Ferrum ingests raw ONT files (POD5/FAST5/BLOW5) or pre-basecalled FASTQ via:
+Field labs in Africa predominantly use **Oxford Nanopore MinION** sequencers. Ferrum stores uploaded POD5, FAST5, BLOW5, or FASTQ bytes as a DRS object and can store caller-supplied `ont_metrics`. It does not parse those containers or compute Q-score or N50. `validate_ingest_request` checks non-empty `run_id`, `sample_id`, and `organism`, and requires `dorado_basecalled=true` for FASTQ. It does not open the file. Basecalling stays outside Ferrum.
 
 ```http
 POST /api/v1/ingest/ont
@@ -259,9 +259,9 @@ CI proves the same watch-folder path with **simulated** POD5 stubs (`make minion
 
 See [profiles/meta/README.md](../profiles/meta/README.md) and [METADATA-STORE.md](METADATA-STORE.md).
 
-Basecalling runs **externally** (Dorado/Guppy). Ferrum stores the canonical DRS object plus optional `ont_metrics` JSON on `drs_objects.ont_metrics`. Pathogen organism tags are written to `pathogen_annotations` for Beacon queries. ferrum-meta bundles are validated offline and linked via `metadata_ref`.
+Basecalling runs **externally** (Dorado/Guppy). Ferrum stores the uploaded bytes as a DRS object and can store optional caller-supplied `ont_metrics` JSON on `drs_objects.ont_metrics`. It does not compute those metrics from the file. Pathogen organism tags from the request are written to `pathogen_annotations` for Beacon queries. ferrum-meta bundles are validated offline and linked via `metadata_ref`.
 
-WES workflow template: [`tools/workflows/ont-qc.wdl`](../tools/workflows/ont-qc.wdl) (NanoStat/NanoPlot → metrics back via ingest).
+[`tools/workflows/ont-qc.wdl`](../tools/workflows/ont-qc.wdl) echoes fixed strings (`mean_qscore=12.5`, `read_count=10000`, `n50=15000`) and a curl line. It does not run NanoStat or NanoPlot.
 
 See [INGEST-LAB-KIT.md](INGEST-LAB-KIT.md#ont-nanopore-ingestion).
 

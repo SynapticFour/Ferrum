@@ -195,7 +195,7 @@ Verify DRS: `GET $BASE/ga4gh/drs/v1/objects/<object_id>`.
 
 | Path | Purpose |
 |------|---------|
-| `POST /api/v1/ingest/ont` | Multipart ingest of POD5/FAST5/BLOW5 or pre-basecalled FASTQ |
+| `POST /api/v1/ingest/ont` | Stores a non-empty multipart `file` under a caller-declared POD5, FAST5, BLOW5, or FASTQ label, plus caller-supplied quality fields when sent. Does not parse those formats or compute Q-score or N50. |
 
 **Fields:**
 
@@ -203,7 +203,7 @@ Verify DRS: `GET $BASE/ga4gh/drs/v1/objects/<object_id>`.
 |------|---------|
 | `ont_metadata` | JSON [`OntIngestRequest`](../crates/ferrum-ont/src/types.rs): `format`, `run_id`, `sample_id`, `organism`, `dorado_basecalled`, optional `quality_metrics`, optional provenance (`collector`, `collected_at`, `location_label`, `latitude`, `longitude`) |
 | `ferrum_meta` | Optional YAML or JSON ferrum-meta submission; validated and linked as `metadata_ref` on created object(s) |
-| `file` | Raw ONT file bytes (POD5/FAST5/BLOW5) |
+| `file` | Uploaded bytes stored as declared (POD5/FAST5/BLOW5/FASTQ). Not parsed. |
 | `fastq_file` | Optional pre-basecalled FASTQ; when present, Ferrum creates a **bundle** (raw member + FASTQ member) |
 
 Example `ont_metadata`:

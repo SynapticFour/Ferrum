@@ -1,6 +1,6 @@
 # External ONT basecalling (Dorado / Guppy)
 
-Ferrum **does not** run basecalling on Edge nodes. MinKNOW produces raw POD5/FAST5/BLOW5; **Dorado** (GPU) or **Guppy** (legacy) runs on a laptop, eGPU enclosure, or hub GPU pool. Ferrum ingests the **basecalled FASTQ** (or raw archive) via `POST /api/v1/ingest/ont`.
+Ferrum **does not** run basecalling on Edge nodes. MinKNOW produces raw POD5/FAST5/BLOW5; **Dorado** (GPU) or **Guppy** (legacy) runs on a laptop, eGPU enclosure, or hub GPU pool. `POST /api/v1/ingest/ont` stores the uploaded FASTQ or raw-archive bytes and any caller-supplied quality metrics. Ferrum does not parse POD5, FAST5, or BLOW5 and does not compute Q-score or N50.
 
 ## Recommended field workflow
 
