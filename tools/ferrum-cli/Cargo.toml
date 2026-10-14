@@ -4,6 +4,8 @@ version = "0.3.5"
 edition = "2021"
 description = "CLI for Ferrum management"
 license = "BUSL-1.1"
+# Name is taken on crates.io by an unrelated crate. Do not publish.
+publish = false
 
 [[bin]]
 name = "ferrum"
