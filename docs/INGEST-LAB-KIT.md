@@ -52,8 +52,12 @@ Env overlay: `FERRUM_INGEST__DEFAULT_ENCRYPT_UPLOAD`, `FERRUM_INGEST__MAX_UPLOAD
 
 **Storage:**
 
-- `storage.backend = "s3"` → S3-compatible `put_bytes`; DRS `storage_references.storage_backend` is the configured backend name (e.g. `s3`).
+- `storage.backend = "s3"` → S3-compatible `put_bytes`; DRS `storage_references.storage_backend` is the configured backend name (e.g. `s3`). S3 is not in the same transaction as the DRS row. A process death can leave a bucket object without a row, or a row whose key is not in the bucket.
 - Otherwise the gateway uses **`LocalStorage`** under `storage.base_path` or `./ferrum-blobs` by default, and records `storage.backend` in DRS (e.g. `local`).
+
+`create_object_with_id` inserts the object row, checksums, storage reference, and access method in one database transaction. Process death rolls that transaction back, so a `drs_objects` row is not left without a storage reference.
+
+For local storage, ingest copies bytes to a `.ferrum-partial-*` file in the same directory, fsyncs that file, commits the transaction, then renames the partial onto the final key. Startup removes those partials from the object directory when they are older than one hour, and does not delete other files. A partial is not a DRS object. A kill before commit leaves no row and no file at the final key. A kill after commit and before rename leaves a row that has a storage reference and a partial, with the final key absent, until that hour passes.
 
 ## Idempotency
 

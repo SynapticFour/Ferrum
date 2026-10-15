@@ -5,7 +5,7 @@ Ferrum keeps hash-chained rows for the residency events that are recorded. Each 
 ## Properties
 
 - **Append-only** — rows cannot be updated or deleted via SQL triggers or HTTP API.
-- **Chained** — each entry includes `prev_hash` (SHA-256 of the prior entry) and `entry_hash` (SHA-256 of canonical JSON for this row).
+- **Chained** — each entry includes `prev_hash` (SHA-256 of the prior entry) and `entry_hash` (SHA-256 of canonical JSON for this row). The previous hash is read and the new row is inserted in one transaction, so concurrent appends keep a single chain.
 - **Dual backend** — PostgreSQL and SQLite (Laptop Mode).
 
 ## Schema
@@ -68,8 +68,9 @@ There is no `entries` array, no `requester`, no `drs_id`, and no event payload. 
 |-------|--------------|------------------|
 | DRS access URL | `data_accessed` | false |
 | DRS `/stream` | `data_downloaded` | true |
-| ONT multipart ingest | `data_uploaded` | false, when a residency log is configured and the insert succeeds. `POST /api/v1/ingest/register` does not append. A failed insert is logged and the object can still be stored. |
-| ONT ingest with provenance | `collection_recorded` | false (`destination` holds JSON: collector, geo, metadata_ref) |
+| ONT multipart ingest | `data_uploaded` | false, when a residency log is configured and the insert succeeds. Uses `append_warn`: a failed insert is logged and the object can still be stored. That path is not fail-closed. |
+| `POST /api/v1/ingest/register` | `data_uploaded` | false. When a residency log is configured, uses `append`. A failed insert fails the request and the new object row is deleted. If that delete also fails, the request is still an error and the object may remain. There is no setting that makes register ignore the error. When no log is configured, no row is written. This path does not use `append_warn`. |
+| ONT ingest with provenance | `collection_recorded` | false (`destination` holds JSON: collector, geo, metadata_ref). Uses `append_warn`. |
 | Beacon query | `beacon_query` | false |
 | Federation fan-out | `peer_query_sent` | false |
 
@@ -80,5 +81,11 @@ Outbreak activations should also be logged (see [OUTBREAK-MODE.md](OUTBREAK-MODE
 1. Export entries via the query API (or DB backup).
 2. Call `/verify` after incidents or audits.
 3. `chain_valid` covers the rows that are still in the table. While the triggers exist, UPDATE and DELETE are rejected. After the triggers are dropped, a holder of the database file can replace the table with a new chain that verifies. A filtered query can report `chain_valid` false while the full chain verifies. `data_left_node` is the boolean stored on the row. It is not a check against an institution boundary.
+
+## When an audit write fails
+
+`append` returns the error. Callers that propagate it fail the request. That is fail-closed. There is no configuration flag that turns a failed `append` into success.
+
+`append_warn` logs the error and returns. The caller continues. ONT multipart ingest uses `append_warn`. `POST /api/v1/ingest/register` does not use `append_warn`.
 
 Genesis hash: 64 zero hex digits (`000…000`).

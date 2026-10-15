@@ -180,12 +180,10 @@ async fn verify_expected_sha256(path: &Path, expected: &str) -> Result<()> {
     Ok(())
 }
 
-async fn encrypt_spool_to_storage(
+async fn encrypt_spool_to_temp(
     state: &AppState,
-    storage: &Arc<dyn ferrum_storage::ObjectStorage>,
-    storage_key: &str,
     spool_path: &Path,
-) -> Result<i64> {
+) -> Result<(tempfile::NamedTempFile, i64)> {
     ensure_crypt4gh_ingest_ready(state).await?;
     let key_dir = state.crypt4gh_key_dir.as_ref().expect("checked above");
     let ks = LocalKeyStore::new(key_dir.as_path());
@@ -213,11 +211,55 @@ async fn encrypt_spool_to_storage(
         .await
         .map_err(|e| DrsError::Other(e.into()))?
         .len() as i64;
-    storage
-        .put_file(storage_key, &enc_path)
-        .await
-        .map_err(|e| DrsError::Other(e.into()))?;
-    Ok(size)
+    Ok((enc_temp, size))
+}
+
+enum StoredSource<'a> {
+    File(&'a Path),
+    Bytes(&'a [u8]),
+}
+
+/// Local backends commit the DRS row before the final file name exists.
+/// S3 and other non-local backends stay put-then-insert: those bytes are not
+/// in the SQL transaction, so process death can still leave a remote object
+/// without a row.
+async fn register_stored_object(
+    storage: &Arc<dyn ferrum_storage::ObjectStorage>,
+    repo: &crate::repo::DrsRepo,
+    req: &CreateObjectRequest,
+    object_id: &str,
+    source: StoredSource<'_>,
+) -> Result<()> {
+    if let Some(root) = storage.local_root() {
+        match source {
+            StoredSource::File(path) => {
+                repo.create_local_object_from_file(root, path, req, Some(object_id.to_string()))
+                    .await?;
+            }
+            StoredSource::Bytes(bytes) => {
+                repo.create_local_object_from_bytes(root, bytes, req, Some(object_id.to_string()))
+                    .await?;
+            }
+        }
+        return Ok(());
+    }
+    match source {
+        StoredSource::File(path) => {
+            storage
+                .put_file(&req.storage_key, path)
+                .await
+                .map_err(|e| DrsError::Other(e.into()))?;
+        }
+        StoredSource::Bytes(bytes) => {
+            storage
+                .put_bytes(&req.storage_key, bytes)
+                .await
+                .map_err(|e| DrsError::Other(e.into()))?;
+        }
+    }
+    repo.create_object_with_id(req, Some(object_id.to_string()))
+        .await?;
+    Ok(())
 }
 
 fn reject_anonymous_ingest(state: &AppState) -> Result<()> {
@@ -323,10 +365,6 @@ pub async fn process_upload_from_parts(
     let size = data.len() as i64;
     let object_id = ulid::Ulid::new().to_string();
     let storage_key = format!("drs/{}", object_id);
-    storage
-        .put_bytes(&storage_key, &data)
-        .await
-        .map_err(|e| DrsError::Other(e.into()))?;
     let backend = state.object_storage_backend.clone();
     let req = CreateObjectRequest {
         name: object_name.or_else(|| Some(storage_key.clone())),
@@ -343,10 +381,14 @@ pub async fn process_upload_from_parts(
         gisaid_metadata: None,
         metadata_ref: None,
     };
-    state
-        .repo
-        .create_object_with_id(&req, Some(object_id.clone()))
-        .await?;
+    register_stored_object(
+        &storage,
+        state.repo.as_ref(),
+        &req,
+        &object_id,
+        StoredSource::Bytes(&data),
+    )
+    .await?;
 
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.and_then(|c| c.sub());
@@ -454,21 +496,25 @@ pub async fn process_upload_from_spooled(
     let storage_key = format!("drs/{}", object_id);
     let backend = state.object_storage_backend.clone();
 
-    let stored_size: i64 = if encrypt {
+    let encrypted = if encrypt {
         if let Some(ref expected) = parsed.expected_sha256 {
             verify_expected_sha256(&spool_path, expected).await?;
         }
-        encrypt_spool_to_storage(state.as_ref(), &storage, &storage_key, &spool_path).await?
+        Some(encrypt_spool_to_temp(state.as_ref(), &spool_path).await?)
     } else {
         if let Some(ref expected) = parsed.expected_sha256 {
             verify_expected_sha256(&spool_path, expected).await?;
         }
-        storage
-            .put_file(&storage_key, &spool_path)
-            .await
-            .map_err(|e| DrsError::Other(e.into()))?;
-        spool_size as i64
+        None
     };
+    let stored_size: i64 = encrypted
+        .as_ref()
+        .map(|(_, size)| *size)
+        .unwrap_or(spool_size as i64);
+    let source_path = encrypted
+        .as_ref()
+        .map(|(file, _)| file.path())
+        .unwrap_or(spool_path.as_path());
 
     parsed.data.clear();
     let req = CreateObjectRequest {
@@ -486,10 +532,14 @@ pub async fn process_upload_from_spooled(
         gisaid_metadata: None,
         metadata_ref: None,
     };
-    state
-        .repo
-        .create_object_with_id(&req, Some(object_id.clone()))
-        .await?;
+    register_stored_object(
+        &storage,
+        state.repo.as_ref(),
+        &req,
+        &object_id,
+        StoredSource::File(source_path),
+    )
+    .await?;
 
     if let Some(ref audit) = state.residency_audit {
         let requester = auth.and_then(|c| c.sub());
@@ -839,10 +889,6 @@ pub async fn ingest_batch(
                 let size = data.len() as i64;
                 let object_id = ulid::Ulid::new().to_string();
                 let storage_key = format!("drs/{}", object_id);
-                storage
-                    .put_bytes(&storage_key, &data)
-                    .await
-                    .map_err(|e| DrsError::Other(e.into()))?;
                 let create = CreateObjectRequest {
                     name: name.or(Some(path)),
                     description: None,
@@ -859,10 +905,15 @@ pub async fn ingest_batch(
                     gisaid_metadata: None,
                     metadata_ref: None,
                 };
-                let id = state
-                    .repo
-                    .create_object_with_id(&create, Some(object_id))
-                    .await?;
+                register_stored_object(
+                    storage,
+                    state.repo.as_ref(),
+                    &create,
+                    &object_id,
+                    StoredSource::Bytes(&data),
+                )
+                .await?;
+                let id = object_id;
 
                 state.repo.set_checksum_status(&id, "pending").await?;
 

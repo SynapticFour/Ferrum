@@ -22,6 +22,10 @@ ferrum demo start --edge
 
 That single command starts **ferrum-gateway** in Edge mode with SQLite + local storage. No Docker, PostgreSQL, or MinIO required.
 
+## Reaching an edge node from the network
+
+The edge profile listens on `127.0.0.1:8080` when neither a config file nor `FERRUM_BIND` sets `bind`. The full profile stays `0.0.0.0:8080`. Set `FERRUM_BIND` (for example `0.0.0.0:8080` inside a container) and control exposure with the published port or a firewall. A loopback bind inside a container is not reachable from the LAN or from another container. Ferrum-Lab-Kit sets `FERRUM_BIND` explicitly. The Demo Pi installer and village compose need the same explicit bind (see `_review/edge-bind-usage.md`).
+
 Alternative equivalents:
 
 ```bash
@@ -326,7 +330,7 @@ Reads Linux `/sys/class/power_supply/` (macOS: `pmset`) when `[power] enabled = 
 |------|---------|--------|
 | `HighPerformance` | AC power | All features |
 | `LowPower` | Battery &lt; 50% | Max 4 concurrent requests; background checksum/index work paused |
-| `Emergency` | Battery &lt; 10% | Refuse new connections; write `~/.ferrum/CHECKPOINT`; exit after 30s drain |
+| `Emergency` | Battery &lt; 10%, source is not AC, and `[power] enabled` | Refuse new connections; write `~/.ferrum/CHECKPOINT`; exit after 30s drain. Startup does not read that file. It is a shutdown note, not recovery. |
 
 Override: `FERRUM_POWER_MODE=low_power|emergency|high_performance`.
 

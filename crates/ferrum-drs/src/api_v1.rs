@@ -292,7 +292,8 @@ async fn do_register(
 
     let mut object_ids = Vec::new();
     let mut self_uris = Vec::new();
-    let r = process_register_items(&state, &body, &mut object_ids, &mut self_uris).await;
+    let requester = auth.as_ref().and_then(|e| e.0.sub());
+    let r = process_register_items(&state, &body, requester, &mut object_ids, &mut self_uris).await;
     match r {
         Ok(()) => {
             let result = json!({
@@ -326,6 +327,7 @@ async fn do_register(
 async fn process_register_items(
     state: &AppState,
     body: &RegisterRequest,
+    requester: Option<&str>,
     object_ids: &mut Vec<String>,
     self_uris: &mut Vec<String>,
 ) -> Result<(), IngestApiError> {
@@ -375,6 +377,7 @@ async fn process_register_items(
                     .create_object_with_id(&req_create, Some(object_id.clone()))
                     .await
                     .map_err(|e| IngestApiError::internal(e.to_string()))?;
+                append_register_audit(state, &object_id, requester, 0).await?;
 
                 if let Some(ref store) = state.provenance_store {
                     if let Some(ref uris) = derived_from {
@@ -448,6 +451,7 @@ async fn process_register_items(
                     .create_object_with_id(&req_create, Some(object_id.clone()))
                     .await
                     .map_err(|e| IngestApiError::internal(e.to_string()))?;
+                append_register_audit(state, &object_id, requester, *size).await?;
                 if let Some(ref om) = ont_metadata {
                     apply_ont_side_effects(state, &object_id, om).await?;
                 }
@@ -456,6 +460,47 @@ async fn process_register_items(
                 object_ids.push(object_id);
             }
         }
+    }
+    Ok(())
+}
+
+/// Record `data_uploaded` for one registered object.
+///
+/// When a residency log is configured, a failed insert fails the request
+/// (fail closed). The object row is then deleted. If that delete also fails,
+/// the request is still an error and the object may remain. When no residency
+/// log is configured, register does not invent one. This path does not use
+/// `append_warn`.
+async fn append_register_audit(
+    state: &AppState,
+    object_id: &str,
+    requester: Option<&str>,
+    bytes: i64,
+) -> Result<(), IngestApiError> {
+    let Some(audit) = state.residency_audit.as_ref() else {
+        return Ok(());
+    };
+    if let Err(err) = audit
+        .append(
+            "data_uploaded",
+            Some(object_id),
+            requester,
+            None,
+            false,
+            Some(bytes),
+        )
+        .await
+    {
+        if let Err(delete_err) = state.repo.delete_object(object_id).await {
+            tracing::error!(
+                object_id,
+                error = %delete_err,
+                "residency audit append failed and the object row could not be removed"
+            );
+        }
+        return Err(IngestApiError::internal(format!(
+            "residency audit append failed: {err}"
+        )));
     }
     Ok(())
 }
@@ -865,10 +910,6 @@ async fn store_uploaded_object(
 ) -> Result<(String, i64), IngestApiError> {
     let object_id = ulid::Ulid::new().to_string();
     let storage_key = format!("drs/{}", object_id);
-    storage
-        .put_file(&storage_key, file_path)
-        .await
-        .map_err(|e| IngestApiError::internal(e.to_string()))?;
     let create = CreateObjectRequest {
         name: fields.name,
         description: fields.description,
@@ -877,18 +918,32 @@ async fn store_uploaded_object(
         checksums: vec![],
         aliases: None,
         storage_backend: fields.storage_backend,
-        storage_key,
+        storage_key: storage_key.clone(),
         is_encrypted: Some(false),
         workspace_id: None,
         ont_metrics: None,
         gisaid_metadata: None,
         metadata_ref,
     };
-    state
-        .repo
-        .create_object_with_id(&create, Some(object_id.clone()))
-        .await
-        .map_err(IngestApiError::from_drs)?;
+    if let Some(root) = storage.local_root() {
+        state
+            .repo
+            .create_local_object_from_file(root, file_path, &create, Some(object_id.clone()))
+            .await
+            .map_err(IngestApiError::from_drs)?;
+    } else {
+        // S3 is not in the SQL transaction. Process death can leave a remote
+        // object without a row.
+        storage
+            .put_file(&storage_key, file_path)
+            .await
+            .map_err(|e| IngestApiError::internal(e.to_string()))?;
+        state
+            .repo
+            .create_object_with_id(&create, Some(object_id.clone()))
+            .await
+            .map_err(IngestApiError::from_drs)?;
+    }
     state
         .repo
         .set_checksum_status(&object_id, "pending")

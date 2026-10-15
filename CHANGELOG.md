@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Behavior changes
+
+- **Edge listen address.** A gateway built without the `full` feature listens on `127.0.0.1:8080` when neither a configuration file nor `FERRUM_BIND` sets `bind`. The full profile stays `0.0.0.0:8080`. A file `bind` or `FERRUM_BIND` still wins. Inside a container, set `FERRUM_BIND` (for example `0.0.0.0:8080`) and control exposure with the published port or a firewall. Ferrum-Lab-Kit sets that variable explicitly. The Demo Pi installer and village compose need the same explicit bind (see `_review/edge-bind-usage.md`).
+- **Fail closed on a bad config.** A `config.toml` found on the default search path that does not parse stops the process. The gateway does not discard that error and fall back to the default bind.
+- **Registration.** `create_object_with_id` inserts the object row and its storage reference in one transaction. Local ingest writes a `.ferrum-partial-*` file, commits, then renames, so process death does not leave a final file without a row.
+- **Residency appends.** Concurrent appends read the previous hash and insert the new row in one transaction. `POST /register` records `data_uploaded` and fails the request when that insert fails. ONT ingest still uses `append_warn` and is not fail-closed.
+- **Checkpoint and backup publish.** The emergency note and field backup archives are written to a temporary file, fsynced, and renamed onto the final name. Startup does not read the note.
+- **Stale partials.** At startup, `.ferrum-partial-*` files older than one hour are removed from the object directory, the directory that contains the emergency note, and the `backups` directory under the Ferrum data directory. Other files are left in place. A newer partial is left in place.
+
 ### Reference object store + release hygiene (proposed tag `v0.3.6`)
 
 Tag proposal only — **do not create the tag until `make verify-release` is green on the release commit.** Do not move `v0.3.5`. **Showcase / Contabo stays on `v0.3.5-full-infra`:** this tag changes deployment files and docs only (SeaweedFS reference Compose, digests, offline-bundle optional); it does not require a demo gate image rebuild.

@@ -5,8 +5,8 @@ use clap::{Parser, Subcommand};
 #[cfg(feature = "full")]
 use ferrum_embed::PostgresStorage;
 use ferrum_embed::{
-    ensure_data_dirs, log_platform_startup, probe_auth_endpoints, Database, EmbedMode,
-    MemoryCapGuard, MemoryCapState, SqliteStorage,
+    default_ferrum_home, ensure_data_dirs, log_platform_startup, probe_auth_endpoints, Database,
+    EmbedMode, MemoryCapGuard, MemoryCapState, SqliteStorage,
 };
 use ferrum_gateway::run;
 use std::net::SocketAddr;
@@ -266,6 +266,36 @@ async fn build_object_storage(
     }
 }
 
+/// Drop interrupted writes that are older than one hour.
+///
+/// Scans the object directory (including nested keys), the directory that
+/// holds the emergency note, and the `backups` directory under the Ferrum
+/// data directory. A missing directory is skipped. Other file names stay.
+fn sweep_interrupted_writes(cfg: &ferrum_core::FerrumConfig) {
+    let mut dirs = vec![(ferrum_core::sync_export::resolve_objects_root(cfg), true)];
+    if let Some(note) = ferrum_core::power::checkpoint_path() {
+        if let Some(dir) = note.parent() {
+            dirs.push((dir.to_path_buf(), false));
+        }
+    }
+    if let Some(home) = default_ferrum_home() {
+        dirs.push((home.join("backups"), false));
+    }
+    for (dir, recursive) in dirs {
+        match ferrum_core::sweep_stale_partials(&dir, ferrum_core::STALE_PARTIAL_MAX_AGE, recursive)
+        {
+            Ok(_) => {}
+            Err(err) => {
+                tracing::warn!(
+                    dir = %dir.display(),
+                    error = %err,
+                    "stale partial sweep failed"
+                );
+            }
+        }
+    }
+}
+
 async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     const EDGE_BUILD: bool = !cfg!(feature = "full");
 
@@ -277,7 +307,18 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let mut config = ferrum_core::FerrumConfig::load().ok();
+    let default_bind = ferrum_core::default_bind_for_profile(EDGE_BUILD);
+    // A discovered config.toml that fails to parse used to be discarded here
+    // (`.ok()`), and the process then listened on 0.0.0.0:8080. Fail closed.
+    let mut config = match ferrum_core::FerrumConfig::load_with_bind_default(default_bind) {
+        Ok(cfg) => Some(cfg),
+        Err(err) => {
+            eprintln!(
+                "ferrum: configuration error: {err}\nferrum: refusing to start. A configuration file on the default search path failed to parse. The process will not fall back to {default_bind}."
+            );
+            return Err(err.into());
+        }
+    };
     if let Some(ref mut cfg) = config {
         cfg.apply_embedded_defaults();
         if let Ok(data_dir) = ensure_data_dirs(cfg) {
@@ -288,6 +329,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
                 .map(PathBuf::from)
                 .unwrap_or_else(|| data_dir.join("objects"));
             ferrum_core::set_health_data_path(disk_path);
+            sweep_interrupted_writes(cfg);
             if let Some(ref africa) = cfg.africa {
                 let ntp = africa
                     .ntp_host
@@ -337,10 +379,23 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         .and_then(|a| a.max_memory_mb)
         .map(|mb| MemoryCapGuard::spawn_monitor(MemoryCapState::new(mb)));
 
-    let bind: SocketAddr = config
-        .as_ref()
-        .and_then(|c| c.bind.parse().ok())
-        .unwrap_or_else(|| "0.0.0.0:8080".parse().unwrap());
+    let bind: SocketAddr = match config.as_ref().map(|c| c.bind.parse::<SocketAddr>()) {
+        Some(Ok(addr)) => addr,
+        Some(Err(err)) => {
+            let raw = config.as_ref().map(|c| c.bind.as_str()).unwrap_or("");
+            eprintln!(
+                "ferrum: configuration error: bind {raw:?} is not a socket address ({err}). Refusing to start."
+            );
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("invalid bind address: {err}"),
+            )
+            .into());
+        }
+        None => default_bind
+            .parse()
+            .expect("built-in bind address is a socket address"),
+    };
 
     let ferrum_pool: Option<ferrum_core::FerrumPool> = if let Some(ref cfg) = config {
         let result = match embed_mode {

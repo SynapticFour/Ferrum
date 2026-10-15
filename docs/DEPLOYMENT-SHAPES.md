@@ -19,6 +19,10 @@ The **full** gateway is one HTTP process for DRS, WES, TES, TRS, Beacon, htsget,
 - **Edge binary:** DRS, Beacon, htsget, and Crypt4GH, in one process with local disk and SQLite. It does not serve WES, TES, TRS, or Passports.
 - **Full demo:** the full gateway process **plus** Postgres and object storage (and usually an IdP/broker for Passports).
 
+## Reaching an edge node from the network
+
+The edge profile listens on `127.0.0.1:8080` when neither a config file nor `FERRUM_BIND` sets `bind`. The full profile stays `0.0.0.0:8080`. A process bound only to loopback inside a container is not reached by a published port or by another container's DNS name. Set `FERRUM_BIND` (for example `0.0.0.0:8080` inside a container) and control exposure with the published port or a firewall. Ferrum-Lab-Kit sets `FERRUM_BIND` explicitly. The Demo Pi installer and village compose need the same explicit bind (see `_review/edge-bind-usage.md`).
+
 ## “All APIs in one offline binary”
 
 **Not verified** as a single claim. The release ships gateway tarballs and (optionally) an offline *image* bundle for the Compose demo shape. The edge binary serves DRS, Beacon, htsget, and Crypt4GH with local storage. It does not serve WES, TES, TRS, or Passports, and it is not the same artifact as the full Compose offline tarball. Treat “offline” as shape-specific until an operator records a successful air-gapped run ([documented-not-verified](#shapes) for edge offline bundle).

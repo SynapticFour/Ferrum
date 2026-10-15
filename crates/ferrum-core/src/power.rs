@@ -290,19 +290,28 @@ pub fn checkpoint_path() -> Option<std::path::PathBuf> {
     })
 }
 
+/// Write the emergency shutdown note at `~/.ferrum/CHECKPOINT`.
+///
+/// Startup does not read this file. `resolve_power_mode` does not read it,
+/// and gateway start does not load it as recovery. It records that emergency
+/// mode wrote a note and then exited. It is not a restart checkpoint.
+///
+/// Bytes go to a temporary file in the same directory, then `fsync`, then
+/// `rename` onto `CHECKPOINT`. A crash cannot leave a 0-byte file at the
+/// final name. A `.ferrum-partial-*` sibling may remain until startup removes
+/// ones older than one hour. It is not the note.
 pub async fn write_emergency_checkpoint(last_tx_id: Option<i64>) -> std::io::Result<()> {
     let path = checkpoint_path().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::NotFound, "no home dir for checkpoint")
     })?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
     let payload = serde_json::json!({
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "last_transaction_id": last_tx_id,
         "message": "FERRUM_EMERGENCY_SHUTDOWN: checkpoint written",
     });
-    std::fs::write(&path, serde_json::to_string_pretty(&payload).unwrap())?;
+    let bytes = serde_json::to_vec_pretty(&payload)
+        .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))?;
+    crate::durable::durable_write(&path, &bytes)?;
     eprintln!(
         "FERRUM_EMERGENCY_SHUTDOWN: checkpoint written to {}",
         path.display()
