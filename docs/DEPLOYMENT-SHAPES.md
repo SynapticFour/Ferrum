@@ -19,6 +19,10 @@ What each shape **needs**, and what is **verified**. Helix baseline: HelixTest a
 - **Edge:** one process + local disk (+ SQLite).
 - **Full demo:** that process **plus** Postgres and object storage (and usually an IdP/broker for Passports).
 
+## Reaching an edge node from the network
+
+The edge profile listens on `127.0.0.1:8080` when neither a config file nor `FERRUM_BIND` sets `bind`. The full profile stays `0.0.0.0:8080`. A process bound only to loopback inside a container is not reached by a published port or by another container's DNS name. Set `FERRUM_BIND` (for example `0.0.0.0:8080` inside a container) and control exposure with the published port or a firewall. Ferrum-Lab-Kit sets `FERRUM_BIND` explicitly. The Demo Pi installer and village compose need the same explicit bind (see `_review/edge-bind-usage.md`).
+
 ## “All APIs in one offline binary”
 
 **Not verified** as a single claim. The release ships gateway tarballs and (optionally) an offline *image* bundle for the Compose demo shape. Edge native binary covers APIs with local storage; it is not the same artifact as the full Compose offline tarball. Treat “offline” as shape-specific until an operator records a successful air-gapped run ([documented-not-verified](#shapes) for edge offline bundle).

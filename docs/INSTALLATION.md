@@ -295,6 +295,10 @@ helm install ferrum ./deploy/helm \
 
 ---
 
+## Reaching an edge node from the network
+
+The edge profile listens on `127.0.0.1:8080` when neither a config file nor `FERRUM_BIND` sets `bind`. That address is reachable on the same machine. Another machine, or another container, does not reach a process bound only to loopback inside the container. Set `FERRUM_BIND` (for example `0.0.0.0:8080` inside a container) and control exposure with the published port or a firewall. The full profile is unchanged (`0.0.0.0:8080` when bind is unset). Ferrum-Lab-Kit sets `FERRUM_BIND` explicitly. The Demo Pi installer and village compose need the same explicit bind (see `_review/edge-bind-usage.md`).
+
 ## Configuration reference
 
 | Section | Option | Type | Default | Description |

@@ -22,6 +22,10 @@ ferrum demo start --edge
 
 That single command starts **ferrum-gateway** in Edge mode with SQLite + local storage. No Docker, PostgreSQL, or MinIO required.
 
+## Reaching an edge node from the network
+
+The edge profile listens on `127.0.0.1:8080` when neither a config file nor `FERRUM_BIND` sets `bind`. The full profile stays `0.0.0.0:8080`. Set `FERRUM_BIND` (for example `0.0.0.0:8080` inside a container) and control exposure with the published port or a firewall. A loopback bind inside a container is not reachable from the LAN or from another container. Ferrum-Lab-Kit sets `FERRUM_BIND` explicitly. The Demo Pi installer and village compose need the same explicit bind (see `_review/edge-bind-usage.md`).
+
 Alternative equivalents:
 
 ```bash
