@@ -2,15 +2,14 @@
 use ferrum_crypt4gh::{recipient_keys_from_pubkey, stream_decrypt, stream_encrypt, C4ghKeys};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::fs;
 
 fn temp_path(name: &str) -> PathBuf {
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("time")
-        .as_nanos();
-    std::env::temp_dir().join(format!("ferrum-c4gh-{name}-{ts}"))
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    std::env::temp_dir().join(format!("ferrum-c4gh-{name}-{pid}-{n}"))
 }
 
 fn make_payload(len: usize) -> Vec<u8> {
