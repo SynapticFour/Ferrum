@@ -7,8 +7,10 @@
 #
 # BuildKit: every ARG used in any FROM must be declared here *before* the first FROM
 # (not only before the stage that uses it), or the runtime stage gets a blank image name.
-ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm
-ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim
+# Tag: rust:1.91.1-bookworm
+ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm@sha256:c1e5f19e773b7878c3f7a805dd00a495e747acbdc76fb2337a4ebf0418896b33
+# Tag: debian:bookworm-slim
+ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 ARG FERRUM_GIT_SHA=unknown
 ARG FERRUM_BUILD_PROFILE=demo
 FROM ${RUST_BUILDER_IMAGE} AS builder
@@ -29,7 +31,7 @@ RUN chmod +x /tmp/gateway-build-flags.sh \
        esac \
     && rustup target add "$(cat /tmp/musl-target)"
 
-RUN cargo install cargo-chef
+RUN cargo install --locked cargo-chef
 COPY Cargo.toml Cargo.lock* ./
 COPY crates ./crates
 COPY tools ./tools
@@ -46,11 +48,12 @@ RUN EXTRA="$(FERRUM_VARIANT="${FERRUM_VARIANT}" FERRUM_GATEWAY_FEATURES="${FERRU
 COPY . .
 RUN EXTRA="$(FERRUM_VARIANT="${FERRUM_VARIANT}" FERRUM_GATEWAY_FEATURES="${FERRUM_GATEWAY_FEATURES}" /tmp/gateway-build-flags.sh)" \
     && MUSL_TARGET="$(cat /tmp/musl-target)" \
-    && cargo build --release -p ferrum-gateway --target "${MUSL_TARGET}" ${EXTRA} \
+    && cargo build --locked --release -p ferrum-gateway --target "${MUSL_TARGET}" ${EXTRA} \
     && cp "/app/target/${MUSL_TARGET}/release/ferrum-gateway" /app/ferrum-gateway-bin
 
 # Stage 3: distroless static (no shell, minimal surface)
-FROM gcr.io/distroless/static-debian12:nonroot
+# Tag: gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 ARG FERRUM_GIT_SHA=unknown
 ARG FERRUM_BUILD_PROFILE=demo
 ARG FERRUM_VARIANT=full

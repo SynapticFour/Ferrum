@@ -66,7 +66,7 @@ down-eval:
 
 # Zero-risk product proof (CI workspace tests). Live stack: make up.
 test:
-	cargo test --workspace --all-targets
+	cargo test --locked --workspace --all-targets
 
 prove: test
 	$(MAKE) openapi-check

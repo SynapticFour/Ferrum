@@ -81,7 +81,7 @@ jobs:
 
       - name: Build (macOS native, edge profile)
         if: ${{ !contains(matrix.target, 'musl') }}
-        run: cargo build --profile release-edge -p ferrum-gateway --no-default-features --features edge --target ${{ matrix.target }}
+        run: cargo build --locked --profile release-edge -p ferrum-gateway --no-default-features --features edge --target ${{ matrix.target }}
 
       - name: Package binary
         run: |

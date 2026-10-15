@@ -4,7 +4,8 @@
 #
 # keygen-builder MUST target musl: the runtime image is Alpine; a bookworm/glibc
 # binary fails at runtime with exit 127 (command not found).
-ARG RUST_BUILDER_IMAGE=rust:1.91.1-alpine
+# Tag: rust:1.91.1-alpine
+ARG RUST_BUILDER_IMAGE=rust:1.91.1-alpine@sha256:45c1c35cd364b8055e9e86f8ecd3e8c874b2dcb658d8a4f94b5d111aa0d651a2
 FROM ${RUST_BUILDER_IMAGE} AS keygen-builder
 RUN apk add --no-cache musl-dev pkgconfig libsodium-dev git perl make bash
 WORKDIR /app
@@ -15,7 +16,7 @@ COPY third_party ./third_party
 COPY deploy/scripts/clone-ga4gh-infra.sh /tmp/clone-ga4gh-infra.sh
 ARG GA4GH_INFRA_REF=ga4gh-infra-v0.2.6
 RUN chmod +x /tmp/clone-ga4gh-infra.sh && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
-RUN cargo build --release -p ferrum-crypt4gh --bin ferrum-node-keygen
+RUN cargo build --locked --release -p ferrum-crypt4gh --bin ferrum-node-keygen
 
 FROM alpine:3.19@sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
 RUN apk add --no-cache postgresql16-client curl netcat-openbsd bash wget libsodium coreutils

@@ -39,7 +39,7 @@ jobs:
 
       - name: Start Ferrum offline (Edge mode)
         run: |
-          cargo build -p ferrum-gateway --release --features edge
+          cargo build --locked -p ferrum-gateway --release --features edge
           # NON-PILOT: unauthenticated HelixTest Africa ingest. Production default is require_auth=true.
           FERRUM_OFFLINE=1 FERRUM_DEMO=1 FERRUM_AUTH__REQUIRE_AUTH=false ./target/release/ferrum-gateway &
           for i in $(seq 1 30); do
@@ -81,13 +81,13 @@ jobs:
 
       - name: Build edge gateway (release)
         run: |
-          echo "$(date -u +%FT%TZ) cargo build -p ferrum-gateway --release --features edge"
-          cargo build -p ferrum-gateway --release --features edge
+          echo "$(date -u +%FT%TZ) cargo build --locked -p ferrum-gateway --release --features edge"
+          cargo build --locked -p ferrum-gateway --release --features edge
 
       - name: Build ferrum-cli (dev ingest client)
         run: |
-          echo "$(date -u +%FT%TZ) cargo build -p ferrum-cli"
-          cargo build -p ferrum-cli
+          echo "$(date -u +%FT%TZ) cargo build --locked -p ferrum-cli"
+          cargo build --locked -p ferrum-cli
 
       - name: Build HelixTest
         working-directory: helixtest-repo

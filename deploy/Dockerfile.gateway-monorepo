@@ -8,8 +8,10 @@
 #
 # Copies the ga4gh-infra workspace so path deps in ferrum-core resolve.
 
-ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm
-ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim
+# Tag: rust:1.91.1-bookworm
+ARG RUST_BUILDER_IMAGE=rust:1.91.1-bookworm@sha256:c1e5f19e773b7878c3f7a805dd00a495e747acbdc76fb2337a4ebf0418896b33
+# Tag: debian:bookworm-slim
+ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 ARG FERRUM_GIT_SHA=unknown
 ARG FERRUM_BUILD_PROFILE=pilot
 FROM ${RUST_BUILDER_IMAGE} AS builder
@@ -25,7 +27,7 @@ COPY Ferrum/profiles ./profiles
 # Path deps: ../../../ga4gh-infra from crates/ferrum-core → /ga4gh-infra
 COPY ga4gh-infra /ga4gh-infra
 
-RUN cargo build --release -p ferrum-gateway --features "${FERRUM_GATEWAY_FEATURES}"
+RUN cargo build --locked --release -p ferrum-gateway --features "${FERRUM_GATEWAY_FEATURES}"
 
 FROM ${DEBIAN_RUNTIME_IMAGE}
 ARG FERRUM_GIT_SHA=unknown
