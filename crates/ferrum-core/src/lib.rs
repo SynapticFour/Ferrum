@@ -10,7 +10,10 @@ pub mod denied_audit;
 pub mod dialect;
 pub mod disk;
 mod durable;
-pub use durable::{publish_staged_file, stage_bytes_beside, stage_file_beside};
+pub use durable::{
+    publish_staged_file, stage_bytes_beside, stage_file_beside, sweep_stale_partials,
+    STALE_PARTIAL_MAX_AGE,
+};
 pub mod edge_accounts;
 pub mod error;
 pub mod gisaid;

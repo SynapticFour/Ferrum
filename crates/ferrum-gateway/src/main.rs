@@ -5,8 +5,8 @@ use clap::{Parser, Subcommand};
 #[cfg(feature = "full")]
 use ferrum_embed::PostgresStorage;
 use ferrum_embed::{
-    ensure_data_dirs, log_platform_startup, probe_auth_endpoints, Database, EmbedMode,
-    MemoryCapGuard, MemoryCapState, SqliteStorage,
+    default_ferrum_home, ensure_data_dirs, log_platform_startup, probe_auth_endpoints, Database,
+    EmbedMode, MemoryCapGuard, MemoryCapState, SqliteStorage,
 };
 use ferrum_gateway::run;
 use std::net::SocketAddr;
@@ -266,6 +266,36 @@ async fn build_object_storage(
     }
 }
 
+/// Drop interrupted writes that are older than one hour.
+///
+/// Scans the object directory (including nested keys), the directory that
+/// holds the emergency note, and the `backups` directory under the Ferrum
+/// data directory. A missing directory is skipped. Other file names stay.
+fn sweep_interrupted_writes(cfg: &ferrum_core::FerrumConfig) {
+    let mut dirs = vec![(ferrum_core::sync_export::resolve_objects_root(cfg), true)];
+    if let Some(note) = ferrum_core::power::checkpoint_path() {
+        if let Some(dir) = note.parent() {
+            dirs.push((dir.to_path_buf(), false));
+        }
+    }
+    if let Some(home) = default_ferrum_home() {
+        dirs.push((home.join("backups"), false));
+    }
+    for (dir, recursive) in dirs {
+        match ferrum_core::sweep_stale_partials(&dir, ferrum_core::STALE_PARTIAL_MAX_AGE, recursive)
+        {
+            Ok(_) => {}
+            Err(err) => {
+                tracing::warn!(
+                    dir = %dir.display(),
+                    error = %err,
+                    "stale partial sweep failed"
+                );
+            }
+        }
+    }
+}
+
 async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     const EDGE_BUILD: bool = !cfg!(feature = "full");
 
@@ -299,6 +329,7 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
                 .map(PathBuf::from)
                 .unwrap_or_else(|| data_dir.join("objects"));
             ferrum_core::set_health_data_path(disk_path);
+            sweep_interrupted_writes(cfg);
             if let Some(ref africa) = cfg.africa {
                 let ntp = africa
                     .ntp_host

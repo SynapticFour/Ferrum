@@ -917,11 +917,12 @@ impl DrsRepo {
     /// it; insert the object and its storage reference in one transaction;
     /// rename the partial onto the final key and fsync the directory.
     ///
-    /// Startup does not read or delete `.ferrum-partial-*` files. A partial is
+    /// Startup does not read `.ferrum-partial-*` files. It removes ones older
+    /// than one hour from the object directory. A partial is
     /// not a DRS object. A kill before commit leaves no row and no file at the
     /// final key. A kill after commit and before rename leaves a row that has
     /// a storage reference, no file at the final key, and the partial beside
-    /// it. S3 is not this path: those bytes are not in the SQL transaction, so
+    /// it until that hour passes. S3 is not this path: those bytes are not in the SQL transaction, so
     /// a process death can still leave a bucket object without a row.
     pub async fn create_local_object_from_file(
         &self,

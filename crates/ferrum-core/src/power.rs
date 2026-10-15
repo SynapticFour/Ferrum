@@ -298,7 +298,8 @@ pub fn checkpoint_path() -> Option<std::path::PathBuf> {
 ///
 /// Bytes go to a temporary file in the same directory, then `fsync`, then
 /// `rename` onto `CHECKPOINT`. A crash cannot leave a 0-byte file at the
-/// final name. A `.ferrum-partial-*` sibling may remain and is not the note.
+/// final name. A `.ferrum-partial-*` sibling may remain until startup removes
+/// ones older than one hour. It is not the note.
 pub async fn write_emergency_checkpoint(last_tx_id: Option<i64>) -> std::io::Result<()> {
     let path = checkpoint_path().ok_or_else(|| {
         std::io::Error::new(std::io::ErrorKind::NotFound, "no home dir for checkpoint")

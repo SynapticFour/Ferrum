@@ -5,7 +5,8 @@
 //! called `create_object_with_id` in a loop, and ingest called `put_file` then
 //! `create_object_with_id`. Those runs left object rows without a storage
 //! reference and final files without a row. `kill` here is sudden process
-//! death, not a power cut. Startup does not delete `.ferrum-partial-*` files.
+//! death, not a power cut. This test does not run startup cleanup. Startup
+//! removes `.ferrum-partial-*` files older than one hour and leaves newer ones.
 
 use ferrum_core::FerrumPool;
 use ferrum_drs::repo::DrsRepo;
