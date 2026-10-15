@@ -37,15 +37,19 @@ verify_checksums_on_startup = true
 
 ## Solar / battery power modes
 
-When `[power] enabled = true` (default on Linux), Ferrum reads `/sys/class/power_supply/`:
+Sources are AC, battery, or unknown. UPS is not a detected source.
+
+`[power] enabled` defaults to on only for a Linux build (`cfg!(target_os = "linux")`). On other platforms the default is off unless the config sets `enabled = true`. With monitoring off, the mode stays high performance even if a battery reading would otherwise be critical.
+
+When monitoring is enabled, AC stays high performance before the percent thresholds. If the source is not AC and the percent is at or below 50 (default), concurrency is capped and background work pauses. At or below 10 (default), new requests are refused, a JSON note is written to `~/.ferrum/CHECKPOINT`, and the process exits. Startup does not read that note. This is not recovery from power loss.
 
 | Mode | Trigger | HTTP behaviour |
 |------|---------|----------------|
-| HighPerformance | AC power | Normal |
-| LowPower | Battery &lt; 50% | Max 4 concurrent requests; background checksum/index paused |
-| Emergency | Battery &lt; 10% | **503** on new requests; checkpoint then exit |
+| HighPerformance | Monitoring off, or source AC, or battery above the low threshold | Normal |
+| LowPower | Monitoring on, source not AC, battery at or below 50% (default) | Max 4 concurrent requests; background checksum/index paused |
+| Emergency | Monitoring on, source not AC, battery at or below 10% (default) | **503** on new requests; JSON note, then exit. The note is not read at startup. |
 
-Override for testing: `FERRUM_POWER_MODE=low_power|emergency|high_performance`.
+Override for testing: `FERRUM_POWER_MODE=low_power|emergency|high_performance`. That override does not detect a UPS and does not restore from the note.
 
 HelixTest (optional): `helixtest --all --mode ferrum-africa --africa-profile power`
 

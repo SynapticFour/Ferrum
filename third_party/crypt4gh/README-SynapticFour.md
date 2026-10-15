@@ -1,6 +1,11 @@
 # crypt4gh (SynapticFour fork)
 
 Vendored from [crypt4gh 0.4.1](https://crates.io/crates/crypt4gh) (EGA-archive/crypt4gh-rust).
+Apache-2.0. Upstream statements found in this tree, and the unchanged license text, are in [NOTICE](NOTICE).
+
+Upstream author recorded in `Cargo.toml`: `Roberto <roberto.ariosa@crg.eu>`.
+Upstream docs authors recorded in `docs/book.toml`: `EGA-CRG System Developers`.
+No separate copyright line was present in the Rust sources.
 
 ## Why forked
 

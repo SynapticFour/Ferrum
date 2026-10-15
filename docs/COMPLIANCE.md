@@ -157,9 +157,9 @@ self‑description by the operator.
 | Gaia-X Principle | Ferrum Implementation |
 |---|---|
 | **Data Sovereignty** | On-premises deployment; institution retains full control |
-| **Transparency** | Open source (BUSL-1.1); all APIs documented via OpenAPI |
-| **Portability** | GA4GH standard APIs; no vendor lock-in |
-| **Interoperability** | DRS, WES, TES, TRS, Beacon v2, Passports |
+| **Transparency** | Source-available under BUSL-1.1, which is not an OSI open-source license; all APIs documented via OpenAPI |
+| **Portability** | GA4GH standard APIs. BUSL-1.1 limits some commercial use until each version's Change Date. Standard APIs are not unrestricted licence rights. |
+| **Interoperability** | Full gateway: DRS, WES, TES, TRS, Beacon v2, Passports. Edge binary: DRS, Beacon, htsget, Crypt4GH (not WES, TES, TRS, or Passports). |
 | **Security** | Crypt4GH when configured; TLS at the operator proxy; cargo-deny in CI |
 | **European Values** | Developed in Germany; designed with GDPR principles in mind. Actual legal compliance depends on the operator and its processes. |
 

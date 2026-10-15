@@ -54,7 +54,7 @@ Ferrum-Lab-Kit wraps the same script (`lab-kit build image`). Override cargo fea
 
 ## Which variant is the external-auth gateway
 
-`edge-infra` is the SQLite image for external auth (ga4gh-infra clearinghouse and service registry) with DRS, Beacon, and htsget. It does not compile WES, TES, TRS, or `/admin`. `full-infra` is the Postgres image that adds those full surfaces **and** `external-auth`. `full` is the same full surfaces without `external-auth`. `edge` is SQLite without `external-auth`.
+`edge-infra` is the SQLite image for external auth (ga4gh-infra clearinghouse and service registry) with DRS, Beacon, htsget, and Crypt4GH. It does not serve WES, TES, TRS, or Passports, and it does not compile `/admin`. `full-infra` is the Postgres image that adds those full surfaces **and** `external-auth`. `full` is the same full surfaces without `external-auth`. `edge` is SQLite without `external-auth`.
 
 WES/TES HelixTest stubs are process env (`FERRUM_WES_HELIXTEST_STUBS` / `FERRUM_TES_HELIXTEST_STUB`), not an image variant. When stubs are on, service-info must label itself **simulated** (see ADR-033).
 

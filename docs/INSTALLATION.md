@@ -127,7 +127,7 @@ Published tags on `ghcr.io/synapticfour/ferrum` (see [IMAGE-VARIANTS.md](IMAGE-V
 | Tag | Binary |
 |-----|--------|
 | `:<git-sha>` / `:latest` | **full** stack |
-| `:<git-sha>-edge` / `:edge` | DRS + Beacon + htsget (SQLite) |
+| `:<git-sha>-edge` / `:edge` | DRS + Beacon + htsget + Crypt4GH (SQLite). Does not serve WES, TES, TRS, or Passports. |
 | `:<git-sha>-edge-infra` / `:edge-infra` | edge + ga4gh-infra hooks |
 
 ```bash

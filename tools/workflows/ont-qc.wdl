@@ -39,7 +39,7 @@ task NanoStat {
     String drs_id
   }
   command {
-    # Resolve DRS access URL externally, then run NanoStat on FASTQ/BAM derived from ONT object.
+    # Does not run NanoStat. Writes constant metric files and echoes a command string.
     echo "nanostat --fastq ${drs_id}.fastq -n ${drs_id}.nanostat.txt"
     echo "mean_qscore=12.5" > mean_qscore.txt
     echo "10000" > read_count.txt
@@ -60,6 +60,7 @@ task NanoPlot {
     String drs_id
   }
   command {
+    # Does not run NanoPlot. Echoes a command string.
     echo "NanoPlot --fastq ${drs_id}.fastq -o ${drs_id}_nanoplot"
   }
   output {
@@ -79,7 +80,7 @@ task PostOntMetrics {
     String api_base
   }
   command {
-    # Store QC metrics back via Ferrum ingest metadata update (PATCH ont_metrics on DRS object).
+    # Echoes a curl string. Does not POST metrics and does not measure reads.
     echo "curl -X POST ${api_base}/ont-metrics -H 'Content-Type: application/json' -d '{\"drs_object_id\":\"${drs_id}\",\"quality_metrics\":{\"mean_qscore\":${mean_qscore},\"read_count\":10000,\"n50\":15000,\"read_length_histogram\":[]}}'"
     echo "posted" > status.txt
   }

@@ -1,6 +1,6 @@
 # Data Residency Audit Log
 
-Ferrum maintains an **append-only, cryptographically chained** audit log of data movement and sensitive queries. It supports compliance evidence for African deployments where data sovereignty must be demonstrable.
+Ferrum keeps hash-chained rows for the residency events that are recorded. Each row stores `prev_hash` and a SHA-256 of a canonical JSON form of that row. While the database triggers remain, those rows are not updated or deleted through SQL. The log is not a list of every data movement, and it does not prove that data stayed inside an institution.
 
 ## Properties
 
@@ -68,7 +68,7 @@ There is no `entries` array, no `requester`, no `drs_id`, and no event payload. 
 |-------|--------------|------------------|
 | DRS access URL | `data_accessed` | false |
 | DRS `/stream` | `data_downloaded` | true |
-| ONT / register ingest | `data_uploaded` | false |
+| ONT multipart ingest | `data_uploaded` | false, when a residency log is configured and the insert succeeds. `POST /api/v1/ingest/register` does not append. A failed insert is logged and the object can still be stored. |
 | ONT ingest with provenance | `collection_recorded` | false (`destination` holds JSON: collector, geo, metadata_ref) |
 | Beacon query | `beacon_query` | false |
 | Federation fan-out | `peer_query_sent` | false |
@@ -79,6 +79,6 @@ Outbreak activations should also be logged (see [OUTBREAK-MODE.md](OUTBREAK-MODE
 
 1. Export entries via the query API (or DB backup).
 2. Call `/verify` after incidents or audits.
-3. Any tampering with historical rows breaks `chain_valid`.
+3. `chain_valid` covers the rows that are still in the table. While the triggers exist, UPDATE and DELETE are rejected. After the triggers are dropped, a holder of the database file can replace the table with a new chain that verifies. A filtered query can report `chain_valid` false while the full chain verifies. `data_left_node` is the boolean stored on the row. It is not a check against an institution boundary.
 
 Genesis hash: 64 zero hex digits (`000…000`).

@@ -11,7 +11,7 @@ This document states **what Ferrum protects, from whom, and what is explicitly o
 
 ## 1. Product in one line
 
-Ferrum is a **customer-operated GA4GH gateway** (DRS, WES, TES, TRS, Beacon, htsget, Passports, Crypt4GH) for genomic data and compute. Operators deploy it on their hardware (lab, hub, or edge). Synaptic Four does not hold customer production keys or data in the default model.
+Ferrum is a **customer-operated GA4GH gateway** for genomic data and compute. The full gateway includes DRS, WES, TES, TRS, Beacon, htsget, Passports, and Crypt4GH. The edge binary serves DRS, Beacon, htsget, and Crypt4GH, and does not serve WES, TES, TRS, or Passports. Operators deploy one of those shapes on their hardware (lab, hub, or edge). Synaptic Four does not hold customer production keys or data in the default model.
 
 ---
 

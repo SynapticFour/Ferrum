@@ -10,7 +10,7 @@ GitHub may label this Other; SPDX is **BUSL-1.1**.
 
 On-premises GA4GH data/compute plane in Rust: DRS, WES, TES, TRS, Beacon v2, htsget, Passports, Crypt4GH — **one HTTP gateway process** (not zero dependencies: full demo needs Postgres + object storage).
 
-**Maturity: Active (beta).** No third-party audit. HelixTest CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. Tagged release **v0.3.5**; proposed **v0.3.6** (SeaweedFS reference store, compose digests). No clinical pilot deployment.
+**Maturity: Active (beta).** No third-party audit. HelixTest CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. Git tag **v0.3.6** is on origin and is the same commit as `origin/main` (checked 2026-10-14; SeaweedFS reference store, compose digests). It is not a proposed tag. A GitHub Release object for that tag was not re-checked in this note. No clinical pilot deployment. The edge binary serves DRS, Beacon, htsget, and Crypt4GH. It does not serve WES, TES, TRS, or Passports. Those four are in the full gateway, which is a different build.
 
 > This README describes technical capabilities, not legal advice. GDPR, NIS2, EHDS, HIPAA, and similar frameworks depend on the operator’s legal basis, configuration, and organisational measures.
 
