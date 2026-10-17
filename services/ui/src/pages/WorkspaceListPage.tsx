@@ -24,18 +24,15 @@ export function WorkspaceListPage() {
 
   if (isLoading) return <p className="text-muted-foreground">{t('workspaceList.loading')}</p>;
   if (error) {
+    // Never surface JSON.parse / SPA-HTML routing noise to evaluators.
+    // Unsigned-in and transport failures → clear sign-in copy (same idea as CohortListPage).
     const sessionExpired = error instanceof ApiAuthError && error.sessionExpired;
-    const msg = error instanceof Error ? error.message : String(error);
-    // Prefer empty/sign-in copy over raw JSON.parse / HTML SPA fallback noise.
-    if (sessionExpired) {
-      return (
-        <p className="text-muted-foreground">{t('common.sessionExpired')}</p>
-      );
-    }
     return (
       <div className="space-y-2">
-        <p className="text-muted-foreground">{t('workspaceList.empty')}</p>
-        <p className="text-sm text-muted-foreground font-mono break-all">{t('common.error')}: {msg}</p>
+        <p className="text-muted-foreground">
+          {sessionExpired ? t('common.sessionExpired') : t('common.signInRequired')}
+        </p>
+        <p className="text-sm text-muted-foreground">{t('workspaceList.signInHint')}</p>
       </div>
     );
   }

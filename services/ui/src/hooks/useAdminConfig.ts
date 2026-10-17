@@ -51,6 +51,18 @@ export function isNoopExecutor(config?: SanitizedConfig | null): boolean {
   return backend === 'noop';
 }
 
+/** Public demo: docker TES + Passport — usually digest-allowlisted (Contabo). */
+export function isAllowlistedDockerTes(config?: SanitizedConfig | null): boolean {
+  if (!config) return false;
+  const backend = config.compute?.tes_backend?.toLowerCase();
+  return backend === 'docker' && Boolean(config.auth?.require_auth);
+}
+
+/** Show honesty banner for noop or public allowlisted docker TES. */
+export function showComputeHonestyBanner(config?: SanitizedConfig | null): boolean {
+  return isNoopExecutor(config) || isAllowlistedDockerTes(config);
+}
+
 export function isCrypt4ghIngestReady(config?: SanitizedConfig | null): boolean {
   return config?.services?.crypt4gh_ingest_ready === true;
 }

@@ -104,19 +104,19 @@ export const en = {
   },
   noop: {
     title: 'Demo compute mode',
-    body: 'Ferrum TES on this host is noop: GATK-scale workflows complete at the API only and do not run containers here. Small allowlisted demo tasks still run via the public demo Runs page (execution-gate + docker-proxy) — not through this TES panel.',
-    hint: 'For real GATK: run Ferrum locally with Docker or SLURM/LSF. On the public Synaptic Four demo, use Runs on the demo site for allowlisted small tasks.',
-    compact: 'TES noop for GATK here — allowlisted small tasks: demo site Runs (execution-gate).',
+    body: 'Ferrum TES here is docker with a digest allowlist (alpine + bcftools only). GATK / Tiny Germline images are not allowlisted — those Analyse submissions fail closed. Small real containers: demo site Runs (execution-gate) or allowlisted TES images.',
+    hint: 'For GATK: run Ferrum locally without the public allowlist. On the Synaptic Four Contabo demo, use site Runs for working allowlisted tasks; seed BAM fills the picker only.',
+    compact: 'TES docker + image allowlist — GATK not listed; site Runs for working demo tasks.',
   },
   testerGuide: {
     title: 'Pilot tester quick start',
-    intro: 'This hosted demo uses real sign-in and data APIs. Workflow runs simulate completion only — no container compute on this server.',
+    intro: 'This hosted demo uses real sign-in and data APIs. Compute is digest-allowlisted (alpine/bcftools) — GATK Analyse runs fail closed. Use demo site Runs for working tasks.',
     bulletUi: 'Use this Ferrum UI (/ui/) — not the ga4gh-infra broker root URL.',
-    bulletSignIn: 'Sign in when prompted. Sessions last about 3 hours, then sign in again.',
+    bulletSignIn: 'Sign in when prompted (researcher / demo-researcher). Sessions last about 3 hours, then sign in again.',
     bulletColdStart:
       'After idle, the first page load may take up to 90 seconds while the server wakes. Retry if you see a gateway error.',
     bulletImport: 'Add data via Data → Import file → choose file → Start upload. Link objects to a workspace before analysis if prompted.',
-    bulletNoop: 'Analyses on this server complete at the API only (demo mode) — no real GATK container output here.',
+    bulletNoop: 'Tiny Germline / GATK are not allowlisted here — expect EXECUTOR_ERROR. Use site Runs for real allowlisted containers.',
     bulletReport: 'If something fails, use Report problem on the error panel to copy diagnostics for your operator.',
     pauseNote:
       'If the whole pilot was paused by your operator, every URL may stay down until they run resume — this is different from normal idle wake.',
@@ -576,6 +576,8 @@ export const en = {
     empty: 'No workspaces yet.',
     createFirst: 'Create your first workspace',
     new: 'New workspace',
+    signInHint:
+      'Sign in with the Ferrum UI button (researcher / demo-researcher). Site BFF login alone does not unlock workspaces.',
   },
   workspaceNew: {
     title: 'New workspace',

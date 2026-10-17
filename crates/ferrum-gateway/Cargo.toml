@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-gateway"
-version = "0.3.8"
+version = "0.3.9"
 edition = "2021"
 description = "API Gateway routing to all GA4GH services"
 license = "BUSL-1.1"

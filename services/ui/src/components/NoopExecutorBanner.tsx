@@ -1,5 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
-import { useAdminConfig, isNoopExecutor } from '@/hooks/useAdminConfig';
+import { useAdminConfig, showComputeHonestyBanner } from '@/hooks/useAdminConfig';
 import { useI18n } from '@/i18n/I18nProvider';
 import { cn } from '@/lib/utils';
 
@@ -7,7 +7,8 @@ export function NoopExecutorBanner({ compact }: { compact?: boolean }) {
   const { data: config } = useAdminConfig();
   const { t } = useI18n();
 
-  if (!isNoopExecutor(config)) return null;
+  // noop OR public docker+Passport (digest allowlist) — never imply GATK works here.
+  if (!showComputeHonestyBanner(config)) return null;
 
   if (compact) {
     return (

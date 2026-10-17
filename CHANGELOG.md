@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-10-17
+
+Tag `v0.3.9`. Contabo evaluator UX: workspaces sign-in copy (no raw non-JSON), honesty banner for docker+allowlist TES, DE/EN copy that GATK is not allowlisted.
+
+### Fixed
+
+- **Workspace list errors.** Unsigned-in / routing failures show sign-in guidance instead of “Unexpected non-JSON response…”.
+- **Honesty banner.** Shown for `tes_backend=docker` with Passport (public allowlist demos), not only `noop`.
+
 ## [0.3.8] - 2026-10-17
 
 Tag `v0.3.8`. Fix Contabo crash: TES docker must honor `DOCKER_HOST` (socket proxy). Do not move `v0.3.7`.

@@ -106,19 +106,19 @@ const deOverlay = {
   },
   noop: {
     title: 'Demo-Compute-Modus',
-    body: 'Ferrum-TES auf diesem Host ist noop: GATK-Workflows enden nur auf API-Ebene, Container laufen hier nicht. Kleine allowlistete Demo-Tasks laufen über die öffentliche Demo-Seite „Läufe“ (execution-gate + docker-proxy) — nicht über dieses TES-Panel.',
-    hint: 'Für echtes GATK: Ferrum lokal mit Docker oder SLURM/LSF. Auf der öffentlichen Synaptic-Four-Demo: Site-Läufe für allowlistete kleine Tasks.',
-    compact: 'TES noop für GATK hier — allowlistete kleine Tasks: Demo-Site Läufe (execution-gate).',
+    body: 'Ferrum-TES hier ist docker mit Digest-Allowlist (nur alpine + bcftools). GATK / Tiny Germline sind nicht allowlisted — solche Analysen scheitern fail-closed. Echte kleine Container: Demo-Site „Läufe“ (execution-gate) oder allowlistete TES-Images.',
+    hint: 'Für GATK: Ferrum lokal ohne öffentliche Allowlist. Auf der Contabo-Demo: Site-Läufe für funktionierende Tasks; Seed-BAM füllt nur den Dateiauswahl-Dialog.',
+    compact: 'TES docker + Image-Allowlist — GATK nicht gelistet; Site-Läufe für funktionierende Demo-Tasks.',
   },
   testerGuide: {
     title: 'Pilot-Tester — Kurzanleitung',
-    intro: 'Diese gehostete Demo nutzt echte Anmeldung und Daten-APIs. Analysen werden nur simuliert — kein Container-Compute auf diesem Server.',
+    intro: 'Diese gehostete Demo nutzt echte Anmeldung und Daten-APIs. Compute ist Digest-allowlisted (alpine/bcftools) — GATK-Analysen scheitern fail-closed. Für funktionierende Tasks: Demo-Site „Läufe“.',
     bulletUi: 'Nutzen Sie diese Ferrum-Oberfläche (/ui/) — nicht die ga4gh-infra-Broker-Startseite.',
-    bulletSignIn: 'Bei Aufforderung anmelden. Sitzungen dauern etwa 3 Stunden — danach erneut anmelden.',
+    bulletSignIn: 'Bei Aufforderung anmelden (researcher / demo-researcher). Sitzungen dauern etwa 3 Stunden — danach erneut anmelden.',
     bulletColdStart:
       'Nach Leerlauf kann der erste Seitenaufbau bis zu 90 Sekunden dauern (Server startet). Bei Gateway-Fehler erneut versuchen.',
     bulletImport: 'Daten hinzufügen: Daten → Datei importieren → Datei wählen → Upload starten. Vor Analyse ggf. mit Arbeitsbereich verknüpfen.',
-    bulletNoop: 'Analysen auf diesem Server enden nur auf API-Ebene (Demo-Modus) — keine echten GATK-Container-Ausgaben.',
+    bulletNoop: 'Tiny Germline / GATK sind hier nicht allowlisted — erwarten Sie EXECUTOR_ERROR. Site-Läufe für echte allowlistete Container.',
     bulletReport: 'Bei Fehlern „Problem melden“ im Fehlerpanel nutzen — kopiert Diagnose für den Betreiber.',
     pauseNote:
       'Wurde der gesamte Pilot vom Betreiber pausiert, bleiben alle URLs aus — das unterscheidet sich vom normalen Leerlauf-Aufwachen.',
@@ -685,6 +685,8 @@ const deOverlay = {
     empty: 'Noch keine Arbeitsbereiche.',
     createFirst: 'Ersten Arbeitsbereich anlegen',
     new: 'Neuer Arbeitsbereich',
+    signInHint:
+      'Melden Sie sich in der Ferrum-UI an (researcher / demo-researcher). Die Site-BFF-Anmeldung allein öffnet keine Arbeitsbereiche.',
   },
   workspaceNew: {
     title: 'Neuer Arbeitsbereich',
