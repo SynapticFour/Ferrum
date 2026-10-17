@@ -172,6 +172,7 @@ impl TaskExecutor for DockerExecutor {
             return Err(TesError::Validation("executors required".into()));
         }
         let exec = &request.executors[0];
+        crate::image_allowlist::ensure_image_allowed(&exec.image)?;
         self.ensure_image(&exec.image).await?;
         let name = format!("tes-{}", task_id);
         let binds = Self::collect_binds(request)?;

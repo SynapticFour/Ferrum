@@ -24,6 +24,8 @@ pub struct WesRun {
     pub workflow_params: serde_json::Value,
     pub workflow_engine_params: serde_json::Value,
     pub work_dir: Option<std::path::PathBuf>,
+    /// Caller Passport Bearer (raw JWT) for WES→TES when TES requires auth.
+    pub auth_bearer: Option<String>,
 }
 
 /// Backend for execution: local subprocess or Slurm. LSF is not implemented.

@@ -9,11 +9,11 @@ Lab Kit and operators should **select a published variant**, not compile an ad-h
 | **full** | default (`full`) | Beacon, DRS, htsget, WES, TES, TRS, Passports, discovery, `/admin`, … | `:<sha>`, `:<sha>-full`, `:latest`, `:full`, version tags |
 | **edge** | `--no-default-features --features edge` | DRS + Beacon + htsget + Crypt4GH on SQLite | `:<sha>-edge`, `:edge` |
 | **edge-infra** | `--no-default-features --features edge,external-auth` | edge + ga4gh-infra clearinghouse + service-registry | `:<sha>-edge-infra`, `:edge-infra` |
-| **full-infra** | default `full` + `--features external-auth` | full surfaces **plus** broker Passport clearinghouse / service-registry hooks | `:<sha>-full-infra`, `:full-infra`, `:<tag>-full-infra` |
+| **full-infra** | default `full` + `--features external-auth,tes-docker` | full surfaces **plus** broker Passport clearinghouse / service-registry hooks **and** Bollard TES | `:<sha>-full-infra`, `:full-infra`, `:<tag>-full-infra` |
 
 `:<sha>` without a suffix is always **full** (backward compatible).
 
-**full-infra** is the published image that both validates ga4gh-infra Passports and compiles WES/TES/TRS/`/admin` (including `GET /admin/config` for ferrum-ui). Optional `tes-docker` remains a cargo feature override via `FERRUM_GATEWAY_FEATURES`, not a fifth published variant.
+**full-infra** is the published image that both validates ga4gh-infra Passports and compiles WES/TES/TRS/`/admin` (including `GET /admin/config` for ferrum-ui). From **v0.3.6**, `full-infra` also compiles **`tes-docker`** (Bollard) so `FERRUM_TES_BACKEND=docker` works; set `DOCKER_HOST` (e.g. socket proxy) and optionally `FERRUM_TES_ALLOWED_IMAGES`. Override still via `FERRUM_GATEWAY_FEATURES`.
 
 htsget is part of **edge** at compile time; Lab Kit `field-edge` still sets `FERRUM_SERVICES__ENABLE_HTSGET=false` so the route is off. A Beacon+DRS-only **binary** would need optional `ferrum-htsget` — not a Lab Kit Dockerfile.
 

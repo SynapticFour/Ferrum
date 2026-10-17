@@ -16,8 +16,8 @@ Track important architectural and operational decisions here.
 
 - **Status:** Accepted
 - **Context:** Showcase and institute co-deploys need WES/TES/TRS/`/admin` **and** ga4gh-infra Passport validation. GHCR only published `full` (no `external-auth`) and `edge-infra` (external-auth, no WES/TES/admin). ferrum-ui requires `GET /admin/config`.
-- **Decision:** Publish **`full-infra`**: default `full` cargo features plus `--features external-auth`. Tags `:<sha>-full-infra`, `:full-infra`, `:<tag>-full-infra`. Tag builds include it in the matrix; `workflow_dispatch` defaults omit it so operators can pass `["full-infra"]` alone.
-- **Consequences:** One more gateway build per tag. Lab Kit maps broker+WES profiles to `full-infra`. Optional `tes-docker` stays a feature override, not a fifth variant.
+- **Decision:** Publish **`full-infra`**: default `full` cargo features plus `--features external-auth,tes-docker` (from v0.3.6). Tags `:<sha>-full-infra`, `:full-infra`, `:<tag>-full-infra`. Tag builds include it in the matrix; `workflow_dispatch` defaults omit it so operators can pass `["full-infra"]` alone.
+- **Consequences:** One more gateway build per tag. Lab Kit maps broker+WES profiles to `full-infra`. Public demos that enable `FERRUM_TES_BACKEND=docker` must also set `FERRUM_TES_ALLOWED_IMAGES` (digest pins) when Passports are shared.
 
 ---
 

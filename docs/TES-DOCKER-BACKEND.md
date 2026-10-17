@@ -88,6 +88,7 @@ All variables are **ignored unless set**. They apply only when the TES backend i
 
 | Variable | Effect |
 |----------|--------|
+| **`FERRUM_TES_ALLOWED_IMAGES`** | Comma-separated image refs (prefer digest pins). When set, Docker TES refuses any other executor image (403). Unset → no image restriction — do not leave unset on a public shared Passport demo. |
 | **`FERRUM_TES_ALLOWED_BIND_PREFIXES`** | Comma-separated host path prefixes. TES **request** `volumes` are refused unless the host path is under one of these (or under `FERRUM_WES_TES_WORK_HOST_PREFIX`). Paths containing `..` are rejected. Unset + empty WES prefix → client volumes disabled. |
 | **`FERRUM_TES_EXTRA_BINDS`** | Operator-controlled extra binds (not from the TES JSON body). |
 | **`FERRUM_TES_DOCKER_MOUNT_SOCKET`** | If truthy (`1`, `true`, `yes`, `on`), add bind `/var/run/docker.sock:/var/run/docker.sock`. |

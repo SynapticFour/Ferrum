@@ -6,6 +6,7 @@ pub mod error;
 pub mod executor;
 pub mod executors;
 pub mod handlers;
+pub mod image_allowlist;
 pub mod repo;
 pub mod state;
 pub mod types;

@@ -28,8 +28,9 @@ case "$VARIANT" in
     printf '%s\n' "--no-default-features --features edge,external-auth"
     ;;
   full-infra)
-    # Full surfaces (WES/TES/TRS/admin/Postgres) plus ga4gh-infra external-auth.
-    printf '%s\n' "--features external-auth"
+    # Full surfaces (WES/TES/TRS/admin/Postgres) plus ga4gh-infra external-auth
+    # and Bollard TES (`tes-docker`) so FERRUM_TES_BACKEND=docker works.
+    printf '%s\n' "--features external-auth,tes-docker"
     ;;
   *)
     echo "error: unknown FERRUM_VARIANT=${VARIANT} (expected full|edge|edge-infra|full-infra)" >&2

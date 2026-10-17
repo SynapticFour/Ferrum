@@ -605,6 +605,9 @@ pub async fn post_runs(
         workflow_params,
         workflow_engine_params,
         work_dir: None,
+        auth_bearer: auth
+            .as_ref()
+            .and_then(|c| c.raw_token().map(str::to_string)),
     };
     if let Err(e) = app.run_manager.submit(&run).await {
         let _ = app
@@ -1922,6 +1925,9 @@ pub async fn resume_run(
         workflow_params: params,
         workflow_engine_params,
         work_dir: None,
+        auth_bearer: auth
+            .as_ref()
+            .and_then(|c| c.raw_token().map(str::to_string)),
     };
     if let Err(e) = app.run_manager.submit(&run).await {
         let _ = app

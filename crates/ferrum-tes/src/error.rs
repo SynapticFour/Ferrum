@@ -10,6 +10,8 @@ pub type Result<T> = std::result::Result<T, TesError>;
 pub enum TesError {
     #[error("unauthorized: {0}")]
     Unauthorized(String),
+    #[error("forbidden: {0}")]
+    Forbidden(String),
     #[error("not found: {0}")]
     NotFound(String),
     #[error("validation: {0}")]
@@ -26,6 +28,7 @@ impl IntoResponse for TesError {
     fn into_response(self) -> axum::response::Response {
         let (status, msg) = match &self {
             TesError::Unauthorized(_) => (axum::http::StatusCode::UNAUTHORIZED, self.to_string()),
+            TesError::Forbidden(_) => (axum::http::StatusCode::FORBIDDEN, self.to_string()),
             TesError::NotFound(_) => (axum::http::StatusCode::NOT_FOUND, self.to_string()),
             TesError::Validation(_) => (axum::http::StatusCode::BAD_REQUEST, self.to_string()),
             _ => (

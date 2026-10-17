@@ -4,10 +4,20 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-10-17
+
+Tag `v0.3.6`. Do not move `v0.3.5`. Showcase Contabo pin moves to `v0.3.6-full-infra` (TES docker + Metadata groups).
+
 ### Security
 
 - **Broker `groups` for field roles.** External Passport tokens may carry a broker-flattened `groups` claim (AffiliationAndRole values the broker already verified). `can_analyze` / `can_ingest` / `can_sync` / `is_admin` honor those groups when Visa objects are empty — e.g. Visa Registry–issued JWTs whose `iss` is not the Passport broker.
 - **Optional Visa Registry TrustedBroker.** `FERRUM_AUTH__VISA_ISSUER` + `FERRUM_AUTH__VISA_JWKS_URL` (or `[auth].visa_issuer` / `visa_jwks_url`) add a second clearinghouse trusted issuer so UserInfo Visa JWTs from a separate Visa Registry verify.
+- **TES image allowlist.** When `FERRUM_TES_ALLOWED_IMAGES` is set (comma-separated refs, prefer `@sha256:` digests), Docker TES refuses any other image (403). Unset remains unrestricted for private pilots.
+- **WES→TES Bearer forward.** WES submits the caller's Passport Bearer to TES create/cancel/poll so loopback TES with `require_auth=true` works.
+
+### Added
+
+- **`full-infra` includes `tes-docker`.** Published `full-infra` images compile Bollard so `FERRUM_TES_BACKEND=docker` fails closed only when the daemon/`DOCKER_HOST` is unreachable, not because the feature is missing.
 
 ### Behavior changes
 
@@ -18,9 +28,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Checkpoint and backup publish.** The emergency note and field backup archives are written to a temporary file, fsynced, and renamed onto the final name. Startup does not read the note.
 - **Stale partials.** At startup, `.ferrum-partial-*` files older than one hour are removed from the object directory, the directory that contains the emergency note, and the `backups` directory under the Ferrum data directory. Other files are left in place. A newer partial is left in place.
 
-### Reference object store + release hygiene (proposed tag `v0.3.6`)
-
-Tag proposal only — **do not create the tag until `make verify-release` is green on the release commit.** Do not move `v0.3.5`. **Showcase / Contabo stays on `v0.3.5-full-infra`:** this tag changes deployment files and docs only (SeaweedFS reference Compose, digests, offline-bundle optional); it does not require a demo gate image rebuild.
+### Reference object store + release hygiene
 
 - **SeaweedFS 3.80** replaces MinIO in reference Compose, offline bundle, and Helm `values-local` (Apache-2.0; auto-create bucket). Digests in [docs/COMPOSE-IMAGE-PINS.md](docs/COMPOSE-IMAGE-PINS.md). **Garage** is AGPL-3.0 (upstream repo) — tested alternative; **MinIO** is BYO only (Hub/binary unavailable). [docs/TESTED-S3-BACKENDS.md](docs/TESTED-S3-BACKENDS.md).
 - **Release workflow** — offline image bundle is optional/`continue-on-error`; GitHub Release still publishes binaries, Helm, SBOM when the bundle pull fails.

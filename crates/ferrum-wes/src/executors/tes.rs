@@ -69,6 +69,8 @@ pub struct TesExecutorBackend {
     run_to_task: RwLock<HashMap<String, String>>,
     /// run_id -> WES work dir (for TES log files)
     run_to_work_dir: RwLock<HashMap<String, PathBuf>>,
+    /// run_id -> caller Bearer (for TES require_auth)
+    run_to_bearer: RwLock<HashMap<String, String>>,
 }
 
 fn env_truthy(name: &str) -> bool {
@@ -466,7 +468,26 @@ impl TesExecutorBackend {
             client: reqwest::Client::new(),
             run_to_task: RwLock::new(HashMap::new()),
             run_to_work_dir: RwLock::new(HashMap::new()),
+            run_to_bearer: RwLock::new(HashMap::new()),
         }
+    }
+
+    fn apply_bearer(
+        &self,
+        mut req: reqwest::RequestBuilder,
+        run_id: &str,
+        bearer_override: Option<&str>,
+    ) -> reqwest::RequestBuilder {
+        let token = bearer_override.map(str::to_string).or_else(|| {
+            self.run_to_bearer
+                .read()
+                .ok()
+                .and_then(|m| m.get(run_id).cloned())
+        });
+        if let Some(t) = token {
+            req = req.header("Authorization", format!("Bearer {t}"));
+        }
+        req
     }
 
     /// Pull TES task logs into the WES work dir (`stdout.txt` / `stderr.txt`) for the UI.
@@ -480,14 +501,18 @@ impl TesExecutorBackend {
         let Some(task_id) = task_id else {
             return Ok(());
         };
-        self.write_logs_from_task(&task_id, work_dir).await
+        self.write_logs_from_task(&task_id, work_dir, run_id).await
     }
 
-    async fn write_logs_from_task(&self, task_id: &str, work_dir: &Path) -> Result<()> {
+    async fn write_logs_from_task(
+        &self,
+        task_id: &str,
+        work_dir: &Path,
+        run_id: &str,
+    ) -> Result<()> {
         let url = format!("{}/tasks/{}", self.base_url, task_id);
         let resp = self
-            .client
-            .get(&url)
+            .apply_bearer(self.client.get(&url), run_id, None)
             .send()
             .await
             .map_err(|e| WesError::Executor(format!("TES get task for logs: {}", e)))?;
@@ -559,10 +584,19 @@ impl WorkflowExecutor for TesExecutorBackend {
     ) -> Result<ProcessHandle> {
         let body = build_tes_task_request(run, work_dir)?;
         let url = format!("{}/tasks", self.base_url);
+        let run_id = run.run_id.clone();
+        if let Some(ref bearer) = run.auth_bearer {
+            self.run_to_bearer
+                .write()
+                .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
+                .insert(run_id.clone(), bearer.clone());
+        }
         let resp = self
-            .client
-            .post(&url)
-            .json(&body)
+            .apply_bearer(
+                self.client.post(&url).json(&body),
+                &run_id,
+                run.auth_bearer.as_deref(),
+            )
             .send()
             .await
             .map_err(|e| WesError::Executor(format!("TES create task: {}", e)))?;
@@ -579,7 +613,6 @@ impl WorkflowExecutor for TesExecutorBackend {
         }
         let task: TesTaskResponse = serde_json::from_str(&text)
             .map_err(|e| WesError::Executor(format!("TES response parse: {}", e)))?;
-        let run_id = run.run_id.clone();
         self.run_to_task
             .write()
             .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
@@ -601,11 +634,18 @@ impl WorkflowExecutor for TesExecutorBackend {
         if let Some(id) = task_id {
             // Ferrum TES router uses POST /tasks/{id}/cancel (see ferrum-tes `lib.rs`).
             let url = format!("{}/tasks/{}/cancel", self.base_url, id);
-            let _ = self.client.post(&url).send().await;
+            let _ = self
+                .apply_bearer(self.client.post(&url), &handle.run_id, None)
+                .send()
+                .await;
             self.run_to_task
                 .write()
                 .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
                 .remove(&handle.run_id);
+            let _ = self
+                .run_to_bearer
+                .write()
+                .map(|mut m| m.remove(&handle.run_id));
         }
         Ok(())
     }
@@ -623,8 +663,7 @@ impl WorkflowExecutor for TesExecutorBackend {
         };
         let url = format!("{}/tasks/{}", self.base_url, id);
         let resp = self
-            .client
-            .get(&url)
+            .apply_bearer(self.client.get(&url), run_id, None)
             .send()
             .await
             .map_err(|e| WesError::Executor(format!("TES get task: {}", e)))?;
@@ -671,6 +710,7 @@ impl WorkflowExecutor for TesExecutorBackend {
                 .write()
                 .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
                 .remove(run_id);
+            let _ = self.run_to_bearer.write().map(|mut m| m.remove(run_id));
             self.run_to_work_dir
                 .write()
                 .map_err(|e| WesError::Executor(format!("lock poisoned: {}", e)))?
