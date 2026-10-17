@@ -4,9 +4,17 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-10-17
+
+Tag `v0.3.8`. Fix Contabo crash: TES docker must honor `DOCKER_HOST` (socket proxy). Do not move `v0.3.7`.
+
+### Fixed
+
+- **TES docker + `DOCKER_HOST`.** `DockerExecutor::connect_default` uses bollard `connect_with_defaults()` so `DOCKER_HOST=tcp://docker-proxy:2375` works. `connect_with_local_defaults()` ignored TCP and panicked looking for `/var/run/docker.sock` (Contabo `v0.3.7-full-infra` crash loop).
+
 ## [0.3.7] - 2026-10-17
 
-Tag `v0.3.7` (TES docker + Metadata groups + SeaweedFS release hygiene). Do not move `v0.3.5`. Remote tag `v0.3.6` already existed as a docs-only prep cut — this release is **v0.3.7**. Showcase Contabo pin moves to `v0.3.7-full-infra`.
+Tag `v0.3.7` (TES docker + Metadata groups + SeaweedFS release hygiene). Do not move `v0.3.5`. Remote tag `v0.3.6` already existed as a docs-only prep cut — this release is **v0.3.7**. Showcase Contabo pin moves to `v0.3.8-full-infra` after the DOCKER_HOST fix.
 
 ### Security
 

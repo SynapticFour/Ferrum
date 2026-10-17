@@ -19,8 +19,8 @@ Dockerfile build args (when set): `rust:1.91.1-alpine@sha256:45c1c35…`, `rust:
 | Service | Image |
 |---------|--------|
 | postgres | same as above |
-| gateway | `ghcr.io/synapticfour/ferrum:v0.3.7-full-infra@sha256:23d2fe0347a77b30b028ad5feb02754169071aac19d520f9888ad46d66fc763f` |
-| ui | `ghcr.io/synapticfour/ferrum-ui:v0.3.7@sha256:9fb44fca362ed90b076f7fcdd71436fea21013b2c56f15cb9e1fe80e891ee798` |
+| gateway | `ghcr.io/synapticfour/ferrum:v0.3.8-full-infra@sha256:0000000000000000000000000000000000000000000000000000000000000000` (replace after GHCR) |
+| ui | `ghcr.io/synapticfour/ferrum-ui:v0.3.8@sha256:0000000000000000000000000000000000000000000000000000000000000000` (replace after GHCR) |
 | nginx | same as above |
 
 ## `deploy/docker-compose.ga4gh-infra.yml`

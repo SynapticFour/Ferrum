@@ -9,6 +9,11 @@ ignore       = [
     # rsa crate Marvin Attack — no upstream patch yet; used for JWT/Passport paths.
     # Track: https://rustsec.org/advisories/RUSTSEC-2023-0071 — revisit when rsa ships CT fix.
     { id = "RUSTSEC-2023-0071", reason = "No patched rsa release; Passport/JWT path accepted residual until upstream CT fix" },
+    # zip 0.6.6 is a build-dep of utoipa-swagger-ui 6 (vendored UI zip unpack at compile time only).
+    # Runtime WES zip is 9.0.4. Revisit when utoipa-swagger-ui drops zip 0.6.
+    { id = "RUSTSEC-2026-0367", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no runtime extract of untrusted ZIPs" },
+    { id = "RUSTSEC-2026-0368", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no runtime extract of untrusted ZIPs" },
+    { id = "RUSTSEC-2026-0369", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no runtime extract of untrusted ZIPs" },
 ]
 
 [licenses]

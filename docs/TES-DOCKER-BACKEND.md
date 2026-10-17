@@ -80,6 +80,8 @@ docker build -f deploy/Dockerfile.gateway --build-arg FERRUM_GATEWAY_FEATURES=te
 
 Without this feature, `FERRUM_TES_BACKEND=docker` **fails closed** (no silent Podman fallback).
 
+Connection uses bollard `Docker::connect_with_defaults()` (from **v0.3.8**): honor **`DOCKER_HOST`** (`tcp://…` socket proxy or `unix://…`). Do not use `connect_with_local_defaults` alone — it ignores TCP `DOCKER_HOST` and panics looking for `/var/run/docker.sock`.
+
 ---
 
 ## TES Docker executor: optional environment (site-specific)
@@ -88,6 +90,7 @@ All variables are **ignored unless set**. They apply only when the TES backend i
 
 | Variable | Effect |
 |----------|--------|
+| **`DOCKER_HOST`** | Engine endpoint (e.g. `tcp://docker-proxy:2375`). Required when the gateway must not mount the raw host sock. |
 | **`FERRUM_TES_ALLOWED_IMAGES`** | Comma-separated image refs (prefer digest pins). When set, Docker TES refuses any other executor image (403). Unset → no image restriction — do not leave unset on a public shared Passport demo. |
 | **`FERRUM_TES_ALLOWED_BIND_PREFIXES`** | Comma-separated host path prefixes. TES **request** `volumes` are refused unless the host path is under one of these (or under `FERRUM_WES_TES_WORK_HOST_PREFIX`). Paths containing `..` are rejected. Unset + empty WES prefix → client volumes disabled. |
 | **`FERRUM_TES_EXTRA_BINDS`** | Operator-controlled extra binds (not from the TES JSON body). |

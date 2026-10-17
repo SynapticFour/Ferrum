@@ -24,8 +24,9 @@ impl DockerExecutor {
         Self { docker }
     }
 
+    /// Prefer `DOCKER_HOST` (tcp://… socket proxy) via bollard defaults; Unix sock only if unset.
     pub fn connect_default() -> std::result::Result<Self, bollard::errors::Error> {
-        let docker = Docker::connect_with_local_defaults()?;
+        let docker = Docker::connect_with_defaults()?;
         Ok(Self::new(docker))
     }
 

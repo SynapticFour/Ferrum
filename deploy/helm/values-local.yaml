@@ -1,9 +1,9 @@
-# Single-node / k3s / local Kubernetes — Ferrum v0.3.5 tip / proposed v0.3.7
+# Single-node / k3s / local Kubernetes — Ferrum v0.3.5 tip / proposed v0.3.8
 # Object store: point at SeaweedFS (or BYO S3). See docs/TESTED-S3-BACKENDS.md.
 replicaCount: 1
 image:
   repository: ghcr.io/synapticfour/ferrum
-  tag: "v0.3.7-full-infra"
+  tag: "v0.3.8-full-infra"
   digest: "sha256:555f44bada386bd58d7b6914a94b22e4bd5319edf5d4e70c11c7a82dae14c312"
   pullPolicy: IfNotPresent
 
