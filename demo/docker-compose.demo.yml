@@ -16,7 +16,7 @@ services:
 
   gateway:
     # Pin to VERSIONS.lock FERRUM_VERSION + digest. linux/amd64 only on GHCR.
-    image: ghcr.io/synapticfour/ferrum:v0.3.8-full-infra@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    image: ghcr.io/synapticfour/ferrum:v0.3.8-full-infra@sha256:be946a3b1e9218939e5ebf64747eb49f3735041d11cc80fd866981fad3e01bbd
     platform: linux/amd64
     ports:
       - "8080:8080"
@@ -29,7 +29,7 @@ services:
         condition: service_healthy
 
   ui:
-    image: ghcr.io/synapticfour/ferrum-ui:v0.3.8@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    image: ghcr.io/synapticfour/ferrum-ui:v0.3.8@sha256:635f3e4593fd2f7c4623a11ab30b6a2b5b89b55d25964fa953181f009aae4791
     platform: linux/amd64
     environment:
       VITE_API_BASE_URL: http://localhost:8080
