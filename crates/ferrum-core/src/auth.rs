@@ -68,6 +68,10 @@ pub struct PassportClaims {
     pub scope: Option<String>,
     #[serde(default)]
     pub aud: Option<String>,
+    /// Broker flat groups (AffiliationAndRole values the broker already verified).
+    /// Used when clearinghouse cannot verify Visa Registry–issued JWTs (iss ≠ broker).
+    #[serde(default)]
+    pub groups: Option<Vec<String>>,
 }
 
 /// Claims stored in request extensions (set by auth middleware).
@@ -99,31 +103,29 @@ impl AuthClaims {
         }
     }
 
-    /// True if the token has the ferrum:admin role (Passport visas; JWT has no roles in core).
+    /// True if the token has the ferrum:admin role (Passport visas or broker groups).
     pub fn is_admin(&self) -> bool {
-        match self {
-            AuthClaims::Jwt { .. } => false,
-            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| v.value == VISA_ADMIN),
-        }
+        self.has_field_visa(VISA_ADMIN) || self.has_group(VISA_ADMIN)
     }
 
-    /// True if the token has the ferrum:outbreak_activator role (Passport visa).
+    /// True if the token has the ferrum:outbreak_activator role (Passport visa or broker groups).
     pub fn is_outbreak_activator(&self) -> bool {
-        match self {
-            AuthClaims::Jwt { .. } => false,
-            AuthClaims::Passport { visas, .. } => visas.iter().any(|v| v.value == VISA_OUTBREAK),
-        }
+        self.has_field_visa(VISA_OUTBREAK) || self.has_group(VISA_OUTBREAK)
     }
 
     /// True if token may ingest field data (collector visa or admin).
     pub fn can_ingest(&self) -> bool {
-        self.is_admin() || self.has_field_visa(VISA_COLLECTOR) || self.has_scope(VISA_COLLECTOR)
+        self.is_admin()
+            || self.has_field_visa(VISA_COLLECTOR)
+            || self.has_group(VISA_COLLECTOR)
+            || self.has_scope(VISA_COLLECTOR)
     }
 
     /// True if token may run sync operations (sync operator or admin).
     pub fn can_sync(&self) -> bool {
         self.is_admin()
             || self.has_field_visa(VISA_SYNC_OPERATOR)
+            || self.has_group(VISA_SYNC_OPERATOR)
             || self.has_scope(VISA_SYNC_OPERATOR)
     }
 
@@ -132,6 +134,8 @@ impl AuthClaims {
         self.is_admin()
             || self.has_field_visa(VISA_ANALYST)
             || self.has_field_visa(VISA_COLLECTOR)
+            || self.has_group(VISA_ANALYST)
+            || self.has_group(VISA_COLLECTOR)
             || self.has_scope(VISA_ANALYST)
             || self.has_scope(VISA_COLLECTOR)
     }
@@ -140,6 +144,17 @@ impl AuthClaims {
         match self {
             AuthClaims::Jwt { .. } => false,
             AuthClaims::Passport { visas, .. } => visas.iter().any(|v| v.value == visa_value),
+        }
+    }
+
+    /// Broker `groups` claim (verified AffiliationAndRole values flattened by ga4gh-infra).
+    fn has_group(&self, value: &str) -> bool {
+        match self {
+            AuthClaims::Jwt { .. } => false,
+            AuthClaims::Passport { claims, .. } => claims
+                .groups
+                .as_ref()
+                .is_some_and(|g| g.iter().any(|v| v == value)),
         }
     }
 
@@ -337,6 +352,11 @@ pub struct AuthMiddlewareConfig {
     pub audience: Option<String>,
     /// External ga4gh-infra mode. JWKS discovery runs only when this is true.
     pub external_mode: bool,
+    /// Optional Visa Registry issuer to trust in addition to the Passport broker
+    /// (`FERRUM_AUTH__VISA_ISSUER` + `FERRUM_AUTH__VISA_JWKS_URL`).
+    pub visa_issuer: Option<String>,
+    /// JWKS URL for [`Self::visa_issuer`] (Visa Registry `/jwks.json`).
+    pub visa_jwks_url: Option<String>,
     /// Optional ADR-032 sink for `authorization_denied` residency events (set by the gateway).
     pub denied_audit: Option<Arc<crate::denied_audit::DeniedAuditSink>>,
 }
@@ -362,6 +382,16 @@ impl AuthMiddlewareConfig {
             .ok()
             .and_then(|s| s.parse().ok())
             .unwrap_or(cfg.jwks_cache_ttl_secs);
+        let visa_issuer = cfg
+            .visa_issuer
+            .clone()
+            .or_else(|| std::env::var("FERRUM_AUTH__VISA_ISSUER").ok())
+            .filter(|s| !s.is_empty());
+        let visa_jwks_url = cfg
+            .visa_jwks_url
+            .clone()
+            .or_else(|| std::env::var("FERRUM_AUTH__VISA_JWKS_URL").ok())
+            .filter(|s| !s.is_empty());
         Self {
             jwt_secret: cfg.jwt_secret.as_deref().map(|s| s.as_bytes().to_vec()),
             issuer,
@@ -379,6 +409,8 @@ impl AuthMiddlewareConfig {
                 .or_else(|| std::env::var("FERRUM_AUTH__AUDIENCE").ok())
                 .filter(|s| !s.is_empty()),
             external_mode: cfg.is_external(),
+            visa_issuer,
+            visa_jwks_url,
             denied_audit: None,
         }
     }
@@ -398,6 +430,8 @@ impl AuthMiddlewareConfig {
             use_clearinghouse: false,
             audience: None,
             external_mode: false,
+            visa_issuer: None,
+            visa_jwks_url: None,
             denied_audit: None,
         }
     }
@@ -417,6 +451,8 @@ impl AuthMiddlewareConfig {
             use_clearinghouse: false,
             audience: None,
             external_mode: false,
+            visa_issuer: None,
+            visa_jwks_url: None,
             denied_audit: None,
         }
     }
@@ -442,6 +478,12 @@ impl AuthMiddlewareConfig {
                 .ok()
                 .filter(|s| !s.is_empty()),
             external_mode: false,
+            visa_issuer: std::env::var("FERRUM_AUTH__VISA_ISSUER")
+                .ok()
+                .filter(|s| !s.is_empty()),
+            visa_jwks_url: std::env::var("FERRUM_AUTH__VISA_JWKS_URL")
+                .ok()
+                .filter(|s| !s.is_empty()),
             denied_audit: None,
         })
     }
@@ -907,6 +949,25 @@ fn peek_jwt_claim_string(token: &str, claim: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+#[cfg(feature = "clearinghouse")]
+fn peek_jwt_claim_string_array(token: &str, claim: &str) -> Option<Vec<String>> {
+    let payload = token.split('.').nth(1)?;
+    let payload_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .ok()?;
+    let value: serde_json::Value = serde_json::from_slice(&payload_bytes).ok()?;
+    let arr = value.get(claim)?.as_array()?;
+    let out: Vec<String> = arr
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
 fn apply_audience(validation: &mut Validation, cfg: &AuthMiddlewareConfig) {
     if let Some(ref aud) = cfg.audience {
         validation.set_audience(&[aud.as_str()]);
@@ -980,25 +1041,43 @@ async fn clearinghouse_for_cfg(
         return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
     }
 
-    let cache_key = format!("{}|{}", issuer.trim_end_matches('/'), jwks_url);
+    let visa_issuer = cfg
+        .visa_issuer
+        .as_deref()
+        .map(|s| s.trim_end_matches('/').to_string())
+        .filter(|s| !s.is_empty());
+    let visa_jwks = cfg.visa_jwks_url.clone().filter(|s| !s.is_empty());
+    let cache_key = format!(
+        "{}|{}|{}|{}",
+        issuer.trim_end_matches('/'),
+        jwks_url,
+        visa_issuer.as_deref().unwrap_or(""),
+        visa_jwks.as_deref().unwrap_or("")
+    );
     if let Ok(cache) = CLEARINGHOUSE_CACHE.lock() {
         if let Some(existing) = cache.get(&cache_key) {
             return Ok(Arc::clone(existing));
         }
     }
 
-    let clearinghouse = Clearinghouse::new(ClearinghouseConfig::new(
-        vec![TrustedBroker::new(
-            issuer.trim_end_matches('/').to_string(),
-            jwks_url,
-        )],
-        cfg.jwks_cache_ttl,
-    ))
-    .await
-    .map_err(|err| {
-        tracing::warn!(error = %err, "failed to initialize ga4gh-clearinghouse");
-        jsonwebtoken::errors::ErrorKind::InvalidToken
-    })?;
+    let mut brokers = vec![TrustedBroker::new(
+        issuer.trim_end_matches('/').to_string(),
+        jwks_url,
+    )];
+    if let (Some(viss), Some(vjwks)) = (visa_issuer, visa_jwks) {
+        if (vjwks.starts_with("http://") || vjwks.starts_with("https://"))
+            && viss != issuer.trim_end_matches('/')
+        {
+            brokers.push(TrustedBroker::new(viss, vjwks));
+        }
+    }
+
+    let clearinghouse = Clearinghouse::new(ClearinghouseConfig::new(brokers, cfg.jwks_cache_ttl))
+        .await
+        .map_err(|err| {
+            tracing::warn!(error = %err, "failed to initialize ga4gh-clearinghouse");
+            jsonwebtoken::errors::ErrorKind::InvalidToken
+        })?;
     let clearinghouse = Arc::new(clearinghouse);
     if let Ok(mut cache) = CLEARINGHOUSE_CACHE.lock() {
         cache.insert(cache_key, Arc::clone(&clearinghouse));
@@ -1076,6 +1155,9 @@ async fn decode_passport_via_clearinghouse(
             ga4gh_passport_v1: Some(passport.visa_jwts),
             scope: passport.scope,
             aud: passport.aud,
+            // Broker-verified AffiliationAndRole flatten; survives when Visa JWTs
+            // are issued by a separate Visa Registry (iss ≠ broker TrustedBroker).
+            groups: peek_jwt_claim_string_array(token, "groups"),
         },
         visas: visa_objects,
         raw_token: Some(token.to_string()),
@@ -1202,12 +1284,24 @@ async fn decode_passport_visas_clearinghouse(
         let jwks_url = std::env::var("FERRUM_AUTH__JWKS_URL").ok();
         let issuer = std::env::var("FERRUM_AUTH__ISSUER").ok();
 
-        let trusted = match (issuer, jwks_url) {
+        let mut trusted = match (issuer, jwks_url) {
             (Some(iss), Some(jwks)) if !iss.is_empty() && !jwks.is_empty() => {
                 vec![TrustedBroker::new(iss, jwks)]
             }
             _ => Vec::new(),
         };
+        if let (Ok(viss), Ok(vjwks)) = (
+            std::env::var("FERRUM_AUTH__VISA_ISSUER"),
+            std::env::var("FERRUM_AUTH__VISA_JWKS_URL"),
+        ) {
+            let viss = viss.trim_end_matches('/').to_string();
+            if !viss.is_empty()
+                && !vjwks.is_empty()
+                && (vjwks.starts_with("http://") || vjwks.starts_with("https://"))
+            {
+                trusted.push(TrustedBroker::new(viss, vjwks));
+            }
+        }
 
         if trusted.is_empty() {
             tracing::warn!(
@@ -1375,6 +1469,7 @@ mod published_access_tests {
                 ga4gh_passport_v1: None,
                 scope: None,
                 aud: None,
+                groups: None,
             },
             visas: vec![VisaObject {
                 r#type: "ControlledAccessGrants".to_string(),
@@ -1454,6 +1549,7 @@ mod published_access_tests {
                 ga4gh_passport_v1: None,
                 scope: None,
                 aud: None,
+                groups: None,
             },
             visas: vec![VisaObject {
                 r#type: "AffiliationAndRole".to_string(),
@@ -1501,6 +1597,28 @@ mod published_access_tests {
         };
         assert!(claims.can_sync());
     }
+
+    #[test]
+    fn broker_groups_allow_analyze_without_visa_objects() {
+        let claims = AuthClaims::Passport {
+            claims: PassportClaims {
+                sub: Some("researcher".into()),
+                iss: Some("https://broker.example".into()),
+                exp: Some(9_999_999_999),
+                iat: Some(1),
+                jti: None,
+                ga4gh_passport_v1: Some(vec![]),
+                scope: Some("openid ga4gh_passport_v1".into()),
+                aud: None,
+                groups: Some(vec!["ferrum:analyst".into()]),
+            },
+            visas: vec![],
+            raw_token: None,
+        };
+        assert!(claims.can_analyze());
+        assert!(!claims.can_ingest());
+        assert!(!claims.is_admin());
+    }
 }
 
 #[cfg(test)]
@@ -1528,6 +1646,8 @@ mod jwks_discovery_tests {
             use_clearinghouse: false,
             audience: None,
             external_mode: true,
+            visa_issuer: None,
+            visa_jwks_url: None,
             denied_audit: None,
         }
     }

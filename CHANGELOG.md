@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+### Security
+
+- **Broker `groups` for field roles.** External Passport tokens may carry a broker-flattened `groups` claim (AffiliationAndRole values the broker already verified). `can_analyze` / `can_ingest` / `can_sync` / `is_admin` honor those groups when Visa objects are empty — e.g. Visa Registry–issued JWTs whose `iss` is not the Passport broker.
+- **Optional Visa Registry TrustedBroker.** `FERRUM_AUTH__VISA_ISSUER` + `FERRUM_AUTH__VISA_JWKS_URL` (or `[auth].visa_issuer` / `visa_jwks_url`) add a second clearinghouse trusted issuer so UserInfo Visa JWTs from a separate Visa Registry verify.
+
 ### Behavior changes
 
 - **Edge listen address.** A gateway built without the `full` feature listens on `127.0.0.1:8080` when neither a configuration file nor `FERRUM_BIND` sets `bind`. The full profile stays `0.0.0.0:8080`. A file `bind` or `FERRUM_BIND` still wins. Inside a container, set `FERRUM_BIND` (for example `0.0.0.0:8080`) and control exposure with the published port or a firewall. Ferrum-Lab-Kit sets that variable explicitly. The Demo Pi installer and village compose need the same explicit bind (see `_review/edge-bind-usage.md`).

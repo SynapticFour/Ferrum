@@ -135,6 +135,7 @@ async fn test_outbreak_activate_deactivate_audit_events() {
             ga4gh_passport_v1: None,
             scope: None,
             aud: None,
+            groups: None,
         },
         visas: vec![ferrum_core::VisaObject {
             r#type: "Role".into(),

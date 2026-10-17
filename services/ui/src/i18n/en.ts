@@ -104,9 +104,9 @@ export const en = {
   },
   noop: {
     title: 'Demo compute mode',
-    body: 'This deployment uses a no-operation task executor (TES noop). Workflow runs complete at the API level but containers do not execute — you will not get real variant-calling outputs here.',
-    hint: 'For live GATK runs, use a local Ferrum instance with Docker or SLURM/LSF, or view reference outputs from the pilot seed data.',
-    compact: 'Demo mode: runs complete at the API only — no real container output on this deployment.',
+    body: 'Ferrum TES on this host is noop: GATK-scale workflows complete at the API only and do not run containers here. Small allowlisted demo tasks still run via the public demo Runs page (execution-gate + docker-proxy) — not through this TES panel.',
+    hint: 'For real GATK: run Ferrum locally with Docker or SLURM/LSF. On the public Synaptic Four demo, use Runs on the demo site for allowlisted small tasks.',
+    compact: 'TES noop for GATK here — allowlisted small tasks: demo site Runs (execution-gate).',
   },
   testerGuide: {
     title: 'Pilot tester quick start',

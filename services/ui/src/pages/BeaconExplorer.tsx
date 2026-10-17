@@ -119,7 +119,16 @@ export function BeaconExplorer() {
       setResult(res);
       setLastQuery(querySnapshot);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const raw = e instanceof Error ? e.message : String(e);
+      // Client validation (unknown assemblyId, bad coords) — plain copy, not operator report.
+      if (/invalid assembly_id|validation:/i.test(raw)) {
+        setError(
+          raw.replace(/^validation:\s*/i, '') +
+            ' — try a Demo preset, or omit / change assemblyId to a seeded assembly (GRCh38 / GRCh37 on this demo).',
+        );
+      } else {
+        setError(raw);
+      }
     } finally {
       setLoading(false);
     }
@@ -190,23 +199,26 @@ export function BeaconExplorer() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {t('beacon.query')}
           </Button>
-          {error && (
-            <ErrorWithReport
-              errorMessage={error}
-              context="beacon-query"
-              lastApi={{ method: 'POST', path: '/ga4gh/beacon/v2/g_variants' }}
-              extra={
-                lastQuery
-                  ? {
-                      assemblyId: lastQuery.assemblyId,
-                      referenceName: lastQuery.referenceName,
-                      start: lastQuery.start,
-                      federate: lastQuery.federate,
-                    }
-                  : undefined
-              }
-            />
-          )}
+          {error &&
+            (/invalid assembly_id|try a Demo preset/i.test(error) ? (
+              <p className="text-sm text-muted-foreground">{error}</p>
+            ) : (
+              <ErrorWithReport
+                errorMessage={error}
+                context="beacon-query"
+                lastApi={{ method: 'POST', path: '/ga4gh/beacon/v2/g_variants' }}
+                extra={
+                  lastQuery
+                    ? {
+                        assemblyId: lastQuery.assemblyId,
+                        referenceName: lastQuery.referenceName,
+                        start: lastQuery.start,
+                        federate: lastQuery.federate,
+                      }
+                    : undefined
+                }
+              />
+            ))}
           {result && (
             <div
               className={

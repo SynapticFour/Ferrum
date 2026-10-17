@@ -106,9 +106,9 @@ const deOverlay = {
   },
   noop: {
     title: 'Demo-Compute-Modus',
-    body: 'Dieses System nutzt einen No-Operation-Ausführer (TES noop). Analysen werden nur auf API-Ebene abgeschlossen — Container laufen nicht; echte Variantenaufruf-Ergebnisse entstehen hier nicht.',
-    hint: 'Für echte GATK-Läufe nutzen Sie eine lokale Ferrum-Instanz mit Docker oder SLURM/LSF, oder sehen Sie sich Referenz-Ausgaben aus den Demo-Daten an.',
-    compact: 'Demo-Modus: Läufe werden nur auf API-Ebene abgeschlossen — keine echten Container-Ausgaben.',
+    body: 'Ferrum-TES auf diesem Host ist noop: GATK-Workflows enden nur auf API-Ebene, Container laufen hier nicht. Kleine allowlistete Demo-Tasks laufen über die öffentliche Demo-Seite „Läufe“ (execution-gate + docker-proxy) — nicht über dieses TES-Panel.',
+    hint: 'Für echtes GATK: Ferrum lokal mit Docker oder SLURM/LSF. Auf der öffentlichen Synaptic-Four-Demo: Site-Läufe für allowlistete kleine Tasks.',
+    compact: 'TES noop für GATK hier — allowlistete kleine Tasks: Demo-Site Läufe (execution-gate).',
   },
   testerGuide: {
     title: 'Pilot-Tester — Kurzanleitung',

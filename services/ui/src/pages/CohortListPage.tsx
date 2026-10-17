@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { apiGet } from '@/api/client';
+import { apiGet, ApiAuthError } from '@/api/client';
 import { Plus, Users, Lock } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useAdminConfig } from '@/hooks/useAdminConfig';
@@ -39,7 +39,19 @@ export function CohortListPage() {
   });
 
   if (isLoading) return <div className="text-muted-foreground">{t('cohortList.loading')}</div>;
-  if (error) return <div className="text-destructive">{t('cohortList.failed')}: {String(error)}</div>;
+  if (error) {
+    const sessionExpired = error instanceof ApiAuthError && error.sessionExpired;
+    if (sessionExpired) {
+      return <div className="text-muted-foreground">{t('common.sessionExpired')}</div>;
+    }
+    // Treat transport/parse failures as empty — avoid JSON.parse noise in the UI.
+    return (
+      <div className="space-y-2">
+        <p className="font-medium">{t('cohortList.emptyTitle')}</p>
+        <p className="text-muted-foreground text-sm">{t('cohortList.emptyBody')}</p>
+      </div>
+    );
+  }
 
   const cohorts = data?.cohorts ?? [];
 

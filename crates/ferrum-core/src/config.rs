@@ -778,6 +778,12 @@ pub struct AuthConfig {
     /// When true and `mode = external`, validate Passports via ga4gh-clearinghouse (visa signature verification).
     #[serde(default)]
     pub clearinghouse: bool,
+    /// Optional Visa Registry issuer (iss of AffiliationAndRole Visa JWTs). Env: `FERRUM_AUTH__VISA_ISSUER`.
+    #[serde(default)]
+    pub visa_issuer: Option<String>,
+    /// JWKS for [`Self::visa_issuer`]. Env: `FERRUM_AUTH__VISA_JWKS_URL`.
+    #[serde(default)]
+    pub visa_jwks_url: Option<String>,
     /// Optional ADS introspection URL for controlled-access decisions (ga4gh-infra).
     #[serde(default)]
     pub ads_url: Option<String>,

@@ -115,6 +115,7 @@ fn who_claims() -> AuthClaims {
             ga4gh_passport_v1: None,
             scope: None,
             aud: None,
+            groups: None,
         },
         visas: vec![],
     }

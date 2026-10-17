@@ -26,14 +26,16 @@ export function WorkspaceListPage() {
   if (error) {
     const sessionExpired = error instanceof ApiAuthError && error.sessionExpired;
     const msg = error instanceof Error ? error.message : String(error);
+    // Prefer empty/sign-in copy over raw JSON.parse / HTML SPA fallback noise.
+    if (sessionExpired) {
+      return (
+        <p className="text-muted-foreground">{t('common.sessionExpired')}</p>
+      );
+    }
     return (
       <div className="space-y-2">
-        <p className="text-destructive font-medium">
-          {sessionExpired ? t('common.sessionExpired') : t('workspaceList.failed')}
-        </p>
-        {!sessionExpired && (
-          <p className="text-sm text-muted-foreground font-mono break-all">{t('common.error')}: {msg}</p>
-        )}
+        <p className="text-muted-foreground">{t('workspaceList.empty')}</p>
+        <p className="text-sm text-muted-foreground font-mono break-all">{t('common.error')}: {msg}</p>
       </div>
     );
   }
