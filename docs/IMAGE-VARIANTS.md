@@ -13,7 +13,7 @@ Lab Kit and operators should **select a published variant**, not compile an ad-h
 
 `:<sha>` without a suffix is always **full** (backward compatible).
 
-**full-infra** is the published image that both validates ga4gh-infra Passports and compiles WES/TES/TRS/`/admin` (including `GET /admin/config` for ferrum-ui). From **v0.3.6**, `full-infra` also compiles **`tes-docker`** (Bollard) so `FERRUM_TES_BACKEND=docker` works; set `DOCKER_HOST` (e.g. socket proxy) and optionally `FERRUM_TES_ALLOWED_IMAGES`. Override still via `FERRUM_GATEWAY_FEATURES`.
+**full-infra** is the published image that both validates ga4gh-infra Passports and compiles WES/TES/TRS/`/admin` (including `GET /admin/config` for ferrum-ui). From **v0.3.7**, `full-infra` also compiles **`tes-docker`** (Bollard) so `FERRUM_TES_BACKEND=docker` works; set `DOCKER_HOST` (e.g. socket proxy) and optionally `FERRUM_TES_ALLOWED_IMAGES`. Override still via `FERRUM_GATEWAY_FEATURES`.
 
 htsget is part of **edge** at compile time; Lab Kit `field-edge` still sets `FERRUM_SERVICES__ENABLE_HTSGET=false` so the route is off. A Beacon+DRS-only **binary** would need optional `ferrum-htsget` — not a Lab Kit Dockerfile.
 

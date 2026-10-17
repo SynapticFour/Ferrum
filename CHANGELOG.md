@@ -4,9 +4,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [0.3.6] - 2026-10-17
+## [0.3.7] - 2026-10-17
 
-Tag `v0.3.6`. Do not move `v0.3.5`. Showcase Contabo pin moves to `v0.3.6-full-infra` (TES docker + Metadata groups).
+Tag `v0.3.7` (TES docker + Metadata groups + SeaweedFS release hygiene). Do not move `v0.3.5`. Remote tag `v0.3.6` already existed as a docs-only prep cut — this release is **v0.3.7**. Showcase Contabo pin moves to `v0.3.7-full-infra`.
 
 ### Security
 

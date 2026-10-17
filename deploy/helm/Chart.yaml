@@ -2,8 +2,8 @@ apiVersion: v2
 name: ferrum
 description: On-premises GA4GH data/compute gateway (DRS, WES, TES, TRS, Beacon, htsget)
 type: application
-version: 0.3.6
-appVersion: "0.3.6"
+version: 0.3.7
+appVersion: "0.3.7"
 keywords:
   - ga4gh
   - bioinformatics

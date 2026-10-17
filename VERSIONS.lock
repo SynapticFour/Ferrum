@@ -14,7 +14,7 @@
 #   - deploy/scripts/run-helixtest-local.sh
 
 # Ferrum release tag (customer bundles, hosted-pilot FERRUM_REF)
-FERRUM_VERSION=v0.3.6
+FERRUM_VERSION=v0.3.7
 
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
 # On origin: ga4gh-infra-v0.2.6 → f2ac411ab1d9b78307019ba764203402cb00a9f6
