@@ -10,7 +10,7 @@ use axum::routing::get;
 use axum::Router;
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::handlers::{
     get_descriptor, get_descriptor_query, get_service_info, get_tool, get_tool_versions,
@@ -77,6 +77,10 @@ pub fn router(pool: sqlx::PgPool) -> Router {
             get(get_descriptor_query),
         )
         .route("/internal/register", axum::routing::post(register_tool))
-        .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", TrsApiDoc::openapi()))
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/openapi.json", TrsApiDoc::openapi())
+                .config(Config::new(["/ga4gh/trs/v2/openapi.json"])),
+        )
         .with_state(state)
 }

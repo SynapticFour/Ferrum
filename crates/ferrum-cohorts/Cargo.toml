@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-cohorts"
-version = "0.3.9"
+version = "0.3.10"
 edition = "2021"
 description = "Cohort Browser: sample collections with phenotype, DRS, Beacon, WES"
 license = "BUSL-1.1"

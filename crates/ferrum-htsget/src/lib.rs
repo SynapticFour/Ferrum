@@ -15,7 +15,7 @@ use axum::routing::{get, post, Router};
 use ferrum_drs::repo::DrsRepo;
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 /// State shared with the gateway: DRS repository handle + public URL prefix for stream links.
 #[derive(Clone)]
@@ -56,7 +56,11 @@ pub fn router(state: Arc<HtsgetState>) -> Router {
         .route("/reads/:id", post(handlers::post_reads_ticket))
         .route("/variants/:id", get(handlers::get_variants_ticket))
         .route("/variants/:id", post(handlers::post_variants_ticket))
-        .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", HtsgetApiDoc::openapi()))
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/openapi.json", HtsgetApiDoc::openapi())
+                .config(Config::new(["/ga4gh/htsget/v1/openapi.json"])),
+        )
         .with_state(state)
 }
 

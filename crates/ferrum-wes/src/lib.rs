@@ -30,7 +30,7 @@ use axum::{
 use std::path::PathBuf;
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::handlers::{
     cancel_run, export_ro_crate, get_cache_stats, get_cost_summary, get_provenance_graph,
@@ -229,8 +229,12 @@ pub fn router(
         .route("/cost/summary", get(get_cost_summary))
         .route("/cache/stats", get(get_cache_stats))
         .route("/cache", axum::routing::delete(handlers::evict_cache));
-    r.merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", WesApiDoc::openapi()))
-        .with_state(state)
+    r.merge(
+        SwaggerUi::new("/swagger-ui")
+            .url("/openapi.json", WesApiDoc::openapi())
+            .config(Config::new(["/ga4gh/wes/v1/openapi.json"])),
+    )
+    .with_state(state)
 }
 
 /// Background loop: every 30s sample active runs and record task metrics. Call once when metrics are enabled.

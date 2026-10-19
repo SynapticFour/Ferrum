@@ -14,7 +14,7 @@ use axum::{
 };
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::error::CohortJsonResult;
 use crate::handlers::{
@@ -102,6 +102,8 @@ pub fn router(pool: sqlx::PgPool) -> Router {
             "/cohorts/:id/versions",
             get(|s, p, auth| async move { CohortJsonResult(list_versions(s, p, auth).await) }),
         )
-        .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", CohortApiDoc::openapi()))
+        .merge(SwaggerUi::new("/swagger-ui")
+            .url("/openapi.json", CohortApiDoc::openapi())
+            .config(Config::new(["/cohorts/v1/openapi.json"])))
         .with_state(state)
 }

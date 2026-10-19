@@ -12,7 +12,7 @@ use axum::routing::{get, post};
 use axum::Router;
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::config::PassportConfig;
 use crate::handlers::{
@@ -76,6 +76,10 @@ pub fn router(pool: sqlx::PgPool) -> Router {
             "/admin/visa_grants/:id",
             axum::routing::delete(admin_delete_visa_grant),
         )
-        .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", PassportsApiDoc::openapi()))
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/openapi.json", PassportsApiDoc::openapi())
+                .config(Config::new(["/passports/v1/openapi.json"])),
+        )
         .with_state(state)
 }

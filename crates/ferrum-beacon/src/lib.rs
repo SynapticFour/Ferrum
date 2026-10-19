@@ -15,7 +15,7 @@ use ferrum_core::{OutbreakService, ResidencyAuditLog};
 use ferrum_federation::FederationClient;
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::repo::BeaconRepo;
 
@@ -86,6 +86,10 @@ pub fn router_with_services(
         .route("/g_variants/query", post(handlers::query_variants))
         .route("/individuals/query", post(handlers::query_individuals))
         .route("/biosamples/query", post(handlers::query_biosamples))
-        .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", BeaconApiDoc::openapi()))
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/openapi.json", BeaconApiDoc::openapi())
+                .config(Config::new(["/ga4gh/beacon/v2/openapi.json"])),
+        )
         .with_state(state)
 }

@@ -37,7 +37,7 @@ pub use state::AppState;
 use std::sync::Arc;
 pub use sync_api::{sync_api_router, sync_api_router_unconfigured};
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -185,7 +185,11 @@ pub fn router(state: AppState) -> Router {
         .route("/ingest/file", post(ingest_file_json))
         .route("/ingest/url", post(ingest_url_json))
         .route("/ingest/batch", post(ingest_batch_json))
-        .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", DrsApiDoc::openapi()))
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/openapi.json", DrsApiDoc::openapi())
+                .config(Config::new(["/ga4gh/drs/v1/openapi.json"])),
+        )
         .with_state(state)
 }
 

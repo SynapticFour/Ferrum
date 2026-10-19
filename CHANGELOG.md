@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.10] - 2026-10-19
+
+Tag `v0.3.10`. Nested GA4GH Swagger UI must fetch the nested OpenAPI path (not host-root `/openapi.json`).
+
+### Fixed
+
+- **Swagger UI OpenAPI URL under nest.** Each product mounts `SwaggerUi` under `/ga4gh/…` (or `/cohorts/v1`, `/passports/v1`). The UI config still pointed at `/openapi.json` on the host root (404) while the JSON is served at `/ga4gh/…/openapi.json`. Set `Config::new([nested path])` so the initializer fetches the nested URL. Affects DRS, Beacon, WES, TES, htsget, TRS, Crypt4GH, cohorts, passports.
+
 ## [0.3.9] - 2026-10-17
 
 Tag `v0.3.9`. Contabo evaluator UX: workspaces sign-in copy (no raw non-JSON), honesty banner for docker+allowlist TES, DE/EN copy that GATK is not allowlisted.

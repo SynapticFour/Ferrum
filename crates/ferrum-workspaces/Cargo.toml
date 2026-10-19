@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-workspaces"
-version = "0.3.9"
+version = "0.3.10"
 edition = "2021"
 description = "Workspace and collaboration: named project containers with shared access control"
 license = "BUSL-1.1"

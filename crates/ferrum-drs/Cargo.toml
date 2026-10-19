@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-drs"
-version = "0.3.9"
+version = "0.3.10"
 edition = "2021"
 description = "GA4GH Data Repository Service 1.4"
 license = "BUSL-1.1"

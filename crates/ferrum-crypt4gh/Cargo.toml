@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-crypt4gh"
-version = "0.3.9"
+version = "0.3.10"
 edition = "2021"
 description = "Crypt4GH encryption layer and DRS proxy"
 license = "BUSL-1.1"
@@ -50,6 +50,8 @@ standalone = ["tracing-subscriber"]
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
+tower = { version = "0.4", features = ["util"] }
 
 [[bench]]
 name = "header_rewrap"

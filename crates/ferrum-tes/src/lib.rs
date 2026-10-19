@@ -16,7 +16,7 @@ use axum::Router;
 use std::path::PathBuf;
 use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
 use crate::executor::ExecutorBackend;
 use crate::executors::{PodmanExecutor, SlurmExecutor};
@@ -103,6 +103,10 @@ pub fn router(pool: sqlx::PgPool, backend: Option<String>, work_dir: Option<Path
         // TES 1.1 spec uses /tasks/{id}:cancel; Axum can't represent ":" as a second param,
         // so we provide a pragmatic variant /tasks/{id}/cancel here.
         .route("/tasks/:id/cancel", post(cancel_task))
-        .merge(SwaggerUi::new("/swagger-ui").url("/openapi.json", TesApiDoc::openapi()))
+        .merge(
+            SwaggerUi::new("/swagger-ui")
+                .url("/openapi.json", TesApiDoc::openapi())
+                .config(Config::new(["/ga4gh/tes/v1/openapi.json"])),
+        )
         .with_state(state)
 }
