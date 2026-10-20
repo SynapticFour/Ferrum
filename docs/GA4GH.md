@@ -138,19 +138,31 @@ Workflow engines started via **WES → TES** may run **nested** containers (`doc
 
 ## Beacon v2
 
-- **Version:** 2.0
+- **Version string emitted:** `2.0`. Handlers set response `meta.apiVersion` to `v2.0.0`, and `GET /info` sets `api_version` to `v2.0`. Those are the strings the server emits. They are not the Beacon framework release. The framework release referred to here is **v2.2.0** (the OpenAPI file at that tag also has `info.version` `2.0.0`).
 - **Specification:** [ga4gh-beacon/beacon-v2](https://github.com/ga4gh-beacon/beacon-v2)
 
-| Method | Path | Description | Auth required |
-|--------|------|-------------|----------------|
-| GET | `/ga4gh/beacon/v2/` | Beacon info | No |
-| GET | `/ga4gh/beacon/v2/individuals` | Query individuals | Optional (tiered) |
-| GET | `/ga4gh/beacon/v2/biosamples` | Query biosamples | Optional |
-| GET | `/ga4gh/beacon/v2/datasets` | List datasets | No |
-| GET | `/ga4gh/beacon/v2/g_variants` | Query variants | Optional (tiered) |
+The router mounted at `/ga4gh/beacon/v2` registers these routes (`crates/ferrum-beacon/src/lib.rs`):
 
-**Ferrum extensions:** Three access tiers (public, registered, controlled) configurable per dataset.
-**Limitations:** Schema and filters follow Beacon v2; large deployments may require indexing tuning.
+| Method | Path | What the handler does |
+|--------|------|------------------------|
+| GET | `/ga4gh/beacon/v2/service-info` | Service info. `filteringTerms` includes `PathoGenFilter`. |
+| GET | `/ga4gh/beacon/v2/info` | Beacon info. |
+| GET | `/ga4gh/beacon/v2/map` | Entry-type map. |
+| POST | `/ga4gh/beacon/v2/query` | Variant query (same handler as `POST /g_variants/query`). |
+| GET | `/ga4gh/beacon/v2/g_variants` | Variant query. |
+| POST | `/ga4gh/beacon/v2/g_variants/query` | Variant query. |
+| POST | `/ga4gh/beacon/v2/individuals/query` | Returns `response.individuals` as an empty array. |
+| POST | `/ga4gh/beacon/v2/biosamples/query` | Returns `response.biosamples` as an empty array. |
+
+The same router also serves Swagger UI at `/swagger-ui` and OpenAPI JSON at `/openapi.json`. Those paths are not Beacon framework routes.
+
+These framework paths are not mounted: the framework root `GET /ga4gh/beacon/v2/`, `/configuration`, `/entry_types`, and `/filtering_terms`. `GET /individuals`, `GET /biosamples`, and `GET /datasets` are not mounted.
+
+The three access tiers (public, registered, controlled) are not implemented. The `beacon_datasets` table has no tier column (`id`, `name`, `description`, `assembly_id`, `created_at` only), and the handlers emit no `securityLevels`.
+
+**Assemblies, chromosomes, and filters:** Coordinate queries accept human assemblies and human chromosomes only. The assembly whitelist is `GRCh37`, `GRCh38`, `hg19`, `hg38`, and `T2T-CHM13v2.0`. Chromosomes are `1`–`22`, `X`, `Y`, and `M` (stored with a `chr` prefix). Service-info advertises the pathogen filter `PathoGenFilter`. Entry-type ids on `/map` are `g_variants`, `individuals`, and `biosamples`. Those ids differ from the default model's `genomicVariant`, `individual`, and `biosample`.
+
+**Limitations:** Large deployments may require indexing tuning.
 
 ---
 
@@ -200,7 +212,7 @@ Automated checks against the **demo** stack use [HelixTest](https://github.com/S
 
 - **Using Ferrum DRS with external WES (e.g. Terra):** Point the external WES at Ferrum’s DRS **HTTP base** (e.g. `https://ferrum.example.com/ga4gh/drs/v1`). Use canonical **`drs://<drs_hostname>/{object_id}`** URIs (see DRS `self_uri` / hostname config) or the WES client’s DRS resolution (e.g. FISS) with that base URL—not the object path inside the `drs://` scheme.
 - **Using external DRS with Ferrum WES:** Configure workflow inputs with `drs://` URIs for the external DRS; Ferrum WES resolves them via the standard DRS client interface (GET object, GET access).
-- **Federated Beacon:** Ferrum Beacon can participate in federated queries by exposing the Beacon v2 API; aggregators can include your Ferrum instance in their network.
+- **Federated Beacon:** Ferrum can send queries to configured Beacon peers and exposes the routes listed above. Response `beaconId` is the fixed string `org.ga4gh.ferrum.beacon`. No Beacon Network listing was verified. Exposing these routes is not a record of network membership.
 
 ---
 
