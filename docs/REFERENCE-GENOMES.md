@@ -1,6 +1,6 @@
 # Reference genomes in Ferrum
 
-Ferrum treats reference genomes as **pluggable metadata** in a registry — never hard-coded to GRCh38. Actual FASTA files are **not bundled or auto-downloaded**; operators load them via DRS ingest and associate them with registry entries.
+Ferrum treats reference genomes as **pluggable metadata** in the reference registry table — that table is never hard-coded to GRCh38. Beacon coordinate queries use a fixed list of human assemblies and chromosomes (see the Beacon section of [GA4GH.md](GA4GH.md)). Actual FASTA files are **not bundled or auto-downloaded**; operators load them via DRS ingest and associate them with registry entries.
 
 ## Registry
 
