@@ -7,7 +7,8 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct PipelineConfig {
-    /// After ingest, mark BAM/CRAM/VCF/BCF objects as htsget-ready in object metadata.
+    /// After ingest, write `htsget_index_status=ready` when the object name or
+    /// MIME type is BAM, CRAM, VCF, or BCF. That write is a name check. No index is built.
     pub auto_htsget_index: bool,
     /// After ingest, index VCF objects into Beacon (SNV rows, capped).
     pub auto_index_beacon: bool,
