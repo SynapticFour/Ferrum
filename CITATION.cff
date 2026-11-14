@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: Please cite this repository using these fields. Prefer this file over a hand-copied line. The architecture report is a related reference, not a substitute for this repository.
+title: Ferrum
+authors:
+  - name: Synaptic Four
+repository-code: https://github.com/SynapticFour/Ferrum
+url: https://synapticfour.com/en/ferrum/
+license: BUSL-1.1
+type: software
+references:
+  - type: report
+    title: "SF-TR-2026-001: Ferrum Architecture: A GA4GH-Native Genomics Platform"
+    authors:
+      - name: Synaptic Four
+    year: 2026
+    doi: 10.5281/zenodo.20628103
+    url: https://doi.org/10.5281/zenodo.20628103
