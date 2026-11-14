@@ -2,11 +2,11 @@
 
 Survivability notes for operators and successors. Describes **what is true on `origin/main` today**, not a roadmap. Not legal advice.
 
-Checked on 2026-10-14. Release tags: `git tag` (do not copy a tag into this file). Companion pins and crate versions: `VERSIONS.lock`.
+The gateway list below was read against `crates/ferrum-gateway/src/lib.rs` on 2026-11-14. The rest of this page was not re-run on that date. An earlier pass was dated 2026-10-14. Release tags: `git tag` (do not copy a tag into this file). Companion pins and crate versions: `VERSIONS.lock`.
 
 ## What this project is
 
-On-premises GA4GH data/compute plane in Rust: DRS, WES, TES, TRS, Beacon v2, htsget, Passports, Crypt4GH — one gateway. License: **BUSL-1.1** (source-available; not OSI open source today). Maturity: Active (beta). HelixTest CI is a technical signal, not GA4GH certification.
+On-premises GA4GH data and compute plane in Rust. The full gateway exposes DRS, WES, TES, TRS, htsget, Beacon v2, and Crypt4GH. Passports are not one of those seven. The full build can also serve `/passports/v1` from this repository. When sign-in is external, Passport checks use ga4gh-infra. The edge build does not serve Passports. License: **BUSL-1.1** (source-available; not OSI open source today). Status: Early use (the same stage as the older "Active (beta)" line). HelixTest CI is a technical signal, not GA4GH certification. No clinical pilot deployment. Tags and the default branch are listed on the releases page, not equated on this page.
 
 Related public repos (separate versioning): [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra), [HelixTest](https://github.com/SynapticFour/HelixTest), [Helix](https://github.com/SynapticFour/Helix), [Ferrum-Lab-Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo).
 

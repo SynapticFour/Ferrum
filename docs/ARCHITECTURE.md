@@ -402,7 +402,9 @@ flowchart LR
   G --> K
 ```
 
-### b) Single-node production
+### b) Single-node (design target)
+
+This diagram is a design target for one server. It is not a record of a production deployment, and this repository does not record a clinical pilot.
 
 ```mermaid
 flowchart LR

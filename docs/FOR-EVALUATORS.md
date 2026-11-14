@@ -4,9 +4,9 @@ Factual snapshot of this repository. Not a sales brief. Not legal advice.
 
 ## Maturity
 
-**Active (beta).** One human maintains this tree ([GOVERNANCE.md](GOVERNANCE.md)): no second committer with merge rights, no code escrow. There is **no** third-party security audit. HelixTest CI is **not** GA4GH certification.
+**Status: Early use.** Registry: FERRUM-MATURITY-001. One human maintains this tree ([GOVERNANCE.md](GOVERNANCE.md)): no second committer with merge rights, no code escrow. There is **no** third-party security audit. HelixTest CI is **not** GA4GH certification.
 
-Release **v0.3.4**. See [SUITE-OVERVIEW](SUITE-OVERVIEW.md).
+Published tags and the default branch are not stated as the same commit on this page. The tag list is the [releases page](https://github.com/SynapticFour/Ferrum/releases).
 
 ## License
 

@@ -2,22 +2,25 @@
 
 This page is the entrypoint for Ferrum deployment paths.
 
+Ferrum's public status is early use. No clinical pilot deployment is recorded in this repository. The shapes below are design targets for how a deployment can be laid out. They are not a record of a production cluster or an institutional workload in use.
+
 ## Scenario Matrix
 
 | Scenario | Recommended path | Internet required during install | Main doc |
 |---|---|---|---|
 | Local demo / evaluation | `ferrum demo start --edge` or `deploy/docker-compose.yml` | Optional (Edge mode: no) | `docs/AFRICA-DEPLOYMENT.md` (Edge) · `docs/INSTALLATION.md` (Docker) |
-| Single-node production (bare metal / VM) | Binary + systemd + external Postgres/S3 | Optional | `docs/INSTALLATION.md` |
-| Distributed HPC | Ansible inventory + playbooks | Usually yes | `docs/INSTALLATION.md` |
-| Kubernetes (AKS/on-prem) | Helm chart in `deploy/helm/` | Usually yes | `docs/INSTALLATION.md` |
-| Air-gapped / isolated environment | Offline bundle import + pinned artifacts | No (target) | `docs/deployment/OFFLINE-AIRGAP.md` |
+| Single-node (bare metal / VM), a design target | Binary + systemd + external Postgres/S3 | Optional | `docs/INSTALLATION.md` |
+| Distributed HPC, a design target | Ansible inventory + playbooks | Usually yes | `docs/INSTALLATION.md` |
+| Kubernetes (AKS/on-prem), a design target | Helm chart in `deploy/helm/` | Usually yes | `docs/INSTALLATION.md` |
+| Air-gapped / isolated environment, a design target | Offline bundle import + pinned artifacts | No (target) | `docs/deployment/OFFLINE-AIRGAP.md` |
 
 ## Update and Bugfix Strategy
 
-Recommended channels:
-- **Stable:** production clusters and institutional workloads.
-- **Fast:** pilot environments.
-- **Patch-only:** security + bugfix updates only.
+Recommended channels. Each channel is a design target for how updates could be delivered. None of them records a cluster that is in use.
+
+- **Stable:** a design target for clusters and institutional workloads. It is not a statement that such a cluster is in use.
+- **Fast:** a faster channel for evaluation environments. Not a clinical pilot.
+- **Patch-only:** security and bugfix updates only.
 
 | Path | Delivery method | Rollback | Cadence |
 |---|---|---|---|
