@@ -1,53 +1,106 @@
 # Ferrum
 
+Ferrum keeps genomic research files on an institution's own computers and serves them through shared interfaces, so a lab can hand a file to a collaborator without moving the collection to someone else's service.
+
+For a research institution that runs its own servers, and for an engineer checking that setup.
+
+**Status: Early use.** Registry: FERRUM-MATURITY-001. No third-party audit. HelixTest checks are not GA4GH certification.
+
 [![CI](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml)
 [![NON-PILOT demo lifecycle](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
 [![ferrum+infra](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml)
 [![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
-
-GitHub may label this Other; SPDX is **BUSL-1.1**.
 [![Rust 1.91](https://img.shields.io/badge/rust-1.91-orange.svg)](https://www.rust-lang.org/)
 
-On-premises GA4GH data/compute plane in Rust: DRS, WES, TES, TRS, Beacon v2, htsget, Passports, Crypt4GH — **one HTTP gateway process** (not zero dependencies: full demo needs Postgres + object storage).
+GitHub may label this Other. The SPDX identifier is BUSL-1.1.
 
-**Maturity: Active (beta).** No third-party audit. HelixTest CI is **NON-PILOT** (auth off, TES noop, stubs on) and is not GA4GH certification. Git tag **v0.3.6** is on origin and is the same commit as `origin/main` (checked 2026-10-14; SeaweedFS reference store, compose digests). It is not a proposed tag. A GitHub Release object for that tag was not re-checked in this note. No clinical pilot deployment. The edge binary serves DRS, Beacon, htsget, and Crypt4GH. It does not serve WES, TES, TRS, or Passports. Those four are in the full gateway, which is a different build.
+## What it does
 
-> This README describes technical capabilities, not legal advice. GDPR, NIS2, EHDS, HIPAA, and similar frameworks depend on the operator’s legal basis, configuration, and organisational measures.
+- One full gateway process, written in Rust, exposes seven GA4GH interfaces in its source. GA4GH is a set of shared interfaces for genomic and health data. The seven are DRS (file lookup and download), WES (workflow execution), TES (task execution), TRS (tool registry), htsget (tickets that point at sequencing files), Beacon v2 (a query for whether a dataset contains a variant), and Crypt4GH (encrypted file bytes). Code that is present is not an end-to-end test of each interface. Registry: FERRUM-GATEWAY-001.
+- The edge build is the same program with a smaller set: DRS, Beacon, htsget, and Crypt4GH. It does not include WES, TES, or TRS.
+- Passports are GA4GH tokens that carry a person's permissions. They are not one of the seven. The full build includes a `/passports/v1` router from this repository (`ferrum-passports`). Without a config watch, that router is mounted when Passports are enabled and sign-in is not external. `services.enable_passports` defaults to on. A config watch mounts the router as well, and the request gate then follows `enable_passports`. It does not read the external-auth flag. When sign-in is external, the process logs that Passport checks use [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra). The edge build does not include this router.
+- The demo stack (`make up`) needs Postgres and object storage beside the gateway.
 
-These public repositories are maintained by the same organisation and are designed to work together. Each repository keeps its own version and license. For details on roles, maturity, and how the components relate to one another, see [SUITE-OVERVIEW](https://github.com/SynapticFour/.github/blob/main/profile/SUITE-OVERVIEW.md).
+## Limits
+
+- No clinical pilot deployment.
+- No third-party security audit. A HelixTest run is not GA4GH certification and not a ranking against other servers.
+- Beacon covers part of that standard. An htsget query that names `referenceName`, `start`, or `end` returns HTTP 400. Tickets are for the whole file. WES with `ferrum_backend=lsf` errors, because LSF is not implemented.
+- The deployment shapes in [docs/deployment/README.md](docs/deployment/README.md), including a single computer and a cluster, are design targets. They are not a record of a production cluster in use.
+- Published tags and the default branch are not stated as the same commit on this page. The tag list is the [releases page](https://github.com/SynapticFour/Ferrum/releases). Behaviour changes by version are in [CHANGELOG.md](CHANGELOG.md).
+
+> This README describes technical capabilities, not legal advice. GDPR, NIS2, EHDS, HIPAA, and similar frameworks depend on the operator's legal basis, configuration, and organisational measures.
 
 ## Quick start
 
-Laptop walkthrough of **tagged** Ferrum (DRS / WES / TES): [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo) `./run` (gateway `http://127.0.0.1:18080`). Org stranger path: [github.com/SynapticFour](https://github.com/SynapticFour#try-it-30-min).
-
-**Prerequisites for `make up`:** Docker Engine, and either the `docker compose` plugin **or** standalone `docker-compose` (Makefile detects both). Disk/RAM for Postgres + SeaweedFS + Keycloak + image builds.
+Prerequisites: Rust 1.91.1, pinned in `rust-toolchain.toml`, for the path that stays inside this repository. Docker Engine, and either the `docker compose` plugin or standalone `docker-compose`, for the demo stack. That stack also needs disk and memory for Postgres, SeaweedFS, and Keycloak.
 
 ```bash
-make prove    # cargo test --workspace --all-targets (no Docker)
-make eval     # require_auth=true (HS256). TES noop.
-make up       # demo stack — TES noop; auth off; Postgres + SeaweedFS S3
-make up-tes   # demo + Docker-backed TES (local containers)
+make prove
 ```
 
-Stop: `make down` (keep volumes) or `make destroy` (remove volumes and project images).
+You should see cargo print `test result: ok`, and at the end the line `Ferrum prove OK (OpenAPI + SPDX).`
 
-htsget region queries (`referenceName` / `start` / `end`) return HTTP 400. WES `ferrum_backend=lsf` errors (LSF is not implemented).
+The demo stack needs Docker:
+
+```bash
+make up
+curl -sf http://127.0.0.1:8080/health
+```
+
+You should see a JSON body whose `status` is `ok` or `degraded`. `degraded` means low disk space on the configured data path, or clock skew. Stop with `make down` (keep volumes) or `make destroy` (remove volumes and project images).
+
+`make eval` turns authentication on with HS256. It is not ga4gh-infra Passports. Stop that path with `make down-eval`.
+
+A path that uses Passports from another repository: [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra), then `make up-pilot-local` in this repository. A laptop walkthrough of an older pinned Ferrum tag: [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo).
 
 ## Documentation
 
-- [Deployment shapes](docs/DEPLOYMENT-SHAPES.md) — edge vs full; what is verified
-- [Tested S3 backends](docs/TESTED-S3-BACKENDS.md) — SeaweedFS reference; Garage/MinIO BYO
-- [Compose image pins](docs/COMPOSE-IMAGE-PINS.md)
-- [Getting started](docs/GETTING-STARTED.md) — installer CLI, eval vs demo vs TES, uninstall
+The full index, one line for every file under `docs/`, is [docs/README.md](docs/README.md). The groups are a tutorial, how-to guides, reference, and explanation.
+
+### Tutorial
+
+- [Getting started](docs/GETTING-STARTED.md)
+
+### How-to guides
+
+- [Operations](docs/OPERATIONS.md) — the email-authentication DNS check
+- [Incident response](docs/INCIDENT_RESPONSE.md)
+- [Metadata store](docs/METADATA-STORE.md)
+- [Installation](docs/INSTALLATION.md)
+- [Deployment shapes](docs/deployment/README.md) — design targets
+- [Field operations](docs/FIELD-OPS.md)
+- Further task pages are in the [index](docs/README.md#how-to-guides)
+
+### Reference
+
+- [GA4GH interfaces in this tree](docs/GA4GH.md)
+- [OpenAPI dump](docs/openapi/README.md)
+- [Changelog](CHANGELOG.md)
+- Further reference pages are in the [index](docs/README.md#reference)
+
+### Explanation
+
 - [Architecture](docs/ARCHITECTURE.md)
+- [Architecture decisions](docs/ARCHITECTURE-DECISIONS.md) — an index of the records in [DECISIONS.md](DECISIONS.md)
 - [For evaluators](docs/FOR-EVALUATORS.md)
-- [GA4GH specs vs this implementation](docs/GA4GH.md) · [OpenAPI dump](docs/openapi/README.md)
-- [Operator trust](docs/OPERATOR-TRUST.md) · [Documentation index](docs/README.md)
+- [Threat model](docs/THREAT_MODEL.md)
 
-Specialist notes (TES Docker, MII Connect, field/edge, and others) live under `docs/` and are linked from the [index](docs/README.md).
+## Licence
 
-## License
+Ferrum is licensed under the Business Source License 1.1 (BUSL-1.1). The source can be read. It is not an open-source licence. Each version becomes Apache-2.0 after four years. Registry: FERRUM-LICENSE-002. The licence file contains two Additional Use Grant blocks. This page does not decide which block governs. Not legal advice. Registry: FERRUM-LICENSE-GRANT-001. The file is [LICENSE](LICENSE).
 
-Business Source License 1.1 — see [LICENSE](LICENSE).
+## Cite
 
-**Synaptic Four** · [contact@synapticfour.com](mailto:contact@synapticfour.com) · [synapticfour.com](https://synapticfour.com)
+Use [CITATION.cff](CITATION.cff). Prefer that file over a hand-copied line. The related architecture report is SF-TR-2026-001, DOI [10.5281/zenodo.20628103](https://doi.org/10.5281/zenodo.20628103).
+
+## Website
+
+- Product page: [https://synapticfour.com/en/ferrum/](https://synapticfour.com/en/ferrum/)
+- Technical profile: [https://synapticfour.com/en/technical/ferrum/](https://synapticfour.com/en/technical/ferrum/)
+
+The same pages exist in German (`/de/ferrum/`, `/de/technik/ferrum/`) and in French (`/fr/ferrum/`, `/fr/technique/ferrum/`).
+
+The map of repositories: [profile/README.md](https://github.com/SynapticFour/.github/blob/main/profile/README.md).
+
+Contact: [contact@synapticfour.com](mailto:contact@synapticfour.com)
