@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Helpers for extracting DRS URIs from workflow params for provenance.
 
 use serde_json::Value;

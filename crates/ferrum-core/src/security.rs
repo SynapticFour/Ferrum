@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! OWASP security: event logging, path sanitization, resource authorization.
 
 use crate::error::{FerrumError, Result};

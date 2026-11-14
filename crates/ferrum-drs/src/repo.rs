@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Database repository for DRS objects (PostgreSQL and SQLite).
 
 use crate::error::{DrsError, Result};

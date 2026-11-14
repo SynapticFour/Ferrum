@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- Licence is Apache-2.0 from this commit. Versions released before this change were published under the Business Source License 1.1. See [LICENSING-HISTORY.md](LICENSING-HISTORY.md).
+
 ## [0.3.10] - 2026-10-19
 
 Tag `v0.3.10`. Nested GA4GH Swagger UI must fetch the nested OpenAPI path (not host-root `/openapi.json`).
@@ -159,7 +161,7 @@ Patch so Docker TES image builds and NON-PILOT DRS checksums pass on GitHub-host
 
 - **Pi-class MinION chain** — `deploy/scripts/ci-minion-field-chain-e2e.sh` / `make minion-chain`: edge gateway with a memory cap, simulated POD5 stubs into a watch folder, `ferrum ingest watch`, DRS `ont_metrics`, then HelixTest `--mode ferrum-africa --africa-profile ont`. Not USB, not MinKNOW, not a real Pi. Africa CI job `africa-ont` runs the chain.
 - **Metadata Store UI** — Ferrum-Web `/metadata`: submission list, version diff, edit with inline `details.issues`, DRS `metadata_ref` attach on object detail. Enable `[metadata_store]` (on in `deploy/configs/local.toml` / `pilot.toml`). Not a second schema store; GHGA/EGA remain exports.
-- **SPDX on first-party `.rs`** — `// SPDX-License-Identifier: BUSL-1.1`; CI workflow `spdx.yml`. Not a full REUSE.toml BOM.
+- **SPDX on first-party `.rs`** — that release recorded `BUSL-1.1`. The identifier is now `// SPDX-License-Identifier: Apache-2.0`. CI workflow `spdx.yml`. Not a full REUSE.toml BOM.
 - **Committed OpenAPI dump** — `docs/openapi/ferrum.openapi.json` from utoipa (`make openapi`). Implementation map of this gateway. **Source of truth for GA4GH products remains each standard’s published OpenAPI** ([docs/GA4GH.md](docs/GA4GH.md)). Not a replacement spec; not certification.
 - **Beacon v2 boolean body** — `/query` includes official `responseSummary.exists` and required `meta` fields (`beaconId`, `returnedGranularity`, `receivedRequestSummary`). `response.exists` remains for older clients.
 - **ferrum+infra HelixTest** — scheduled/dispatch workflow `.github/workflows/helixtest-ferrum-infra.yml` (`make up-pilot-local`, no skip-as-green).

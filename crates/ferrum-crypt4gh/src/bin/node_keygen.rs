@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Generate demo node Crypt4GH keys (node.sec / node.pub). Used by ferrum-init.
 use std::path::PathBuf;
 

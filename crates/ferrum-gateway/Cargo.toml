@@ -3,7 +3,7 @@ name = "ferrum-gateway"
 version = "0.3.10"
 edition = "2021"
 description = "API Gateway routing to all GA4GH services"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 
 [[bin]]
 name = "ferrum-gateway"

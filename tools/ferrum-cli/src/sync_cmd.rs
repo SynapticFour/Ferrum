@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Field sync queue CLI (ADR-019 / Phase 4).
 
 use ferrum_core::{

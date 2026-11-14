@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Field operations: SQLite backup/restore and local object integrity checks (Phase 6).
 
 use crate::config::FerrumConfig;

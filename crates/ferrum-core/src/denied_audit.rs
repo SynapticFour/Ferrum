@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! `authorization_denied` residency events (ADR-032).
 //!
 //! Appends denied/anonymous authorization failures to the residency hash chain without

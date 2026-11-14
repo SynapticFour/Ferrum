@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! TES Docker host binds from the task request are opt-in via an operator allowlist.
 //!
 //! Client-supplied `volumes` must not become arbitrary host mounts. Operator-controlled

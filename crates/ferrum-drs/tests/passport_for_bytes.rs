@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! ADR-030: `require_passport_for_bytes` gates byte paths for unbound objects only.
 
 use ferrum_core::{auth::AuthClaims, FerrumPool};

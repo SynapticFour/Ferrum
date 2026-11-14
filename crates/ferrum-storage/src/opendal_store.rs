@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! OpenDAL-backed object storage (optional `opendal` feature).
 //!
 //! Lesson 7: one async API for many backends (S3, POSIX, GCS, …).

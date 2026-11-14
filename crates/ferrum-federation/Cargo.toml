@@ -3,7 +3,7 @@ name = "ferrum-federation"
 version = "0.3.10"
 edition = "2021"
 description = "P2P federated Beacon queries for Ferrum"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 
 [dependencies]
 ferrum-core = { path = "../ferrum-core", default-features = false }

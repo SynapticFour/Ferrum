@@ -1,0 +1,9 @@
+Ferrum
+Copyright 2025-2026 Synaptic Four
+
+This product is licensed under the Apache License, Version 2.0.
+
+Third-party notices
+
+third_party/crypt4gh is a fork of crypt4gh 0.4.1 from EGA-archive/crypt4gh-rust.
+Its licence is Apache-2.0. The upstream notice is third_party/crypt4gh/NOTICE.

@@ -1,42 +1,23 @@
-# Commercial license (written agreement)
+# Services and commitments
 
-This is **how to obtain a commercial license**. It is **not** itself a signed grant, a price list, or legal advice. Rights come from **[LICENSE](../LICENSE)** (BUSL-1.1 Additional Use Grant for permitted research) and from a **written agreement** with Synaptic Four.
+The software is free under the Apache License, Version 2.0. Paid are services and commitments. For Ferrum that offer is Ferrum Professional. Prices are on the [consulting page](https://synapticfour.com/en/consulting/). This page is not a signed grant and not a price list.
 
-There is **no combo SKU**. Ferrum, Solum, BioResearch Assistant, and GA4GH Infra are licensed **separately**. Lab Kit and ferrum-meta come with Ferrum; they are not extra products.
-
-## What the Additional Use Grant already covers
-
-See `LICENSE`. Typical permitted use: non-commercial research, academic, and educational use, and internal research infrastructure that is **not** offered as a paid service to third parties.
-
-If that describes you, you do **not** need a commercial license to run the code under those terms. The licence fee stays €0.
-
-Published pilot prices on synapticfour.com are **our time** in a bounded engagement (Ferrum €10,000–20,000 fixed, 60–90 days; indicative, binding only in writing). They are not a purchase right in the software. If you do not book the pilot and you stay within the grant, you do not pay that sum. The same sentence is used for Solum Track A (€8,000–18,000). The grant does not cover embedding the software in a product you sell.
-
-## When you need a written commercial license
-
-Ask us before:
-
-- Production institutional deployment whose primary purpose is commercial advantage or private monetary gain.
-- Embedding Ferrum (or Solum / BRA) in a product you sell.
-- Offering the software as a hosted or managed service to external customers.
-- Redistribution beyond what BUSL allows.
-
-**GA4GH Infra** is Apache-2.0. The software is free; commercial motion is **support / SLA**, not a second closed identity license. Pairing it with Ferrum, Solum, or BRA is optional and priced on those products.
+There is no combo SKU. Ferrum, Solum, and BioResearch Assistant are separate products. Solum stays under the Business Source License 1.1 in its own repository. Lab Kit and ferrum-meta come with Ferrum; they are not extra products.
 
 ## How to request
 
-Email **[contact@synapticfour.com](mailto:contact@synapticfour.com)** with:
+Email [contact@synapticfour.com](mailto:contact@synapticfour.com) with:
 
-1. Which **product** (Ferrum, Solum, BRA — one email can list several, each remains a separate license).
-2. Organisation, country, and whether this is on-prem, hosted, or embedded.
-3. Approximate scale (sites, nodes, or users) — for scoping, not a quote until we reply.
+1. Which product (Ferrum, Solum, BioResearch Assistant). One email can list several. Each stays separate.
+2. Organisation, country, and whether this is on your computers or a service you run for others.
+3. Approximate scale (sites, nodes, or users), for scoping.
 
-We reply with a **written** license or a clear “research grant covers this.” Nothing on this page, on the website, or in indicative pricing is a contract.
+Nothing on this page or on the website is a contract.
 
 ## What we will not do in email
 
-- Sell “the suite” as one SKU.
+- Sell the suite as one SKU.
 - Pretend GitHub Release tag `v0.3.1` Docker is current (use GHCR `:edge` / HEAD).
 - Treat HelixTest or HELIOS as paid modules.
 
-Portfolio map: [PORTFOLIO.md](PORTFOLIO.md). High-level BUSL guidance: [BUSINESS-MODEL.md](BUSINESS-MODEL.md).
+Portfolio map: [PORTFOLIO.md](PORTFOLIO.md). [BUSINESS-MODEL.md](BUSINESS-MODEL.md).

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Chunked resume, low-bandwidth compression, and transfer queue tests.
 
 use ferrum_core::{FerrumPool, ResidencyAuditLog};

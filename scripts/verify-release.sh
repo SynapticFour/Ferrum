@@ -20,7 +20,7 @@ echo "verify-release: workspace tests"
 cargo test --workspace --all-targets
 
 echo "verify-release: SPDX headers"
-python3 scripts/spdx-rs.py . --license BUSL-1.1 --check
+python3 scripts/spdx-rs.py . --license Apache-2.0 --check
 
 if cargo deny --version >/dev/null 2>&1; then
   echo "verify-release: cargo deny"

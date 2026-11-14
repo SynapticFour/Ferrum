@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Minimal VCF → Beacon variant indexing (SNV rows only, capped for publish-time use).
 
 use ferrum_core::FerrumPool;

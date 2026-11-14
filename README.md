@@ -9,10 +9,10 @@ For a research institution that runs its own servers, and for an engineer checki
 [![CI](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/ci.yml)
 [![NON-PILOT demo lifecycle](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
 [![ferrum+infra](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml)
-[![License: BUSL-1.1](https://img.shields.io/badge/License-BUSL--1.1-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 [![Rust 1.91](https://img.shields.io/badge/rust-1.91-orange.svg)](https://www.rust-lang.org/)
 
-GitHub may label this Other. The SPDX identifier is BUSL-1.1.
+The SPDX identifier is Apache-2.0.
 
 ## What it does
 
@@ -88,7 +88,9 @@ The full index, one line for every file under `docs/`, is [docs/README.md](docs/
 
 ## Licence
 
-Ferrum is licensed under the Business Source License 1.1 (BUSL-1.1). The source can be read. It is not an open-source licence. Each version becomes Apache-2.0 after four years. Registry: FERRUM-LICENSE-002. The licence file contains two Additional Use Grant blocks. This page does not decide which block governs. Not legal advice. Registry: FERRUM-LICENSE-GRANT-001. The file is [LICENSE](LICENSE).
+Ferrum is free under the Apache License, Version 2.0. The SPDX identifier is Apache-2.0. The file is [LICENSE](LICENSE). Versions released before this change were published under the Business Source License 1.1; see [LICENSING-HISTORY.md](LICENSING-HISTORY.md). The name Ferrum is not licensed with the code; see [TRADEMARKS.md](TRADEMARKS.md).
+
+Paid are services and commitments. For Ferrum that offer is Ferrum Professional. Prices are on the [consulting page](https://synapticfour.com/en/consulting/).
 
 ## Cite
 

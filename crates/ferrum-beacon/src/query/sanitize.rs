@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 use crate::error::BeaconError;
 
 /// Sanitized / normalized query params for Beacon `variant_exists`.

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Crypt4GH throughput regression guard (uses real ferrum-crypt4gh encrypt path).
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};

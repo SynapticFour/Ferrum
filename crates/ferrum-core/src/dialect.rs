@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Portable SQL fragments for PostgreSQL and SQLite.
 
 use crate::pool::DbDialect;

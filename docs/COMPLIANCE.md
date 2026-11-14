@@ -14,7 +14,7 @@ The **frameworks and regulations named below are examples** often relevant to Eu
 > partners, not with Synaptic Four as the software vendor. Operators must
 > obtain their own legal assessment for any concrete deployment.
 
-**Software licensing** (BUSL-1.1, non-commercial research vs commercial use, relation to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), open-core principles) is documented separately in **[BUSINESS-MODEL.md](BUSINESS-MODEL.md)**. This page focuses on **data protection and sector regulation** for operators, not copyright or patent terms.
+**Software licensing** (Apache-2.0; paid services and commitments, including Ferrum Professional; relation to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit)) is documented separately in **[BUSINESS-MODEL.md](BUSINESS-MODEL.md)**. This page focuses on **data protection and sector regulation** for operators, not copyright or patent terms.
 
 ---
 
@@ -157,8 +157,8 @@ self‑description by the operator.
 | Gaia-X Principle | Ferrum Implementation |
 |---|---|
 | **Data Sovereignty** | On-premises deployment; institution retains full control |
-| **Transparency** | Source-available under BUSL-1.1, which is not an OSI open-source license; all APIs documented via OpenAPI |
-| **Portability** | GA4GH standard APIs. BUSL-1.1 limits some commercial use until each version's Change Date. Standard APIs are not unrestricted licence rights. |
+| **Transparency** | Source published under Apache-2.0; all APIs documented via OpenAPI |
+| **Portability** | GA4GH standard APIs. The Apache-2.0 text is the copyright licence. It is not a certificate and not an operations contract. |
 | **Interoperability** | Full gateway: DRS, WES, TES, TRS, Beacon v2, Passports. Edge binary: DRS, Beacon, htsget, Crypt4GH (not WES, TES, TRS, or Passports). |
 | **Security** | Crypt4GH when configured; TLS at the operator proxy; cargo-deny in CI |
 | **European Values** | Developed in Germany; designed with GDPR principles in mind. Actual legal compliance depends on the operator and its processes. |
@@ -426,7 +426,7 @@ Operational email and DNS for pilot outreach are handled outside this repository
 
 ## Contact & Commercial Licensing
 
-For **software terms** (when BUSL permits use, commercial / SaaS / embedding, optional support or institutional agreements), see **[BUSINESS-MODEL.md](BUSINESS-MODEL.md)** and the root **[LICENSE](../LICENSE)**.
+For **software terms** (Apache-2.0, and paid services and commitments), see **[BUSINESS-MODEL.md](BUSINESS-MODEL.md)** and the root **[LICENSE](../LICENSE)**. Prices are on the [consulting page](https://synapticfour.com/en/consulting/).
 
 For questions about **deployment compliance**, commercial licensing in the broad sense, or Data Processing
 Agreements:

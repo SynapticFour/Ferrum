@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! htsget protocol errors (JSON body with `htsget.error` / `htsget.message`).
 
 use axum::{

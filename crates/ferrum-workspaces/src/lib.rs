@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Workspace and collaboration: named project containers grouping DRS, WES, cohorts under shared access control.
 
 pub mod activity;

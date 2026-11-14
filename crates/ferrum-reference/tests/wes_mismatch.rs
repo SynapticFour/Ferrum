@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! WES reference mismatch warning tests.
 
 use ferrum_core::FerrumPool;

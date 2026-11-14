@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Layer 3: Policy engine — DataAccessPolicy, visa checks, ControlledAccessGrants, cache with TTL.
 
 use dashmap::DashMap;

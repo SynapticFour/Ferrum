@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Metadata Store API (M1/M2) — PUT/GET/list, versions, attach/detach.
 
 use axum::body::Body;

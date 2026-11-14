@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! SLURM / glibc process-spawn performance hint.
 //!
 //! Lesson: `std::process::Command` / `tokio::process::Command` on old glibc may use slow `fork()`.

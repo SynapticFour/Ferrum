@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Optional TES Docker image digest allowlist (`FERRUM_TES_ALLOWED_IMAGES`).
 //!
 //! When the env var is set (non-empty), only listed image references may run.

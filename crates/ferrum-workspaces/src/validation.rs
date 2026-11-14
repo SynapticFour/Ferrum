@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! OWASP A03: Input validation for workspace and invite data (injection, header injection, length).
 
 use crate::error::{Result, WorkspaceError};

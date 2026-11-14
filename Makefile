@@ -84,7 +84,7 @@ openapi-check:
 	cargo run -p ferrum-openapi -- --check docs/openapi/ferrum.openapi.json
 
 spdx-check:
-	python3 scripts/spdx-rs.py . --license BUSL-1.1 --check
+	python3 scripts/spdx-rs.py . --license Apache-2.0 --check
 
 # Demo + Docker TES: workflow engine images (pinned tags; amd64 on Apple Silicon).
 TES_PLATFORM ?= linux/amd64

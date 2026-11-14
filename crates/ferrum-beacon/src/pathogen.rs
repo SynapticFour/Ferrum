@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Multi-pathogen Beacon filters (`PathoGenFilter` + requestParameters extensions).
 
 use crate::handlers::{BeaconFilter, BeaconFilterExpr, PathogenFilterParams};

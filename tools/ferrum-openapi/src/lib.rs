@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 
 //! Build the gateway-prefixed OpenAPI document from the same utoipa types as swagger-ui.
 
@@ -42,7 +42,7 @@ pub fn ferrum_openapi() -> OpenApi {
         ))
         .license(Some(
             LicenseBuilder::new()
-                .name("BUSL-1.1")
+                .name("Apache-2.0")
                 .url(Some(
                     "https://github.com/SynapticFour/Ferrum/blob/main/LICENSE",
                 ))

@@ -6,14 +6,14 @@ Canonical copy — keep [ECOSYSTEM.md](ECOSYSTEM.md) in each public repo aligned
 
 ## Products (licensed)
 
-| Product | What you buy | License | Stands alone |
+| Product | Role | License | Stands alone |
 |---------|----------------|---------|--------------|
-| [Ferrum](https://github.com/SynapticFour/Ferrum) | GA4GH data/compute plane (DRS, WES, TES, TRS, Beacon, htsget, Crypt4GH) | BUSL-1.1 | Yes — built-in passports |
+| [Ferrum](https://github.com/SynapticFour/Ferrum) | GA4GH data/compute plane (DRS, WES, TES, TRS, Beacon, htsget, Crypt4GH) | Apache-2.0 | Yes — built-in passports |
 | [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra) (**GA4GH Infra**) | Identity plane (OIDC broker, Passports/visas, DUO, ADS, service registry) | Apache-2.0 | Yes — Compose stack |
 | [Solum](https://github.com/SynapticFour/Solum) | Clinical compliance overlay (consent, audit chain, FHIR IPS, field crypto) | BUSL-1.1 | Yes — Ferrum pin is optional crypto/types |
-| [BioResearch Assistant](https://github.com/SynapticFour/bioresearch-assistant) | Researcher workbench (phenopackets, literature, jobs) | BUSL-1.1 | Yes — own DRS/WES if no Ferrum |
+| [BioResearch Assistant](https://github.com/SynapticFour/bioresearch-assistant) | Researcher workbench (phenopackets, literature, jobs) | Apache-2.0 | Yes — own DRS/WES if no Ferrum |
 
-**ga4gh-infra is Apache on purpose (open-core):** institutes can run the identity plane against Ferrum (or another implementer). Commercial motion is Ferrum / Solum / BRA licenses plus optional support. See [ga4gh-infra IDENTITY](https://github.com/SynapticFour/ga4gh-infra/blob/main/docs/IDENTITY.md).
+**ga4gh-infra is Apache-2.0.** Institutes can run the identity plane against Ferrum (or another implementer). Ferrum and BioResearch Assistant are Apache-2.0. Paid are services and commitments; for Ferrum that offer is Ferrum Professional. Solum stays BUSL-1.1. Prices are on the [consulting page](https://synapticfour.com/en/consulting/). See [ga4gh-infra IDENTITY](https://github.com/SynapticFour/ga4gh-infra/blob/main/docs/IDENTITY.md).
 
 ## Open source (Apache-2.0)
 

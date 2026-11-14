@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Resident-set memory cap for laptop deployments (protect SQLite from OOM).
 
 use std::sync::atomic::{AtomicBool, Ordering};

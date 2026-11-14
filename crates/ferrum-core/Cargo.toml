@@ -3,7 +3,7 @@ name = "ferrum-core"
 version = "0.3.10"
 edition = "2021"
 description = "Shared types, errors, config, and database abstractions for Ferrum"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 # Name is taken on crates.io by an unrelated crate. Do not publish.
 publish = false
 

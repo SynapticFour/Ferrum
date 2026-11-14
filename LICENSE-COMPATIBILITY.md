@@ -1,6 +1,6 @@
 # License Compatibility
 
-Ferrum is licensed under BUSL-1.1. All dependencies are compatible with this license.
+Ferrum is licensed under Apache-2.0. Dependencies must use a licence on the allow list in `deny.toml`.
 
 ## Allowed dependency licenses
 

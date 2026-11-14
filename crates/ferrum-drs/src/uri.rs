@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! DRS URI resolver: drs://hostname/object_id format.
 
 /// Parse hostname-based DRS URI: drs://hostname/object_id

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Broker JWKS round-trip: mint passport like ga4gh-infra, decode like ferrum-gateway.
 
 use std::path::PathBuf;

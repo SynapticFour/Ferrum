@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Process-death checks for object registration and local files.
 //!
 //! Seeded from evidence/2026-10/p7-claims-behavior `stage_worker`: register

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Install minimal reference FASTA stubs for offline Edge field nodes.
 
 use ferrum_core::{DatabasePool, FerrumConfig, FerrumPool};

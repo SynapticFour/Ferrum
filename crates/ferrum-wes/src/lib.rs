@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! GA4GH Workflow Execution Service (WES) 1.1.
 
 pub mod checkpoint;

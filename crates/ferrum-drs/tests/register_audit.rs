@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! POST /register writes a residency row and fails closed when that insert fails.
 //!
 //! Seeded from evidence/2026-10/p7-claims-behavior: register created a DRS row

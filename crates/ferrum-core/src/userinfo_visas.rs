@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Fetch Visa JWTs from the issuer UserInfo endpoint when the access token
 //! carries an empty `ga4gh_passport_v1` (ga4gh-infra ADR-005 / Ferrum ADR-034).
 //!

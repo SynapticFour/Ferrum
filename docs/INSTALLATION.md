@@ -21,24 +21,10 @@ Deployment scenarios and update delivery strategy:
 
 ## License & Usage
 
-Ferrum is licensed under the Business Source License 1.1 (BUSL-1.1).
-Published images: `ghcr.io/synapticfour/ferrum:edge`. Do not install from GitHub Release **tag** `v0.3.1` Docker (that tag omitted `profiles/meta`). Auth-on clone without reading `pilot.toml`: `make eval`. Commercial license (per product, no combo SKU): [COMMERCIAL.md](COMMERCIAL.md).
+Ferrum is free under the Apache License, Version 2.0. See [LICENSE](../LICENSE) and [LICENSING-HISTORY.md](../LICENSING-HISTORY.md).
+Published images: `ghcr.io/synapticfour/ferrum:edge`. Do not install from GitHub Release **tag** `v0.3.1` Docker (that tag omitted `profiles/meta`). Auth-on clone without reading `pilot.toml`: `make eval`.
 
-Free under the Additional Use Grant for:
-
-- Academic and university research
-- Non-commercial scientific projects
-- Personal learning and evaluation
-- Institutions running Ferrum for internal research
-
-Commercial license required for:
-
-- Offering Ferrum as a hosted/managed service to third parties
-- Commercial genomics pipelines or products built on Ferrum
-
-For a **written** commercial license (per product, no combo SKU): [COMMERCIAL.md](COMMERCIAL.md) · [contact@synapticfour.com](mailto:contact@synapticfour.com).
-
-After four years from each release, that version becomes Apache-2.0.
+Paid are services and commitments. For Ferrum that offer is Ferrum Professional. Prices are on the [consulting page](https://synapticfour.com/en/consulting/). There is no combo SKU. See [COMMERCIAL.md](COMMERCIAL.md) · [contact@synapticfour.com](mailto:contact@synapticfour.com).
 
 ---
 

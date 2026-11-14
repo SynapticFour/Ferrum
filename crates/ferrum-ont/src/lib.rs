@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Oxford Nanopore (ONT) ingestion types and canonical DRS mapping.
 //!
 //! Ferrum does not run basecalling (Dorado/Guppy are external). This crate accepts

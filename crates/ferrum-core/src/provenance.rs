@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Data provenance and lineage: DRS objects <-> WES runs as a queryable DAG.
 
 use crate::error::Result;

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Output sampling after run completion.
 //!
 //! Learned from Sapporo: after a run reaches a terminal success state, expose a

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! No-op executor for demo/CI: marks tasks as complete immediately.
 
 use crate::error::Result;

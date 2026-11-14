@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! A07/A09: Admin routes — token revocation, security events, config. Config is public (sanitized).
 
 use axum::{

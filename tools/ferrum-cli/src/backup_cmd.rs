@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Field backup and integrity CLI (Phase 6).
 
 use ferrum_core::{

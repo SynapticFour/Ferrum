@@ -3,7 +3,7 @@ name = "ferrum-drs"
 version = "0.3.10"
 edition = "2021"
 description = "GA4GH Data Repository Service 1.4"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 
 [dependencies]
 ferrum-beacon = { path = "../ferrum-beacon" }
