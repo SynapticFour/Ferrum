@@ -1,7 +1,7 @@
 name: SPDX
 
 # First-party .rs must carry SPDX-License-Identifier.
-# This is not a full REUSE.toml bill of materials (LICENSE stays BUSL-named).
+# This is not a full REUSE.toml bill of materials. The identifier is Apache-2.0.
 
 on:
   workflow_dispatch:
@@ -16,4 +16,4 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Check SPDX-License-Identifier on first-party Rust
-        run: python3 scripts/spdx-rs.py . --license BUSL-1.1 --check
+        run: python3 scripts/spdx-rs.py . --license Apache-2.0 --check

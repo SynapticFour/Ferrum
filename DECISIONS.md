@@ -54,7 +54,7 @@ Track important architectural and operational decisions here.
 - **Status:** Accepted
 - **Context:** MinIO Hub pulls return 401 and `dl.min.io` returns 410; the v0.3.5 offline-bundle release step failed. s4-showcase exercised Ferrum S3 against Garage and SeaweedFS (16/16). Garage’s own repository licenses the project **AGPL-3.0** (not Apache-2.0). MinIO is also AGPL-3.0.
 - **Decision:** Reference Compose, offline bundle, and Helm `values-local` use **SeaweedFS 3.80** (Apache-2.0, digest-pinned). Document Garage and MinIO as **bring-your-own S3** with a tested-backends table. Release workflow treats the offline image bundle as **optional** so a third-party pull failure does not block the GitHub Release.
-- **Consequences:** Operators who need Garage (showcase Contabo) or MinIO configure `FERRUM_STORAGE__S3_*` themselves. Shipping AGPL storage daemons remains an operator obligation for those products, not Ferrum’s BUSL.
+- **Consequences:** Operators who need Garage (showcase Contabo) or MinIO configure `FERRUM_STORAGE__S3_*` themselves. Shipping AGPL storage daemons remains an operator obligation for those products. Ferrum's Apache-2.0 licence does not cover them.
 - **Alternatives considered:** Keep MinIO and build from source (rejected: AGPL + release fragility); make Garage the reference despite AGPL (rejected: same AGPL class as MinIO for the reference pin).
 
 ---

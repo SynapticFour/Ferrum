@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Layered configuration: defaults, /etc/ferrum, ~/.ferrum, FERRUM_ env, optional --config file.
 
 pub use crate::ops::OperationsConfig;

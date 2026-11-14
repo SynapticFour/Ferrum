@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! A discovered config.toml that does not parse must stop the process.
 //!
 //! Seeded from evidence/2026-10/p3-deployment-proof: `bind = [` in the working

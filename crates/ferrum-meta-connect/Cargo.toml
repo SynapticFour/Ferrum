@@ -3,7 +3,7 @@ name = "ferrum-meta-connect"
 version = "0.1.0"
 edition = "2021"
 description = "Offline ferrum-meta submission validation for Ferrum Edge"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

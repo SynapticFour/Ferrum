@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Run metrics collection and cost estimation (WES/TES).
 //! Purely based on wall-clock × configured resource price; no cloud billing API.
 

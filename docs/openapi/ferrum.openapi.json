@@ -8,7 +8,7 @@
       "email": "contact@synapticfour.com"
     },
     "license": {
-      "name": "BUSL-1.1",
+      "name": "Apache-2.0",
       "url": "https://github.com/SynapticFour/Ferrum/blob/main/LICENSE"
     },
     "version": "0.3.10"

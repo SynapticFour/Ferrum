@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! HTTP API for field sync queue (`/api/v1/sync/*`).
 
 use crate::state::AppState;

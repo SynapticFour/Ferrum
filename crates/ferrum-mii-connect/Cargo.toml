@@ -3,7 +3,7 @@ name = "ferrum-mii-connect"
 version = "0.3.10"
 edition = "2021"
 description = "MII-KDS conformance validation layer for Ferrum"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

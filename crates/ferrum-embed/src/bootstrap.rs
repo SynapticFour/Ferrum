@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Startup bootstrap: paths, migrations, backend selection.
 
 use crate::mode::EmbedMode;

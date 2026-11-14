@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Federated Beacon query helpers.
 
 use crate::handlers::{AppState, VariantQueryResponse, BEACON_RESPONSE_META_SCHEMA};

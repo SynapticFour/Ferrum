@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Anonymous DRS create/update/delete is rejected when require_auth is on.
 
 use axum::body::Body;

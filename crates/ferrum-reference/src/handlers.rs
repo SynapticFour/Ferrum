@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 #![allow(clippy::result_large_err)] // axum Response as Err (Clippy 1.99)
 //! HTTP API for the reference genome registry (`/api/v1/references`).
 

@@ -8,14 +8,14 @@ Ferrum, ga4gh-infra, Solum, and BioResearch Assistant sit alongside Helix/HelixT
 
 | Kind | Repository | Role | License |
 |------|------------|------|---------|
-| Product | **Ferrum** (this repo) | GA4GH gateway and services | BUSL-1.1 |
+| Product | **Ferrum** (this repo) | GA4GH gateway and services | Apache-2.0 |
 | Product | [ga4gh-infra](https://github.com/SynapticFour/ga4gh-infra) | Identity plane (Apache open-core) | Apache-2.0 |
 | Product | [Solum](https://github.com/SynapticFour/Solum) | Clinical overlay | BUSL-1.1 |
-| Product | [BioResearch Assistant](https://github.com/SynapticFour/bioresearch-assistant) | Researcher workbench | BUSL-1.1 |
+| Product | [BioResearch Assistant](https://github.com/SynapticFour/bioresearch-assistant) | Researcher workbench | Apache-2.0 |
 | Open source | [HelixTest](https://github.com/SynapticFour/HelixTest) | GA4GH conformance CLI (`helixtest`) | Apache-2.0 |
 | Open source | [Helix](https://github.com/SynapticFour/Helix) | VERIFY CLI around HelixTest (`helix verify`) | Apache-2.0 |
 | Open source | [HELIOS](https://github.com/SynapticFour/HELIOS) | Pipeline audit evidence (file ingest) | Apache-2.0 |
-| With Ferrum | [Ferrum-Lab-Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) | Subset install — Ferrum companion | BUSL-1.1 |
+| With Ferrum | [Ferrum-Lab-Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit) | Subset install — Ferrum companion | Apache-2.0 |
 | With Ferrum | [ferrum-meta](https://github.com/SynapticFour/ferrum-meta) | Metadata interchange schemas | Apache-2.0 |
 | Proof | [Ferrum-GA4GH-Demo](https://github.com/SynapticFour/Ferrum-GA4GH-Demo) | Local `./run` smoke | Apache-2.0 |
 

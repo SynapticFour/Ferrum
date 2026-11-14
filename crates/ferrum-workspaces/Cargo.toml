@@ -3,7 +3,7 @@ name = "ferrum-workspaces"
 version = "0.3.10"
 edition = "2021"
 description = "Workspace and collaboration: named project containers with shared access control"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 
 [dependencies]
 ferrum-core = { path = "../ferrum-core" }

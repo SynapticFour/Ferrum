@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 use ferrum_core::BandwidthConfig;
 use ferrum_storage::{BandwidthClass, BandwidthMonitor};
 

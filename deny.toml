@@ -19,10 +19,8 @@ ignore       = [
 [licenses]
 version               = 2
 confidence-threshold  = 0.8
-# BUSL-1.1 compatible; GPL/AGPL/LGPL not in allow list → denied by default
-# BUSL-1.1 is Ferrum's own license (workspace crates)
+# Apache-2.0 is Ferrum's own licence. GPL/AGPL/LGPL are not in the allow list.
 allow = [
-    "BUSL-1.1",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "MIT",
@@ -37,7 +35,7 @@ allow = [
     "bzip2-1.0.6",
     "CDLA-Permissive-2.0",
 ]
-# Workspace crates (Ferrum) use BUSL-1.1; only check dependencies
+# Workspace crates (Ferrum) are Apache-2.0 and private; only check dependencies
 [licenses.private]
 ignore = true
 

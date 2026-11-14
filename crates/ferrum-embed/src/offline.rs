@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Non-fatal startup network probes for offline-first mode.
 
 use ferrum_core::FerrumConfig;

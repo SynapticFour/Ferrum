@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 use ferrum_beacon::router;
 use ferrum_core::FerrumPool;
 use http::{Method, Request, StatusCode};

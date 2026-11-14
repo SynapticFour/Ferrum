@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! ferrum-meta bundle validation and persistence at ingest.
 
 use crate::error::DrsError;

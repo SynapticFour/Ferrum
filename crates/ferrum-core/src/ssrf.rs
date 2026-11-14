@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! A10: SSRF protection — SafeHttpClient and URL validation.
 
 use crate::error::{FerrumError, Result};

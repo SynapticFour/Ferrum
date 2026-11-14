@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Per-peer request budget (default 10 req/min).
 
 use std::collections::HashMap;

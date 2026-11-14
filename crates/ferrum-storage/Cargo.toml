@@ -3,7 +3,7 @@ name = "ferrum-storage"
 version = "0.3.10"
 edition = "2021"
 description = "Object storage backends (local POSIX, S3) for Ferrum"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 
 [features]
 default = []

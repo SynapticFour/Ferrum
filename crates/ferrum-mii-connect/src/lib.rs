@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Ferrum MII Connect: validates FHIR resources against vendored MII profile metadata.
 
 pub mod sync;

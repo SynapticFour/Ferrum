@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Offline update bundle install for Edge deployments.
 
 use sha2::{Digest, Sha256};

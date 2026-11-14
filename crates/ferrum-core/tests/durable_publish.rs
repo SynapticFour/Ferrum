@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Process-death checks for the emergency shutdown note and field backups.
 //!
 //! Seeded from evidence/2026-10/p7-claims-behavior: `std::fs::write` left 0-byte

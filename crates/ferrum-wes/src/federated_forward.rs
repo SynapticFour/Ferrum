@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Forward WES run submissions to a remote node when federated compute-pool tags are present.
 
 use crate::error::WesError;

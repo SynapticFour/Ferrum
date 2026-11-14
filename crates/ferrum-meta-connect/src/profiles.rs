@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Profile-specific validation beyond ferrum-core structural checks.
 
 use crate::{issue, IssueSeverity, MetaValidationReport, ValidationIssue};

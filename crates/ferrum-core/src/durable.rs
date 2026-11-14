@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Publish a file by writing a sibling temporary, fsync, and rename.
 //!
 //! The final name is replaced only by `rename`, so a crash during the write

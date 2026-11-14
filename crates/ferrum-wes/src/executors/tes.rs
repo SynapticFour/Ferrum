@@ -1,4 +1,4 @@
-//! SPDX-License-Identifier: BUSL-1.1
+//! SPDX-License-Identifier: Apache-2.0
 //!
 //! GA4GH Task Execution Service (TES) as a WES execution backend.
 //! Submits each WES run as a single TES task (container running the workflow engine).

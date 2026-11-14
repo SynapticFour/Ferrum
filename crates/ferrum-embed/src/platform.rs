@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Host platform detection for Laptop Mode startup logging and optional tuning.
 
 use serde::Serialize;

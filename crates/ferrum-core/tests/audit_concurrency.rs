@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Concurrent residency appends must keep chain_valid true.
 //!
 //! Seeded from evidence/2026-10/p7-claims-behavior: 20 trials of 8 concurrent

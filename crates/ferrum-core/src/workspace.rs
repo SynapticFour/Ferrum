@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Minimal workspace helpers for DRS/WES integration: membership check only.
 
 use crate::error::Result;

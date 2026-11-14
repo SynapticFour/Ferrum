@@ -3,7 +3,7 @@ name = "ferrum-ont"
 version = "0.3.10"
 edition = "2021"
 description = "Oxford Nanopore (ONT) ingestion types and helpers for Ferrum"
-license = "BUSL-1.1"
+license = "Apache-2.0"
 
 [dependencies]
 ferrum-core = { path = "../ferrum-core", default-features = false }

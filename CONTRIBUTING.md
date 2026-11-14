@@ -10,7 +10,11 @@ Ferrum is maintained by Synaptic Four.
 
 We welcome contributors from all backgrounds. We value clear communication, well-documented decisions, and thorough reviews.
 
-**License:** By contributing to Ferrum, you agree that your contributions will be licensed under the same **BUSL-1.1** terms as the rest of the project (see [LICENSE](LICENSE)). New first-party Rust files should start with `// SPDX-License-Identifier: BUSL-1.1`. For how research vs commercial use fits the open-core model and how this relates to [Ferrum Lab Kit](https://github.com/SynapticFour/Ferrum-Lab-Kit), see **[docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md)**. If you contribute on behalf of an employer, ensure you have **permission** to contribute under those terms.
+**License:** Contributions are licensed under the Apache License, Version 2.0, the same terms as the rest of the project (see [LICENSE](LICENSE)). New first-party Rust files start with `// SPDX-License-Identifier: Apache-2.0`.
+
+Contributions need a Developer Certificate of Origin sign-off. Add it with `git commit -s`. The text is at https://developercertificate.org/.
+
+Paid are services and commitments. For Ferrum that offer is Ferrum Professional. Prices are on the [consulting page](https://synapticfour.com/en/consulting/). See [docs/BUSINESS-MODEL.md](docs/BUSINESS-MODEL.md). If you contribute on behalf of an employer, ensure you have **permission** to contribute under these terms.
 
 **Not legal advice:** Repository docs do not replace counsel for your jurisdiction (employment, IP assignment, export rules, etc.).
 

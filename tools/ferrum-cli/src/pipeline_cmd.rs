@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Field analysis pipeline CLI (Phase 5 / T5).
 
 use ferrum_beacon::repo::BeaconRepo;

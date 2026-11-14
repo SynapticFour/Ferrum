@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! ADS proxy for researcher dataset access requests (ga4gh-infra integration).
 //! Resolves the ADS base URL via service discovery at request time.
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Unified database pool for PostgreSQL and SQLite (laptop / offline mode).
 
 use crate::config::DatabaseConfig;

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Pathogen Beacon filters and human-genomics regression (SQLite fixtures).
 
 use ferrum_beacon::router;

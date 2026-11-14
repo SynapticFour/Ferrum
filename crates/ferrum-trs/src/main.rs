@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Standalone TRS binary. Build with: cargo run -p ferrum-trs --features standalone
 
 #[tokio::main]

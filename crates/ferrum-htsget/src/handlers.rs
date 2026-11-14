@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 #![allow(clippy::result_large_err)] // axum Response as Err (Clippy 1.99)
 //! htsget HTTP handlers (GA4GH htsget 1.3.0-style tickets over DRS stream).
 

@@ -10,7 +10,7 @@ Published tags and the default branch are not stated as the same commit on this 
 
 ## License
 
-Business Source License 1.1. Additional Use Grant: non-commercial research, academic, and internal research use, licence fee €0. Change License Apache-2.0 four years after each version. Ferrum is not Apache-2.0 today. A guided pilot fee on the website is time, not a licence. See [LICENSE](../LICENSE) and [BUSINESS-MODEL.md](BUSINESS-MODEL.md).
+Apache License, Version 2.0. The software is free under that licence. Paid are services and commitments. For Ferrum that offer is Ferrum Professional. Prices are on the [consulting page](https://synapticfour.com/en/consulting/). Versions released before this change were published under the Business Source License 1.1; see [LICENSING-HISTORY.md](../LICENSING-HISTORY.md). See [LICENSE](../LICENSE) and [BUSINESS-MODEL.md](BUSINESS-MODEL.md).
 
 ## Tested in this tree
 

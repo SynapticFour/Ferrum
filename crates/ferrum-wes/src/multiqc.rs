@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Automatic MultiQC report generation for completed WES runs: scan QC outputs, run MultiQC, ingest report into DRS.
 
 use crate::error::{Result, WesError};

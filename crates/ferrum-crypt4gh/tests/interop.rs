@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 use ferrum_crypt4gh::{stream_decrypt, C4ghKeys};
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};

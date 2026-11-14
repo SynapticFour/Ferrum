@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: Apache-2.0
 //! Layer 1: Standard Crypt4GH file operations — encrypt, decrypt, re-encrypt, key management.
 
 use crate::error::{Crypt4GHError, Result};
