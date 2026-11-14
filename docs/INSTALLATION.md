@@ -136,7 +136,9 @@ Published tags on `ghcr.io/synapticfour/ferrum` (see [IMAGE-VARIANTS.md](IMAGE-V
 
 ---
 
-## Single-node production install
+## Single-node install (design target)
+
+This procedure is a design target for one computer with an external database and object store. It is not a record of a production deployment, and this repository does not record a clinical pilot. The public status is early use.
 
 ### a) Install PostgreSQL 16 and run migrations
 
