@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 
 - Licence is Apache-2.0 from this commit. Versions released before this change were published under the Business Source License 1.1. See [LICENSING-HISTORY.md](LICENSING-HISTORY.md).
+- Dependabot is enabled again: weekly grouped updates for Cargo, GitHub Actions and the UI, monthly for Docker base images. Semver-major bumps stay manual.
 
 ## [0.3.10] - 2026-10-19
 
