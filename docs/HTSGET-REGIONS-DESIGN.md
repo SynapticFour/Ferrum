@@ -112,7 +112,7 @@ The Crypt4GH segment mapping and edit-list building are the same work as `sc-cry
 - Index parsing and ticket building stay in `ferrum-htsget` (GA4GH-specific).
 - `get_range` goes into both storage traits (Synaptic-Core has it already).
 
-Owner decision needed: shared crate now, or Ferrum first and extract later.
+**Decision (2026-11-19): one shared crate from the start.** It is [`crypt4gh-ranges`](https://github.com/SynapticFour/crypt4gh-ranges), Apache-2.0 so Ferrum can depend on it (Synaptic-Core itself is BUSL-1.1 and cannot be a dependency of Ferrum). Version 0.1.0 has the segment mapping, ciphertext ranges, edit lists, the edit-list packet layout and trimming for mode A, with property tests. Header re-wrap stays with each project's Crypt4GH implementation.
 
 ## 7. Acceptance tests (before the docs change)
 
@@ -133,6 +133,6 @@ The data are the same public GIAB files the gatk-rs test bed puts behind DRS, so
 
 1. `get_range` in storage + `/stream` using it (fixes plain Range cost). Small, independent.
 2. Plain BAM/VCF region tickets + `class=header` (sections 4.1–4.3).
-3. Shared Crypt4GH range crate + mode A.
+3. Mode A on top of `crypt4gh-ranges`.
 4. Mode B header endpoint + tickets.
 5. Docs, service-info, HelixTest region tests on; remove "not supported" only here.
