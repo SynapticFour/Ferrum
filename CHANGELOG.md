@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 
 - Licence is Apache-2.0 from this commit. Versions released before this change were published under the Business Source License 1.1. See [LICENSING-HISTORY.md](LICENSING-HISTORY.md).
+- GHCR images (`ferrum` in all four variants, `ferrum-ui`) are published for linux/amd64 and linux/arm64 from the next tag. The gateway builds natively on an arm64 runner; tags published earlier stay amd64-only.
 
 ## [0.3.10] - 2026-10-19
 

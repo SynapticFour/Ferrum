@@ -24,14 +24,72 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
+  # Gateway images are published for linux/amd64 and linux/arm64. Each architecture
+  # builds natively (arm64 on ubuntu-24.04-arm; Rust under QEMU takes hours), pushes
+  # by digest, and docker-gateway-merge joins both under the usual tags.
   docker-gateway:
+    name: gateway ${{ matrix.variant }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: ${{ fromJSON(github.event_name == 'workflow_dispatch' && github.event.inputs.variants || '["full","edge","edge-infra","full-infra"]') }}
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push gateway image by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./deploy/Dockerfile
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=image,name=ghcr.io/synapticfour/ferrum,push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            FERRUM_VARIANT=${{ matrix.variant }}
+            FERRUM_GIT_SHA=${{ github.sha }}
+            FERRUM_BUILD_PROFILE=${{ matrix.variant }}
+          cache-from: type=gha,scope=ferrum-gateway-${{ matrix.variant }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=ferrum-gateway-${{ matrix.variant }}-${{ matrix.arch }}
+
+      - name: Keep digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gateway-digest-${{ matrix.variant }}-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  docker-gateway-merge:
+    name: gateway ${{ matrix.variant }} (publish)
+    needs: docker-gateway
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         variant: ${{ fromJSON(github.event_name == 'workflow_dispatch' && github.event.inputs.variants || '["full","edge","edge-infra","full-infra"]') }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: gateway-digest-${{ matrix.variant }}-*
+          merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -56,25 +114,25 @@ jobs:
             type=ref,event=tag,enable=${{ matrix.variant == 'full' }}
             type=ref,event=tag,suffix=-${{ matrix.variant }}
 
-      - name: Build and push gateway image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./deploy/Dockerfile
-          push: true
-          tags: ${{ steps.meta_gateway.outputs.tags }}
-          labels: ${{ steps.meta_gateway.outputs.labels }}
-          build-args: |
-            FERRUM_VARIANT=${{ matrix.variant }}
-            FERRUM_GIT_SHA=${{ github.sha }}
-            FERRUM_BUILD_PROFILE=${{ matrix.variant }}
-          cache-from: type=gha,scope=ferrum-gateway-${{ matrix.variant }}
-          cache-to: type=gha,mode=max,scope=ferrum-gateway-${{ matrix.variant }}
+      - name: Publish multi-arch tags
+        working-directory: /tmp/digests
+        run: |
+          [ "$(ls | wc -l)" -eq 2 ] || { echo "expected 2 digests (amd64, arm64), got: $(ls)" >&2; exit 1; }
+          tags="$(jq -r '.tags | map("-t " + .) | join(" ")' <<<"${DOCKER_METADATA_OUTPUT_JSON}")"
+          # shellcheck disable=SC2086
+          docker buildx imagetools create ${tags} $(printf 'ghcr.io/synapticfour/ferrum@sha256:%s ' *)
+          docker buildx imagetools inspect "ghcr.io/synapticfour/ferrum:${{ github.sha }}-${{ matrix.variant }}"
 
   docker-ui:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      # The UI builds its static files once on the runner's own platform
+      # (FROM --platform=$BUILDPLATFORM); only the small nginx stage runs per
+      # architecture, so QEMU costs seconds, not minutes.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -101,6 +159,7 @@ jobs:
         with:
           context: ./services/ui
           file: ./services/ui/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta_ui.outputs.tags }}
           labels: ${{ steps.meta_ui.outputs.labels }}
