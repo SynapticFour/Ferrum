@@ -19,7 +19,7 @@ ARG GA4GH_INFRA_REF=ga4gh-infra-v0.2.9
 RUN chmod +x /tmp/clone-ga4gh-infra.sh && GA4GH_INFRA_REF="${GA4GH_INFRA_REF}" /tmp/clone-ga4gh-infra.sh /ga4gh-infra
 RUN cargo build --locked --release -p ferrum-crypt4gh --bin ferrum-node-keygen
 
-FROM alpine:3.19@sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 RUN apk add --no-cache postgresql16-client curl netcat-openbsd bash wget libsodium coreutils
 
 # S3 client (`mc`): pinned GitHub release + checksum (dl.min.io returns 410).

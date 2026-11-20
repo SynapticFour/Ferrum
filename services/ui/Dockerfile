@@ -1,7 +1,7 @@
 # Ferrum UI: build React app and serve with nginx
 # Tag: node:22-alpine
 # Static output is architecture-neutral: build it once on the build host's platform.
-FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS builder
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS builder
 WORKDIR /app
 ARG VITE_ENABLE_PROBLEM_REPORT=true
 ARG VITE_PROBLEM_REPORT_EMAIL=contact@synapticfour.com
