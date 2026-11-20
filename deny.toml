@@ -14,6 +14,10 @@ ignore       = [
     { id = "RUSTSEC-2026-0429", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no runtime extract of untrusted ZIPs" },
     { id = "RUSTSEC-2026-0545", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no AES-encrypted ZIPs are read" },
     { id = "RUSTSEC-2026-0548", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; ZipStreamReader not used on untrusted input" },
+    # chrono: "unmaintained" notice only, no vulnerability, no patched version. Used directly by
+    # 12 crates and through sqlx; replacing it changes timestamp types in the database layer and
+    # the JSON APIs, so it is its own change (GitHub issue "Replace chrono"). Revisit by 2027-03-31.
+    { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained (no vulnerability); migration to jiff or time tracked separately, revisit by 2027-03-31" },
 ]
 
 [licenses]
