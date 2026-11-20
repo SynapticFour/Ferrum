@@ -62,7 +62,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.init
       args:
-        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.6}
+        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.9}
         RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.100.0-alpine@sha256:8d0e82abfdf9a38071e07cabc5afba4ddbe077631a80e4e742a760c38beadc33}
     image: ferrum-init:${FERRUM_VERSION:-latest}
     environment:
@@ -105,7 +105,7 @@ services:
         DEBIAN_RUNTIME_IMAGE: ${DEBIAN_RUNTIME_IMAGE:-debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587}
         FERRUM_GIT_SHA: ${FERRUM_GIT_SHA:-unknown}
         FERRUM_BUILD_PROFILE: ${FERRUM_BUILD_PROFILE:-demo}
-        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.6}
+        GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.9}
     image: ferrum-gateway:${FERRUM_VERSION:-latest}
     pull_policy: build
     environment:
