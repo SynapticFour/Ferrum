@@ -678,7 +678,7 @@ async fn decode_jwt_or_passport(
 
     // Try as standard JWT — OWASP A02: algorithm pinning, never accept none or HS256 when RS256 expected
     if let Some(ref secret) = cfg.jwt_secret {
-        let key = DecodingKey::from_secret(secret);
+        let key = DecodingKey::from_secret(secret)?;
         let mut validation = Validation::new(Algorithm::HS256);
         validation.algorithms = vec![Algorithm::HS256];
         validation.validate_exp = true;
@@ -1114,7 +1114,7 @@ async fn decode_passport_via_clearinghouse(
         passport.visa_jwts =
             crate::userinfo_visas::visas_from_userinfo(issuer, token, passport.exp).await?;
     }
-    let visa_objects = match clearinghouse.extract_visas(&passport).await {
+    let visa_objects = match clearinghouse.extract_visas(&passport, token).await {
         Ok(visas) => visas
             .into_iter()
             .map(|visa| VisaObject {
@@ -1321,7 +1321,7 @@ async fn decode_passport_visas_clearinghouse(
                 .await
                 .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
             clearinghouse
-                .extract_visas(&passport)
+                .extract_visas(&passport, passport_jwt)
                 .await
                 .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)
         }
@@ -1398,7 +1398,8 @@ async fn verify_visa_jwt(
         let mut validation = Validation::new(Algorithm::HS256);
         validation.algorithms = vec![Algorithm::HS256];
         validation.validate_exp = true;
-        let data = decode::<VisaJwtPayload>(token, &DecodingKey::from_secret(secret), &validation)?;
+        let data =
+            decode::<VisaJwtPayload>(token, &DecodingKey::from_secret(secret)?, &validation)?;
         return Ok(data.claims.ga4gh_visa_v1);
     }
     if alg != Algorithm::RS256 && alg != Algorithm::ES256 {

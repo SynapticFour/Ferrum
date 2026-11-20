@@ -20,7 +20,7 @@ async fn test_tampered_chunk_is_rejected() {
     let root = temp_path("mac");
     fs::create_dir_all(&root).await.expect("mkdir");
 
-    let skpk = crypt4gh::keys::generate_private_key();
+    let skpk = crypt4gh::keys::generate_private_key().expect("generate key");
     let (sk, pk) = skpk.split_at(32);
     let pub_bytes = pk.to_vec();
     let mut recipients = HashSet::new();

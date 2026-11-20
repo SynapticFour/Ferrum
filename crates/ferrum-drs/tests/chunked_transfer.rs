@@ -364,3 +364,70 @@ async fn test_stream_honors_range_header() {
         .unwrap();
     assert_eq!(body.as_ref(), &PAYLOAD[..8]);
 }
+
+async fn get_stream(
+    state: AppState,
+    uri: &str,
+    range: Option<&str>,
+) -> (StatusCode, http::HeaderMap, Vec<u8>) {
+    let app = axum::Router::new()
+        .route(
+            "/objects/:object_id/stream",
+            axum::routing::get(get_object_stream),
+        )
+        .with_state(Arc::new(state));
+    let mut req = Request::builder().method(Method::GET).uri(uri);
+    if let Some(r) = range {
+        req = req.header("Range", r);
+    }
+    let resp = app
+        .oneshot(req.body(axum::body::Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let status = resp.status();
+    let headers = resp.headers().clone();
+    let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    (status, headers, body.to_vec())
+}
+
+#[tokio::test]
+async fn test_stream_range_inside_and_at_end_reads_only_those_bytes() {
+    for (range, a, b) in [
+        ("bytes=5-12", 5usize, 12usize),
+        ("bytes=20-", 20, 31),
+        ("bytes=-4", 28, 31),
+    ] {
+        let (state, _tmp) = drs_test_state().await;
+        let (status, headers, body) = get_stream(state, "/objects/obj1/stream", Some(range)).await;
+        assert_eq!(status, StatusCode::PARTIAL_CONTENT, "{range}");
+        assert_eq!(body, &PAYLOAD[a..=b], "{range}");
+        assert_eq!(
+            headers.get("content-range").unwrap(),
+            &format!("bytes {a}-{b}/{}", PAYLOAD.len()),
+            "{range}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_stream_raw_returns_stored_bytes_with_ranges() {
+    let (state, _tmp) = drs_test_state().await;
+    let (status, headers, body) = get_stream(state, "/objects/obj1/stream?raw=true", None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, PAYLOAD);
+    assert_eq!(headers.get("x-ferrum-drs-stream-path").unwrap(), "raw");
+
+    let (state, _tmp) = drs_test_state().await;
+    let (status, headers, body) =
+        get_stream(state, "/objects/obj1/stream?raw=true", Some("bytes=16-23")).await;
+    assert_eq!(status, StatusCode::PARTIAL_CONTENT);
+    assert_eq!(body, &PAYLOAD[16..=23]);
+    assert_eq!(headers.get("content-range").unwrap(), "bytes 16-23/32");
+
+    let (state, _tmp) = drs_test_state().await;
+    let (status, _, _) =
+        get_stream(state, "/objects/obj1/stream?raw=true", Some("bytes=40-50")).await;
+    assert_eq!(status, StatusCode::RANGE_NOT_SATISFIABLE);
+}

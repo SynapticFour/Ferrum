@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: Apache-2.0
-// Upstream Cargo.toml author: Roberto <roberto.ariosa@crg.eu>
-// Upstream docs/book.toml authors: EGA-CRG System Developers
-// No Copyright line was in this file in crypt4gh 0.4.1.
-// Modifications: Synaptic Four (RustCrypto instead of rust-crypto).
-
 use std::path::PathBuf;
 
 use clap::Subcommand;
@@ -17,7 +11,7 @@ pub enum Command {
 		sk: Option<PathBuf>,
 
 		/// Recipient's Curve25519-based Public key
-		#[clap(long = "recipient_pk", multiple_values = true)]
+		#[clap(long = "recipient_pk", num_args = 1..)]
 		recipient_pk: Vec<PathBuf>,
 
 		/// Byte-range either as  <start-end> or just <start> (Start included, End excluded)
@@ -55,7 +49,7 @@ pub enum Command {
 		sk: Option<PathBuf>,
 
 		/// Recipient's Curve25519-based Public key
-		#[clap(long = "recipient_pk", multiple_values = true)]
+		#[clap(long = "recipient_pk", num_args = 1..)]
 		recipient_pk: Vec<PathBuf>,
 
 		/// Keep only header packets that you can decrypt

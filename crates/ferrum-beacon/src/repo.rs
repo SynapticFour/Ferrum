@@ -46,26 +46,30 @@ impl BeaconRepo {
         if let (Some(reference), Some(alternate)) = (reference, alternate) {
             let row: (bool,) = match &self.pool {
                 FerrumPool::Postgres(p) => {
-                    sqlx::query_as(&sql_beacon_variant_exists_exact(DbDialect::Postgres))
-                        .bind(dataset_id)
-                        .bind(&candidates)
-                        .bind(end)
-                        .bind(start)
-                        .bind(reference)
-                        .bind(alternate)
-                        .fetch_one(p)
-                        .await?
+                    sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_exists_exact(
+                        DbDialect::Postgres,
+                    )))
+                    .bind(dataset_id)
+                    .bind(&candidates)
+                    .bind(end)
+                    .bind(start)
+                    .bind(reference)
+                    .bind(alternate)
+                    .fetch_one(p)
+                    .await?
                 }
                 FerrumPool::Sqlite(p) => {
-                    sqlx::query_as(&sql_beacon_variant_exists_exact(DbDialect::Sqlite))
-                        .bind(dataset_id)
-                        .bind(chromosomes_json(&candidates))
-                        .bind(end)
-                        .bind(start)
-                        .bind(reference)
-                        .bind(alternate)
-                        .fetch_one(p)
-                        .await?
+                    sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_exists_exact(
+                        DbDialect::Sqlite,
+                    )))
+                    .bind(dataset_id)
+                    .bind(chromosomes_json(&candidates))
+                    .bind(end)
+                    .bind(start)
+                    .bind(reference)
+                    .bind(alternate)
+                    .fetch_one(p)
+                    .await?
                 }
             };
 
@@ -76,22 +80,26 @@ impl BeaconRepo {
 
         let row: (bool,) = match &self.pool {
             FerrumPool::Postgres(p) => {
-                sqlx::query_as(&sql_beacon_variant_exists_coord(DbDialect::Postgres))
-                    .bind(dataset_id)
-                    .bind(&candidates)
-                    .bind(end)
-                    .bind(start)
-                    .fetch_one(p)
-                    .await?
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_exists_coord(
+                    DbDialect::Postgres,
+                )))
+                .bind(dataset_id)
+                .bind(&candidates)
+                .bind(end)
+                .bind(start)
+                .fetch_one(p)
+                .await?
             }
             FerrumPool::Sqlite(p) => {
-                sqlx::query_as(&sql_beacon_variant_exists_coord(DbDialect::Sqlite))
-                    .bind(dataset_id)
-                    .bind(chromosomes_json(&candidates))
-                    .bind(end)
-                    .bind(start)
-                    .fetch_one(p)
-                    .await?
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_exists_coord(
+                    DbDialect::Sqlite,
+                )))
+                .bind(dataset_id)
+                .bind(chromosomes_json(&candidates))
+                .bind(end)
+                .bind(start)
+                .fetch_one(p)
+                .await?
             }
         };
         Ok(row.0)
@@ -111,26 +119,30 @@ impl BeaconRepo {
         if let (Some(reference), Some(alternate)) = (reference, alternate) {
             let row: (i64,) = match &self.pool {
                 FerrumPool::Postgres(p) => {
-                    sqlx::query_as(&sql_beacon_variant_count_exact(DbDialect::Postgres))
-                        .bind(dataset_id)
-                        .bind(&candidates)
-                        .bind(end)
-                        .bind(start)
-                        .bind(reference)
-                        .bind(alternate)
-                        .fetch_one(p)
-                        .await?
+                    sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_count_exact(
+                        DbDialect::Postgres,
+                    )))
+                    .bind(dataset_id)
+                    .bind(&candidates)
+                    .bind(end)
+                    .bind(start)
+                    .bind(reference)
+                    .bind(alternate)
+                    .fetch_one(p)
+                    .await?
                 }
                 FerrumPool::Sqlite(p) => {
-                    sqlx::query_as(&sql_beacon_variant_count_exact(DbDialect::Sqlite))
-                        .bind(dataset_id)
-                        .bind(chromosomes_json(&candidates))
-                        .bind(end)
-                        .bind(start)
-                        .bind(reference)
-                        .bind(alternate)
-                        .fetch_one(p)
-                        .await?
+                    sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_count_exact(
+                        DbDialect::Sqlite,
+                    )))
+                    .bind(dataset_id)
+                    .bind(chromosomes_json(&candidates))
+                    .bind(end)
+                    .bind(start)
+                    .bind(reference)
+                    .bind(alternate)
+                    .fetch_one(p)
+                    .await?
                 }
             };
 
@@ -141,22 +153,26 @@ impl BeaconRepo {
 
         let row: (i64,) = match &self.pool {
             FerrumPool::Postgres(p) => {
-                sqlx::query_as(&sql_beacon_variant_count_coord(DbDialect::Postgres))
-                    .bind(dataset_id)
-                    .bind(&candidates)
-                    .bind(end)
-                    .bind(start)
-                    .fetch_one(p)
-                    .await?
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_count_coord(
+                    DbDialect::Postgres,
+                )))
+                .bind(dataset_id)
+                .bind(&candidates)
+                .bind(end)
+                .bind(start)
+                .fetch_one(p)
+                .await?
             }
             FerrumPool::Sqlite(p) => {
-                sqlx::query_as(&sql_beacon_variant_count_coord(DbDialect::Sqlite))
-                    .bind(dataset_id)
-                    .bind(chromosomes_json(&candidates))
-                    .bind(end)
-                    .bind(start)
-                    .fetch_one(p)
-                    .await?
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_count_coord(
+                    DbDialect::Sqlite,
+                )))
+                .bind(dataset_id)
+                .bind(chromosomes_json(&candidates))
+                .bind(end)
+                .bind(start)
+                .fetch_one(p)
+                .await?
             }
         };
         Ok(row.0)
@@ -177,28 +193,32 @@ impl BeaconRepo {
 
         let rows: Vec<(i64,)> = match &self.pool {
             FerrumPool::Postgres(p) => {
-                sqlx::query_as(&sql_beacon_variant_match_ids(DbDialect::Postgres))
-                    .bind(dataset_id)
-                    .bind(&candidates)
-                    .bind(end)
-                    .bind(start)
-                    .bind(reference)
-                    .bind(alternate)
-                    .bind(variant_type)
-                    .fetch_all(p)
-                    .await?
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_match_ids(
+                    DbDialect::Postgres,
+                )))
+                .bind(dataset_id)
+                .bind(&candidates)
+                .bind(end)
+                .bind(start)
+                .bind(reference)
+                .bind(alternate)
+                .bind(variant_type)
+                .fetch_all(p)
+                .await?
             }
             FerrumPool::Sqlite(p) => {
-                sqlx::query_as(&sql_beacon_variant_match_ids(DbDialect::Sqlite))
-                    .bind(dataset_id)
-                    .bind(chromosomes_json(&candidates))
-                    .bind(end)
-                    .bind(start)
-                    .bind(reference)
-                    .bind(alternate)
-                    .bind(variant_type)
-                    .fetch_all(p)
-                    .await?
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_beacon_variant_match_ids(
+                    DbDialect::Sqlite,
+                )))
+                .bind(dataset_id)
+                .bind(chromosomes_json(&candidates))
+                .bind(end)
+                .bind(start)
+                .bind(reference)
+                .bind(alternate)
+                .bind(variant_type)
+                .fetch_all(p)
+                .await?
             }
         };
 
@@ -253,16 +273,18 @@ impl BeaconRepo {
     ) -> Result<bool> {
         let row: (bool,) = match &self.pool {
             FerrumPool::Postgres(p) => {
-                sqlx::query_as(&sql_pathogen_exists(DbDialect::Postgres))
-                    .bind(organism)
-                    .bind(amr_gene)
-                    .bind(serotype)
-                    .bind(min_qscore)
-                    .fetch_one(p)
-                    .await?
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_pathogen_exists(
+                    DbDialect::Postgres,
+                )))
+                .bind(organism)
+                .bind(amr_gene)
+                .bind(serotype)
+                .bind(min_qscore)
+                .fetch_one(p)
+                .await?
             }
             FerrumPool::Sqlite(p) => {
-                sqlx::query_as(&sql_pathogen_exists(DbDialect::Sqlite))
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_pathogen_exists(DbDialect::Sqlite)))
                     .bind(organism)
                     .bind(amr_gene)
                     .bind(serotype)
@@ -284,7 +306,7 @@ impl BeaconRepo {
     ) -> Result<i64> {
         let row: (i64,) = match &self.pool {
             FerrumPool::Postgres(p) => {
-                sqlx::query_as(&sql_pathogen_count(DbDialect::Postgres))
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_pathogen_count(DbDialect::Postgres)))
                     .bind(organism)
                     .bind(amr_gene)
                     .bind(serotype)
@@ -293,7 +315,7 @@ impl BeaconRepo {
                     .await?
             }
             FerrumPool::Sqlite(p) => {
-                sqlx::query_as(&sql_pathogen_count(DbDialect::Sqlite))
+                sqlx::query_as(sqlx::AssertSqlSafe(sql_pathogen_count(DbDialect::Sqlite)))
                     .bind(organism)
                     .bind(amr_gene)
                     .bind(serotype)

@@ -6,6 +6,21 @@ All notable changes to this project will be documented in this file. The format 
 
 - Licence is Apache-2.0 from this commit. Versions released before this change were published under the Business Source License 1.1. See [LICENSING-HISTORY.md](LICENSING-HISTORY.md).
 - Dependabot is enabled again: weekly grouped updates for Cargo, GitHub Actions and the UI, monthly for Docker base images. Semver-major bumps stay manual.
+- ga4gh-infra `ga4gh-infra-v0.2.9` (was v0.2.6): clearinghouse on jsonwebtoken 12 / rsa 0.10. `extract_visas` now takes the raw Passport JWT (ADR-006, UserInfo Visas). Compose image defaults `:0.2.9`.
+- Toolchain Rust 1.100.0 (was 1.91.1); every crate declares `rust-version = "1.100"`. sqlx 0.9 with libsqlite3-sys 0.40 (bundled SQLite 3.54, fixes RUSTSEC-2026-0459). Dynamic SQL built from dialect-specific constants is marked with `sqlx::AssertSqlSafe`; no SQL text comes from requests.
+- Security updates: `jsonwebtoken` 12 and `rsa` 0.10 (fixes RUSTSEC-2023-0071, Marvin, and the `crypto-bigint` timing issues), lettre 0.11.24, quinn, rustls-webpki, webpki-roots, zstd and zip 9.0.5 via lockfile updates, opendal 0.59 (optional backend), UI npm fixes; unused `zod` removed.
+
+### S3-compatible stores (unreleased)
+
+- **S3 uploads to SeaweedFS/MinIO stored the aws-chunked framing.** aws-sdk-s3 adds CRC checksums to uploads and sends streaming bodies as `aws-chunked` with a trailer; SeaweedFS 3.80 (the demo object store) kept the chunk framing as object bytes, so Crypt4GH-encrypted ingests could not be decrypted (DRS `/stream` returned an empty body; CI "Docker TES + pilot smoke": "Crypt4GH stream byte mismatch"). With a custom `s3_endpoint` the client now sends and checks checksums only where an operation requires them. AWS S3 itself (no custom endpoint) is unchanged.
+
+### htsget regions (unreleased)
+
+- **htsget region tickets.** `referenceName` / `start` / `end`, POST `regions` and `class=header` now return tickets computed by htsget-rs (`htsget-search` 0.14, `htsget-storage` 0.7, MIT) from the object's index (BAI, CRAI, TBI, CSI). Index objects are found through metadata `htsget.index` or the name `<data name>.bai|.crai|.tbi|.csi` in the same dataset. Without an index a region request returns 404 `NotFound`; before, every region request returned 400.
+- **Record-exact BGZF tickets.** For plain BAM, VCF.gz and BCF the ticket is built from the index with noodles: the header ends at the first record, and the first and last block of each index chunk are cut at the record boundary and served as `data:` URLs. Block-aligned ranges are not a valid file when records span blocks (htslib writes every BCF that way) or when the header shares a block with records.
+- **Crypt4GH region tickets.** For encrypted objects the requester sends an X25519 public key (`X-Crypt4GH-Public-Key`); the ticket is a Crypt4GH header re-encrypted for that key with an edit list, plus ciphertext ranges from `/stream?raw=true`. One region per request; Crypt4GH BCF regions return 400.
+- **DRS `/stream` ranges.** Plain objects: `Range` reads only the requested bytes (`ObjectStorage::get_range`). `?raw=true` serves the stored Crypt4GH ciphertext with `Range`.
+- **crypt4gh.** `third_party/crypt4gh` is EGA-archive/crypt4gh-rust main (the API htsget-rs needs) instead of the earlier fork; upstream debug lines that logged key material are removed (see `third_party/crypt4gh/README-SynapticFour.md`).
 
 ## [0.3.10] - 2026-10-19
 

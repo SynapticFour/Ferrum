@@ -7,7 +7,7 @@ use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use rsa::pkcs1::{DecodeRsaPrivateKey, EncodeRsaPrivateKey};
 use rsa::pkcs8::EncodePublicKey;
 use rsa::traits::PublicKeyParts;
-use rsa::RsaPrivateKey;
+use rsa::PrivateKey as RsaPrivateKey;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -43,7 +43,7 @@ impl SigningKeys {
     }
 
     fn generate_rs256_pem() -> String {
-        let mut rng = rand::thread_rng();
+        let mut rng = getrandom::SysRng;
         let priv_key = RsaPrivateKey::new(&mut rng, 2048).expect("RSA keygen");
         priv_key
             .to_pkcs1_pem(rsa::pkcs1::LineEnding::LF)
@@ -76,7 +76,7 @@ impl SigningKeys {
     pub fn public_key_pem(&self) -> Result<String> {
         let priv_key = RsaPrivateKey::from_pkcs1_pem(&self.private_key_pem)
             .map_err(|e| PassportError::Jwt(e.to_string()))?;
-        let pub_key = rsa::RsaPublicKey::from(priv_key);
+        let pub_key = rsa::PublicKey::from(priv_key);
         let pem = pub_key
             .to_public_key_pem(rsa::pkcs8::LineEnding::LF)
             .map_err(|e| PassportError::Jwt(format!("{:?}", e)))?;
@@ -86,9 +86,9 @@ impl SigningKeys {
     fn compute_jwks(&self) -> Result<String> {
         let priv_key = RsaPrivateKey::from_pkcs1_pem(&self.private_key_pem)
             .map_err(|e| PassportError::Jwt(e.to_string()))?;
-        let pub_key = rsa::RsaPublicKey::from(priv_key);
-        let n_bytes = pub_key.n().to_bytes_be();
-        let e_bytes = pub_key.e().to_bytes_be();
+        let pub_key = rsa::PublicKey::from(priv_key);
+        let n_bytes = pub_key.n().to_be_bytes_trimmed_vartime();
+        let e_bytes = pub_key.e().to_be_bytes_trimmed_vartime();
         let n = base64url_no_pad(&n_bytes);
         let e = base64url_no_pad(&e_bytes);
         let jwk = serde_json::json!({

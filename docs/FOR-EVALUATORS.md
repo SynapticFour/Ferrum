@@ -28,7 +28,7 @@ Apache License, Version 2.0. The software is free under that licence. Paid are s
 |-------|--------|
 | GA4GH certification | Not claimed. HelixTest is a technical signal against published OpenAPI. |
 | Third-party audit | None. |
-| htsget genomic region slicing | HTTP 400. Tickets are whole-object DRS streams. |
+| htsget genomic region slicing | Via htsget-rs from the object's index (BAM/CRAM/VCF.gz/BCF). Needs an index object; Crypt4GH: one region per request, no BCF regions. See [HTSGET.md](HTSGET.md). |
 | TES default demo compute | Noop (API lifecycle only). |
 | LSF | `ferrum_backend=lsf` errors. Slurm exists; LSF does not. |
 | Helm as a finished operator path | Charts exist; operator still owns IdP, secrets, and network. |

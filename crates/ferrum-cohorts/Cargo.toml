@@ -2,6 +2,7 @@
 name = "ferrum-cohorts"
 version = "0.3.10"
 edition = "2021"
+rust-version = "1.100"
 description = "Cohort Browser: sample collections with phenotype, DRS, Beacon, WES"
 license = "Apache-2.0"
 
@@ -15,7 +16,7 @@ tracing = "0.1"
 tower = "0.4"
 utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "6", features = ["axum"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "chrono"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "postgres", "chrono"] }
 chrono = "0.4"
 ulid = "1"
 thiserror = "1"

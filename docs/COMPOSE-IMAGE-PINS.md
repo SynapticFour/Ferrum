@@ -12,7 +12,7 @@ Pinned on 2026-10-12 from `docker pull` (linux/amd64 for GHCR / SeaweedFS).
 | nginx | `nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2` |
 | ferrum-gateway / ferrum-ui / ferrum-init | **Built locally** (`pull_policy: build`) — no registry digest |
 
-Dockerfile build args (when set): `rust:1.91.1-alpine@sha256:45c1c35…`, `rust:1.91.1-bookworm@sha256:c1e5f19…`, `debian:bookworm-slim@sha256:7c7b2c…`, `alpine:3.19@sha256:6baf435…`.
+Dockerfile build args (when set): `rust:1.100.0-alpine@sha256:8d0e82abfdf9a38071e07cabc5afba4ddbe077631a80e4e742a760c38beadc33`, `rust:1.100.0-bookworm@sha256:ade39a710ef85f3506cffcfec3e8a24ba090badef1dff2fb798f71d878833fea`, `debian:bookworm-slim@sha256:7c7b2c…`, `alpine:3.19@sha256:6baf435…`.
 
 ## `demo/docker-compose.demo.yml`
 

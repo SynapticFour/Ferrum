@@ -701,6 +701,8 @@ export const frOverlay = {
     empty: 'Aucun espace de travail pour l\'instant.',
     createFirst: 'Créer votre premier espace de travail',
     new: 'Nouvel espace de travail',
+    signInHint:
+      "Connectez-vous avec le bouton de l'interface Ferrum (researcher / demo-researcher). La connexion BFF du site seule ne donne pas accès aux espaces de travail.",
   },
   workspaceNew: {
     title: 'Nouvel espace de travail',

@@ -22,7 +22,7 @@ env:
   FERRUM_PUBLIC_BASE_URL: http://localhost:8080
   GA4GH_BROKER_URL: http://127.0.0.1:8180
   GA4GH_SERVICE_REGISTRY_URL: http://127.0.0.1:8183
-  RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1.91.1-bookworm
+  RUST_BUILDER_IMAGE: public.ecr.aws/docker/library/rust:1.100.0-bookworm
   DEBIAN_RUNTIME_IMAGE: public.ecr.aws/docker/library/debian:bookworm-slim
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 

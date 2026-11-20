@@ -1,5 +1,5 @@
 # Weekly dependency updates. Grouped so one PR per ecosystem per week, not one per crate.
-# Rust toolchain (MSRV 1.91.1) stays pinned in rust-toolchain.toml; bump that by hand.
+# Rust toolchain (MSRV 1.100.0) stays pinned in rust-toolchain.toml; bump that by hand.
 version: 2
 updates:
   - package-ecosystem: cargo

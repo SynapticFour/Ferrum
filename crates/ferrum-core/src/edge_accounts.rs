@@ -65,12 +65,10 @@ pub fn mint_local_token(
         iat: now,
         scope: visa_for_role(&account.role).to_string(),
     };
-    encode(
-        &Header::new(Algorithm::HS256),
-        &claims,
-        &EncodingKey::from_secret(jwt_secret),
-    )
-    .map_err(|e| FerrumError::ValidationError(format!("mint token: {e}")))
+    let key = EncodingKey::from_secret(jwt_secret)
+        .map_err(|e| FerrumError::ValidationError(format!("mint token: {e}")))?;
+    encode(&Header::new(Algorithm::HS256), &claims, &key)
+        .map_err(|e| FerrumError::ValidationError(format!("mint token: {e}")))
 }
 
 fn hash_pin(pin: &str, salt: &str) -> String {
@@ -289,8 +287,12 @@ mod tests {
         validation.algorithms = vec![Algorithm::HS256];
         validation.set_issuer(&["ferrum-edge-local"]);
         validation.validate_aud = false;
-        let decoded = decode::<LocalClaims>(&token, &DecodingKey::from_secret(secret), &validation)
-            .expect("HS256 decode");
+        let decoded = decode::<LocalClaims>(
+            &token,
+            &DecodingKey::from_secret(secret).expect("key"),
+            &validation,
+        )
+        .expect("HS256 decode");
         assert_eq!(decoded.claims.sub, "alice");
         assert_eq!(decoded.claims.iss, "ferrum-edge-local");
         assert_eq!(decoded.claims.scope, crate::auth::VISA_COLLECTOR);
