@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 - Licence is Apache-2.0 from this commit. Versions released before this change were published under the Business Source License 1.1. See [LICENSING-HISTORY.md](LICENSING-HISTORY.md).
 - Toolchain Rust 1.100.0 (was 1.91.1); every crate declares `rust-version = "1.100"`. sqlx 0.9 with libsqlite3-sys 0.40 (bundled SQLite 3.54, fixes RUSTSEC-2026-0459). Dynamic SQL built from dialect-specific constants is marked with `sqlx::AssertSqlSafe`; no SQL text comes from requests.
-- Security updates: `jsonwebtoken` 12 and `rsa` 0.10 (fixes RUSTSEC-2023-0071, Marvin, and the `crypto-bigint` timing issues), lettre 0.11.24, quinn, rustls-webpki, webpki-roots, zstd and zip 9.0.5 via lockfile updates, opendal 0.59 (optional backend), UI npm fixes; unused `zod` removed. Every crate declares `rust-version = "1.91.1"` so dependency updates stay within the pinned toolchain.
+- Security updates: `jsonwebtoken` 12 and `rsa` 0.10 (fixes RUSTSEC-2023-0071, Marvin, and the `crypto-bigint` timing issues), lettre 0.11.24, quinn, rustls-webpki, webpki-roots, zstd and zip 9.0.5 via lockfile updates, opendal 0.59 (optional backend), UI npm fixes; unused `zod` removed.
 
 ## [0.3.10] - 2026-10-19
 

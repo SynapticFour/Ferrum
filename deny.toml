@@ -11,6 +11,9 @@ ignore       = [
     { id = "RUSTSEC-2026-0367", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no runtime extract of untrusted ZIPs" },
     { id = "RUSTSEC-2026-0368", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no runtime extract of untrusted ZIPs" },
     { id = "RUSTSEC-2026-0369", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no runtime extract of untrusted ZIPs" },
+    { id = "RUSTSEC-2026-0429", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no runtime extract of untrusted ZIPs" },
+    { id = "RUSTSEC-2026-0545", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; no AES-encrypted ZIPs are read" },
+    { id = "RUSTSEC-2026-0548", reason = "utoipa-swagger-ui 6 build-only zip 0.6.6; ZipStreamReader not used on untrusted input" },
 ]
 
 [licenses]
