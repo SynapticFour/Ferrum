@@ -9,6 +9,10 @@ All notable changes to this project will be documented in this file. The format 
 - Toolchain Rust 1.100.0 (was 1.91.1); every crate declares `rust-version = "1.100"`. sqlx 0.9 with libsqlite3-sys 0.40 (bundled SQLite 3.54, fixes RUSTSEC-2026-0459). Dynamic SQL built from dialect-specific constants is marked with `sqlx::AssertSqlSafe`; no SQL text comes from requests.
 - Security updates: `jsonwebtoken` 12 and `rsa` 0.10 (fixes RUSTSEC-2023-0071, Marvin, and the `crypto-bigint` timing issues), lettre 0.11.24, quinn, rustls-webpki, webpki-roots, zstd and zip 9.0.5 via lockfile updates, opendal 0.59 (optional backend), UI npm fixes; unused `zod` removed.
 
+### S3-compatible stores (unreleased)
+
+- **S3 uploads to SeaweedFS/MinIO stored the aws-chunked framing.** aws-sdk-s3 adds CRC checksums to uploads and sends streaming bodies as `aws-chunked` with a trailer; SeaweedFS 3.80 (the demo object store) kept the chunk framing as object bytes, so Crypt4GH-encrypted ingests could not be decrypted (DRS `/stream` returned an empty body; CI "Docker TES + pilot smoke": "Crypt4GH stream byte mismatch"). With a custom `s3_endpoint` the client now sends and checks checksums only where an operation requires them. AWS S3 itself (no custom endpoint) is unchanged.
+
 ### htsget regions (unreleased)
 
 - **htsget region tickets.** `referenceName` / `start` / `end`, POST `regions` and `class=header` now return tickets computed by htsget-rs (`htsget-search` 0.14, `htsget-storage` 0.7, MIT) from the object's index (BAI, CRAI, TBI, CSI). Index objects are found through metadata `htsget.index` or the name `<data name>.bai|.crai|.tbi|.csi` in the same dataset. Without an index a region request returns 404 `NotFound`; before, every region request returned 400.
