@@ -15,6 +15,10 @@ Tag `v0.3.11`. First release under Apache-2.0. htsget serves region and header t
 - Toolchain Rust 1.100.0 (was 1.91.1); every crate declares `rust-version = "1.100"`. sqlx 0.9 with libsqlite3-sys 0.40 (bundled SQLite 3.54, fixes RUSTSEC-2026-0459). Dynamic SQL built from dialect-specific constants is marked with `sqlx::AssertSqlSafe`; no SQL text comes from requests.
 - Security updates: `jsonwebtoken` 12 and `rsa` 0.10 (fixes RUSTSEC-2023-0071, Marvin, and the `crypto-bigint` timing issues), lettre 0.11.24, quinn, rustls-webpki, webpki-roots, zstd and zip 9.0.5 via lockfile updates, opendal 0.59 (optional backend), UI npm fixes; unused `zod` removed.
 
+### Compose
+
+- **`ferrum-init` builder image.** Compose passed `RUST_BUILDER_IMAGE` to both the gateway (Debian builder) and `ferrum-init` (Alpine builder). With a Debian image set, as in the HelixTest workflows, the init build failed (`apk`: exit 127). `ferrum-init` now reads `RUST_INIT_BUILDER_IMAGE`; the default is unchanged.
+
 ### S3-compatible stores
 
 - **S3 uploads to SeaweedFS/MinIO stored the aws-chunked framing.** aws-sdk-s3 adds CRC checksums to uploads and sends streaming bodies as `aws-chunked` with a trailer; SeaweedFS 3.80 (the demo object store) kept the chunk framing as object bytes, so Crypt4GH-encrypted ingests could not be decrypted (DRS `/stream` returned an empty body; CI "Docker TES + pilot smoke": "Crypt4GH stream byte mismatch"). With a custom `s3_endpoint` the client now sends and checks checksums only where an operation requires them. AWS S3 itself (no custom endpoint) is unchanged.
