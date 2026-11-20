@@ -4,6 +4,8 @@ JSON tickets are served at `/ga4gh/htsget/v1`. Object identifiers are the same a
 
 **Region slicing is not supported for any organism.** Tickets are whole-object only. Requests that include genomic region parameters (`referenceName`, `start`, `end`, POST `regions`) or `class=header` return **HTTP 400** `InvalidInput`. Service-info documents that limitation. Do not treat a green HelixTest demo job as evidence of region-level htsget.
 
+The plan for region slicing with byte ranges, including Crypt4GH objects, is in [HTSGET-REGIONS-DESIGN.md](HTSGET-REGIONS-DESIGN.md) (proposal, not implemented).
+
 Service-info `type.version` is the string **`1.3.0`**. That is the string Ferrum emits. The upstream htsget specification document is now **1.3.1**. This page does not change the emitted string to 1.3.1.
 
 ## Configuration
