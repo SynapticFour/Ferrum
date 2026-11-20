@@ -2566,6 +2566,7 @@ dependencies = [
 [[package]]
 name = "ga4gh-clearinghouse"
 version = "0.1.0"
+source = "git+https://github.com/SynapticFour/ga4gh-infra?tag=ga4gh-infra-v0.2.9#daafd8199a006405c4d9bcfff4a8a48e6b849305"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2583,6 +2584,7 @@ dependencies = [
 [[package]]
 name = "ga4gh-types"
 version = "0.1.0"
+source = "git+https://github.com/SynapticFour/ga4gh-infra?tag=ga4gh-infra-v0.2.9#daafd8199a006405c4d9bcfff4a8a48e6b849305"
 dependencies = [
  "chrono",
  "serde",
