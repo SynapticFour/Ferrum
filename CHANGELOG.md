@@ -4,9 +4,18 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.12] - 2026-11-20
+
+Tag `v0.3.12`. Fixes the arm64 gateway image build; the first tag with GHCR gateway images for linux/amd64 and linux/arm64. Code is otherwise the same as v0.3.11.
+
+### Fixed
+
+- **arm64 gateway images.** `deploy/Dockerfile` declared `ARG TARGETARCH=amd64`. The default replaced the platform BuildKit sets, so the arm64 build compiled for `x86_64-unknown-linux-musl` and failed (`aws-lc-sys`: `-march=x86-64` on arm64). The gateway publish step needs both architectures and was skipped, so **tag v0.3.11 has no `ferrum` gateway images on GHCR** (`ferrum-ui:v0.3.11` exists). Use v0.3.12.
+- **GHCR publish step.** It collected digests with the pattern `gateway-digest-<variant>-*`, which for `full` and `edge` also matched the `-infra` variants; the "two digests" check failed. It now downloads the amd64 and arm64 digest by exact name.
+
 ## [0.3.11] - 2026-11-20
 
-Tag `v0.3.11`. First release under Apache-2.0. htsget serves region and header tickets (htsget-rs); Rust 1.100; GHCR images for linux/amd64 and linux/arm64. CI pins HelixTest `v0.1.4`, which expects those tickets (`v0.1.3` expected region requests to be refused with 400). `demo/docker-compose.demo.yml` keeps the v0.3.10 image digests until the v0.3.11 digests are recorded after publish.
+Tag `v0.3.11`. No `ferrum` gateway images were published for this tag (arm64 build failed, see 0.3.12); binaries, Helm chart and `ferrum-ui` images exist. First release under Apache-2.0. htsget serves region and header tickets (htsget-rs); Rust 1.100; GHCR images for linux/amd64 and linux/arm64. CI pins HelixTest `v0.1.4`, which expects those tickets (`v0.1.3` expected region requests to be refused with 400). `demo/docker-compose.demo.yml` keeps the v0.3.10 image digests until the v0.3.11 digests are recorded after publish.
 
 - Licence is Apache-2.0 (from #136). Versions released before this change were published under the Business Source License 1.1. See [LICENSING-HISTORY.md](LICENSING-HISTORY.md).
 - Dependabot is enabled again: weekly grouped updates for Cargo, GitHub Actions and the UI, monthly for Docker base images. Semver-major bumps stay manual.

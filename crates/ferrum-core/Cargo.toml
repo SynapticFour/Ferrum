@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-core"
-version = "0.3.11"
+version = "0.3.12"
 edition = "2021"
 rust-version = "1.100"
 description = "Shared types, errors, config, and database abstractions for Ferrum"
