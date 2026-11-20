@@ -81,10 +81,7 @@ pub async fn drs_object_suggests_african_origin(pool: &FerrumPool, drs_id: &str)
                 .await?
         }
     };
-    if organism.as_deref() == Some("Homo_sapiens") {
-        return Ok(true);
-    }
-    Ok(false)
+    Ok(organism.as_deref() == Some("Homo_sapiens"))
 }
 
 fn text_suggests_african_origin(text: Option<&str>) -> bool {

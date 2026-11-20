@@ -28,7 +28,7 @@ We follow a respectful, inclusive code of conduct. Be kind and professional in i
 
 ## Development setup
 
-1. **Rust 1.91** (see `rust-toolchain.toml`; CI uses 1.91.1)
+1. **Rust 1.100** (see `rust-toolchain.toml`; CI uses 1.100.0)
 
    ```bash
    rustup show

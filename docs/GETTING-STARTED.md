@@ -1,6 +1,6 @@
 # Getting started
 
-Clone this repository. Rust 1.91 is pinned in `rust-toolchain.toml`. Docker is required for the compose paths below.
+Clone this repository. Rust 1.100 is pinned in `rust-toolchain.toml`. Docker is required for the compose paths below.
 
 ## Zero-risk proof (no Docker)
 

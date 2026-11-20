@@ -10,7 +10,7 @@ For a research institution that runs its own servers, and for an engineer checki
 [![NON-PILOT demo lifecycle](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
 [![ferrum+infra](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-[![Rust 1.91](https://img.shields.io/badge/rust-1.91-orange.svg)](https://www.rust-lang.org/)
+[![Rust 1.100](https://img.shields.io/badge/rust-1.100-orange.svg)](https://www.rust-lang.org/)
 
 The SPDX identifier is Apache-2.0.
 
@@ -33,7 +33,7 @@ The SPDX identifier is Apache-2.0.
 
 ## Quick start
 
-Prerequisites: Rust 1.91.1, pinned in `rust-toolchain.toml`, for the path that stays inside this repository. Docker Engine, and either the `docker compose` plugin or standalone `docker-compose`, for the demo stack. That stack also needs disk and memory for Postgres, SeaweedFS, and Keycloak.
+Prerequisites: Rust 1.100.0, pinned in `rust-toolchain.toml`, for the path that stays inside this repository. Docker Engine, and either the `docker compose` plugin or standalone `docker-compose`, for the demo stack. That stack also needs disk and memory for Postgres, SeaweedFS, and Keycloak.
 
 ```bash
 make prove
