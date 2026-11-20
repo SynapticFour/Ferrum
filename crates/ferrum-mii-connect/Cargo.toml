@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-mii-connect"
-version = "0.3.10"
+version = "0.3.11"
 edition = "2021"
 rust-version = "1.100"
 description = "MII-KDS conformance validation layer for Ferrum"
