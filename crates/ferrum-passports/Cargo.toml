@@ -2,6 +2,7 @@
 name = "ferrum-passports"
 version = "0.3.10"
 edition = "2021"
+rust-version = "1.100"
 description = "GA4GH Passports & Visas (AAI)"
 license = "Apache-2.0"
 
@@ -18,16 +19,18 @@ utoipa-swagger-ui = { version = "6", features = ["axum"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 # jsonwebtoken 10 has no default crypto backend. RS256 (encode/decode, PEM) needs
 # rust_crypto; without it the crate compiles, then panics at runtime.
-jsonwebtoken = { version = "10", features = ["rust_crypto"] }
+jsonwebtoken = { version = "12", features = ["rust_crypto"] }
 chrono = "0.4"
 uuid = { version = "1", features = ["v4", "serde"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
 thiserror = "1"
 tower-http = { version = "0.5", features = ["cors"] }
 base64 = "0.22"
 rand = "0.8.6"
 urlencoding = "2"
-rsa = { version = "0.9", features = ["pem"] }
+rsa = "0.10"
+# OS RNG for the dev-only fallback signing key (rsa 0.10 takes a rand_core 0.10 RNG).
+getrandom = { version = "0.4", features = ["sys_rng"] }
 pem = "2"
 num-bigint-dig = "0.8"
 

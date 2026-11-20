@@ -679,7 +679,7 @@ pub async fn mark_failed(
     Ok(())
 }
 
-async fn exec_update(pool: &FerrumPool, sql: &str, id: &str) -> Result<()> {
+async fn exec_update(pool: &FerrumPool, sql: &'static str, id: &str) -> Result<()> {
     match pool {
         FerrumPool::Postgres(p) => {
             sqlx::query(sql).bind(id).execute(p).await?;

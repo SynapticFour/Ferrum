@@ -15,7 +15,7 @@ Related public repos (separate versioning): [ga4gh-infra](https://github.com/Syn
 ### Prerequisites (must be installed first)
 
 - Git
-- [rustup](https://rustup.rs) — toolchain **1.91.1** (see `rust-toolchain.toml`; components `rustfmt`, `clippy`)
+- [rustup](https://rustup.rs) — toolchain **1.100.0** (see `rust-toolchain.toml`; components `rustfmt`, `clippy`)
 - `make`
 - For native builds on Debian/Ubuntu: `pkg-config`, `libssl-dev`, and typically `libpq-dev`, `protobuf-compiler`, `python3` (`make prove` runs `scripts/spdx-rs.py` and OpenAPI checks)
 - For demo / TES Docker paths: Docker Engine + Compose plugin
@@ -90,7 +90,7 @@ Ferrum is maintained by a single steward (Synaptic Four). To reduce dependence o
 
 | Action | Command / note |
 |--------|----------------|
-| Install (dev proof) | Clone tag → rustup 1.91.1 → `make prove` |
+| Install (dev proof) | Clone tag → rustup 1.100.0 → `make prove` |
 | Install (demo) | Clone → Docker → `make up` or `make up-tes` |
 | Start | `make up` / `make up-tes` / `make up-pilot-local` (see Makefile) |
 | Stop | `make down` |

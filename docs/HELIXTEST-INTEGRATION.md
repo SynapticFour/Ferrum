@@ -6,7 +6,7 @@
 
 ## Why integrate HelixTest?
 
-- **API contract tests** for WES, TES, DRS, TRS, Beacon v2, **htsget tickets** (whole-object; region slice is not implemented)
+- **API contract tests** for WES, TES, DRS, TRS, Beacon v2, **htsget tickets** (whole-object and region tickets)
 - **Workflow execution tests** (CWL, WDL, Nextflow via WES)
 - **Cross-service E2E** (TRS → DRS → WES → TES → Beacon)
 - **Auth** (GA4GH Passports / OIDC) and **Crypt4GH** tests
@@ -53,7 +53,7 @@ helixtest --all --mode ferrum+infra --profile ferrum-infra-pilot
 
 Public DRS objects stay readable without a visa; the default HelixTest HMAC-on-DRS fixture is therefore **not** used here.
 
-Ferrum **htsget** rejects genomic region params (`referenceName` / `start` / `end` / POST `regions`) with HTTP 400. HelixTest Ferrum modes expect that 400 (a silent whole-file ticket is not a pass).
+Ferrum **htsget** answers region params (`referenceName` / `start` / `end` / POST `regions`) and `class=header` from the object's index ([HTSGET.md](HTSGET.md)). In HelixTest Ferrum modes a region request passes with a ticket whose stream URLs carry `Range` headers, and is skipped (not passed) when the seeded object has no index (404 `NotFound`) or is a URL-backed placeholder like the demo seed (400 `InvalidInput`, not in node storage). A whole-file ticket for a region request fails.
 
 ### Areas typically included under `--all --mode ferrum`
 

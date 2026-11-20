@@ -38,6 +38,36 @@ pub trait ObjectStorage: Send + Sync {
 
     async fn get(&self, key: &str) -> Result<Box<dyn AsyncRead + Send + Unpin>>;
 
+    /// Bytes `start..=end` of an object (both inclusive, like HTTP `Range`).
+    ///
+    /// Backends override this with a native ranged read (seek, S3 `Range`), so the cost
+    /// follows the bytes requested, not the object size. The default reads from the start
+    /// and discards the prefix; it is correct but slow for ranges far into large objects.
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<Box<dyn AsyncRead + Send + Unpin>> {
+        if end < start {
+            return Err(ferrum_core::FerrumError::ValidationError(format!(
+                "invalid byte range {start}-{end}"
+            )));
+        }
+        let mut reader = self.get(key).await?;
+        let skipped = tokio::io::copy(&mut (&mut reader).take(start), &mut tokio::io::sink())
+            .await
+            .map_err(|e| {
+                ferrum_core::FerrumError::StorageError(anyhow::anyhow!("range skip: {e}"))
+            })?;
+        if skipped < start {
+            return Err(ferrum_core::FerrumError::ValidationError(format!(
+                "range start {start} is past the end of {key}"
+            )));
+        }
+        Ok(Box::new(reader.take(end - start + 1)))
+    }
+
     async fn delete(&self, key: &str) -> Result<()>;
 
     async fn exists(&self, key: &str) -> Result<bool>;

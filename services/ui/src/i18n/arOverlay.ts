@@ -684,6 +684,8 @@ export const arOverlay = {
     empty: 'لا توجد مساحات عمل بعد.',
     createFirst: 'أنشئ مساحة العمل الأولى',
     new: 'مساحة عمل جديدة',
+    signInHint:
+      'سجّل الدخول عبر زر واجهة Ferrum (researcher / demo-researcher). تسجيل الدخول عبر BFF الموقع وحده لا يفتح مساحات العمل.',
   },
   workspaceNew: {
     title: 'مساحة عمل جديدة',

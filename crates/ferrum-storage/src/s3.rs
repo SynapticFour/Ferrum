@@ -5,6 +5,7 @@ use crate::parts::split_into_part_ranges;
 use crate::ObjectStorage;
 use async_trait::async_trait;
 use aws_credential_types::Credentials;
+use aws_sdk_s3::config::{RequestChecksumCalculation, ResponseChecksumValidation};
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
 use aws_sdk_s3::Client as S3Client;
@@ -57,7 +58,17 @@ impl S3Storage {
         let base = loader.load().await;
         let mut s3_builder = aws_sdk_s3::config::Builder::from(&base);
         if let Some(ep) = endpoint {
-            s3_builder = s3_builder.endpoint_url(ep).force_path_style(true);
+            // Custom endpoint = S3-compatible store (SeaweedFS, MinIO, Ceph, ...). Since
+            // aws-sdk-s3 1.69 the SDK adds CRC checksums to every upload and, for streaming
+            // bodies, sends them as `aws-chunked` content with a trailer. Stores that do not
+            // decode that encoding keep the chunk framing as object bytes (SeaweedFS 3.80 does:
+            // a 44-byte upload was stored as 490 bytes starting with "C4;chunk-signature").
+            // Only send and check checksums where the operation requires them.
+            s3_builder = s3_builder
+                .endpoint_url(ep)
+                .force_path_style(true)
+                .request_checksum_calculation(RequestChecksumCalculation::WhenRequired)
+                .response_checksum_validation(ResponseChecksumValidation::WhenRequired);
         }
         if let Some(reg) = region {
             s3_builder = s3_builder.region(aws_config::Region::new(reg.to_string()));
@@ -427,6 +438,36 @@ impl ObjectStorage for S3Storage {
             })?;
         let reader = out.body.into_async_read();
         Ok(Box::new(reader))
+    }
+
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<Box<dyn AsyncRead + Send + Unpin>> {
+        if end < start {
+            return Err(FerrumError::ValidationError(format!(
+                "invalid byte range {start}-{end}"
+            )));
+        }
+        let out = self
+            .client
+            .get_object()
+            .bucket(&self.bucket)
+            .key(key)
+            .range(format!("bytes={start}-{end}"))
+            .send()
+            .await
+            .map_err(|e| {
+                let inner = e.into_service_error();
+                if inner.is_no_such_key() {
+                    FerrumError::NotFound(key.to_string())
+                } else {
+                    FerrumError::StorageError(inner.into())
+                }
+            })?;
+        Ok(Box::new(out.body.into_async_read()))
     }
 
     async fn delete(&self, key: &str) -> Result<()> {

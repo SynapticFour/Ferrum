@@ -30,9 +30,9 @@ async fn test_rewrap_preserves_other_recipients() {
     let root = temp_path("rewrap");
     fs::create_dir_all(&root).await.expect("mkdir");
 
-    let alice = crypt4gh::keys::generate_private_key();
-    let bob = crypt4gh::keys::generate_private_key();
-    let carol = crypt4gh::keys::generate_private_key();
+    let alice = crypt4gh::keys::generate_private_key().expect("generate key");
+    let bob = crypt4gh::keys::generate_private_key().expect("generate key");
+    let carol = crypt4gh::keys::generate_private_key().expect("generate key");
     let (alice_sk, alice_pk) = alice.split_at(32);
     let (bob_sk, bob_pk) = bob.split_at(32);
     let (carol_sk, carol_pk) = carol.split_at(32);

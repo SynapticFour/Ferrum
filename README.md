@@ -10,7 +10,7 @@ For a research institution that runs its own servers, and for an engineer checki
 [![NON-PILOT demo lifecycle](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/conformance.yml)
 [![ferrum+infra](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml/badge.svg)](https://github.com/SynapticFour/Ferrum/actions/workflows/helixtest-ferrum-infra.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
-[![Rust 1.91](https://img.shields.io/badge/rust-1.91-orange.svg)](https://www.rust-lang.org/)
+[![Rust 1.100](https://img.shields.io/badge/rust-1.100-orange.svg)](https://www.rust-lang.org/)
 
 The SPDX identifier is Apache-2.0.
 
@@ -25,7 +25,7 @@ The SPDX identifier is Apache-2.0.
 
 - No clinical pilot deployment.
 - No third-party security audit. A HelixTest run is not GA4GH certification and not a ranking against other servers.
-- Beacon covers part of that standard. An htsget query that names `referenceName`, `start`, or `end` returns HTTP 400. Tickets are for the whole file. WES with `ferrum_backend=lsf` errors, because LSF is not implemented.
+- Beacon covers part of that standard. htsget region queries need an index object next to the data file (see docs/HTSGET.md). WES with `ferrum_backend=lsf` errors, because LSF is not implemented.
 - The deployment shapes in [docs/deployment/README.md](docs/deployment/README.md), including a single computer and a cluster, are design targets. They are not a record of a production cluster in use.
 - Published tags and the default branch are not stated as the same commit on this page. The tag list is the [releases page](https://github.com/SynapticFour/Ferrum/releases). Behaviour changes by version are in [CHANGELOG.md](CHANGELOG.md).
 
@@ -33,7 +33,7 @@ The SPDX identifier is Apache-2.0.
 
 ## Quick start
 
-Prerequisites: Rust 1.91.1, pinned in `rust-toolchain.toml`, for the path that stays inside this repository. Docker Engine, and either the `docker compose` plugin or standalone `docker-compose`, for the demo stack. That stack also needs disk and memory for Postgres, SeaweedFS, and Keycloak.
+Prerequisites: Rust 1.100.0, pinned in `rust-toolchain.toml`, for the path that stays inside this repository. Docker Engine, and either the `docker compose` plugin or standalone `docker-compose`, for the demo stack. That stack also needs disk and memory for Postgres, SeaweedFS, and Keycloak.
 
 ```bash
 make prove

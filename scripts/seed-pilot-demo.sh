@@ -38,7 +38,10 @@ POSTGRES_DB="${POSTGRES_DB:-ferrum}"
 die() { echo "seed-pilot-demo: $*" >&2; exit 1; }
 
 if [[ -z "${FERRUM_PASSPORT_JWT:-}" ]]; then
-  die "set FERRUM_PASSPORT_JWT. Ingest is 401 without a bearer when require_auth is on (ADR-027)."
+  # Demo and CI stacks run with require_auth=false and need no bearer. With auth on, ingest
+  # answers 401 without one (ADR-027); the first upload then fails with that status.
+  echo "seed-pilot-demo: FERRUM_PASSPORT_JWT not set; continuing without a bearer (works with require_auth=false)." >&2
+  trap 'echo "seed-pilot-demo: a request failed. If it was 401: set FERRUM_PASSPORT_JWT (require_auth is on, ADR-027)." >&2' ERR
 fi
 
 # Bash 3.2 (macOS) + `set -u`: empty CURL_AUTH[@] is unbound — use a helper instead.

@@ -1,15 +1,10 @@
-// SPDX-License-Identifier: Apache-2.0
-// Upstream Cargo.toml author: Roberto <roberto.ariosa@crg.eu>
-// Upstream docs/book.toml authors: EGA-CRG System Developers
-// No Copyright line was in this file in crypt4gh 0.4.1.
-// Modifications: Synaptic Four (RustCrypto instead of rust-crypto).
-
 mod test_common;
 
 pub use test_common::*;
+use testresult::TestResult;
 
 #[test]
-fn send_to_bob_and_alice() {
+fn send_to_bob_and_alice() -> TestResult {
 	// Init
 	let init = Cleanup::new();
 
@@ -54,10 +49,12 @@ fn send_to_bob_and_alice() {
 
 	// Cleanup
 	drop(init);
+
+	Ok(())
 }
 
 #[test]
-fn reencrypt_to_bob_and_alice() {
+fn reencrypt_to_bob_and_alice() -> TestResult {
 	// Init
 	let init = Cleanup::new();
 
@@ -112,4 +109,6 @@ fn reencrypt_to_bob_and_alice() {
 
 	// Cleanup
 	drop(init);
+
+	Ok(())
 }

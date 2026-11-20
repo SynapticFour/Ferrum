@@ -1,6 +1,6 @@
 # Getting started
 
-Clone this repository. Rust 1.91 is pinned in `rust-toolchain.toml`. Docker is required for the compose paths below.
+Clone this repository. Rust 1.100 is pinned in `rust-toolchain.toml`. Docker is required for the compose paths below.
 
 ## Zero-risk proof (no Docker)
 
@@ -53,7 +53,7 @@ Uninstall: [INSTALLATION.md](INSTALLATION.md#uninstall). Resource notes for edge
 |---------|------------------|
 | TES noop | `make up-tes` |
 | `require_auth=false` | `make eval` (HS256) or `make up-pilot-local` (Passports) |
-| htsget region queries (`referenceName` / `start` / `end`) | HTTP 400 — whole-object tickets only |
+| htsget region queries (`referenceName` / `start` / `end`) | Need an index object next to the data file (e.g. `sample.bam.bai`); see [HTSGET.md](HTSGET.md). The demo seed objects are URL placeholders, so region requests on them return 400 `InvalidInput` (not in node storage) |
 | WES `ferrum_backend=lsf` | Errors — LSF is not implemented |
 
 Operator matrix: [OPERATOR-TRUST.md](OPERATOR-TRUST.md). Install variants: [INSTALLATION.md](INSTALLATION.md). TES Docker: [TES-DOCKER-BACKEND.md](TES-DOCKER-BACKEND.md).

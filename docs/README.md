@@ -50,7 +50,7 @@ These pages are technical orientation. They are not legal advice. The licence fi
 | Document | What it is |
 |----------|------------|
 | [GA4GH.md](GA4GH.md) | Endpoints, versions, and auth for the interfaces in this tree. |
-| [HTSGET.md](HTSGET.md) | htsget tickets. Whole objects, not region slices. |
+| [HTSGET.md](HTSGET.md) | htsget tickets: whole objects, regions and headers via the object index, Crypt4GH tickets. |
 | [CRYPT4GH.md](CRYPT4GH.md) | Crypt4GH encryption and key handling. |
 | [CRYPT4GH-CHUNK-BOUNDARY-FLAKE.md](CRYPT4GH-CHUNK-BOUNDARY-FLAKE.md) | A known chunk-boundary flake. |
 | [openapi/README.md](openapi/README.md) | How the OpenAPI dump is produced. |

@@ -187,6 +187,20 @@ impl DrsRepo {
         Ok(row.map(|r| r.0))
     }
 
+    /// Ids of objects with exactly this `name`, oldest first. Used by htsget to find the index
+    /// (`.bai`, `.csi`, `.tbi`, `.crai`) stored next to a data object.
+    pub async fn find_object_ids_by_name(&self, name: &str) -> Result<Vec<String>> {
+        let rows: Vec<(String,)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT id FROM drs_objects WHERE name = $1 ORDER BY created_time ASC, id ASC LIMIT 20",
+            )
+            .bind(name)
+            .fetch_all(p)
+            .await
+        })?;
+        Ok(rows.into_iter().map(|r| r.0).collect())
+    }
+
     /// Dataset ID for access control (ControlledAccessGrants visa). None = no restriction.
     pub async fn get_dataset_id(&self, object_id: &str) -> Result<Option<String>> {
         let row: Option<(Option<String>,)> = pool_query!(self, |p| {
@@ -866,7 +880,7 @@ impl DrsRepo {
             .as_ref()
             .map(|a| serde_json::to_value(a).unwrap_or(serde_json::Value::Array(vec![])));
         pool_transaction!(self, |tx| {
-            sqlx::query(&sql_insert_drs_object(self.dialect))
+            sqlx::query(sqlx::AssertSqlSafe(sql_insert_drs_object(self.dialect)))
                 .bind(&id)
                 .bind(&req.name)
                 .bind(&req.description)
@@ -900,7 +914,7 @@ impl DrsRepo {
             .await?;
             let access_id = format!("access-{}", id);
             let access_url_json = serde_json::json!({"url": format!("https://{}/ga4gh/drs/v1/objects/{}/access/{}", self.hostname, id, access_id)});
-            sqlx::query(&sql_insert_access_method(self.dialect))
+            sqlx::query(sqlx::AssertSqlSafe(sql_insert_access_method(self.dialect)))
                 .bind(&id)
                 .bind(&access_id)
                 .bind(access_url_json)
@@ -988,7 +1002,7 @@ impl DrsRepo {
             .as_ref()
             .map(|a| serde_json::to_value(a).unwrap_or(serde_json::Value::Array(vec![])));
         let affected = pool_query!(self, |p| {
-            sqlx::query(&sql_update_drs_object(self.dialect))
+            sqlx::query(sqlx::AssertSqlSafe(sql_update_drs_object(self.dialect)))
                 .bind(id)
                 .bind(&req.name)
                 .bind(&req.description)
@@ -1045,7 +1059,7 @@ impl DrsRepo {
     ) -> Result<Vec<DrsObject>> {
         let limit = limit.min(1000);
         let rows: Vec<DrsObjectRow> = pool_query!(self, |p| {
-            sqlx::query_as(&sql_list_objects(self.dialect))
+            sqlx::query_as(sqlx::AssertSqlSafe(sql_list_objects(self.dialect)))
                 .bind(mime_type)
                 .bind(min_size)
                 .bind(max_size)
@@ -1208,7 +1222,7 @@ impl DrsRepo {
         result: &serde_json::Value,
     ) -> Result<()> {
         pool_query!(self, |p| {
-            sqlx::query(&sql_ingest_job_succeeded(self.dialect))
+            sqlx::query(sqlx::AssertSqlSafe(sql_ingest_job_succeeded(self.dialect)))
                 .bind(id)
                 .bind(result)
                 .execute(p)
@@ -1224,7 +1238,7 @@ impl DrsRepo {
         error: &serde_json::Value,
     ) -> Result<()> {
         pool_query!(self, |p| {
-            sqlx::query(&sql_ingest_job_failed(self.dialect))
+            sqlx::query(sqlx::AssertSqlSafe(sql_ingest_job_failed(self.dialect)))
                 .bind(id)
                 .bind(error)
                 .execute(p)
@@ -1408,12 +1422,14 @@ impl DrsRepo {
         let limit = (page_size as i64) + 1;
 
         let mut rows: Vec<(String, String, Option<String>)> = pool_query!(self, |p| {
-            sqlx::query_as(&sql_list_bundle_contents_page(self.dialect))
-                .bind(bundle_id)
-                .bind(last_seen.as_deref())
-                .bind(limit)
-                .fetch_all(p)
-                .await
+            sqlx::query_as(sqlx::AssertSqlSafe(sql_list_bundle_contents_page(
+                self.dialect,
+            )))
+            .bind(bundle_id)
+            .bind(last_seen.as_deref())
+            .bind(limit)
+            .fetch_all(p)
+            .await
         })?;
 
         let next_page_token = if rows.len() as u32 > page_size {
