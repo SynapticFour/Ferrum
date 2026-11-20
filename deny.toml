@@ -38,6 +38,8 @@ allow = [
     "CC0-1.0",
     "bzip2-1.0.6",
     "CDLA-Permissive-2.0",
+    # Boost Software License (permissive, OSI). xxhash-rust via htsget-config → http-cache → cacache.
+    "BSL-1.0",
 ]
 # Workspace crates (Ferrum) are Apache-2.0 and private; only check dependencies
 [licenses.private]

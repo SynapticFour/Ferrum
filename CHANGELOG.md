@@ -9,6 +9,14 @@ All notable changes to this project will be documented in this file. The format 
 - Toolchain Rust 1.100.0 (was 1.91.1); every crate declares `rust-version = "1.100"`. sqlx 0.9 with libsqlite3-sys 0.40 (bundled SQLite 3.54, fixes RUSTSEC-2026-0459). Dynamic SQL built from dialect-specific constants is marked with `sqlx::AssertSqlSafe`; no SQL text comes from requests.
 - Security updates: `jsonwebtoken` 12 and `rsa` 0.10 (fixes RUSTSEC-2023-0071, Marvin, and the `crypto-bigint` timing issues), lettre 0.11.24, quinn, rustls-webpki, webpki-roots, zstd and zip 9.0.5 via lockfile updates, opendal 0.59 (optional backend), UI npm fixes; unused `zod` removed.
 
+### htsget regions (unreleased)
+
+- **htsget region tickets.** `referenceName` / `start` / `end`, POST `regions` and `class=header` now return tickets computed by htsget-rs (`htsget-search` 0.14, `htsget-storage` 0.7, MIT) from the object's index (BAI, CRAI, TBI, CSI). Index objects are found through metadata `htsget.index` or the name `<data name>.bai|.crai|.tbi|.csi` in the same dataset. Without an index a region request returns 404 `NotFound`; before, every region request returned 400.
+- **Record-exact BGZF tickets.** For plain BAM, VCF.gz and BCF the ticket is built from the index with noodles: the header ends at the first record, and the first and last block of each index chunk are cut at the record boundary and served as `data:` URLs. Block-aligned ranges are not a valid file when records span blocks (htslib writes every BCF that way) or when the header shares a block with records.
+- **Crypt4GH region tickets.** For encrypted objects the requester sends an X25519 public key (`X-Crypt4GH-Public-Key`); the ticket is a Crypt4GH header re-encrypted for that key with an edit list, plus ciphertext ranges from `/stream?raw=true`. One region per request; Crypt4GH BCF regions return 400.
+- **DRS `/stream` ranges.** Plain objects: `Range` reads only the requested bytes (`ObjectStorage::get_range`). `?raw=true` serves the stored Crypt4GH ciphertext with `Range`.
+- **crypt4gh.** `third_party/crypt4gh` is EGA-archive/crypt4gh-rust main (the API htsget-rs needs) instead of the earlier fork; upstream debug lines that logged key material are removed (see `third_party/crypt4gh/README-SynapticFour.md`).
+
 ## [0.3.10] - 2026-10-19
 
 Tag `v0.3.10`. Nested GA4GH Swagger UI must fetch the nested OpenAPI path (not host-root `/openapi.json`).

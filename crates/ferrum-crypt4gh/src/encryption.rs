@@ -30,7 +30,9 @@ pub fn recipient_keys_from_pubkey(pubkey: &[u8]) -> C4ghKeys {
     // the encrypt path requires a non-empty ephemeral sender private key for
     // per-recipient X25519+ChaCha20-Poly1305 header packets. An empty privkey
     // panics in crypt4gh internals for chunk/header encryption.
-    let ephemeral = crypt4gh::keys::generate_private_key();
+    // A fresh 32-byte X25519 key from the OS RNG always has a public key, so this cannot fail.
+    let ephemeral =
+        crypt4gh::keys::generate_private_key().expect("generate ephemeral Crypt4GH key");
     crypt4gh::Keys {
         method: 0,
         privkey: ephemeral[..32].to_vec(),
@@ -40,7 +42,7 @@ pub fn recipient_keys_from_pubkey(pubkey: &[u8]) -> C4ghKeys {
 
 /// Load recipient keys from a Crypt4GH or OpenSSH public key file.
 pub fn load_recipient_keys(path: &Path) -> Result<C4ghKeys> {
-    let pubkey = get_public_key(path).map_err(Crypt4GHError::Crypto)?;
+    let pubkey = get_public_key(path.to_path_buf()).map_err(Crypt4GHError::Crypto)?;
     Ok(recipient_keys_from_pubkey(&pubkey))
 }
 
@@ -56,9 +58,9 @@ pub fn generate_keypair(
         .map_err(Crypt4GHError::Io)?;
     let pass = passphrase.unwrap_or("");
     c4gh_generate_keys(
-        seckey_path,
-        pubkey_path,
-        || Ok::<_, crypt4gh::error::Crypt4GHError>(pass.to_string()),
+        seckey_path.to_path_buf(),
+        pubkey_path.to_path_buf(),
+        Ok(pass.to_string()),
         None,
     )
     .map_err(Crypt4GHError::Crypto)
@@ -116,7 +118,7 @@ impl KeyStore for LocalKeyStore {
         // Lesson: dedicated POSIX I/O pool instead of Tokio's spawn_blocking for key file reads.
         // Source: HPC / many concurrent Crypt4GH decrypt streams.
         let raw = ferrum_core::io::posix::spawn_blocking(move || {
-            get_private_key(&path, || Ok(String::new()))
+            get_private_key(path, Ok(String::new()))
         })
         .await
         .map_err(|e| Crypt4GHError::Other(e.into()))?
@@ -136,7 +138,7 @@ impl KeyStore for LocalKeyStore {
             return Ok(None);
         }
         let path = path.clone();
-        let bytes = ferrum_core::io::posix::spawn_blocking(move || get_public_key(&path))
+        let bytes = ferrum_core::io::posix::spawn_blocking(move || get_public_key(path))
             .await
             .map_err(|e| Crypt4GHError::Other(e.into()))?
             .map_err(Crypt4GHError::Crypto)?;

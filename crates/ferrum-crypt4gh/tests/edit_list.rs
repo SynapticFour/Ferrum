@@ -10,7 +10,7 @@ async fn test_edit_list_offset_is_plaintext_not_ciphertext() {
     let payload_len: usize = 200_000;
     let plaintext: Vec<u8> = (0..payload_len).map(|i| (i % 251) as u8).collect();
 
-    let skpk = crypt4gh::keys::generate_private_key();
+    let skpk = crypt4gh::keys::generate_private_key().expect("generate key");
     let (sk, pk) = skpk.split_at(32);
     let pub_bytes = pk.to_vec();
 

@@ -30,11 +30,11 @@ async fn test_can_decrypt_python_encrypted_file() {
         .expect("read expected plaintext");
 
     // Load Python-generated private key (created with `--nocrypt`, but the callback is harmless).
-    let privkey = crypt4gh::keys::get_private_key(&alice_sec, || Ok(String::new()))
+    let privkey = crypt4gh::keys::get_private_key(alice_sec.clone(), Ok(String::new()))
         .expect("read python_ref_alice.sec");
     // `crypt4gh` may return only the 32-byte Curve25519 private key.
     // Decryption does not require `recipient_pubkey`, so we can keep it empty.
-    let recipient_pubkey = crypt4gh::keys::get_public_key(&alice_pub)
+    let recipient_pubkey = crypt4gh::keys::get_public_key(alice_pub.clone())
         .ok()
         .unwrap_or_default();
 

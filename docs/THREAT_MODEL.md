@@ -88,7 +88,7 @@ Ferrum is a **customer-operated GA4GH gateway** for genomic data and compute. Th
 | Spoofing | Fake JWT / Passport | Algorithm pinning; JWKS; optional issuer checks | Weak IdP config |
 | Tampering | Modify objects in store | Object-store IAM; optional integrity; Crypt4GH AEAD | Store admin compromise |
 | Repudiation | Deny access | Security event log; optional persistence | Log retention operator-owned |
-| Info disclosure | Plaintext stream; htsget whole-object; logs | Crypt4GH; authz before re-wrap; **htsget region params return 400** (no silent whole-file for a slice request) | `/stream` plaintext over TLS when used |
+| Info disclosure | Plaintext stream; htsget tickets; logs | Crypt4GH; authz before re-wrap; **htsget region requests return only the indexed blocks, or 404 without an index** (no silent whole-file for a slice request); Crypt4GH region tickets are encrypted for the requester's key | `/stream` plaintext over TLS when used |
 | DoS | Flood WES/TES | Operator rate limits / capacity | No global anti-DDoS in product |
 | Elevation | Path traversal; TES host binds; visa substring | `safe_join`; **TES volume allowlist**; exact visa match | Bugs → IR + patch |
 

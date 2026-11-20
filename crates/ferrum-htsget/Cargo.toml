@@ -16,3 +16,27 @@ serde_json = "1.0"
 utoipa = { version = "4", features = ["axum_extras"] }
 utoipa-swagger-ui = { version = "6", features = ["axum"] }
 percent-encoding = "2"
+ferrum-storage = { path = "../ferrum-storage" }
+ferrum-crypt4gh = { path = "../ferrum-crypt4gh" }
+# Region search over BAI/CSI/TBI/CRAI and Crypt4GH tickets with edit lists (umccr/htsget-rs, MIT).
+# "experimental" enables Crypt4GH. htsget-http is not used (it pulls jsonwebtoken 10).
+htsget-search = { version = "0.14", default-features = false, features = ["experimental"] }
+htsget-storage = { version = "0.7", default-features = false, features = ["experimental"] }
+htsget-config = { version = "0.23", default-features = false, features = ["experimental"] }
+crypt4gh = "0.4"
+async-trait = "0.1"
+base64 = "0.22"
+tokio.workspace = true
+tracing = "0.1"
+# Index queries for record-exact BGZF ticket edges (see src/bgzf_edges.rs). Same version as
+# htsget-search uses, so no second copy is built.
+noodles = { version = "0.110", features = ["bam", "bcf", "bgzf", "core", "csi", "sam", "tabix", "vcf"] }
+
+[dev-dependencies]
+noodles = { version = "0.110", features = ["bam", "bcf", "bgzf", "core", "cram", "csi", "fasta", "sam", "tabix", "vcf", "async"] }
+tempfile = "3"
+tower = { version = "0.4", features = ["util"] }
+http-body-util = "0.1"
+http = "1"
+ferrum-storage = { path = "../ferrum-storage" }
+sqlx = { version = "0.9", features = ["runtime-tokio", "sqlite", "migrate"] }

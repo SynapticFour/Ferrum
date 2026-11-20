@@ -9,7 +9,7 @@ use ferrum_crypt4gh::encrypt_bytes_for_pubkey;
 use std::hint::black_box;
 
 fn bench_crypt4gh_encrypt(c: &mut Criterion) {
-    let skpk = generate_private_key();
+    let skpk = generate_private_key().expect("generate key");
     let (_, pk) = skpk.split_at(32);
     let sizes = [64 * 1024, 1024 * 1024];
     let mut group = c.benchmark_group("crypt4gh_encrypt");

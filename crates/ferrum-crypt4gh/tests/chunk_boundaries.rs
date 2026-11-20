@@ -20,7 +20,7 @@ async fn roundtrip(payload: Vec<u8>) -> anyhow::Result<Vec<u8>> {
     let root = temp_path("chunk");
     fs::create_dir_all(&root).await?;
 
-    let skpk = crypt4gh::keys::generate_private_key();
+    let skpk = crypt4gh::keys::generate_private_key().expect("generate key");
     let (sk, pk) = skpk.split_at(32);
     let pub_bytes = pk.to_vec();
     let mut recipients = HashSet::new();
@@ -61,7 +61,7 @@ async fn test_encrypt_zero_bytes_produces_non_empty_ciphertext() {
     let root = temp_path("chunk-only-encrypt");
     fs::create_dir_all(&root).await.expect("mkdir");
 
-    let skpk = crypt4gh::keys::generate_private_key();
+    let skpk = crypt4gh::keys::generate_private_key().expect("generate key");
     let (_sk, pk) = skpk.split_at(32);
     let pub_bytes = pk.to_vec();
     let mut recipients = HashSet::new();

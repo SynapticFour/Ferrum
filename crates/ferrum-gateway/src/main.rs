@@ -613,6 +613,9 @@ async fn run_gateway_server() -> Result<(), Box<dyn std::error::Error + Send + S
         Arc::new(ferrum_htsget::HtsgetState {
             repo: s.repo.clone(),
             public_base_url: public_base_url.clone(),
+            storage: s.storage.clone(),
+            crypt4gh_key_dir: s.crypt4gh_key_dir.clone(),
+            crypt4gh_master_key_id: s.crypt4gh_master_key_id.clone(),
         })
     });
 

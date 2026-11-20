@@ -187,6 +187,20 @@ impl DrsRepo {
         Ok(row.map(|r| r.0))
     }
 
+    /// Ids of objects with exactly this `name`, oldest first. Used by htsget to find the index
+    /// (`.bai`, `.csi`, `.tbi`, `.crai`) stored next to a data object.
+    pub async fn find_object_ids_by_name(&self, name: &str) -> Result<Vec<String>> {
+        let rows: Vec<(String,)> = pool_query!(self, |p| {
+            sqlx::query_as(
+                "SELECT id FROM drs_objects WHERE name = $1 ORDER BY created_time ASC, id ASC LIMIT 20",
+            )
+            .bind(name)
+            .fetch_all(p)
+            .await
+        })?;
+        Ok(rows.into_iter().map(|r| r.0).collect())
+    }
+
     /// Dataset ID for access control (ControlledAccessGrants visa). None = no restriction.
     pub async fn get_dataset_id(&self, object_id: &str) -> Result<Option<String>> {
         let row: Option<(Option<String>,)> = pool_query!(self, |p| {
