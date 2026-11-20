@@ -63,7 +63,7 @@ services:
       dockerfile: deploy/Dockerfile.init
       args:
         GA4GH_INFRA_REF: ${GA4GH_INFRA_REF:-ga4gh-infra-v0.2.6}
-        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.100.0-alpine@sha256:PENDING_RUST_ALPINE_DIGEST}
+        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.100.0-alpine@sha256:8d0e82abfdf9a38071e07cabc5afba4ddbe077631a80e4e742a760c38beadc33}
     image: ferrum-init:${FERRUM_VERSION:-latest}
     environment:
       POSTGRES_HOST: postgres
@@ -101,7 +101,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.gateway
       args:
-        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.100.0-bookworm@sha256:PENDING_RUST_BOOKWORM_DIGEST}
+        RUST_BUILDER_IMAGE: ${RUST_BUILDER_IMAGE:-rust:1.100.0-bookworm@sha256:ade39a710ef85f3506cffcfec3e8a24ba090badef1dff2fb798f71d878833fea}
         DEBIAN_RUNTIME_IMAGE: ${DEBIAN_RUNTIME_IMAGE:-debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587}
         FERRUM_GIT_SHA: ${FERRUM_GIT_SHA:-unknown}
         FERRUM_BUILD_PROFILE: ${FERRUM_BUILD_PROFILE:-demo}

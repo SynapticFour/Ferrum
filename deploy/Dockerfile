@@ -8,7 +8,7 @@
 # BuildKit: every ARG used in any FROM must be declared here *before* the first FROM
 # (not only before the stage that uses it), or the runtime stage gets a blank image name.
 # Tag: rust:1.100.0-bookworm
-ARG RUST_BUILDER_IMAGE=rust:1.100.0-bookworm@sha256:PENDING_RUST_BOOKWORM_DIGEST
+ARG RUST_BUILDER_IMAGE=rust:1.100.0-bookworm@sha256:ade39a710ef85f3506cffcfec3e8a24ba090badef1dff2fb798f71d878833fea
 # Tag: debian:bookworm-slim
 ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 ARG FERRUM_GIT_SHA=unknown

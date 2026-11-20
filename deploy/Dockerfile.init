@@ -5,7 +5,7 @@
 # keygen-builder MUST target musl: the runtime image is Alpine; a bookworm/glibc
 # binary fails at runtime with exit 127 (command not found).
 # Tag: rust:1.100.0-alpine
-ARG RUST_BUILDER_IMAGE=rust:1.100.0-alpine@sha256:PENDING_RUST_ALPINE_DIGEST
+ARG RUST_BUILDER_IMAGE=rust:1.100.0-alpine@sha256:8d0e82abfdf9a38071e07cabc5afba4ddbe077631a80e4e742a760c38beadc33
 FROM ${RUST_BUILDER_IMAGE} AS keygen-builder
 RUN apk add --no-cache musl-dev pkgconfig libsodium-dev git perl make bash
 WORKDIR /app
