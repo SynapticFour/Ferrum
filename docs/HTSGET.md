@@ -2,6 +2,8 @@
 
 JSON tickets are served at `/ga4gh/htsget/v1`. Object identifiers are the same as **DRS** (canonical id, alias, or `drs://host/id` when the host matches `FERRUM_DRS_HOSTNAME`).
 
+Design and the decision for htsget-rs: [HTSGET-REGIONS-DESIGN.md](HTSGET-REGIONS-DESIGN.md).
+
 Service-info `type.version` is the string **`1.3.0`**. That is the string Ferrum emits. The upstream htsget specification document is now **1.3.1**. This page does not change the emitted string to 1.3.1.
 
 ## What a ticket contains
