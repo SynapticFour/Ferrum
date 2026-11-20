@@ -14,7 +14,10 @@ ARG DEBIAN_RUNTIME_IMAGE=debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e
 ARG FERRUM_GIT_SHA=unknown
 ARG FERRUM_BUILD_PROFILE=demo
 FROM ${RUST_BUILDER_IMAGE} AS builder
-ARG TARGETARCH=amd64
+# No default here: a default value replaces the platform BuildKit sets, and the arm64
+# image was built for x86_64 (v0.3.11). The legacy builder sets no TARGETARCH; the
+# case below falls back to amd64 for it.
+ARG TARGETARCH
 ARG FERRUM_VARIANT=full
 ARG FERRUM_GATEWAY_FEATURES=
 WORKDIR /app
@@ -24,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY deploy/scripts/gateway-build-flags.sh /tmp/gateway-build-flags.sh
 RUN chmod +x /tmp/gateway-build-flags.sh \
-    && case "${TARGETARCH}" in \
+    && case "${TARGETARCH:-amd64}" in \
          amd64|x86_64) echo x86_64-unknown-linux-musl >/tmp/musl-target ;; \
          arm64|aarch64) echo aarch64-unknown-linux-musl >/tmp/musl-target ;; \
          *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
