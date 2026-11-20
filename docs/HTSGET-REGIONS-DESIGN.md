@@ -1,6 +1,6 @@
 # Design: htsget regions with byte ranges, including Crypt4GH objects
 
-Status: **proposal**, not implemented. Until the acceptance tests in section 7 pass, [HTSGET.md](HTSGET.md) and service-info keep saying that region slicing is not supported.
+Status: **decided, implemented with htsget-rs** (branch `feat/htsget-regions`). This page keeps the analysis; section 6 records the decision and section 9 what differs from the proposal.
 
 ## 1. Problem
 
@@ -106,13 +106,11 @@ Reference implementation to compare against: [htsget-rs](https://github.com/umcc
 
 ## 6. Where the code lives
 
-The Crypt4GH segment mapping and edit-list building are the same work as `sc-crypt4gh-streaming` on the Synaptic-Core roadmap ("true streaming Crypt4GH + header rewrap"). Ferrum is to become Synaptic-Core plus a GA4GH adapter. To build this once:
+**Decision (2026-11-20): use [htsget-rs](https://github.com/umccr/htsget-rs) and crypt4gh-rust, no own range library.** htsget-rs (MIT, UMCCR) already implements sections 4 and 5.3: index queries for BAM/CRAM/VCF/BCF, ticket layout, and Crypt4GH tickets with a re-encrypted header and an edit list over raw segments. crypt4gh-rust (EGA-archive main, RustCrypto port by UMCCR) is what htsget-rs uses for Crypt4GH.
 
-- Pure, I/O-free functions (plaintext range → segment range, edit list from ranges, header re-wrap with edit list) go into **one small shared crate**, Apache-2.0, with property tests. Ferrum and `synaptic-core-crypto` both depend on it.
-- Index parsing and ticket building stay in `ferrum-htsget` (GA4GH-specific).
-- `get_range` goes into both storage traits (Synaptic-Core has it already).
-
-**Decision (2026-11-19): one shared crate from the start.** It is [`crypt4gh-ranges`](https://github.com/SynapticFour/crypt4gh-ranges), Apache-2.0 so Ferrum can depend on it (Synaptic-Core itself is BUSL-1.1 and cannot be a dependency of Ferrum). Version 0.1.0 has the segment mapping, ciphertext ranges, edit lists, the edit-list packet layout and trimming for mode A, with property tests. Header re-wrap stays with each project's Crypt4GH implementation.
+- `ferrum-htsget` depends on `htsget-search` 0.14, `htsget-storage` 0.7 and `htsget-config` 0.23 (feature `experimental` for Crypt4GH), and implements their `StorageTrait` over Ferrum's `ObjectStorage`, so ticket URLs stay DRS `/stream` URLs with the usual access checks.
+- `third_party/crypt4gh` is EGA-archive/crypt4gh-rust main (the API htsget-rs needs), with key-logging lines and an unused GPL-3.0 dependency removed.
+- The [`crypt4gh-ranges`](https://github.com/SynapticFour/crypt4gh-ranges) repository created for the 2026-11-19 decision is not used by Ferrum.
 
 ## 7. Acceptance tests (before the docs change)
 
@@ -133,6 +131,16 @@ The data are the same public GIAB files the gatk-rs test bed puts behind DRS, so
 
 1. `get_range` in storage + `/stream` using it (fixes plain Range cost). Small, independent.
 2. Plain BAM/VCF region tickets + `class=header` (sections 4.1–4.3).
-3. Mode A on top of `crypt4gh-ranges`.
+3. Shared Crypt4GH range crate + mode A.
 4. Mode B header endpoint + tickets.
 5. Docs, service-info, HelixTest region tests on; remove "not supported" only here.
+
+## 9. What the implementation does differently
+
+- **Record-exact BGZF tickets.** htsget-rs returns block-aligned ranges. They are only a valid file when every BGZF block starts and ends on a record. htslib writes every BCF with records across blocks, and BAM/VCF records can be longer than a block. For plain BAM, VCF.gz and BCF Ferrum therefore builds the ticket from the same index with noodles and cuts the header end and the edges of each index chunk at the record boundary (`data:` URLs). CRAM, `referenceName=*` and Crypt4GH objects use htsget-rs as it is.
+- **Crypt4GH mode A (plaintext ranges over TLS) is not implemented.** Mode B (section 5.3) is: the requester sends `X-Crypt4GH-Public-Key`, the ticket body is raw ciphertext from `/stream?raw=true`. Limits: one region per request, records must not span blocks, no BCF regions.
+- **CRAM is supported** (CRAI), contrary to the non-goal in section 2.
+- **Index lookup**: metadata key `htsget.index`, else `<name>.bai|.crai|.tbi|.csi`. htsget-rs reads BAI for BAM and TBI for VCF.gz, so CSI is used for BCF only.
+- **Tests** use synthetic data (noodles-generated BAM/VCF, htslib-written CRAM/BCF fixtures) instead of GIAB downloads; they run in CI without network. The GIAB and 30 GB cost checks in section 7 remain open.
+
+See [HTSGET.md](HTSGET.md) for the behaviour as shipped.
