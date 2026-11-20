@@ -10,7 +10,7 @@ use std::io::Cursor;
 /// Create valid Crypt4GH ciphertext for a header-only rewrap benchmark.
 fn setup_ciphertext_and_keys() -> (Vec<C4ghKeys>, HashSet<C4ghKeys>, Vec<u8>, Bytes) {
     // Master keypair: this is the existing recipient for the stored object.
-    let master_skpk = crypt4gh::keys::generate_private_key();
+    let master_skpk = crypt4gh::keys::generate_private_key().expect("generate key");
     let (master_sk, master_pk) = master_skpk.split_at(32);
     let master_pub_bytes = master_pk.to_vec();
 
@@ -25,7 +25,7 @@ fn setup_ciphertext_and_keys() -> (Vec<C4ghKeys>, HashSet<C4ghKeys>, Vec<u8>, By
     let stored_recipients = HashSet::from([recipient_keys_from_pubkey(&master_pub_bytes)]);
 
     // Client keypair: this is the new recipient for header rewrap.
-    let client_skpk = crypt4gh::keys::generate_private_key();
+    let client_skpk = crypt4gh::keys::generate_private_key().expect("generate key");
     let (client_sk, client_pk) = client_skpk.split_at(32);
     let client_pub_bytes = client_pk.to_vec();
     let _client_dec_key = C4ghKeys {
