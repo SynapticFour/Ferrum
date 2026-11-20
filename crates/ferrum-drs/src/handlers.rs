@@ -16,7 +16,7 @@ use axum::{
 use bytes::Bytes;
 use ferrum_core::{FerrumError, Organization, ServiceInfo, ServiceType};
 use ferrum_crypt4gh::{stream_decrypt, KeyStore, LocalKeyStore};
-use ferrum_storage::TransferDirection;
+use ferrum_storage::{ObjectStorage, TransferDirection};
 use futures_util::stream::StreamExt;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -45,6 +45,10 @@ pub struct AccessQuery {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct StreamQuery {
     pub resume_token: Option<String>,
+    /// `raw=true`: send the stored bytes as they are (for Crypt4GH objects: the ciphertext
+    /// encrypted to the node key, with HTTP `Range` support). htsget Crypt4GH tickets use this
+    /// for the data segments; the client gets a header re-wrapped for its own key separately.
+    pub raw: Option<bool>,
 }
 
 /// GA4GH service-info (DRS).
@@ -619,13 +623,26 @@ pub async fn get_object_stream(
         }
     }
 
-    let reader = storage.get(key.as_str()).await.map_err(|e| match e {
+    let map_storage_err = |e: FerrumError| match e {
         FerrumError::NotFound(msg) => DrsError::NotFound(format!(
             "storage object missing (backend={} key={}): {msg}",
             backend_lower, key
         )),
+        FerrumError::ValidationError(msg) => DrsError::Validation(msg),
         other => DrsError::Other(other.into()),
-    })?;
+    };
+
+    if stream_query.raw == Some(true) {
+        return stream_raw_stored_bytes(
+            storage.as_ref(),
+            &key,
+            &canonical,
+            &headers,
+            is_encrypted,
+            map_storage_err,
+        )
+        .await;
+    }
 
     let client_ip = headers
         .get("x-forwarded-for")
@@ -715,7 +732,22 @@ pub async fn get_object_stream(
             .map(|b| b.classify().use_zstd_compression())
             .unwrap_or(false);
 
-    if !is_encrypted && use_zstd && obj.size > 0 && (obj.size as u64) <= 8 * 1024 * 1024 {
+    let zstd_whole_object =
+        !is_encrypted && use_zstd && obj.size > 0 && (obj.size as u64) <= 8 * 1024 * 1024;
+    // A plain HTTP Range (no resume token, not the small-object zstd path) reads only the
+    // requested bytes from storage. Everything else reads from the start and skips.
+    let native_range = !is_encrypted && !zstd_whole_object && is_partial && skip_bytes == 0;
+    let reader = if native_range {
+        storage
+            .get_range(key.as_str(), stream_start, stream_end)
+            .await
+            .map_err(map_storage_err)?
+    } else {
+        storage.get(key.as_str()).await.map_err(map_storage_err)?
+    };
+    let skip_in_reader = if native_range { 0 } else { stream_start };
+
+    if zstd_whole_object {
         let bw_t0 = Instant::now();
         let mut reader = reader;
         let mut body = Vec::new();
@@ -790,12 +822,13 @@ pub async fn get_object_stream(
         let pool_for_task = state.repo.pool().clone();
         let bw_for_task = state.bandwidth.clone();
         let stream_start_task = stream_start;
+        let skip_task = skip_in_reader;
         let max_send_task = max_send_bytes;
         tokio::spawn(async move {
             let bw_t0 = Instant::now();
             let mut reader = reader;
-            if stream_start_task > 0 {
-                let mut remaining = stream_start_task;
+            if skip_task > 0 {
+                let mut remaining = skip_task;
                 let mut scratch = vec![0u8; READ_CHUNK];
                 while remaining > 0 {
                     let to_read = scratch.len().min(remaining as usize);
@@ -959,6 +992,73 @@ pub async fn get_object_stream(
             HeaderValue::from_static("crypt4gh_decrypt"),
         )
         .body(body)
+        .map_err(|e| DrsError::Other(e.into()))
+}
+
+/// `GET .../stream?raw=true`: the stored bytes as they are, with HTTP `Range` against the
+/// stored size. For Crypt4GH objects these are ciphertext segments for the node key; they are
+/// useless without a header re-wrapped for the requester (htsget Crypt4GH tickets add that).
+async fn stream_raw_stored_bytes(
+    storage: &dyn ObjectStorage,
+    key: &str,
+    canonical: &str,
+    headers: &HeaderMap,
+    is_encrypted: bool,
+    map_storage_err: impl Fn(FerrumError) -> DrsError,
+) -> Result<Response> {
+    let stored_size = storage.size(key).await.map_err(&map_storage_err)?;
+    let range = parse_range_header(headers.get("range"), stored_size);
+    if headers.get("range").is_some() && range.is_none() {
+        return Response::builder()
+            .status(StatusCode::RANGE_NOT_SATISFIABLE)
+            .header(
+                HeaderName::from_static("content-range"),
+                HeaderValue::from_str(&format!("bytes */{stored_size}"))
+                    .unwrap_or_else(|_| HeaderValue::from_static("bytes */*")),
+            )
+            .body(Body::empty())
+            .map_err(|e| DrsError::Other(e.into()));
+    }
+    let reader = match range {
+        Some((a, b)) => storage.get_range(key, a, b).await,
+        None => storage.get(key).await,
+    }
+    .map_err(&map_storage_err)?;
+    tracing::info!(
+        target: "ferrum_drs::stream",
+        object_id = %canonical,
+        encrypted = is_encrypted,
+        event = "drs.stream.started",
+        stream_path = "raw",
+    );
+    let mut builder = Response::builder()
+        .status(if range.is_some() {
+            StatusCode::PARTIAL_CONTENT
+        } else {
+            StatusCode::OK
+        })
+        .header(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/octet-stream"),
+        )
+        .header(
+            HeaderName::from_static("x-ferrum-drs-stream-path"),
+            HeaderValue::from_static(if is_encrypted { "crypt4gh_raw" } else { "raw" }),
+        )
+        .header(
+            HeaderName::from_static("accept-ranges"),
+            HeaderValue::from_static("bytes"),
+        );
+    if let Some((a, b)) = range {
+        builder = builder.header(
+            HeaderName::from_static("content-range"),
+            HeaderValue::from_str(&format!("bytes {a}-{b}/{stored_size}"))
+                .unwrap_or_else(|_| HeaderValue::from_static("bytes */*")),
+        );
+    }
+    let stream = tokio_util::io::ReaderStream::new(reader);
+    builder
+        .body(Body::from_stream(stream))
         .map_err(|e| DrsError::Other(e.into()))
 }
 

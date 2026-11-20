@@ -429,6 +429,36 @@ impl ObjectStorage for S3Storage {
         Ok(Box::new(reader))
     }
 
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<Box<dyn AsyncRead + Send + Unpin>> {
+        if end < start {
+            return Err(FerrumError::ValidationError(format!(
+                "invalid byte range {start}-{end}"
+            )));
+        }
+        let out = self
+            .client
+            .get_object()
+            .bucket(&self.bucket)
+            .key(key)
+            .range(format!("bytes={start}-{end}"))
+            .send()
+            .await
+            .map_err(|e| {
+                let inner = e.into_service_error();
+                if inner.is_no_such_key() {
+                    FerrumError::NotFound(key.to_string())
+                } else {
+                    FerrumError::StorageError(inner.into())
+                }
+            })?;
+        Ok(Box::new(out.body.into_async_read()))
+    }
+
     async fn delete(&self, key: &str) -> Result<()> {
         self.client
             .delete_object()

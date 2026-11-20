@@ -93,6 +93,44 @@ impl ObjectStorage for LocalStorage {
         Ok(Box::new(tokio::io::BufReader::new(file)))
     }
 
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<Box<dyn AsyncRead + Send + Unpin>> {
+        use tokio::io::{AsyncReadExt, AsyncSeekExt};
+        if end < start {
+            return Err(FerrumError::ValidationError(format!(
+                "invalid byte range {start}-{end}"
+            )));
+        }
+        let path = self.path_for(key)?;
+        let mut file = tokio::fs::File::open(&path).await.map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                FerrumError::NotFound(key.to_string())
+            } else {
+                FerrumError::StorageError(e.into())
+            }
+        })?;
+        let len = file
+            .metadata()
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?
+            .len();
+        if start >= len {
+            return Err(FerrumError::ValidationError(format!(
+                "range start {start} is past the end of {key} ({len} bytes)"
+            )));
+        }
+        file.seek(std::io::SeekFrom::Start(start))
+            .await
+            .map_err(|e| FerrumError::StorageError(e.into()))?;
+        Ok(Box::new(
+            tokio::io::BufReader::new(file).take(end - start + 1),
+        ))
+    }
+
     async fn delete(&self, key: &str) -> Result<()> {
         let base_path = self.base_path.clone();
         let key = key.to_string();

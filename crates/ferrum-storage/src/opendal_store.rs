@@ -52,6 +52,26 @@ impl ObjectStorage for OpenDalStorage {
         Ok(Box::new(Cursor::new(buf.to_vec())))
     }
 
+    async fn get_range(
+        &self,
+        key: &str,
+        start: u64,
+        end: u64,
+    ) -> Result<Box<dyn AsyncRead + Send + Unpin>> {
+        if end < start {
+            return Err(FerrumError::ValidationError(format!(
+                "invalid byte range {start}-{end}"
+            )));
+        }
+        let buf = self
+            .op
+            .read_with(key)
+            .range(start..end + 1)
+            .await
+            .map_err(map_err)?;
+        Ok(Box::new(Cursor::new(buf.to_vec())))
+    }
+
     async fn delete(&self, key: &str) -> Result<()> {
         self.op.delete(key).await.map_err(map_err)?;
         Ok(())
