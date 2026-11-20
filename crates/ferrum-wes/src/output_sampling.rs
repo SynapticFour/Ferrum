@@ -209,11 +209,7 @@ fn should_ignore_name(is_dir: bool, file_name: &str, ignore_globs: &[String]) ->
     }
 
     // Extra temp directory guard (cheap and improves correctness).
-    if is_dir && (file_name == "tmp" || file_name.starts_with("tmp_")) {
-        return true;
-    }
-
-    false
+    is_dir && (file_name == "tmp" || file_name.starts_with("tmp_"))
 }
 
 /// Simple glob where `*` and `?` match within a single path segment (no '/').
