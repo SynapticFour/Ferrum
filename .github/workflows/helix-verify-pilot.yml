@@ -17,7 +17,7 @@ on:
       helixtest_ref:
         description: SynapticFour/HelixTest ref (sibling path dep)
         required: false
-        default: "v0.1.3"
+        default: "v0.1.4"
 
 permissions:
   contents: read
@@ -93,7 +93,7 @@ jobs:
         with:
           endpoint: ${{ env.GATEWAY_BASE }}
           helix-ref: ${{ github.event.inputs.helix_ref || 'main' }}
-          helixtest-ref: ${{ github.event.inputs.helixtest_ref || 'v0.1.3' }}
+          helixtest-ref: ${{ github.event.inputs.helixtest_ref || 'v0.1.4' }}
           baseline-branch: ci/helix-verify-pilot
           fail-on-regression: "true"
           comment: "true"
