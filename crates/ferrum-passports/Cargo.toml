@@ -2,7 +2,7 @@
 name = "ferrum-passports"
 version = "0.3.10"
 edition = "2021"
-rust-version = "1.91.1"
+rust-version = "1.100"
 description = "GA4GH Passports & Visas (AAI)"
 license = "Apache-2.0"
 
@@ -22,7 +22,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = tr
 jsonwebtoken = { version = "12", features = ["rust_crypto"] }
 chrono = "0.4"
 uuid = { version = "1", features = ["v4", "serde"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
+sqlx = { version = "0.9", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
 thiserror = "1"
 tower-http = { version = "0.5", features = ["cors"] }
 base64 = "0.22"

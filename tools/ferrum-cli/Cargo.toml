@@ -2,7 +2,7 @@
 name = "ferrum-cli"
 version = "0.3.10"
 edition = "2021"
-rust-version = "1.91.1"
+rust-version = "1.100"
 description = "CLI for Ferrum management"
 license = "Apache-2.0"
 # Name is taken on crates.io by an unrelated crate. Do not publish.

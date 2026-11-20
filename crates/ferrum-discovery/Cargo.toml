@@ -2,7 +2,7 @@
 name = "ferrum-discovery"
 version = "0.3.10"
 edition = "2021"
-rust-version = "1.91.1"
+rust-version = "1.100"
 description = "GA4GH Service Registry client and auto-registration for Ferrum"
 license = "Apache-2.0"
 

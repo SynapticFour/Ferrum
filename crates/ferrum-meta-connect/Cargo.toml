@@ -2,7 +2,7 @@
 name = "ferrum-meta-connect"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.91.1"
+rust-version = "1.100"
 description = "Offline ferrum-meta submission validation for Ferrum Edge"
 license = "Apache-2.0"
 

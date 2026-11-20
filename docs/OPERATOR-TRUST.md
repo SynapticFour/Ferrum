@@ -64,12 +64,12 @@ Auth-on HelixTest evidence is the scheduled workflow [`.github/workflows/helixte
 
 ## Build and supply chain
 
-- **MSRV / CI Rust:** 1.91.1 (`rust-toolchain.toml`).
+- **MSRV / CI Rust:** 1.100.0 (`rust-toolchain.toml`).
 - Default `cargo build` / `cargo test` does **not** require a sibling `ga4gh-infra` checkout. `ferrum-discovery` vendors GA4GH Service Info types (Apache-2.0).
 - Optional Passport clearinghouse: `--features clearinghouse` (gateway `external-auth`) pulls `ga4gh-clearinghouse` from GitHub tag `ga4gh-infra-v0.2.4`.
 - `cargo deny check` in CI (`deny.toml`). RUSTSEC-2023-0071 (`rsa` Marvin) is fixed: `rsa` 0.10 and `jsonwebtoken` 12 (constant-time RSA via `crypto-bigint` 0.7).
 - Helm chart `version` / `appVersion`: **0.3.5** (image tag `v0.3.5-full-infra`, not `:latest`). Reference object store is SeaweedFS (digest-pinned); see [TESTED-S3-BACKENDS.md](TESTED-S3-BACKENDS.md).
-- **Dependabot is disabled** (`.github/dependabot.yml` has no update ecosystems). Bump crates/actions in PRs against MSRV 1.91.1.
+- **Dependabot is disabled** (`.github/dependabot.yml` has no update ecosystems). Bump crates/actions in PRs against MSRV 1.100.0.
 
 ---
 

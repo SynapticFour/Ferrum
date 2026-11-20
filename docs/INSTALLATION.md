@@ -11,7 +11,7 @@ Deployment scenarios and update delivery strategy:
 
 | Requirement | Minimum | Recommended | Notes |
 |-------------|---------|-------------|--------|
-| Rust | 1.91 (see `rust-toolchain.toml`) | 1.91.1 | For building from source |
+| Rust | 1.100 (see `rust-toolchain.toml`) | 1.100.0 | For building from source |
 | Docker | 20.10+ | 24+ | For demo stack |
 | PostgreSQL | 14 | 16 | For production |
 | MinIO or S3 | — | — | S3-compatible storage |
