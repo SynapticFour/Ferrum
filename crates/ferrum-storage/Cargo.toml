@@ -2,6 +2,7 @@
 name = "ferrum-storage"
 version = "0.3.10"
 edition = "2021"
+rust-version = "1.91.1"
 description = "Object storage backends (local POSIX, S3) for Ferrum"
 license = "Apache-2.0"
 
@@ -22,7 +23,7 @@ aws-sdk-s3 = { version = "1", default-features = false, features = ["behavior-ve
 aws-smithy-types = "1"
 bytes = "1"
 tokio.workspace = true
-opendal = { version = "0.55", optional = true, default-features = false, features = [
+opendal = { version = "0.59", optional = true, default-features = false, features = [
     "services-s3",
     "services-fs",
     "services-memory",

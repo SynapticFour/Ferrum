@@ -2,6 +2,7 @@
 name = "ferrum-cohorts"
 version = "0.3.10"
 edition = "2021"
+rust-version = "1.91.1"
 description = "Cohort Browser: sample collections with phenotype, DRS, Beacon, WES"
 license = "Apache-2.0"
 

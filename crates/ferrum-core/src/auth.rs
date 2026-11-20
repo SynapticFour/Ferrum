@@ -678,7 +678,7 @@ async fn decode_jwt_or_passport(
 
     // Try as standard JWT — OWASP A02: algorithm pinning, never accept none or HS256 when RS256 expected
     if let Some(ref secret) = cfg.jwt_secret {
-        let key = DecodingKey::from_secret(secret);
+        let key = DecodingKey::from_secret(secret)?;
         let mut validation = Validation::new(Algorithm::HS256);
         validation.algorithms = vec![Algorithm::HS256];
         validation.validate_exp = true;
@@ -1398,7 +1398,8 @@ async fn verify_visa_jwt(
         let mut validation = Validation::new(Algorithm::HS256);
         validation.algorithms = vec![Algorithm::HS256];
         validation.validate_exp = true;
-        let data = decode::<VisaJwtPayload>(token, &DecodingKey::from_secret(secret), &validation)?;
+        let data =
+            decode::<VisaJwtPayload>(token, &DecodingKey::from_secret(secret)?, &validation)?;
         return Ok(data.claims.ga4gh_visa_v1);
     }
     if alg != Algorithm::RS256 && alg != Algorithm::ES256 {

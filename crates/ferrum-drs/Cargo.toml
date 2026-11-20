@@ -2,6 +2,7 @@
 name = "ferrum-drs"
 version = "0.3.10"
 edition = "2021"
+rust-version = "1.91.1"
 description = "GA4GH Data Repository Service 1.4"
 license = "Apache-2.0"
 

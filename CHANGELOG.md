@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 
 - Licence is Apache-2.0 from this commit. Versions released before this change were published under the Business Source License 1.1. See [LICENSING-HISTORY.md](LICENSING-HISTORY.md).
+- Security updates: `jsonwebtoken` 12 and `rsa` 0.10 (fixes RUSTSEC-2023-0071, Marvin, and the `crypto-bigint` timing issues), lettre 0.11.24, quinn, rustls-webpki, webpki-roots, zstd and zip 9.0.5 via lockfile updates, opendal 0.59 (optional backend), UI npm fixes; unused `zod` removed. Every crate declares `rust-version = "1.91.1"` so dependency updates stay within the pinned toolchain.
 
 ## [0.3.10] - 2026-10-19
 

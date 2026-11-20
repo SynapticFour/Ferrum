@@ -2,6 +2,7 @@
 name = "ferrum-reference"
 version = "0.3.10"
 edition = "2021"
+rust-version = "1.91.1"
 description = "Pluggable reference genome registry for Ferrum"
 license = "Apache-2.0"
 

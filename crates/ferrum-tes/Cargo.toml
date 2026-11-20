@@ -2,6 +2,7 @@
 name = "ferrum-tes"
 version = "0.3.10"
 edition = "2021"
+rust-version = "1.91.1"
 description = "GA4GH Task Execution Service 1.1"
 license = "Apache-2.0"
 

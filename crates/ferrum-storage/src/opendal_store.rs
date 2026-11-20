@@ -35,9 +35,7 @@ impl OpenDalStorage {
         let root = root.as_ref().to_str().ok_or_else(|| {
             FerrumError::ValidationError("OpenDAL fs root path must be valid UTF-8".into())
         })?;
-        let op = Operator::new(Fs::default().root(root))
-            .map_err(map_err)?
-            .finish();
+        let op = Operator::new(Fs::default().root(root)).map_err(map_err)?;
         Ok(Self { op })
     }
 }

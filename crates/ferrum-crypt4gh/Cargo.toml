@@ -2,6 +2,7 @@
 name = "ferrum-crypt4gh"
 version = "0.3.10"
 edition = "2021"
+rust-version = "1.91.1"
 description = "Crypt4GH encryption layer and DRS proxy"
 license = "Apache-2.0"
 
