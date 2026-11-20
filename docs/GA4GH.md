@@ -185,7 +185,7 @@ Passports are **Bearer tokens** presented to DRS, WES, TES, and Beacon. Ferrum v
 
 ## htsget
 
-- **Protocol family:** htsget tickets + service-info; **data via DRS stream**. Region slicing is not supported for any organism (whole-object tickets only). Service-info `type.version` is the string `1.3.0`. The upstream specification document is now 1.3.1. Ferrum still emits `1.3.0`.
+- **Protocol family:** htsget tickets + service-info; **data via DRS stream**. Region tickets and `class=header` come from the object's index via htsget-rs; without regions the ticket is the whole object. Service-info `type.version` is the string `1.3.0`. The upstream specification document is now 1.3.1. Ferrum still emits `1.3.0`.
 - **Specification:** [hts-specs htsget](https://samtools.github.io/hts-specs/htsget.html)
 
 | Method | Path | Description | Auth required |
@@ -197,8 +197,8 @@ Passports are **Bearer tokens** presented to DRS, WES, TES, and Beacon. Ferrum v
 | GET | `/ga4gh/htsget/v1/variants/{id}` | Variants ticket | Optional |
 | POST | `/ga4gh/htsget/v1/variants/{id}` | Variants ticket | Optional |
 
-**Ferrum behaviour:** Tickets contain one URL: `GET /ga4gh/drs/v1/objects/{id}/stream`. The ticket URL base is `FERRUM_PUBLIC_BASE_URL` when that variable is set. When it is unset, the base is `https://` plus `FERRUM_DRS_HOSTNAME`, and that hostname defaults to `localhost`, so the default ticket URL base is `https://localhost`. **Region queries are rejected for any organism** (HTTP 400): `referenceName`, `start`, `end`, POST `regions`. `class=header` also returns `InvalidInput`. Whole-object tickets omit those parameters. HTTP `Range` on unencrypted `/stream` is applied after a full object read: the handler reads and discards bytes before the requested start, then sends the range. Crypt4GH-encrypted objects reject `Range`.
-**Limitations:** No interval slicing. CRAM/BCF tickets are issued only when the stored object is classified as such (mime or name). Enable with `services.enable_htsget` (default true); requires DRS DB (same as gateway DRS). See [HTSGET.md](HTSGET.md) and [OPERATOR-TRUST.md](OPERATOR-TRUST.md).
+**Ferrum behaviour:** A ticket without regions contains one URL: `GET /ga4gh/drs/v1/objects/{id}/stream`. Region and header tickets contain stream URLs with `Range` headers plus `data:` URLs (end-of-file marker, blocks cut at record boundaries); see [HTSGET.md](HTSGET.md). The ticket URL base is `FERRUM_PUBLIC_BASE_URL` when that variable is set. When it is unset, the base is `https://` plus `FERRUM_DRS_HOSTNAME`, and that hostname defaults to `localhost`, so the default ticket URL base is `https://localhost`. Region requests without an index object return 404 `NotFound`. HTTP `Range` on unencrypted `/stream` reads only the requested bytes from storage. Crypt4GH-encrypted objects reject `Range` on the decrypting stream; `/stream?raw=true` serves ranges of the stored ciphertext for Crypt4GH tickets.
+**Limitations:** Region and header requests need an index object; `fields` / `tags` are not applied; Crypt4GH region tickets take one region per request and no BCF. CRAM/BCF tickets are issued only when the stored object is classified as such (mime or name). Enable with `services.enable_htsget` (default true); requires DRS DB (same as gateway DRS). See [HTSGET.md](HTSGET.md) and [OPERATOR-TRUST.md](OPERATOR-TRUST.md).
 
 ---
 

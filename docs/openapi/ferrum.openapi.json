@@ -575,7 +575,7 @@
         "operationId": "reads_service_info",
         "responses": {
           "200": {
-            "description": "htsget reads service-info (region slicing not implemented)"
+            "description": "htsget reads service-info"
           }
         }
       }
@@ -675,13 +675,13 @@
         ],
         "responses": {
           "200": {
-            "description": "htsget ticket; urls point at DRS /stream"
+            "description": "htsget ticket; urls point at DRS /stream (with Range headers for regions) or are data: URLs"
           },
           "400": {
-            "description": "InvalidInput or UnsupportedFormat (including genomic region params)"
+            "description": "InvalidInput, InvalidRange or UnsupportedFormat"
           },
           "404": {
-            "description": "NotFound"
+            "description": "NotFound (object, reference, or index for a region request)"
           }
         }
       },
@@ -703,10 +703,13 @@
         ],
         "responses": {
           "200": {
-            "description": "htsget ticket; urls point at DRS /stream"
+            "description": "htsget ticket; urls point at DRS /stream (with Range headers for regions) or are data: URLs"
           },
           "400": {
-            "description": "InvalidInput — including POST regions (Ferrum does not slice)"
+            "description": "InvalidInput, InvalidRange or UnsupportedFormat"
+          },
+          "404": {
+            "description": "NotFound (object, reference, or index for a region request)"
           }
         }
       }
@@ -719,7 +722,7 @@
         "operationId": "variants_service_info",
         "responses": {
           "200": {
-            "description": "htsget variants service-info (region slicing not implemented)"
+            "description": "htsget variants service-info"
           }
         }
       }
@@ -819,13 +822,13 @@
         ],
         "responses": {
           "200": {
-            "description": "htsget ticket; urls point at DRS /stream"
+            "description": "htsget ticket; urls point at DRS /stream (with Range headers for regions) or are data: URLs"
           },
           "400": {
-            "description": "InvalidInput or UnsupportedFormat (including genomic region params)"
+            "description": "InvalidInput, InvalidRange or UnsupportedFormat"
           },
           "404": {
-            "description": "NotFound"
+            "description": "NotFound (object, reference, or index for a region request)"
           }
         }
       },
@@ -847,10 +850,13 @@
         ],
         "responses": {
           "200": {
-            "description": "htsget ticket; urls point at DRS /stream"
+            "description": "htsget ticket; urls point at DRS /stream (with Range headers for regions) or are data: URLs"
           },
           "400": {
-            "description": "InvalidInput — including POST regions (Ferrum does not slice)"
+            "description": "InvalidInput, InvalidRange or UnsupportedFormat"
+          },
+          "404": {
+            "description": "NotFound (object, reference, or index for a region request)"
           }
         }
       }

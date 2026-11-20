@@ -33,7 +33,7 @@ Unless a demo flag above is set:
 - `FERRUM_TES_BACKEND=docker` **does not** fall back to Podman if the daemon is unreachable (process fails closed).
 - WES `workflow_engine_params.ferrum_backend=lsf` returns a validation error. **LSF is not implemented.**
 - Slurm run scripts POSIX-quote workflow URLs and work dirs; newlines/NUL are refused.
-- htsget **rejects** `referenceName` / `start` / `end` / POST `regions` and `class=header` (HTTP 400). Tickets are whole-object DRS streams only.
+- htsget region requests (`referenceName` / `start` / `end`, POST `regions`) and `class=header` need an index object (BAI, CRAI, TBI or CSI; see [HTSGET.md](HTSGET.md)). Without one they return 404 `NotFound`, never a silent whole-file ticket. Crypt4GH region tickets are encrypted for the public key the requester sends; one region per request; Crypt4GH BCF regions return 400.
 
 ---
 
@@ -75,8 +75,6 @@ Auth-on HelixTest evidence is the scheduled workflow [`.github/workflows/helixte
 
 ## Not implemented (do not advertise)
 
-- BAM/VCF **region slicing** (htsget returns 400 for region params).
-- htsget `class=header`.
 - LSF job submission.
 - Teaching-to-the-test HelixTest checksum rewriting as “conformance.”
 

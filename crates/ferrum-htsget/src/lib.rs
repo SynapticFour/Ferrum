@@ -4,10 +4,15 @@
 //! Ticket endpoints resolve a DRS object (same DB as DRS), enforce dataset auth like DRS, and
 //! return a JSON ticket whose `urls` point at DRS `/objects/{id}/stream` on this deployment.
 //! Genomic range requests (`referenceName` / `start` / `end` / POST `regions`) and `class=header`
-//! are **rejected** (HTTP 400). This is not a full htsget 1.3.0 slicer.
+//! are answered from the object's index with [htsget-rs](https://github.com/umccr/htsget-rs)
+//! (see [`region`]); plain BAM/VCF.gz/BCF bodies are cut at record boundaries (`bgzf_edges`).
+//! Requests without regions keep the whole-object ticket. `fields`, `tags` and `notags` are
+//! accepted but not applied (service-info says so).
 
+mod bgzf_edges;
 mod error;
 mod handlers;
+pub mod region;
 mod ticket;
 
 use axum::http::StatusCode;
@@ -22,13 +27,19 @@ use utoipa_swagger_ui::{Config, SwaggerUi};
 pub struct HtsgetState {
     pub repo: Arc<DrsRepo>,
     pub public_base_url: String,
+    /// Object storage (same as DRS). Needed for region tickets: htsget-rs reads the index and
+    /// the file header. Without it only whole-object tickets work.
+    pub storage: Option<Arc<dyn ferrum_storage::ObjectStorage>>,
+    /// Directory with `{crypt4gh_master_key_id}.sec` (node key) for Crypt4GH region tickets.
+    pub crypt4gh_key_dir: Option<std::path::PathBuf>,
+    pub crypt4gh_master_key_id: String,
 }
 
 #[derive(OpenApi)]
 #[openapi(
     info(
         title = "Ferrum htsget",
-        description = "GA4GH htsget tickets (whole-object DRS stream; region slicing not implemented)",
+        description = "GA4GH htsget tickets over DRS streams (whole object, regions and class=header via the object index)",
         version = "1.3.0"
     ),
     paths(
