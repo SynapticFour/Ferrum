@@ -1114,7 +1114,7 @@ async fn decode_passport_via_clearinghouse(
         passport.visa_jwts =
             crate::userinfo_visas::visas_from_userinfo(issuer, token, passport.exp).await?;
     }
-    let visa_objects = match clearinghouse.extract_visas(&passport).await {
+    let visa_objects = match clearinghouse.extract_visas(&passport, token).await {
         Ok(visas) => visas
             .into_iter()
             .map(|visa| VisaObject {
@@ -1321,7 +1321,7 @@ async fn decode_passport_visas_clearinghouse(
                 .await
                 .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)?;
             clearinghouse
-                .extract_visas(&passport)
+                .extract_visas(&passport, passport_jwt)
                 .await
                 .map_err(|_| jsonwebtoken::errors::ErrorKind::InvalidToken)
         }
