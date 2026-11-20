@@ -19,7 +19,7 @@ htsget is part of **edge** at compile time; Lab Kit `field-edge` still sets `FER
 
 ## Local / custom architecture
 
-GHCR images from `deploy/Dockerfile` are **linux/amd64** musl/distroless unless a multi-arch manifest is published. For Raspberry Pi, Apple Silicon native arm64, or air-gap:
+GHCR images published after this change are multi-arch: **linux/amd64** and **linux/arm64**, musl/distroless. Tags published before it stay amd64-only; check with `docker buildx imagetools inspect ghcr.io/synapticfour/ferrum:<tag>`. For a local build, a custom feature set, or air-gap:
 
 ```bash
 ./scripts/build-variant-image.sh --variant edge --platform linux/arm64 --tag ferrum:edge-local
@@ -58,11 +58,11 @@ Ferrum-Lab-Kit wraps the same script (`lab-kit build image`). Override cargo fea
 
 WES/TES HelixTest stubs are process env (`FERRUM_WES_HELIXTEST_STUBS` / `FERRUM_TES_HELIXTEST_STUB`), not an image variant. When stubs are on, service-info must label itself **simulated** (see ADR-033).
 
-GHCR publish does not set a multi-arch platform list. Published images are linux/amd64. This pass does not add arm64.
+GHCR publish builds each gateway variant twice, natively: amd64 on `ubuntu-latest`, arm64 on `ubuntu-24.04-arm`. Each pushes by digest; `docker-gateway-merge` joins both under the tags. `ferrum-ui` builds its static files once and publishes the nginx stage for both architectures.
 
 ## GHCR matrix / runner minutes
 
-Tag pushes build `full`, `edge`, `edge-infra`, and `full-infra` (four gateway jobs) plus `ferrum-ui`. `workflow_dispatch` defaults to `["full","edge","edge-infra"]`; pass `variants: '["full-infra"]'` to build only that gateway (plus UI). Rough wall time per gateway job on `ubuntu-latest` with GHA cache warm: **15–25 minutes**; cold: **30–45 minutes**. Four-variant tag run ≈ **60–100 runner-minutes** for gateways + ~10–20 for UI (parallel matrix).
+Tag pushes build `full`, `edge`, `edge-infra`, and `full-infra` for two architectures (eight gateway jobs, four merge jobs) plus `ferrum-ui`. `workflow_dispatch` defaults to `["full","edge","edge-infra"]`; pass `variants: '["full-infra"]'` to build only that gateway (plus UI). Rough wall time per gateway job on `ubuntu-latest` with GHA cache warm: **15–25 minutes**; cold: **30–45 minutes**. Four-variant tag run ≈ **120–200 runner-minutes** for gateways (both architectures; free on public repositories) + ~10–20 for UI (parallel matrix).
 
 ## Health, readiness, metrics
 

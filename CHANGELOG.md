@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 - Licence is Apache-2.0 from this commit. Versions released before this change were published under the Business Source License 1.1. See [LICENSING-HISTORY.md](LICENSING-HISTORY.md).
 - Dependabot is enabled again: weekly grouped updates for Cargo, GitHub Actions and the UI, monthly for Docker base images. Semver-major bumps stay manual.
+- GHCR images (`ferrum` in all four variants, `ferrum-ui`) are published for linux/amd64 and linux/arm64 from the next tag. The gateway builds natively on an arm64 runner; tags published earlier stay amd64-only.
 - ga4gh-infra `ga4gh-infra-v0.2.9` (was v0.2.6): clearinghouse on jsonwebtoken 12 / rsa 0.10. `extract_visas` now takes the raw Passport JWT (ADR-006, UserInfo Visas). Compose image defaults `:0.2.9`.
 - Toolchain Rust 1.100.0 (was 1.91.1); every crate declares `rust-version = "1.100"`. sqlx 0.9 with libsqlite3-sys 0.40 (bundled SQLite 3.54, fixes RUSTSEC-2026-0459). Dynamic SQL built from dialect-specific constants is marked with `sqlx::AssertSqlSafe`; no SQL text comes from requests.
 - Security updates: `jsonwebtoken` 12 and `rsa` 0.10 (fixes RUSTSEC-2023-0071, Marvin, and the `crypto-bigint` timing issues), lettre 0.11.24, quinn, rustls-webpki, webpki-roots, zstd and zip 9.0.5 via lockfile updates, opendal 0.59 (optional backend), UI npm fixes; unused `zod` removed.
