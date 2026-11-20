@@ -11,6 +11,7 @@ Tag `v0.3.12`. Fixes the arm64 gateway image build; the first tag with GHCR gate
 ### Fixed
 
 - **arm64 gateway images.** `deploy/Dockerfile` declared `ARG TARGETARCH=amd64`. The default replaced the platform BuildKit sets, so the arm64 build compiled for `x86_64-unknown-linux-musl` and failed (`aws-lc-sys`: `-march=x86-64` on arm64). The gateway publish step needs both architectures and was skipped, so **tag v0.3.11 has no `ferrum` gateway images on GHCR** (`ferrum-ui:v0.3.11` exists). Use v0.3.12.
+- **GHCR publish step.** It collected digests with the pattern `gateway-digest-<variant>-*`, which for `full` and `edge` also matched the `-infra` variants; the "two digests" check failed. It now downloads the amd64 and arm64 digest by exact name.
 
 ## [0.3.11] - 2026-11-20
 
