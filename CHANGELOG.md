@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- **Dependencies (Dependabot #145-#148).** `ferrum-init` runtime on Alpine 3.24 (was 3.19); UI build stage on Node 26 (was 22); UI minor/patch updates (Radix, TanStack, react-hook-form, zustand, cytoscape, Playwright, ...); `actions/upload-artifact` v7 and `actions/download-artifact` v8 in the GHCR workflow; aws-smithy / aws-credential-types patch updates.
 - **Demo images.** `demo/docker-compose.demo.yml` pins `ferrum:v0.3.12-full-infra` and `ferrum-ui:v0.3.12` by their multi-arch index digests (amd64 and arm64); the `platform: linux/amd64` lines are gone. Until now the demo pinned v0.3.10 images.
 
 ## [0.3.12] - 2026-11-20
