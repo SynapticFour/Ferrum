@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- **htsget on GIAB data (evidence).** `docs/evidence/2026-11-21-htsget-giab/` records the v0.3.12 release binary on GIAB HG002 slices (Illumina BAM, ultralong ONT BAM, NIST v4.2.1 benchmark VCF.gz and BCF): 36 of 36 region/header cases pass. `scripts/giab-htsget-check.sh` repeats the run.
 - **Dependencies (Dependabot #145-#148).** `ferrum-init` runtime on Alpine 3.24 (was 3.19); UI build stage on Node 26 (was 22); UI minor/patch updates (Radix, TanStack, react-hook-form, zustand, cytoscape, Playwright, ...); `actions/upload-artifact` v7 and `actions/download-artifact` v8 in the GHCR workflow; aws-smithy / aws-credential-types patch updates.
 - **Demo images.** `demo/docker-compose.demo.yml` pins `ferrum:v0.3.12-full-infra` and `ferrum-ui:v0.3.12` by their multi-arch index digests (amd64 and arm64); the `platform: linux/amd64` lines are gone. Until now the demo pinned v0.3.10 images.
 - **Passport without Visas (ADR-036, amends ADR-034).** External auth: a validated Passport whose `ga4gh_passport_v1` is present and empty no longer gets 401 when UserInfo fails. Ferrum still asks UserInfo (older brokers send `[]` when Visas live there); without an answer the request continues with the identity only and no Visa-based access. The empty result is cached for 300 s (bounded by `exp`). A Passport without the claim keeps ADR-034 (fail closed). This fixes the ferrum+infra HelixTest check "Passport accepted on Ferrum DRS" (broken since v0.3.7).
