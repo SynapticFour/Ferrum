@@ -19,10 +19,10 @@ Dockerfile build args (when set): `rust:1.100.0-alpine@sha256:8d0e82abfdf9a38071
 | Service | Image |
 |---------|--------|
 | postgres | same as above |
-| gateway | `ghcr.io/synapticfour/ferrum:v0.3.12-full-infra@sha256:e3de9587cdbdf4c1d07346b9e454ca47528e31b54588e08885aa5b2504cd734d` |
-| ui | `ghcr.io/synapticfour/ferrum-ui:v0.3.12@sha256:909cb1c93e7a84a409481d5acb1cf08ca7694af4d4bd81c8edda49ea63dfc5c1` |
+| gateway | `ghcr.io/synapticfour/ferrum:v0.3.13-full-infra@sha256:bfef9ecfa72fbd641fa19a464186796e329ba0808761c5dc00f3b86a53c7d658` |
+| ui | `ghcr.io/synapticfour/ferrum-ui:v0.3.13@sha256:ead8237a7ca619b8bf74fe46a938174408812710e8df99c62f9a267748f21521` |
 
-Gateway and UI digests are the multi-arch index (linux/amd64 and linux/arm64) from the publish job of tag v0.3.12 (Actions run 44827778769), so the demo has no `platform:` line and runs natively on arm64 hosts.
+Gateway and UI digests are the multi-arch index (linux/amd64 and linux/arm64) from the image workflow of tag v0.3.13 (Actions run 44904447775), so the demo has no `platform:` line and runs natively on arm64 hosts.
 | nginx | same as above |
 
 ## `deploy/docker-compose.ga4gh-infra.yml`

@@ -16,7 +16,7 @@ services:
 
   gateway:
     # Pin to VERSIONS.lock FERRUM_VERSION + digest. Multi-arch index: linux/amd64 and linux/arm64.
-    image: ghcr.io/synapticfour/ferrum:v0.3.12-full-infra@sha256:e3de9587cdbdf4c1d07346b9e454ca47528e31b54588e08885aa5b2504cd734d
+    image: ghcr.io/synapticfour/ferrum:v0.3.13-full-infra@sha256:bfef9ecfa72fbd641fa19a464186796e329ba0808761c5dc00f3b86a53c7d658
     ports:
       - "8080:8080"
     environment:
@@ -28,7 +28,7 @@ services:
         condition: service_healthy
 
   ui:
-    image: ghcr.io/synapticfour/ferrum-ui:v0.3.12@sha256:909cb1c93e7a84a409481d5acb1cf08ca7694af4d4bd81c8edda49ea63dfc5c1
+    image: ghcr.io/synapticfour/ferrum-ui:v0.3.13@sha256:ead8237a7ca619b8bf74fe46a938174408812710e8df99c62f9a267748f21521
     environment:
       VITE_API_BASE_URL: http://localhost:8080
     depends_on:

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- **Demo images.** `demo/docker-compose.demo.yml` pins `ferrum:v0.3.13-full-infra` and `ferrum-ui:v0.3.13` by their multi-arch index digests (amd64 and arm64); it pinned v0.3.12 until now.
+
 ## [0.3.13] - 2026-11-21
 
 Tag `v0.3.13`. Passports without Visas are accepted again (ADR-036); dependency updates. Images for linux/amd64 and linux/arm64 as in v0.3.12.
