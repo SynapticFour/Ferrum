@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [Unreleased]
 
 - **Demo images.** `demo/docker-compose.demo.yml` pins `ferrum:v0.3.12-full-infra` and `ferrum-ui:v0.3.12` by their multi-arch index digests (amd64 and arm64); the `platform: linux/amd64` lines are gone. Until now the demo pinned v0.3.10 images.
+- **Passport without Visas (ADR-036, amends ADR-034).** External auth: a validated Passport whose `ga4gh_passport_v1` is present and empty no longer gets 401 when UserInfo fails. Ferrum still asks UserInfo (older brokers send `[]` when Visas live there); without an answer the request continues with the identity only and no Visa-based access. The empty result is cached for 300 s (bounded by `exp`). A Passport without the claim keeps ADR-034 (fail closed). This fixes the ferrum+infra HelixTest check "Passport accepted on Ferrum DRS" (broken since v0.3.7).
 
 ## [0.3.12] - 2026-11-20
 

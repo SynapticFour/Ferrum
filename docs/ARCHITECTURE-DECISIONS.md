@@ -32,6 +32,7 @@ The records are in [DECISIONS.md](../DECISIONS.md). [AFRICA-DEPLOYMENT.md](AFRIC
 | [ADR-033](../DECISIONS.md#2026-10-12---adr-033-label-helixtest-westes-stubs-as-simulated) | Label HelixTest WES/TES stubs as simulated |
 | [ADR-034](../DECISIONS.md#2026-10-12---adr-034-userinfo-visa-fetch-for-empty-ga4gh_passport_v1-external-auth) | UserInfo Visa fetch for empty `ga4gh_passport_v1` (external auth) |
 | [ADR-035](../DECISIONS.md#2026-10-12---adr-035-reference-s3-backend-is-seaweedfs-minio-out-of-compose) | Reference S3 backend is SeaweedFS (MinIO out of Compose) |
+| [ADR-036](../DECISIONS.md#2026-11-21---adr-036-an-embedded-empty-visa-list-grants-identity-only-access) | An embedded empty Visa list grants identity-only access (amends ADR-034) |
 
 ADR-001 through ADR-011 are not headings in `DECISIONS.md`.
 
