@@ -132,6 +132,11 @@ jobs:
           statuses = {t.get("status") for t in tests}
           names = [t.get("name") for t in tests]
           print("tests:", names, "statuses:", statuses)
+          # Print every check that did not pass with its details (the artifact is not
+          # always at hand when reading a failed run).
+          for t in tests:
+              if t.get("status") != "pass":
+                  print("NOT PASS:", json.dumps(t, ensure_ascii=False)[:2000])
           if not tests:
               print("no infra tests in report", file=sys.stderr)
               sys.exit(1)
@@ -161,6 +166,11 @@ jobs:
           docker logs deploy-visa-registry-1 2>&1 | tail -80 || true
           echo "===== mock-idp ====="
           docker logs deploy-mock-idp-1 2>&1 | tail -40 || true
+          echo "===== ferrum-gateway (auth / passport lines) ====="
+          docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml logs --no-color ferrum-gateway 2>&1 \
+            | grep -iE 'passport|visa|userinfo|clearinghouse|jwks|issuer|401|403|denied|warn|error' | tail -120 || true
+          echo "===== ferrum-gateway (last 60 lines) ====="
+          docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ga4gh-infra.yml -f deploy/docker-compose.pilot.yml logs --no-color ferrum-gateway 2>&1 | tail -60 || true
 
       - name: Upload ferrum+infra report
         if: always()

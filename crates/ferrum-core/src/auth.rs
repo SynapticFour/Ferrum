@@ -651,8 +651,10 @@ async fn decode_jwt_or_passport(
     // Try as GA4GH Passport (has ga4gh_passport_v1 claim)
     if let Ok(claims) = decode_passport_jwt(token, cfg).await {
         reject_token_if_too_old(claims.iat, cfg.max_token_age_hours)?;
+        let claim_present = claims.ga4gh_passport_v1.is_some();
         let mut visa_jwts = claims.ga4gh_passport_v1.clone().unwrap_or_default();
-        // ADR-034: empty embedded Visas → UserInfo from configured issuer only.
+        // ADR-034: Visas not embedded → UserInfo from configured issuer only, fail closed.
+        // ADR-036: an embedded empty list → UserInfo if it has Visas, else identity only.
         if visa_jwts.is_empty() && cfg.external_mode {
             let issuer = cfg
                 .issuer
@@ -660,7 +662,11 @@ async fn decode_jwt_or_passport(
                 .filter(|s| !s.is_empty())
                 .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
             let exp = claims.exp.unwrap_or(0);
-            visa_jwts = crate::userinfo_visas::visas_from_userinfo(issuer, token, exp).await?;
+            visa_jwts = if claim_present {
+                crate::userinfo_visas::visas_for_empty_embedded_list(issuer, token, exp).await?
+            } else {
+                crate::userinfo_visas::visas_from_userinfo(issuer, token, exp).await?
+            };
         }
         let visas = if cfg.use_clearinghouse {
             decode_passport_visas_clearinghouse(token, &visa_jwts).await
@@ -1104,45 +1110,56 @@ async fn decode_passport_via_clearinghouse(
             );
             jsonwebtoken::errors::ErrorKind::InvalidToken
         })?;
-    // ADR-034: empty ga4gh_passport_v1 → UserInfo from configured issuer discovery only.
+    // ADR-034: Visas not embedded → UserInfo from configured issuer discovery only, fail
+    // closed. ADR-036: an embedded empty list → UserInfo if it has Visas, else identity only.
+    // The signature was verified above, so reading the payload for the claim is safe.
     if passport.visa_jwts.is_empty() && cfg.external_mode {
         let issuer = cfg
             .issuer
             .as_deref()
             .filter(|s| !s.is_empty())
             .ok_or(jsonwebtoken::errors::ErrorKind::InvalidToken)?;
-        passport.visa_jwts =
-            crate::userinfo_visas::visas_from_userinfo(issuer, token, passport.exp).await?;
+        passport.visa_jwts = if crate::userinfo_visas::passport_claim_present(token) {
+            crate::userinfo_visas::visas_for_empty_embedded_list(issuer, token, passport.exp)
+                .await?
+        } else {
+            crate::userinfo_visas::visas_from_userinfo(issuer, token, passport.exp).await?
+        };
     }
-    let visa_objects = match clearinghouse.extract_visas(&passport, token).await {
-        Ok(visas) => visas
-            .into_iter()
-            .map(|visa| VisaObject {
-                r#type: visa.claim.r#type.to_string(),
-                asserted: visa.claim.asserted,
-                value: visa.claim.value,
-                source: visa.claim.source,
-                conditions: visa
-                    .claim
-                    .conditions
-                    .as_ref()
-                    .and_then(|c| serde_json::to_value(c).ok())
-                    .map(|v| vec![v]),
-                by: visa
-                    .claim
-                    .by
-                    .as_ref()
-                    .and_then(|b| serde_json::to_value(b).ok())
-                    .and_then(|v| v.as_str().map(str::to_string)),
-            })
-            .collect(),
-        Err(err) => {
-            tracing::warn!(
-                error = %err,
-                embedded_visa_count = passport.visa_jwts.len(),
-                "clearinghouse visa extract failed; refusing unverified embedded visas"
-            );
-            Vec::new()
+    // No Visa JWTs: nothing to verify. The clearinghouse would ask UserInfo again.
+    let visa_objects = if passport.visa_jwts.is_empty() {
+        Vec::new()
+    } else {
+        match clearinghouse.extract_visas(&passport, token).await {
+            Ok(visas) => visas
+                .into_iter()
+                .map(|visa| VisaObject {
+                    r#type: visa.claim.r#type.to_string(),
+                    asserted: visa.claim.asserted,
+                    value: visa.claim.value,
+                    source: visa.claim.source,
+                    conditions: visa
+                        .claim
+                        .conditions
+                        .as_ref()
+                        .and_then(|c| serde_json::to_value(c).ok())
+                        .map(|v| vec![v]),
+                    by: visa
+                        .claim
+                        .by
+                        .as_ref()
+                        .and_then(|b| serde_json::to_value(b).ok())
+                        .and_then(|v| v.as_str().map(str::to_string)),
+                })
+                .collect(),
+            Err(err) => {
+                tracing::warn!(
+                    error = %err,
+                    embedded_visa_count = passport.visa_jwts.len(),
+                    "clearinghouse visa extract failed; refusing unverified embedded visas"
+                );
+                Vec::new()
+            }
         }
     };
     Ok(AuthClaims::Passport {

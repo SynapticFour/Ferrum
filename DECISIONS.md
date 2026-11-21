@@ -59,9 +59,22 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-11-21 - ADR-036: An embedded empty Visa list grants identity-only access
+
+- **Status:** Accepted. Amends ADR-034 for one case.
+- **Context:** ADR-034 treats every Passport with an empty `ga4gh_passport_v1` as "Visas are behind UserInfo" and fails closed when UserInfo fails. A broker with `embed_visas = true` also sends an empty list for a researcher who has no Visas, and ga4gh-infra up to v0.2.9 stores no UserInfo document in that mode, so UserInfo answers 401. Such a researcher was refused with 401 even for data that needs no Visa (workspace membership, public objects). In the ferrum+infra co-deploy the configured issuer (`http://localhost:8180`) is also unreachable from inside the gateway container. The HelixTest check "Passport accepted on Ferrum DRS" failed for this reason from v0.3.7 on.
+- **Decision:** Ferrum separates two cases after the access token is validated (external auth only):
+  - `ga4gh_passport_v1` **absent**: Visas are not embedded. ADR-034 applies unchanged: UserInfo from discovery of the configured issuer, fail closed on any error.
+  - `ga4gh_passport_v1` **present and empty**: Ferrum still asks UserInfo, because brokers up to ga4gh-infra v0.2.9 send `[]` in both modes. If UserInfo returns Visas, they are used. If UserInfo fails (unreachable, non-2xx, bad JSON), the Passport carries no Visas: the request continues with the identity only (subject, groups), and no Visa-based access. The empty result is cached for 300 seconds (never past token `exp`) before UserInfo is asked again. An expired token is still refused.
+  - With no Visa JWTs, the clearinghouse `extract_visas` call is skipped (it would ask UserInfo a second time).
+- **Consequences:** A Passport without Visas works for everything the identity alone allows. Empty Visas cannot grant access, so no Visa-gated object becomes reachable. Trade-off: with an older broker in `embed_visas = false` mode, a broker restart (UserInfo 401) now degrades to identity-only access instead of 401 until the user signs in again; access that needs Visas is refused either way. A broker that omits `ga4gh_passport_v1` when it does not embed gets the strict ADR-034 behaviour. Each failed UserInfo attempt logs a warning.
+- **Alternatives considered:** Keep ADR-034 for both cases (rejected: refuses valid users without Visas); skip UserInfo whenever the list is present (rejected: older brokers in `embed_visas = false` mode would lose all Visas); a config flag per deployment (rejected: one more setting for a case the claim already tells apart).
+
+---
+
 ### 2026-10-12 - ADR-034: UserInfo Visa fetch for empty `ga4gh_passport_v1` (external auth)
 
-- **Status:** Accepted
+- **Status:** Accepted. Amended by ADR-036 for a Passport whose `ga4gh_passport_v1` is present and empty.
 - **Context:** ga4gh-infra ADR-005 lets brokers mint Passport-scoped access tokens with an empty `ga4gh_passport_v1` and deliver Visas from `GET /userinfo`. Ferrum external-auth resource servers only read embedded Visas, so `embed_visas = false` denied every controlled access. Taking a UserInfo URL from token claims would be SSRF.
 - **Decision:** When `auth.mode` is `external` and a validated access token has an empty `ga4gh_passport_v1`, Ferrum GETs `userinfo_endpoint` from **OIDC discovery of the configured issuer only** (same document rules as ADR-028: issuer match, scheme match). Forward the same Bearer. Cache Visa JWT strings keyed by **SHA-256 of the raw token**, TTL bounded by token `exp` and a process max entry count (1024). Any discovery/HTTP/JSON/scheme error, timeout, or non-2xx (including broker restart → UserInfo 401) **fails closed** (treat as invalid token). Default `embed_visas = true` on the broker is unchanged; this path is idle when Visas are embedded. Builtin auth does not fetch UserInfo.
 - **Consequences:** Operators can lower edge header limits with ga4gh-infra `embed_visas = false` once Ferrum is on this release. Cache memory is bounded; after broker restart, cached entries expire with the token and a fresh UserInfo 401 denies access until re-login. No UserInfo URL is taken from JWT claims.

@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Fetch Visa JWTs from the issuer UserInfo endpoint when the access token
-//! carries an empty `ga4gh_passport_v1` (ga4gh-infra ADR-005 / Ferrum ADR-034).
+//! carries no Visas (ga4gh-infra ADR-005 / Ferrum ADR-034, ADR-036).
 //!
 //! Endpoint comes only from OIDC discovery of the **configured** issuer.
 //! Bearer is forwarded. Cache is keyed by SHA-256 of the raw token; TTL is
-//! bounded by token `exp`. Fail closed on any error (including broker restart
-//! → UserInfo 401). No URL is taken from token claims (SSRF).
+//! bounded by token `exp`. No URL is taken from token claims (SSRF).
+//!
+//! - `ga4gh_passport_v1` **absent**: Visas are not embedded. [`visas_from_userinfo`]
+//!   fails closed on any error (ADR-034).
+//! - `ga4gh_passport_v1` **present and empty**: [`visas_for_empty_embedded_list`]
+//!   asks UserInfo too (brokers up to ga4gh-infra v0.2.9 send `[]` in both modes).
+//!   If that fails, the Passport carries no Visas: the caller gets an empty list
+//!   and identity-only access (ADR-036). Empty Visas cannot grant anything.
 
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -32,6 +38,10 @@ static DISCOVERY_USERINFO_CACHE: LazyLock<Mutex<HashMap<String, (Instant, String
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 const DISCOVERY_CACHE_TTL: Duration = Duration::from_secs(3600);
+
+/// ADR-036: after a failed UserInfo fetch for a present-but-empty Visa list, the
+/// empty result is cached this long (and never past token `exp`) before retrying.
+pub const EMPTY_LIST_RETRY_SECS: i64 = 300;
 
 fn token_hash(token: &str) -> [u8; 32] {
     let digest = Sha256::digest(token.as_bytes());
@@ -185,6 +195,12 @@ pub async fn visas_from_userinfo(
         })
         .unwrap_or_default();
 
+    cache_put(key, visas.clone(), token_exp);
+    Ok(visas)
+}
+
+fn cache_put(key: [u8; 32], visas: Vec<String>, exp_unix: i64) {
+    let now = unix_now();
     if let Ok(mut cache) = USERINFO_VISA_CACHE.lock() {
         cache.retain(|_, v| v.exp_unix > now);
         while cache.len() >= USERINFO_VISA_CACHE_MAX {
@@ -202,14 +218,65 @@ pub async fn visas_from_userinfo(
         cache.insert(
             key,
             CachedVisas {
-                visas: visas.clone(),
-                exp_unix: token_exp,
+                visas,
+                exp_unix,
                 inserted_at: Instant::now(),
             },
         );
     }
+}
 
-    Ok(visas)
+/// ADR-036: Visas for a validated token whose `ga4gh_passport_v1` is **present and empty**.
+///
+/// Asks UserInfo like [`visas_from_userinfo`], because brokers up to ga4gh-infra
+/// v0.2.9 also send `[]` when Visas live behind UserInfo. When that fails (broker
+/// unreachable, 401 because nothing is stored for a user without Visas, bad JSON),
+/// the Passport carries no Visas: returns an empty list, cached for
+/// [`EMPTY_LIST_RETRY_SECS`] (bounded by `exp`). An expired token is still an error.
+pub async fn visas_for_empty_embedded_list(
+    configured_issuer: &str,
+    bearer_token: &str,
+    token_exp: i64,
+) -> Result<Vec<String>, jsonwebtoken::errors::Error> {
+    match visas_from_userinfo(configured_issuer, bearer_token, token_exp).await {
+        Ok(visas) => Ok(visas),
+        Err(err)
+            if matches!(
+                err.kind(),
+                jsonwebtoken::errors::ErrorKind::ExpiredSignature
+            ) =>
+        {
+            Err(err)
+        }
+        Err(err) => {
+            tracing::warn!(
+                error = %err,
+                "Passport has an empty ga4gh_passport_v1 and UserInfo gave no Visas; \
+                 continuing without Visas (identity only, ADR-036)"
+            );
+            let retry_at = (unix_now() + EMPTY_LIST_RETRY_SECS).min(token_exp);
+            cache_put(token_hash(bearer_token), Vec::new(), retry_at);
+            Ok(Vec::new())
+        }
+    }
+}
+
+/// True when the JWT payload has a `ga4gh_passport_v1` array (empty or not).
+///
+/// Call only after the signature was verified; this reads the payload without
+/// checking it.
+pub fn passport_claim_present(token: &str) -> bool {
+    use base64::Engine as _;
+    let Some(payload) = token.split('.').nth(1) else {
+        return false;
+    };
+    let Ok(bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload) else {
+        return false;
+    };
+    serde_json::from_slice::<serde_json::Value>(&bytes)
+        .ok()
+        .and_then(|v| v.get("ga4gh_passport_v1").map(serde_json::Value::is_array))
+        .unwrap_or(false)
 }
 
 /// Test helper: clear caches between cases.
@@ -292,6 +359,117 @@ mod tests {
             .await
             .expect("cache");
         assert_eq!(second, first);
+    }
+
+    async fn mount_discovery(server: &MockServer) -> String {
+        let issuer = server.uri();
+        Mock::given(method("GET"))
+            .and(path("/.well-known/openid-configuration"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "issuer": issuer,
+                "userinfo_endpoint": format!("{issuer}/userinfo"),
+                "jwks_uri": format!("{issuer}/jwks.json"),
+            })))
+            .mount(server)
+            .await;
+        issuer
+    }
+
+    #[tokio::test]
+    async fn empty_embedded_list_with_userinfo_401_is_identity_only_and_cached() {
+        clear_userinfo_caches_for_test();
+        let server = MockServer::start().await;
+        let issuer = mount_discovery(&server).await;
+        Mock::given(method("GET"))
+            .and(path("/userinfo"))
+            .respond_with(ResponseTemplate::new(401))
+            .expect(1) // the second call must hit the negative cache
+            .mount(&server)
+            .await;
+        let exp = unix_now() + 3600;
+        let first = visas_for_empty_embedded_list(&issuer, "tok-empty", exp)
+            .await
+            .expect("present empty list is not an error");
+        assert!(first.is_empty());
+        let second = visas_for_empty_embedded_list(&issuer, "tok-empty", exp)
+            .await
+            .expect("cached");
+        assert!(second.is_empty());
+        let cached_until = USERINFO_VISA_CACHE
+            .lock()
+            .expect("cache")
+            .get(&token_hash("tok-empty"))
+            .map(|e| e.exp_unix)
+            .expect("negative entry");
+        assert!(cached_until <= unix_now() + EMPTY_LIST_RETRY_SECS);
+    }
+
+    #[tokio::test]
+    async fn empty_embedded_list_still_uses_userinfo_visas_when_available() {
+        clear_userinfo_caches_for_test();
+        let server = MockServer::start().await;
+        let issuer = mount_discovery(&server).await;
+        Mock::given(method("GET"))
+            .and(path("/userinfo"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "sub": "alice",
+                "ga4gh_passport_v1": ["visa-from-userinfo"],
+            })))
+            .mount(&server)
+            .await;
+        let visas = visas_for_empty_embedded_list(&issuer, "tok-legacy", unix_now() + 3600)
+            .await
+            .expect("fetch");
+        assert_eq!(visas, vec!["visa-from-userinfo"]);
+    }
+
+    #[tokio::test]
+    async fn empty_embedded_list_with_unreachable_issuer_is_identity_only() {
+        clear_userinfo_caches_for_test();
+        // Nothing listens on port 9 (discard) on loopback in CI or locally.
+        let visas =
+            visas_for_empty_embedded_list("http://127.0.0.1:9", "tok-down", unix_now() + 3600)
+                .await
+                .expect("identity only");
+        assert!(visas.is_empty());
+    }
+
+    #[tokio::test]
+    async fn empty_embedded_list_does_not_accept_an_expired_token() {
+        clear_userinfo_caches_for_test();
+        let err = visas_for_empty_embedded_list("http://127.0.0.1:9", "tok-old", unix_now() - 1)
+            .await
+            .expect_err("expired");
+        assert!(matches!(
+            err.kind(),
+            jsonwebtoken::errors::ErrorKind::ExpiredSignature
+        ));
+    }
+
+    #[test]
+    fn passport_claim_present_tells_absent_from_empty() {
+        use base64::Engine as _;
+        let jwt = |payload: serde_json::Value| {
+            let enc = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+            format!(
+                "{}.{}.sig",
+                enc.encode(br#"{"alg":"RS256"}"#),
+                enc.encode(payload.to_string())
+            )
+        };
+        assert!(passport_claim_present(&jwt(
+            serde_json::json!({"sub": "a", "ga4gh_passport_v1": []})
+        )));
+        assert!(passport_claim_present(&jwt(
+            serde_json::json!({"sub": "a", "ga4gh_passport_v1": ["v"]})
+        )));
+        assert!(!passport_claim_present(&jwt(
+            serde_json::json!({"sub": "a"})
+        )));
+        assert!(!passport_claim_present(&jwt(
+            serde_json::json!({"sub": "a", "ga4gh_passport_v1": null})
+        )));
+        assert!(!passport_claim_present("not-a-jwt"));
     }
 
     #[tokio::test]
