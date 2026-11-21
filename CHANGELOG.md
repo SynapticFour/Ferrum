@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- **Demo images.** `demo/docker-compose.demo.yml` pins `ferrum:v0.3.12-full-infra` and `ferrum-ui:v0.3.12` by their multi-arch index digests (amd64 and arm64); the `platform: linux/amd64` lines are gone. Until now the demo pinned v0.3.10 images.
+
 ## [0.3.12] - 2026-11-20
 
 Tag `v0.3.12`. Fixes the arm64 gateway image build; the first tag with GHCR gateway images for linux/amd64 and linux/arm64. Code is otherwise the same as v0.3.11.

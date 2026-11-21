@@ -19,7 +19,7 @@ htsget is part of **edge** at compile time; Lab Kit `field-edge` still sets `FER
 
 ## Local / custom architecture
 
-GHCR images published after this change are multi-arch: **linux/amd64** and **linux/arm64**, musl/distroless. Tags published before it stay amd64-only; check with `docker buildx imagetools inspect ghcr.io/synapticfour/ferrum:<tag>`. For a local build, a custom feature set, or air-gap:
+GHCR gateway images are multi-arch from tag **v0.3.12**: **linux/amd64** and **linux/arm64**, musl/distroless. Tag v0.3.11 has no gateway images (its arm64 build failed); v0.3.10 and earlier are amd64-only; check with `docker buildx imagetools inspect ghcr.io/synapticfour/ferrum:<tag>`. For a local build, a custom feature set, or air-gap:
 
 ```bash
 ./scripts/build-variant-image.sh --variant edge --platform linux/arm64 --tag ferrum:edge-local
