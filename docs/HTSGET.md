@@ -71,6 +71,8 @@ Per spec, use `/reads/service-info` and `/variants/service-info` (not a single `
 
 `crates/ferrum-htsget/tests/regions.rs` stores BAM/BAI, VCF.gz/TBI, CRAM/CRAI and BCF/CSI files as DRS objects, requests tickets, fetches every URL through the DRS stream route and parses the result. Expected records come from the original file and its index (noodles), not from htsget-rs. The CRAM and BCF fixtures are written by htslib (`tests/data/make_fixtures.py`). The tests cover records that span BGZF blocks, multi-region POST, `class=header`, missing index, unknown reference, and Crypt4GH tickets that only the requester's key decrypts.
 
+Real data: [docs/evidence/2026-11-21-htsget-giab](evidence/2026-11-21-htsget-giab/README.md) records the v0.3.12 release binary on GIAB HG002 slices (Illumina BAM, ultralong ONT BAM, benchmark VCF.gz and BCF; 36 of 36 cases), with [`scripts/giab-htsget-check.sh`](../scripts/giab-htsget-check.sh) to repeat it.
+
 ## Swagger
 
 OpenAPI UI: `/ga4gh/htsget/v1/swagger-ui` (minimal schema).
