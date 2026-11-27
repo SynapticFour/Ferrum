@@ -51,3 +51,6 @@ build/
 target/
 .pytest_cache/
 .ruff_cache/
+
+# Federation walkthrough working folder
+demo/federation-edge/.work/
