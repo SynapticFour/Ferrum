@@ -93,8 +93,10 @@ impl FederationClient {
 
         let exists = match self.runtime.aggregate_strategy {
             AggregateStrategy::Union => {
-                let local = local_exists.unwrap_or(false);
-                let any_peer = peer_exists.iter().any(|&e| e);
+                // With requestedGranularity=count a node may report only a count.
+                // A positive count from any responder means the variant exists.
+                let local = local_exists.unwrap_or(false) || local_count.is_some_and(|c| c > 0);
+                let any_peer = peer_exists.iter().any(|&e| e) || peer_counts.iter().any(|&c| c > 0);
                 Some(local || any_peer)
             }
             AggregateStrategy::Intersection => {

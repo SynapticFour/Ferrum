@@ -265,7 +265,7 @@ async fn test_federation_peer_rate_limiting() {
     let calls = Arc::new(AtomicUsize::new(0));
     let calls_for_route = Arc::clone(&calls);
     let peer_app = Router::new().route(
-        "/ga4gh/beacon/g_variants/query",
+        "/ga4gh/beacon/v2/g_variants/query",
         post(move || {
             let calls = Arc::clone(&calls_for_route);
             async move {
@@ -330,7 +330,7 @@ async fn test_federated_beacon_intersection_e2e() {
         .unwrap();
     seed_variant(&peer_pool, "1", 1000, "A", "T").await;
     let peer_app = Router::new().route(
-        "/ga4gh/beacon/g_variants/query",
+        "/ga4gh/beacon/v2/g_variants/query",
         post(|| async { Json(serde_json::json!({"response": {"exists": true}})) }),
     );
     tokio::spawn(async move {
@@ -387,4 +387,108 @@ async fn test_federated_beacon_intersection_e2e() {
     )
     .unwrap();
     assert_eq!(v["response"]["exists"], false);
+}
+
+/// Peer mounted under its real public path, endpoint written as in docs/FEDERATION.md
+/// (no trailing slash), variant present only on the peer.
+async fn spawn_nested_peer_with_variant() -> String {
+    let peer_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let peer_addr = peer_listener.local_addr().unwrap();
+    let peer_pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    sqlx::migrate!("../ferrum-embed/migrations")
+        .run(&peer_pool)
+        .await
+        .unwrap();
+    seed_variant(&peer_pool, "11", 5227002, "T", "A").await;
+    let peer_app = Router::new().nest(
+        "/ga4gh/beacon/v2",
+        router_with_services(FerrumPool::Sqlite(peer_pool), None, None, None, None),
+    );
+    tokio::spawn(async move {
+        axum::serve(peer_listener, peer_app).await.unwrap();
+    });
+    format!("http://{}/ga4gh/beacon/v2", peer_addr)
+}
+
+async fn local_app_with_peer(peer_url: String) -> Router {
+    let local_pool = sqlx::sqlite::SqlitePoolOptions::new()
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
+    sqlx::migrate!("../ferrum-embed/migrations")
+        .run(&local_pool)
+        .await
+        .unwrap();
+    let federation = FederationClient::new(
+        FederationRuntime::from_config(&FederationConfig {
+            enabled: true,
+            peers: vec![FerrumPeerConfig {
+                name: "remote".into(),
+                beacon_endpoint: peer_url,
+                public_key: None,
+                timeout_ms: 3000,
+                service_token: None,
+            }],
+            fan_out_parallel: true,
+            aggregate_strategy: AggregateStrategy::Union,
+            peer_requests_per_minute: 100,
+        })
+        .unwrap(),
+    );
+    router_with_services(
+        FerrumPool::Sqlite(local_pool),
+        None,
+        Some(Arc::new(federation)),
+        None,
+        None,
+    )
+}
+
+async fn get_json(app: Router, uri: &str) -> serde_json::Value {
+    let req = Request::builder()
+        .method(Method::GET)
+        .uri(uri)
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let resp = app.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    serde_json::from_slice(
+        &axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap()
+}
+
+#[tokio::test]
+async fn test_peer_only_variant_found_with_documented_endpoint() {
+    let peer_url = spawn_nested_peer_with_variant().await;
+    let app = local_app_with_peer(peer_url).await;
+    let v = get_json(
+        app,
+        "/g_variants?federate=true&referenceName=11&start=5227002&referenceBases=T&alternateBases=A",
+    )
+    .await;
+    assert!(
+        v["meta"]["warnings"].is_null(),
+        "peer must answer, got warnings {:?}",
+        v["meta"]["warnings"]
+    );
+    assert_eq!(v["response"]["exists"], true);
+}
+
+#[tokio::test]
+async fn test_union_count_granularity_sets_exists() {
+    let peer_url = spawn_nested_peer_with_variant().await;
+    let app = local_app_with_peer(peer_url).await;
+    let v = get_json(
+        app,
+        "/g_variants?federate=true&requestedGranularity=count&referenceName=11&start=5227002&referenceBases=T&alternateBases=A",
+    )
+    .await;
+    assert_eq!(v["response"]["count"], 1);
+    assert_eq!(v["response"]["exists"], true);
 }

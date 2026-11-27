@@ -25,6 +25,12 @@ beacon_endpoint = "https://ferrum.iressef.org/ga4gh/beacon/v2"
 timeout_ms = 8000
 ```
 
+`beacon_endpoint` is the peer's Beacon base path. A trailing slash is optional; Ferrum adds it when it reads the config.
+
+## Try it on one computer
+
+[demo/federation-edge](../demo/federation-edge/README.md) starts two Edge nodes that federate with each other, loads synthetic data, and checks the answer and both audit logs. No Docker.
+
 ## Query API
 
 Local-only (default — unchanged HelixTest behaviour):
