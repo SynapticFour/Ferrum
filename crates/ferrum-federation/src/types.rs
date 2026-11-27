@@ -18,11 +18,53 @@ impl FerrumPeer {
     pub fn from_config(cfg: &FerrumPeerConfig) -> Result<Self, url::ParseError> {
         Ok(Self {
             name: cfg.name.clone(),
-            beacon_endpoint: Url::parse(&cfg.beacon_endpoint)?,
+            beacon_endpoint: parse_beacon_endpoint(&cfg.beacon_endpoint)?,
             public_key: cfg.public_key.clone(),
             timeout_ms: cfg.timeout_ms,
             service_token: cfg.service_token.clone(),
         })
+    }
+}
+
+/// Parses a peer Beacon base URL and makes sure its path ends with `/`.
+///
+/// `Url::join` replaces the last path segment when the base has no trailing
+/// slash. Without this, `https://peer/ga4gh/beacon/v2` joined with
+/// `g_variants/query` became `https://peer/ga4gh/beacon/g_variants/query`, and
+/// the peer answered 404. docs/FEDERATION.md writes the endpoint without the slash.
+pub fn parse_beacon_endpoint(raw: &str) -> Result<Url, url::ParseError> {
+    let mut url = Url::parse(raw)?;
+    if !url.path().ends_with('/') {
+        let path = format!("{}/", url.path());
+        url.set_path(&path);
+    }
+    Ok(url)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_beacon_endpoint;
+
+    #[test]
+    fn endpoint_without_trailing_slash_keeps_v2_segment() {
+        let base = parse_beacon_endpoint("https://peer.example/ga4gh/beacon/v2").unwrap();
+        assert_eq!(
+            base.join("g_variants/query").unwrap().as_str(),
+            "https://peer.example/ga4gh/beacon/v2/g_variants/query"
+        );
+    }
+
+    #[test]
+    fn endpoint_with_trailing_slash_is_unchanged() {
+        let base = parse_beacon_endpoint("https://peer.example/ga4gh/beacon/v2/").unwrap();
+        assert_eq!(base.as_str(), "https://peer.example/ga4gh/beacon/v2/");
+    }
+
+    #[test]
+    fn endpoint_query_string_is_kept() {
+        let base = parse_beacon_endpoint("https://peer.example/beacon?x=1").unwrap();
+        assert_eq!(base.path(), "/beacon/");
+        assert_eq!(base.query(), Some("x=1"));
     }
 }
 

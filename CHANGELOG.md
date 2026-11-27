@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- **Federated Beacon: peer URL.** A peer `beacon_endpoint` written without a trailing slash, as in `docs/FEDERATION.md` (`…/ga4gh/beacon/v2`), lost its last segment when the query path was joined. The request went to `…/ga4gh/beacon/g_variants/query`, a Ferrum peer answered 404, and only the local result came back with a warning. The endpoint now gets a trailing slash when the config is read. The rate-limit test had the wrong path built in; it now uses `/ga4gh/beacon/v2/g_variants/query`. A new test puts the variant only on a peer mounted under `/ga4gh/beacon/v2`.
+- **Federated Beacon: count with union.** With `requestedGranularity=count` and `aggregate_strategy = "union"`, a positive peer count came back with `exists: false`. A positive count from the local node or any peer now sets `exists: true`.
 - **Demo images.** `demo/docker-compose.demo.yml` pins `ferrum:v0.3.13-full-infra` and `ferrum-ui:v0.3.13` by their multi-arch index digests (amd64 and arm64); it pinned v0.3.12 until now.
 
 ## [0.3.13] - 2026-11-21
