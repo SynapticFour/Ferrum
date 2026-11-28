@@ -34,6 +34,7 @@ The records are in [DECISIONS.md](../DECISIONS.md). [AFRICA-DEPLOYMENT.md](AFRIC
 | [ADR-035](../DECISIONS.md#2026-10-12---adr-035-reference-s3-backend-is-seaweedfs-minio-out-of-compose) | Reference S3 backend is SeaweedFS (MinIO out of Compose) |
 | [ADR-036](../DECISIONS.md#2026-11-21---adr-036-an-embedded-empty-visa-list-grants-identity-only-access) | An embedded empty Visa list grants identity-only access (amends ADR-034) |
 | [ADR-037](../DECISIONS.md#2026-11-28---adr-037-userinfo-401-or-403-rejects-a-passport-with-an-empty-visa-list) | UserInfo 401 or 403 rejects a Passport with an empty Visa list (amends ADR-036) |
+| [ADR-038](../DECISIONS.md#2026-11-28---adr-038-userinfo-visas-are-reused-for-at-most-60-seconds) | UserInfo Visas are reused for at most 60 seconds (amends ADR-034) |
 
 ADR-001 through ADR-011 are not headings in `DECISIONS.md`.
 

@@ -3,8 +3,10 @@
 //! carries no Visas (ga4gh-infra ADR-005 / Ferrum ADR-034, ADR-036).
 //!
 //! Endpoint comes only from OIDC discovery of the **configured** issuer.
-//! Bearer is forwarded. Cache is keyed by SHA-256 of the raw token; TTL is
-//! bounded by token `exp`. No URL is taken from token claims (SSRF).
+//! Bearer is forwarded. Cache is keyed by SHA-256 of the raw token; an entry
+//! lives 60 s by default (`FERRUM_AUTH__USERINFO_CACHE_SECS`, ADR-038) and never
+//! past token `exp`, so a revoked Visa stops working within that time. No URL is
+//! taken from token claims (SSRF).
 //!
 //! - `ga4gh_passport_v1` **absent**: Visas are not embedded. [`visas_from_userinfo`]
 //!   fails closed on any error (ADR-034).
@@ -27,7 +29,8 @@ const USERINFO_HTTP_TIMEOUT: Duration = Duration::from_secs(10);
 
 struct CachedVisas {
     visas: Vec<String>,
-    /// Absolute unix expiry (token `exp`); entry is dropped when `now >= exp`.
+    /// Absolute unix expiry: `now + cache TTL`, never past token `exp` (ADR-038).
+    /// The entry is dropped when `now >= exp_unix`.
     exp_unix: i64,
     inserted_at: Instant,
 }
@@ -39,6 +42,43 @@ static DISCOVERY_USERINFO_CACHE: LazyLock<Mutex<HashMap<String, (Instant, String
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 const DISCOVERY_CACHE_TTL: Duration = Duration::from_secs(3600);
+
+/// ADR-038: default time a UserInfo Visa bundle is reused before UserInfo is
+/// asked again. A Visa revoked at the broker or visa-registry stops working in
+/// Ferrum within this time (and never later than token `exp`).
+pub const USERINFO_VISA_CACHE_SECS_DEFAULT: i64 = 60;
+
+/// Env override for [`USERINFO_VISA_CACHE_SECS_DEFAULT`]. `0` turns the cache off.
+pub const USERINFO_VISA_CACHE_SECS_ENV: &str = "FERRUM_AUTH__USERINFO_CACHE_SECS";
+
+/// Upper bound for the env override (one hour).
+const USERINFO_VISA_CACHE_SECS_MAX: i64 = 3600;
+
+static USERINFO_VISA_CACHE_SECS: LazyLock<i64> = LazyLock::new(|| {
+    userinfo_cache_secs_from(std::env::var(USERINFO_VISA_CACHE_SECS_ENV).ok().as_deref())
+});
+
+fn userinfo_cache_secs_from(raw: Option<&str>) -> i64 {
+    match raw.map(str::trim) {
+        None | Some("") => USERINFO_VISA_CACHE_SECS_DEFAULT,
+        Some(v) => match v.parse::<i64>() {
+            Ok(secs) if (0..=USERINFO_VISA_CACHE_SECS_MAX).contains(&secs) => secs,
+            _ => {
+                tracing::warn!(
+                    value = v,
+                    "{USERINFO_VISA_CACHE_SECS_ENV} must be 0..=3600 seconds; using the default"
+                );
+                USERINFO_VISA_CACHE_SECS_DEFAULT
+            }
+        },
+    }
+}
+
+/// Until when a fetched Visa bundle may be reused: `now + ttl`, never past `exp`.
+/// `None` when caching is off.
+fn visa_cache_until(now: i64, ttl_secs: i64, token_exp: i64) -> Option<i64> {
+    (ttl_secs > 0).then(|| (now + ttl_secs).min(token_exp))
+}
 
 /// ADR-036: after a failed UserInfo fetch for a present-but-empty Visa list, the
 /// empty result is cached this long (and never past token `exp`) before retrying.
@@ -234,7 +274,9 @@ async fn fetch_userinfo_visas(
         })
         .unwrap_or_default();
 
-    cache_put(key, visas.clone(), token_exp);
+    if let Some(until) = visa_cache_until(unix_now(), *USERINFO_VISA_CACHE_SECS, token_exp) {
+        cache_put(key, visas.clone(), until);
+    }
     Ok(visas)
 }
 
@@ -557,6 +599,65 @@ mod tests {
             err.kind(),
             jsonwebtoken::errors::ErrorKind::InvalidToken
         ));
+    }
+
+    #[test]
+    fn cache_ttl_env_parsing() {
+        assert_eq!(
+            userinfo_cache_secs_from(None),
+            USERINFO_VISA_CACHE_SECS_DEFAULT
+        );
+        assert_eq!(
+            userinfo_cache_secs_from(Some("")),
+            USERINFO_VISA_CACHE_SECS_DEFAULT
+        );
+        assert_eq!(userinfo_cache_secs_from(Some("0")), 0);
+        assert_eq!(userinfo_cache_secs_from(Some(" 15 ")), 15);
+        assert_eq!(userinfo_cache_secs_from(Some("3600")), 3600);
+        assert_eq!(
+            userinfo_cache_secs_from(Some("3601")),
+            USERINFO_VISA_CACHE_SECS_DEFAULT
+        );
+        assert_eq!(
+            userinfo_cache_secs_from(Some("-1")),
+            USERINFO_VISA_CACHE_SECS_DEFAULT
+        );
+        assert_eq!(
+            userinfo_cache_secs_from(Some("soon")),
+            USERINFO_VISA_CACHE_SECS_DEFAULT
+        );
+    }
+
+    #[test]
+    fn cache_until_is_bounded_by_ttl_and_exp() {
+        assert_eq!(visa_cache_until(1_000, 60, 10_000), Some(1_060));
+        assert_eq!(visa_cache_until(1_000, 60, 1_030), Some(1_030));
+        assert_eq!(visa_cache_until(1_000, 0, 10_000), None);
+    }
+
+    #[tokio::test]
+    async fn fetched_visas_are_not_cached_past_the_ttl() {
+        clear_userinfo_caches_for_test();
+        let server = MockServer::start().await;
+        let issuer = mount_discovery(&server).await;
+        Mock::given(method("GET"))
+            .and(path("/userinfo"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"ga4gh_passport_v1": ["v.jwt"]})),
+            )
+            .mount(&server)
+            .await;
+        let exp = unix_now() + 3600;
+        visas_from_userinfo(&issuer, "tok-ttl", exp).await.unwrap();
+        let cached_until = USERINFO_VISA_CACHE
+            .lock()
+            .unwrap()
+            .get(&token_hash("tok-ttl"))
+            .map(|c| c.exp_unix)
+            .expect("cached");
+        assert!(cached_until <= unix_now() + *USERINFO_VISA_CACHE_SECS);
+        assert!(cached_until < exp);
     }
 
     #[tokio::test]
