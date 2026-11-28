@@ -266,7 +266,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install Helm
         uses: azure/setup-helm@v5
-      - name: Lint and template the v0.3.14 chart
+      - name: Lint and template the v0.3.15 chart
         run: |
           set -euo pipefail
           helm lint deploy/helm
@@ -274,9 +274,9 @@ jobs:
           helm template ferrum deploy/helm --values deploy/helm/values-local.yaml >/dev/null
           helm template ferrum deploy/helm --values deploy/helm/values-production.yaml >/dev/null
           helm template ferrum deploy/helm --values deploy/helm/values-selfhosted.yaml >/dev/null
-          grep -q 'appVersion: "0.3.14"' deploy/helm/Chart.yaml
-          grep -q 'tag: "v0.3.14-full-infra"' deploy/helm/values.yaml
-          grep -q 'FERRUM_VERSION=v0.3.14' deploy/.env.example
+          grep -q 'appVersion: "0.3.15"' deploy/helm/Chart.yaml
+          grep -q 'tag: "v0.3.15-full-infra"' deploy/helm/values.yaml
+          grep -q 'FERRUM_VERSION=v0.3.15' deploy/.env.example
           # Demo images are pinned by digest; the digests of a tag exist only after it is
           # published, so the demo moves to a new tag in a follow-up commit.
           grep -Eq 'ghcr.io/synapticfour/ferrum:v0\.3\.[0-9]+-full-infra@sha256:' demo/docker-compose.demo.yml
