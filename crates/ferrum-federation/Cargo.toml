@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-federation"
-version = "0.3.14"
+version = "0.3.15"
 edition = "2021"
 rust-version = "1.100"
 description = "P2P federated Beacon queries for Ferrum"

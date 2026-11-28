@@ -14,18 +14,18 @@
 #   - deploy/scripts/run-helixtest-local.sh
 
 # Ferrum release tag (customer bundles, hosted-pilot FERRUM_REF)
-FERRUM_VERSION=v0.3.14
+FERRUM_VERSION=v0.3.15
 
 # ga4gh-infra — separate download (decision: Option B). Git ref for clone/build.
-# On origin: ga4gh-infra-v0.2.9 → daafd8199a006405c4d9bcfff4a8a48e6b849305
-# (Docker Release / Compose image tags :0.2.9). Do not install ga4gh-infra-v0.1.0.
+# On origin: ga4gh-infra-v0.2.11 → f23bbc7efb417bd9e277754845ddb35f8c29f515
+# (Docker Release / Compose image tags :0.2.11). Do not install ga4gh-infra-v0.1.0.
 # Crate Cargo.toml may stay 0.1.0.
-GA4GH_INFRA_REF=ga4gh-infra-v0.2.9
-GA4GH_INFRA_TAG=ga4gh-infra-v0.2.9
-GA4GH_INFRA_SHA=daafd8199a006405c4d9bcfff4a8a48e6b849305
+GA4GH_INFRA_REF=ga4gh-infra-v0.2.11
+GA4GH_INFRA_TAG=ga4gh-infra-v0.2.11
+GA4GH_INFRA_SHA=f23bbc7efb417bd9e277754845ddb35f8c29f515
 
 # Docker image pins for ga4gh-infra compose (see ga4gh-infra/docker/.env.example)
-GA4GH_INFRA_IMAGE_VERSION=0.2.9
+GA4GH_INFRA_IMAGE_VERSION=0.2.11
 
 # HelixTest — optional customer verification (decision: Option B, not in Ferrum bundle)
 # Tag v0.1.4 expects htsget region and class=header tickets in Ferrum modes (v0.1.3

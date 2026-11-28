@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-workspaces"
-version = "0.3.14"
+version = "0.3.15"
 edition = "2021"
 rust-version = "1.100"
 description = "Workspace and collaboration: named project containers with shared access control"
