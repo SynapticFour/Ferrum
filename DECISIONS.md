@@ -59,6 +59,16 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-11-28 - ADR-037: UserInfo 401 or 403 rejects a Passport with an empty Visa list
+
+- **Status:** Accepted. Amends ADR-036.
+- **Context:** ADR-036 treats every UserInfo failure for a present-but-empty `ga4gh_passport_v1` as "no Visas" and keeps identity-only access, because ga4gh-infra up to v0.2.10 answered 401 for a researcher without Visas in `embed_visas = true` mode. The same 401 is what the broker answers for a token it no longer knows (`embed_visas = false` after a restart, eviction or revoke). So after a broker restart Ferrum kept serving data that the identity alone allows, and the showcase check "broker restart Ferrum fail closed" returned 206. ga4gh-infra ADR-007 (v0.2.11) makes 401 mean "token not known" in both modes and answers 200 with an empty list for a user without Visas. OIDC Core also reads a UserInfo 401 as an invalid token.
+- **Decision:** For a present-but-empty list, a UserInfo **401 or 403** rejects the token (invalid token, not cached, asked again on the next request). Every other failure (issuer unreachable, timeout, other status, bad JSON) keeps ADR-036: identity only, cached for 300 seconds. An absent claim keeps ADR-034 (fail closed on any error).
+- **Consequences:** A broker restart, eviction or revoke now denies until the user signs in again. With ga4gh-infra up to v0.2.10 in `embed_visas = true` mode, a researcher without Visas is refused again whenever the issuer is reachable; pin ga4gh-infra v0.2.11 or later. The co-deploy case where the issuer is unreachable from the gateway stays identity-only. Visas already cached for a token are still used until its `exp` (tracked separately).
+- **Alternatives considered:** A config flag for brokers that answer 401 for users without Visas (rejected: non-standard behaviour, and our broker no longer does it); reject on every UserInfo failure (rejected: the unreachable-issuer co-deploy case of ADR-036 would break again).
+
+---
+
 ### 2026-11-21 - ADR-036: An embedded empty Visa list grants identity-only access
 
 - **Status:** Accepted. Amends ADR-034 for one case.

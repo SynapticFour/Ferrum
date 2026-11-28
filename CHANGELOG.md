@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+- **External auth: UserInfo 401/403 rejects the token (ADR-037).** For a Passport with an empty `ga4gh_passport_v1`, a 401 or 403 from the issuer's UserInfo used to fall back to identity-only access (ADR-036). After a broker restart that kept serving data the identity alone allows. Now 401 and 403 reject the token; an unreachable issuer, a timeout or another status still gives identity-only access. Needs ga4gh-infra v0.2.11 or later when the broker runs with `embed_visas = true` (older brokers answer 401 for users without Visas).
+
 ## [0.3.14] - 2026-11-27
 
 Tag `v0.3.14`. Federated Beacon reaches peers configured as in docs/FEDERATION.md; a two-node Edge walkthrough without Docker. Images for linux/amd64 and linux/arm64 as in v0.3.13.

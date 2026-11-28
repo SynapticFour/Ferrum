@@ -10,8 +10,9 @@
 //!   fails closed on any error (ADR-034).
 //! - `ga4gh_passport_v1` **present and empty**: [`visas_for_empty_embedded_list`]
 //!   asks UserInfo too (brokers up to ga4gh-infra v0.2.9 send `[]` in both modes).
-//!   If that fails, the Passport carries no Visas: the caller gets an empty list
-//!   and identity-only access (ADR-036). Empty Visas cannot grant anything.
+//!   A 401 or 403 there rejects the token (ADR-037). If UserInfo cannot be used
+//!   at all, the Passport carries no Visas: the caller gets an empty list and
+//!   identity-only access (ADR-036). Empty Visas cannot grant anything.
 
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -148,9 +149,43 @@ pub async fn visas_from_userinfo(
     bearer_token: &str,
     token_exp: i64,
 ) -> Result<Vec<String>, jsonwebtoken::errors::Error> {
+    fetch_userinfo_visas(configured_issuer, bearer_token, token_exp)
+        .await
+        .map_err(UserInfoFailure::into_jwt_error)
+}
+
+/// Why a UserInfo fetch gave no Visas.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UserInfoFailure {
+    /// The token's own `exp` has passed.
+    Expired,
+    /// The issuer answered 401 or 403: it does not accept this token (revoked,
+    /// unknown after a broker restart, or invalid).
+    Rejected,
+    /// Discovery or UserInfo could not be used: network error, timeout, other
+    /// status, or a body that is not JSON.
+    Unavailable,
+}
+
+impl UserInfoFailure {
+    fn into_jwt_error(self) -> jsonwebtoken::errors::Error {
+        match self {
+            Self::Expired => jsonwebtoken::errors::ErrorKind::ExpiredSignature.into(),
+            Self::Rejected | Self::Unavailable => {
+                jsonwebtoken::errors::ErrorKind::InvalidToken.into()
+            }
+        }
+    }
+}
+
+async fn fetch_userinfo_visas(
+    configured_issuer: &str,
+    bearer_token: &str,
+    token_exp: i64,
+) -> Result<Vec<String>, UserInfoFailure> {
     let now = unix_now();
     if token_exp <= now {
-        return Err(jsonwebtoken::errors::ErrorKind::ExpiredSignature.into());
+        return Err(UserInfoFailure::Expired);
     }
 
     let key = token_hash(bearer_token);
@@ -161,7 +196,9 @@ pub async fn visas_from_userinfo(
         }
     }
 
-    let endpoint = discover_userinfo_endpoint(configured_issuer).await?;
+    let endpoint = discover_userinfo_endpoint(configured_issuer)
+        .await
+        .map_err(|_| UserInfoFailure::Unavailable)?;
     let client = reqwest::Client::new();
     let response = client
         .get(&endpoint)
@@ -171,19 +208,21 @@ pub async fn visas_from_userinfo(
         .await
         .map_err(|err| {
             tracing::warn!(error = %err, "UserInfo fetch failed");
-            jsonwebtoken::errors::ErrorKind::InvalidToken
+            UserInfoFailure::Unavailable
         })?;
-    if !response.status().is_success() {
-        // Broker restart / revoked document → typically 401. Fail closed.
-        tracing::warn!(
-            status = %response.status(),
-            "UserInfo returned non-success; denying (fail closed)"
-        );
-        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
+    let status = response.status();
+    if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
+        // The issuer does not accept this token: broker restart, revoked or unknown.
+        tracing::warn!(%status, "UserInfo rejected the token; denying (fail closed)");
+        return Err(UserInfoFailure::Rejected);
+    }
+    if !status.is_success() {
+        tracing::warn!(%status, "UserInfo returned non-success; denying (fail closed)");
+        return Err(UserInfoFailure::Unavailable);
     }
     let body: serde_json::Value = response.json().await.map_err(|err| {
         tracing::warn!(error = %err, "UserInfo body was not JSON");
-        jsonwebtoken::errors::ErrorKind::InvalidToken
+        UserInfoFailure::Unavailable
     })?;
     let visas = body
         .get("ga4gh_passport_v1")
@@ -228,30 +267,30 @@ fn cache_put(key: [u8; 32], visas: Vec<String>, exp_unix: i64) {
 
 /// ADR-036: Visas for a validated token whose `ga4gh_passport_v1` is **present and empty**.
 ///
-/// Asks UserInfo like [`visas_from_userinfo`], because brokers up to ga4gh-infra
-/// v0.2.9 also send `[]` when Visas live behind UserInfo. When that fails (broker
-/// unreachable, 401 because nothing is stored for a user without Visas, bad JSON),
-/// the Passport carries no Visas: returns an empty list, cached for
-/// [`EMPTY_LIST_RETRY_SECS`] (bounded by `exp`). An expired token is still an error.
+/// Asks UserInfo like [`visas_from_userinfo`], because ga4gh-infra brokers also
+/// send `[]` when Visas live behind UserInfo.
+///
+/// - 401 or 403: the issuer does not accept the token (broker restart, revoked,
+///   unknown). Error, fail closed (ADR-037). ga4gh-infra from v0.2.11 answers
+///   200 with an empty list for a user without Visas (its ADR-007).
+/// - Issuer unreachable, timeout, other status, bad JSON: the Passport carries no
+///   Visas. Returns an empty list (identity only, ADR-036), cached for
+///   [`EMPTY_LIST_RETRY_SECS`] (bounded by `exp`).
+/// - An expired token is an error.
 pub async fn visas_for_empty_embedded_list(
     configured_issuer: &str,
     bearer_token: &str,
     token_exp: i64,
 ) -> Result<Vec<String>, jsonwebtoken::errors::Error> {
-    match visas_from_userinfo(configured_issuer, bearer_token, token_exp).await {
+    match fetch_userinfo_visas(configured_issuer, bearer_token, token_exp).await {
         Ok(visas) => Ok(visas),
-        Err(err)
-            if matches!(
-                err.kind(),
-                jsonwebtoken::errors::ErrorKind::ExpiredSignature
-            ) =>
-        {
-            Err(err)
+        // ADR-037: 401/403 from UserInfo means the issuer does not accept the token.
+        Err(failure @ (UserInfoFailure::Expired | UserInfoFailure::Rejected)) => {
+            Err(failure.into_jwt_error())
         }
-        Err(err) => {
+        Err(UserInfoFailure::Unavailable) => {
             tracing::warn!(
-                error = %err,
-                "Passport has an empty ga4gh_passport_v1 and UserInfo gave no Visas; \
+                "Passport has an empty ga4gh_passport_v1 and UserInfo could not be used; \
                  continuing without Visas (identity only, ADR-036)"
             );
             let retry_at = (unix_now() + EMPTY_LIST_RETRY_SECS).min(token_exp);
@@ -376,13 +415,38 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn empty_embedded_list_with_userinfo_401_is_identity_only_and_cached() {
+    async fn empty_embedded_list_with_userinfo_401_or_403_rejects() {
+        for status in [401_u16, 403] {
+            clear_userinfo_caches_for_test();
+            let server = MockServer::start().await;
+            let issuer = mount_discovery(&server).await;
+            Mock::given(method("GET"))
+                .and(path("/userinfo"))
+                .respond_with(ResponseTemplate::new(status))
+                .expect(2) // a rejection is not cached
+                .mount(&server)
+                .await;
+            let exp = unix_now() + 3600;
+            for _ in 0..2 {
+                let err = visas_for_empty_embedded_list(&issuer, "tok-gone", exp)
+                    .await
+                    .expect_err("issuer rejected the token");
+                assert!(matches!(
+                    err.kind(),
+                    jsonwebtoken::errors::ErrorKind::InvalidToken
+                ));
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn empty_embedded_list_with_userinfo_5xx_is_identity_only_and_cached() {
         clear_userinfo_caches_for_test();
         let server = MockServer::start().await;
         let issuer = mount_discovery(&server).await;
         Mock::given(method("GET"))
             .and(path("/userinfo"))
-            .respond_with(ResponseTemplate::new(401))
+            .respond_with(ResponseTemplate::new(503))
             .expect(1) // the second call must hit the negative cache
             .mount(&server)
             .await;
