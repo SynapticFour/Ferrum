@@ -59,6 +59,16 @@ Track important architectural and operational decisions here.
 
 ---
 
+### 2026-11-28 - ADR-038: UserInfo Visas are reused for at most 60 seconds
+
+- **Status:** Accepted. Amends ADR-034 (cache TTL).
+- **Context:** ADR-034 caches the Visas from UserInfo per token until the token's `exp`. A Visa revoked at the visa-registry (ga4gh-infra 0.2.10 removes it when a DAC revokes the grant) or a Passport revoked at the broker kept working in Ferrum for the rest of the token's lifetime, often an hour or more.
+- **Decision:** A fetched Visa bundle is reused for at most `FERRUM_AUTH__USERINFO_CACHE_SECS` seconds (default **60**, `0` turns the cache off, values above 3600 or invalid values fall back to the default with a warning), and never past `exp`. After that, the next request asks UserInfo again; a 401/403 then rejects the token (ADR-037) and a removed Visa is gone. The ADR-036 identity-only result stays cached 300 s, because empty Visas grant nothing.
+- **Consequences:** Revocation reaches Ferrum within a minute. UserInfo gets at most one request per active token per minute per gateway process, cheap against the broker's in-memory store. Operators who need instant revocation set `0` and pay one UserInfo call per request.
+- **Alternatives considered:** Read the visa-registry `/revoked-jtis` list (rejected for now: needs a second trusted endpoint and its own cache, and does not cover Passport revocation at the broker); keep caching until `exp` (rejected: revocation could take hours).
+
+---
+
 ### 2026-11-28 - ADR-037: UserInfo 401 or 403 rejects a Passport with an empty Visa list
 
 - **Status:** Accepted. Amends ADR-036.

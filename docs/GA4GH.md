@@ -49,6 +49,8 @@ When `FERRUM_AUTH__REQUIRE_AUTH=true` (or config `require_auth`, which defaults 
 
 Set `auth.require_passport_for_bytes = true` (env `FERRUM_AUTH__REQUIRE_PASSPORT_FOR_BYTES`, which wins over config; default **false**) to return **401** on those two byte paths when no valid bearer is sent. Catalog and metadata `GET`s (`/objects`, `/objects/{id}`) stay anonymous for unbound objects. Controlled objects keep their dataset/workspace rules either way. This is a Ferrum policy knob, not a GA4GH requirement.
 
+With external auth, Visas that Ferrum fetches from the issuer's UserInfo endpoint (Passports without embedded Visas, ADR-034) are reused for at most `FERRUM_AUTH__USERINFO_CACHE_SECS` seconds (default **60**, `0` turns the cache off, max 3600), and never past the token's `exp`. A Visa revoked at the broker or visa-registry stops working within that time (ADR-038).
+
 `POST /ga4gh/drs/v1/objects` does not accept a caller-supplied `access_url`. `create_object_with_id` writes `access_url` as `https://{FERRUM_DRS_HOSTNAME}/ga4gh/drs/v1/objects/{id}/access/{access_id}`. `FERRUM_PUBLIC_BASE_URL` is a separate public prefix (htsget tickets and other links). It does not replace that hostname. To publish a GIAB file, register a catalog object whose bytes contain the NCBI URL (`storage_backend=local`), or `POST /api/v1/ingest/register` with `kind: "url"` so the external URL is the storage key. The DRS access method URL is still the Ferrum access URL, not the GIAB URL.
 
 ### Versioned ingest API (Lab Kit / automation)
