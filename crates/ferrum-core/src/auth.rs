@@ -654,7 +654,8 @@ async fn decode_jwt_or_passport(
         let claim_present = claims.ga4gh_passport_v1.is_some();
         let mut visa_jwts = claims.ga4gh_passport_v1.clone().unwrap_or_default();
         // ADR-034: Visas not embedded → UserInfo from configured issuer only, fail closed.
-        // ADR-036: an embedded empty list → UserInfo if it has Visas, else identity only.
+        // ADR-036/037: an embedded empty list → UserInfo. 401/403 rejects the token;
+        // UserInfo unreachable → identity only.
         if visa_jwts.is_empty() && cfg.external_mode {
             let issuer = cfg
                 .issuer
@@ -1111,7 +1112,8 @@ async fn decode_passport_via_clearinghouse(
             jsonwebtoken::errors::ErrorKind::InvalidToken
         })?;
     // ADR-034: Visas not embedded → UserInfo from configured issuer discovery only, fail
-    // closed. ADR-036: an embedded empty list → UserInfo if it has Visas, else identity only.
+    // closed. ADR-036/037: an embedded empty list → UserInfo; 401/403 rejects the token,
+    // UserInfo unreachable → identity only.
     // The signature was verified above, so reading the payload for the claim is safe.
     if passport.visa_jwts.is_empty() && cfg.external_mode {
         let issuer = cfg
