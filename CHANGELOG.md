@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [0.3.16] - 2026-11-28
+
+Tag `v0.3.16`. Revoked Visas stop working within 60 s. Same ga4gh-infra pin as v0.3.15 (`ga4gh-infra-v0.2.11`). Images for linux/amd64 and linux/arm64.
+
 - **External auth: revoked Visas stop working within 60 s (ADR-038).** Visas fetched from UserInfo used to be cached until the token's `exp`, so a Visa revoked at the visa-registry or a Passport revoked at the broker kept working for the rest of the token's lifetime. They are now reused for at most `FERRUM_AUTH__USERINFO_CACHE_SECS` seconds (default 60, `0` = no cache, max 3600), never past `exp`.
 
 ## [0.3.15] - 2026-11-28
