@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-beacon"
-version = "0.3.15"
+version = "0.3.16"
 edition = "2021"
 rust-version = "1.100"
 description = "GA4GH Beacon v2 API"
